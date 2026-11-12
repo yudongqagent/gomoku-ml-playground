@@ -1,0 +1,58 @@
+# Node / build
+node_modules/
+dist/
+dist-ssr/
+*.local
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ML artifacts (large; keep checkpoints out of git by default)
+ml/runs/
+ml/checkpoints/*.pt
+ml/checkpoints/*.onnx
+ml/checkpoints/*.mlpackage
+ml/data/
+*.onnx
+!public/models/*.onnx
+!public/models/README.md
+
+# OS
+Thumbs.db
+
+# Training server (Gomoku ML Playground)
+server/data/
+server/config.yaml
