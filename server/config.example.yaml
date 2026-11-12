@@ -1,0 +1,25 @@
+# Gomoku ML Playground — training server config.
+# Copy to server/config.yaml and fill in values (config.yaml is
+# gitignored). Environment variables override these values:
+#   GOMOKU_DATA_DIR, GOMOKU_MODEL_REPO, GOMOKU_HOST, GOMOKU_PORT.
+
+# GitHub repo that receives model releases, as owner/repo.
+# Default (no need to set this unless you want a different repo):
+#   yudongqagent/gomoku-ml-playground
+# NOTE: that repo does NOT exist yet — Yudong creates the empty public
+# repo himself. Until it exists, dry-runs work but a real release
+# upload will fail. The dry-run warns about the missing repo.
+# model_repo: "yudongqagent/gomoku-ml-playground"
+
+# Where jobs and models are stored (relative paths resolve under server/).
+# data_dir: data
+
+# host: "127.0.0.1"
+# port: 8000
+
+# v1 runs one job at a time (FIFO). Do not raise this without adding
+# resource isolation — training jobs are CPU/GPU-bound.
+# max_concurrent_jobs: 1
+
+# NOTE: never put GITHUB_TOKEN in this file. Set it as an env var, or
+# use `gh auth login` (preferred).

@@ -1,0 +1,16 @@
+# Gomoku ML Playground — training server dependencies.
+# Install into the server venv (NOT the ML venv):
+#   python3 -m venv server/.venv
+#   server/.venv/bin/pip install -r server/requirements.txt
+#
+# The ML pipeline itself runs in ml/.venv (owned by the ML workstream);
+# this server only invokes its interpreter as a subprocess.
+
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+httpx>=0.27
+pyyaml>=6.0
+
+# Tests only (pytest + httpx TestClient).
+pytest>=8.0
