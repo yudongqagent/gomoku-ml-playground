@@ -24,7 +24,11 @@ class Hyperparameters(BaseModel):
 class JobCreate(BaseModel):
     type: JobType
     name: str = Field(default="", max_length=120)
-    architecture: str = Field(default="resnet", max_length=64)
+    # None means "use the preset's architecture" (or "resnet" when no
+    # preset is given). Previously this defaulted to "resnet", which
+    # silently overrode the preset's architecture (e.g. a longrun-cpu
+    # job trained a ResNet instead of the preset's MobileNet).
+    architecture: str | None = Field(default=None, max_length=64)
     arch_params: dict[str, Any] = Field(default_factory=dict)
     hyperparameters: Hyperparameters = Field(default_factory=Hyperparameters)
     base_checkpoint: str | None = Field(default=None, max_length=512)

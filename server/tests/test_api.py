@@ -183,6 +183,32 @@ def test_create_job_validation_errors(client):
     }
 
 
+def test_preset_architecture_used_when_not_specified(client):
+    # Regression test: a preset-only request must train the preset's
+    # architecture (longrun-cpu is MobileNet), not the old "resnet"
+    # schema default that used to silently override it (this shipped
+    # longrun-1 as a ResNet run).
+    resp = client.post("/api/jobs", json={
+        "type": "selfplay", "preset": "longrun-cpu",
+        "hyperparameters": {"games": 1, "mcts_sims": 8},
+    })
+    assert resp.status_code == 201
+    job = _wait_for_terminal(client, resp.json()["id"])
+    assert job["status"] == "completed", job.get("error")
+    assert job["architecture"] == "mobilenet"
+    assert job["config"]["architecture"]["name"] == "mobilenet"
+    # ...while an explicit architecture still wins over the preset.
+    resp = client.post("/api/jobs", json={
+        "type": "selfplay", "preset": "longrun-cpu",
+        "architecture": "resnet",
+        "hyperparameters": {"games": 1, "mcts_sims": 8},
+    })
+    assert resp.status_code == 201
+    job = _wait_for_terminal(client, resp.json()["id"])
+    assert job["status"] == "completed", job.get("error")
+    assert job["config"]["architecture"]["name"] == "resnet"
+
+
 def test_get_unknown_job_404(client):
     assert client.get("/api/jobs/job-does-not-exist").status_code == 404
     assert client.post("/api/jobs/job-does-not-exist/cancel").status_code == 404

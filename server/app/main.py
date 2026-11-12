@@ -242,6 +242,19 @@ def list_presets() -> list[dict]:
     return presets
 
 
+def _preset_architecture(preset_id: str) -> str | None:
+    """Architecture name from a preset config, or None if absent."""
+    path = ML_DIR / "configs" / f"{preset_id}.yaml"
+    try:
+        with open(path, encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+    except (OSError, yaml.YAMLError):
+        return None
+    arch = cfg.get("architecture") or {}
+    name = arch.get("name")
+    return name if isinstance(name, str) and name else None
+
+
 EVAL_OPPONENTS = {"random", "heuristic"}
 
 
@@ -329,19 +342,6 @@ def create_app(
     async def create_job(payload: JobCreate) -> dict:
         archs = list_architectures(settings.ml_python)
         known = {a["id"] for a in archs}
-        if payload.architecture not in known:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"unknown architecture {payload.architecture!r}; "
-                    f"known: {sorted(known)}"
-                ),
-            )
-        error = validate_arch_params(
-            payload.architecture, payload.arch_params, archs
-        )
-        if error:
-            raise HTTPException(status_code=400, detail=error)
         if payload.preset is not None:
             known_presets = {p["id"] for p in list_presets()}
             if payload.preset not in known_presets:
@@ -352,7 +352,29 @@ def create_app(
                         f"known: {sorted(known_presets)}"
                     ),
                 )
-        job = manager.create_job(payload.model_dump())
+        # Effective architecture: explicit request wins, else the
+        # preset's architecture, else "resnet". (Previously the schema
+        # defaulted to "resnet", silently overriding the preset.)
+        arch = (
+            payload.architecture
+            or ( _preset_architecture(payload.preset)
+                 if payload.preset is not None else None )
+            or "resnet"
+        )
+        if arch not in known:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"unknown architecture {arch!r}; "
+                    f"known: {sorted(known)}"
+                ),
+            )
+        error = validate_arch_params(arch, payload.arch_params, archs)
+        if error:
+            raise HTTPException(status_code=400, detail=error)
+        data = payload.model_dump()
+        data["architecture"] = arch
+        job = manager.create_job(data)
         return {"id": job["id"], "status": job["status"]}
 
     @app.get("/api/jobs")
