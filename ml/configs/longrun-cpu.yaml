@@ -1,0 +1,121 @@
+# Long-run CPU preset — a realistic multi-hour CPU-only training run.
+#
+# What this is: one self-play + train round sized for a small CPU-only
+# machine (this VM has ~1.5 shared CPUs; Yudong's hardware will differ
+# — see the measured throughput below). Run it, eval it, then run the
+# next round from the resulting checkpoint (base_checkpoint:), growing
+# the replay buffer each round. The eval section has auto: true, so
+# train.py runs the eval harness at the end of training and the run
+# dir ends with eval.json / eval_report.md / model_card.md.
+#
+# MEASURED THROUGHPUT (this VM: ~1.5 shared CPUs, torch 2.15 CPU,
+#   measured 2026-11-12 — re-measure on your hardware; Yudong's
+#   machine will differ, probably faster):
+#   * Self-play: 4 games at 100 sims with this net took 95 s total
+#     (18.6–28.2 s/game, ~71 moves/game) => ~150 games/hour.
+#     200 games ≈ 80 minutes.
+#   * Training: 1 epoch over 269 train samples (283 total, batch 64)
+#     took 1.8 s. 200 games ≈ 14,200 total samples => ~90 s/epoch,
+#     20 epochs ≈ 30 min.
+#   * Auto-eval (40 games x 3 opponents at 100 sims + 20 tactical
+#     positions) took 11.8 min (random 3.5, heuristic 4.2, mcts 3.8,
+#     tactical ~0.2). Note: the measured net was weak and lost fast,
+#     so its games were short — stronger nets play longer games and
+#     eval will take longer (budget ~15-25 min per round as models
+#     improve).
+#   * One full round (200 games + 20 epochs + auto-eval) ≈ 2–2.5 hours
+#     on this VM. A 6-hour run is ~2 rounds (~400 games, ~28k samples).
+#
+# HONEST EXPECTATION — what a few hours of CPU training can reach:
+#   * At best, a weak club-ish player that beats the 1-ply heuristic
+#     baseline most of the time and sometimes beats the heuristic-MCTS
+#     search opponent. It will take immediate wins, block immediate
+#     losses, and find some short forced wins.
+#   * It will NOT be superhuman, NOT expert, and NOT reliably beat a
+#     decent human amateur. Superhuman Gomoku needs AlphaZero-scale
+#     training (see ml/README.md): ~1M+ self-play games at hundreds of
+#     sims per move on GPU hardware — orders of magnitude beyond what
+#     a few CPU-hours produce (a few hundred games at ~100 sims).
+#   * The value of a CPU long run is the PIPELINE: proving self-play,
+#     training, eval and export work end to end for hours, producing a
+#     model that measurably improves round over round, and learning
+#     which architectures and settings are worth scaling up on GPU.
+#
+# Long-run support built into the scripts (see ml/README.md):
+#   * SIGINT/SIGTERM stop gracefully (self-play abandons the current
+#     game, training writes interrupted.pt); resume with the printed
+#     command. Self-play tops up: re-running the same command
+#     generates only the games still missing.
+#   * current_game.json in the run dir updates after every move
+#     (live feed for the Trainer UI); data/manifest.json updates after
+#     every game; selfplay_state.json every checkpoint_every_games.
+#   * Something reaches disk at least every few minutes of wall time
+#     (per-move feed + per-game shards), so a killed run loses at most
+#     the in-progress game.
+#
+# Run one round (from the repo root):
+#   ml/.venv/bin/python ml/scripts/selfplay.py --config longrun-cpu --run-dir ml/runs/<id>
+#   ml/.venv/bin/python ml/scripts/train.py --config longrun-cpu --run-dir ml/runs/<id>
+# Or via the Trainer UI (preset "longrun-cpu").
+#
+# Schema: see gomoku_ml/config.py. Every key below is validated at
+# startup; an unknown key or out-of-range value fails fast with a clear
+# error naming the key.
+
+preset:
+  name: Long run (CPU)
+  description: >
+    Multi-hour CPU-only training round: ~200 self-play games at 100
+    sims/move with a small MobileNet, then 20 training epochs, then an
+    automatic eval (ladder + tactical suite + verdict). Repeat rounds
+    from the previous checkpoint to keep improving.
+  throughput_note: "Measured on this VM (~1.5 CPUs): ~150 self-play games/hour at 100 sims; one round (200 games + 20 epochs + eval) ~2-2.5 h."
+
+run_name: longrun-cpu
+seed: 0
+
+architecture:
+  name: mobilenet
+  params:
+    channels: 32
+    blocks: 4
+
+base_checkpoint: null   # set to the previous round's final.pt to continue
+resume: null            # set to checkpoints/interrupted.pt to resume a killed run
+
+selfplay:
+  games: 200          # per round; the run tops up if interrupted (see above)
+  sims_per_move: 100  # modest sims: the main cost driver on CPU
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_epsilon: 0.25
+  temperature: 1.0
+  temperature_moves: 30
+  resign_threshold: null   # keep null until the value head is calibrated
+  max_moves: 225      # full games; no cap
+  checkpoint_every_games: 10   # selfplay_state.json snapshot cadence
+                               # (shards + manifest flush every game anyway)
+
+train:
+  epochs: 20
+  batch_size: 64
+  lr: 0.002
+  lr_schedule: cosine   # cosine | step
+  lr_step_size: 10
+  lr_gamma: 0.5
+  warmup_steps: 20
+  weight_decay: 0.0001
+  policy_weight: 1.0
+  value_weight: 1.0
+  augmentation: true
+  val_fraction: 0.05
+  checkpoint_every_epochs: 5
+
+eval:
+  games: 40           # TOTAL per opponent = 20 as Black + 20 as White
+  sims: 100
+  opponents: [random, heuristic, mcts]
+  mcts_sims: 100
+  tactical: true
+  tactical_sims: 50
+  auto: true          # train.py runs this eval at end of training

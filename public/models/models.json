@@ -1,0 +1,12 @@
+{
+  "models": [
+    {
+      "id": "gomoku-smoke-v1",
+      "name": "Smoke demo net (tiny)",
+      "url": "/models/gomoku-smoke-v1.onnx",
+      "description": "Demo net from the smoke pipeline: 16 channels, 2 residual blocks, trained on a handful of self-play games. Included so the app's model loading and on-device inference can be tested end to end.",
+      "trainedGames": 8,
+      "notes": "DEMO NET — not strong. Trained on only a handful of self-play games with a tiny network; it plays poorly and must not be presented as a strong opponent. Real strength needs AlphaZero-scale training (see ml/README.md)."
+    }
+  ]
+}

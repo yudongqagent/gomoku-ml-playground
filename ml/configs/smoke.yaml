@@ -1,0 +1,74 @@
+# Smoke config — pipeline verification only, NOT a strong player.
+#
+# Tiny net, a handful of self-play games, a few training epochs. Must
+# finish in a few minutes on a CPU. The resulting model is a DEMO NET:
+# it will play poorly and must be labelled as such everywhere it is
+# shipped (see models.json notes).
+#
+# Run:  python ml/scripts/run_smoke.py
+#   or: python ml/scripts/selfplay.py --config smoke --run-dir ml/runs/<id>
+#       python ml/scripts/train.py --config smoke --run-dir ml/runs/<id>
+#       python ml/scripts/export_onnx.py --checkpoint ml/runs/<id>/checkpoints/final.pt \
+#           --out public/models/gomoku-smoke-v1.onnx
+#
+# Schema: see gomoku_ml/config.py. Every key below is validated at
+# startup; an unknown key or out-of-range value fails fast with a clear
+# error naming the key.
+
+preset:
+  name: Smoke run
+  description: >
+    Pipeline verification only — tiny net, a handful of games, a few
+    epochs. Finishes in minutes on CPU. The resulting model is a demo
+    net and plays poorly.
+  throughput_note: "8 games in a few minutes on CPU"
+
+run_name: smoke
+seed: 0
+
+architecture:
+  name: resnet
+  params:
+    channels: 16
+    blocks: 2
+
+base_checkpoint: null   # null = train from scratch (random init)
+resume: null            # null = fresh training run (not a resume)
+
+selfplay:
+  games: 8            # a handful of games — enough to exercise the pipeline
+  sims_per_move: 32   # low sim count keeps the smoke run to minutes
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_epsilon: 0.25
+  temperature: 1.0
+  temperature_moves: 20
+  resign_threshold: null   # disabled for smoke (random net values are ~0 anyway)
+  max_moves: 150      # cap game length so a wandering game cannot stall the run;
+                      # games hitting the cap are recorded as draws
+  checkpoint_every_games: 10   # selfplay_state.json snapshot cadence
+                               # (shards + manifest flush every game anyway)
+
+train:
+  epochs: 3
+  batch_size: 32
+  lr: 0.001
+  lr_schedule: cosine   # cosine | step
+  lr_step_size: 10      # epochs per decay (step schedule only)
+  lr_gamma: 0.5         # decay factor (step schedule only)
+  warmup_steps: 5
+  weight_decay: 0.0001
+  policy_weight: 1.0    # loss weight for policy cross-entropy
+  value_weight: 1.0     # loss weight for value MSE
+  augmentation: true    # dihedral board symmetries (rotations + reflections)
+  val_fraction: 0.05    # held-out fraction for val loss / best.pt
+  checkpoint_every_epochs: 0
+
+eval:
+  games: 4            # TOTAL per opponent = 2 as Black + 2 as White
+  sims: 32
+  opponents: [random, heuristic]
+  mcts_sims: 100      # sims for the heuristic-MCTS opponent (unused here)
+  tactical: true      # run the 20-position tactical suite
+  tactical_sims: 50
+  auto: false         # train.py does not auto-eval for smoke runs

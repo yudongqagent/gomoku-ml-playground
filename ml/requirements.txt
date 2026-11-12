@@ -1,0 +1,28 @@
+# Gomoku ML — Python dependencies (Python 3.12).
+#
+# Install into a venv:
+#   python3 -m venv ml/.venv
+#   ml/.venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   ml/.venv/bin/pip install -r ml/requirements.txt
+#
+# torch is installed from the PyTorch CPU index (much smaller than the
+# CUDA wheels). For GPU training, install torch from the CUDA index
+# instead — see https://pytorch.org/get-started/locally/ — and keep the
+# rest of this file unchanged.
+
+# NOTE: torch itself is intentionally NOT pinned here: install it from
+# the CPU index (command above) or the CUDA index for GPU training.
+numpy>=1.26
+onnx>=1.16
+onnxruntime>=1.18
+pyyaml>=6.0
+pytest>=8.0
+
+# Optional: fp16 ONNX quantisation (--quantize fp16 in export_onnx.py).
+onnxconverter-common>=1.14
+
+# Optional: Core ML export (export_coreml.py). Install on macOS for the
+# supported path; conversion often also works on Linux, but on-device
+# validation needs a Mac / iOS device. Deliberately NOT installed by
+# default (heavy, and macOS-only in practice).
+# coremltools>=8.0

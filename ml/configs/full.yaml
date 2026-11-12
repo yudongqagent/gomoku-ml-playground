@@ -1,0 +1,112 @@
+# Full training config — the real training run.
+#
+# HONEST COMPUTE ESTIMATE (read before starting this):
+#
+# Superhuman Gomoku (beating the best human) is an AlphaZero-scale
+# undertaking. Published reference points:
+#   * AlphaZero (Chess/Shogi/Go, 2017): ~5,000 first-gen TPUs for
+#     self-play + 64 second-gen TPUs for training, over hours-to-days
+#     per game — i.e. tens of thousands of accelerator-hours, and
+#     millions of self-play games (Go: ~4.9M games in the first 3 days).
+#   * Strong open-source Gomoku AIs (e.g. the KataGo-style / AlphaZero
+#     reimplementations and the Gomoku-specific nets behind top
+#     renju/gomoku engines) train on 100k–1M+ self-play games with
+#     hundreds of MCTS simulations per move.
+#
+# Order-of-magnitude estimate for THIS project to reach genuinely
+# superhuman strength:
+#   * Self-play games needed: ~1,000,000+ (at ~800 sims/move, ~100 moves
+#     per game => ~80 billion network evaluations).
+#   * Training compute: on the order of 1,000–10,000 GPU-hours on
+#     A100/H100-class hardware (highly uncertain; depends on net size,
+#     sims, and how much strength is "enough"). A single A100 doing
+#     self-play + training would take weeks to months of continuous
+#     running. A small cluster (8x A100) could plausibly do it in
+#     1–4 weeks of wall-clock time.
+#   * On-device training at this scale is NOT realistic: an A20 Pro-class
+#     phone chip is a strong inference chip, not a training cluster.
+#     The intended flow is: train on GPU servers, export to ONNX/Core ML,
+#     deploy the frozen model on device for fast inference. (The web
+#     app's trainer screen triggers runs on the server; finished models
+#     are uploaded to the GitHub repository as release assets.)
+#
+# What this config actually is: a starting point for the first serious
+# training run (thousands of games, not millions). It will produce a
+# competent club-level-ish player at best — NOT a superhuman one.
+# Expect to iterate: generate games -> train -> eval ladder -> repeat,
+# growing the replay buffer each round, and to revisit the numbers above
+# once the first evals are in.
+#
+# Estimated cost of ONE round at the settings below (5,000 games,
+# 400 sims/move, 128ch/10-block net, ~50 epochs over the new data):
+#   * Self-play: ~5,000 games x ~100 moves x 400 sims = 200M net evals.
+#     On 1x A100 with batched MCTS this is roughly 10–30 GPU-hours
+#     (very rough; unbatched CPU MCTS would be 100x slower — do not run
+#     this config on a CPU).
+#   * Training: ~500k samples x 50 epochs = 25M samples seen; a few
+#     GPU-hours on 1x A100.
+#   * Total per round: on the order of 1–2 days on a single A100.
+#     Reaching superhuman strength needs many such rounds (see above).
+#
+# Schema: see gomoku_ml/config.py. Every key below is validated at
+# startup; an unknown key or out-of-range value fails fast with a clear
+# error naming the key.
+
+preset:
+  name: Full training (GPU)
+  description: >
+    The real training run — 5,000 self-play games at 400 sims/move
+    with a 128-channel ResNet, 50 epochs, and a full ladder eval
+    (40 games per opponent). Needs GPU hardware; do NOT run on CPU.
+  throughput_note: "~1-2 days per round on a single A100 (estimate)"
+
+run_name: full
+seed: 0
+
+architecture:
+  name: resnet
+  params:
+    channels: 128
+    blocks: 10
+
+base_checkpoint: null   # set to a previous run's final.pt to continue training from it
+resume: null            # set to a checkpoint to resume an interrupted run (weights + optimiser + step)
+
+selfplay:
+  games: 5000        # per round; accumulate across rounds into ml/runs/full/data
+  sims_per_move: 400
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_epsilon: 0.25
+  temperature: 1.0
+  temperature_moves: 30
+  resign_threshold: -0.95   # resign lost positions to save sims (only once the
+                            # value head is calibrated; keep null for round 1)
+  max_moves: 225      # full games; no cap
+  checkpoint_every_games: 50   # selfplay_state.json snapshot cadence
+                               # (shards + manifest flush every game anyway)
+
+train:
+  epochs: 50
+  batch_size: 256
+  lr: 0.002
+  lr_schedule: cosine   # cosine | step
+  lr_step_size: 10
+  lr_gamma: 0.5
+  warmup_steps: 100
+  weight_decay: 0.0001
+  policy_weight: 1.0
+  value_weight: 1.0
+  augmentation: true    # dihedral board symmetries (rotations + reflections)
+  val_fraction: 0.05
+  checkpoint_every_epochs: 10
+
+eval:
+  games: 40           # TOTAL per opponent = 20 as Black + 20 as White
+  sims: 400
+  opponents: [random, heuristic, mcts]
+  mcts_sims: 100      # sims for the heuristic-MCTS opponent
+  tactical: true      # run the 20-position tactical suite
+  tactical_sims: 50
+  auto: false         # mid-training eval is too costly at this scale;
+                      # run ml/scripts/evaluate.py separately
