@@ -154,6 +154,101 @@ def game_over(board: np.ndarray) -> tuple[bool, int]:
     return False, EMPTY
 
 
+# --- swap rule (pie rule) -------------------------------------------------
+# Standard swap rule (NOT Swap2 — see research/iterations/swap-rule.md
+# for the interpretation and the self-play policies):
+#
+# * the opener places 3 stones on the empty board: 2 black, 1 white;
+# * the second player then chooses which colour to play;
+# * play continues with White to move (move 4 is White's — the 3
+#   opening stones ARE moves 1-3, black/white/black, so the game
+#   simply continues alternating; RIF rules Article 2.4).
+#
+# These helpers are purely additive: no existing function changes
+# behaviour. The self-play policies (how the opener places the 3
+# stones, how the second player picks a colour) live in
+# ``gomoku_ml.research`` and are documented in
+# ``research/iterations/swap-rule.md``.
+
+SWAP_OPENING_STONES = 3
+SWAP_OPENING_BLACK = 2
+SWAP_OPENING_WHITE = 1
+
+
+def build_swap_opening(black1: int, black2: int, white1: int) -> np.ndarray:
+    """Build the board after the swap-rule opening: the opener's 2
+    black stones and 1 white stone, on distinct legal points.
+
+    Raises ValueError if the three points are not distinct or not on
+    the board. The order of the two black stones does not matter.
+    """
+    moves = (black1, black2, white1)
+    if len(set(moves)) != 3:
+        raise ValueError(
+            f"swap opening stones must be distinct, got {moves}"
+        )
+    board = empty_board()
+    for move in moves:
+        if not 0 <= move < SIZE * SIZE:
+            raise ValueError(f"swap opening move out of range: {move}")
+    board[black1 // SIZE, black1 % SIZE] = BLACK
+    board[black2 // SIZE, black2 % SIZE] = BLACK
+    board[white1 // SIZE, white1 % SIZE] = WHITE
+    return board
+
+
+def is_swap_opening(board: np.ndarray) -> bool:
+    """True if ``board`` holds exactly a swap opening: 2 black stones
+    and 1 white stone, and the game is not already over."""
+    n_black = int(np.count_nonzero(board == BLACK))
+    n_white = int(np.count_nonzero(board == WHITE))
+    if (n_black, n_white) != (SWAP_OPENING_BLACK, SWAP_OPENING_WHITE):
+        return False
+    over, _ = game_over(board)
+    return not over
+
+
+def choose_swap_color(board: np.ndarray, score_move_fn) -> int:
+    """The second player's colour choice on a swap-opening board.
+
+    Policy: compare the best available ATTACK score for each colour
+    (max over legal moves of ``score_move_fn(board, move, colour)``)
+    and take the colour with the higher best score. Ties go to WHITE:
+    White plays move 4 (see below), so the next-move tempo breaks
+    the tie. ``score_move_fn`` is injected so this module stays free
+    of engine dependencies — the research harness passes the v1
+    scoring engine's attack-only scorer (``gomoku_ml.scoring.score_attack``)
+    by default.
+
+    Turn order (verified against the official RIF rules, Article 2.4
+    — "After this, the player with white stones will place a stone"):
+    the 3 opening stones ARE moves 1-3 (black, white, black), so the
+    game continues with White to move (move 4). An earlier version
+    of this program wrongly had Black to move; that gave Black 3 of
+    the first 4 moves and made the swap choice degenerate. See
+    ``research/iterations/swap-rule.md``.
+
+    The scorer MUST be colour-asymmetric (attack-only). A symmetric
+    attack+defence scorer makes the comparison vacuous: at any square
+    the attack and defence components swap roles between colours, so
+    both colours score identically everywhere and the choice always
+    falls to the BLACK tie-break (verified empirically — see
+    ``research/iterations/swap-rule.md``).
+
+    Raises ValueError if ``board`` is not a swap opening (see
+    :func:`is_swap_opening`).
+    """
+    if not is_swap_opening(board):
+        raise ValueError(
+            "choose_swap_color needs a swap-opening board "
+            "(2 black stones, 1 white stone)"
+        )
+    legal = legal_moves(board)
+    best_black = max(int(score_move_fn(board, int(m), BLACK)) for m in legal)
+    best_white = max(int(score_move_fn(board, int(m), WHITE)) for m in legal)
+    return WHITE if best_white >= best_black else BLACK
+
+
 def other_player(player: int) -> int:
     """The opponent of ``player``."""
     return -player

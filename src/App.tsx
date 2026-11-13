@@ -1,7 +1,9 @@
 // Gomoku ML Playground — top-level app.
-// Two views, switched by tabs (no router): Play and Trainer.
+// Three views, switched by tabs (no router): Play, Trainer, Benchmark.
 // Play: canvas board, game controls, AI panel, analysis, history, game viewer.
 // Trainer: talks to the training server; the game works fully without it.
+// Benchmark: measures the v0 scoring kernel (WebGPU shader + JS reference)
+// on this device, with a self-check against frozen Python scores.
 //
 // Honesty: no copy here claims the AI beats the best human. Master is an
 // AlphaZero-style level whose strength depends on the loaded model.
@@ -19,6 +21,7 @@ import AnalysisPanel from './components/AnalysisPanel';
 import HistoryPanel from './components/HistoryPanel';
 import GameViewer from './components/GameViewer';
 import TrainerView from './components/TrainerView';
+import BenchmarkView from './components/BenchmarkView';
 import { findThreats, threatSquareMap } from './components/analysis';
 import {
   normalizeAiResult,
@@ -31,7 +34,7 @@ import {
 } from './components/types';
 import type { Point } from './engine/gomoku';
 
-type View = 'play' | 'trainer';
+type View = 'play' | 'trainer' | 'benchmark';
 
 function defaultsForLevel(level: LevelId): AiOptions {
   const meta = LEVEL_META?.[level];
@@ -377,6 +380,15 @@ export default function App() {
           >
             🧠 Trainer
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'benchmark'}
+            className={view === 'benchmark' ? 'tab active' : 'tab'}
+            onClick={() => setView('benchmark')}
+          >
+            ⚡ Benchmark
+          </button>
         </nav>
       </header>
 
@@ -489,13 +501,17 @@ export default function App() {
             <GameViewer onLoadIntoGame={handleLoadRecordedGame} />
           </aside>
         </main>
-      ) : (
+      ) : view === 'trainer' ? (
         <main className="trainer-layout">
           <TrainerView
             localModels={localModels}
             onLoadModelIntoGame={handleLoadModelIntoGame}
             onServerModelsChange={handleServerModelsChange}
           />
+        </main>
+      ) : (
+        <main className="benchmark-page">
+          <BenchmarkView />
         </main>
       )}
 

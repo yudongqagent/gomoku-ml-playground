@@ -215,6 +215,81 @@ h5 {
   margin: 0 auto;
 }
 
+.benchmark-page {
+  flex: 1;
+  padding: 20px;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.benchmark-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bench-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.bench-status {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.bench-notice {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 12px;
+}
+
+.bench-notice p {
+  margin: 0 0 8px;
+}
+
+.bench-notice p:last-child {
+  margin-bottom: 0;
+}
+
+.bench-results {
+  margin-top: 16px;
+}
+
+.bench-results h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.bench-note {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 8px 0;
+}
+
+.bench-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.bench-table th,
+.bench-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.bench-table th {
+  font-weight: 600;
+  width: 42%;
+}
+
 .app-footer {
   border-top: 1px solid var(--border);
   padding: 16px 20px;
