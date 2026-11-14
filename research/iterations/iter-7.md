@@ -290,8 +290,22 @@ attack-building, not from tactical accuracy.
 
 ### 3.3 Head-to-head vs v1 (100 games, seeds 100/200) — INTERMEDIATE (pre-patch)
 
-(TODO — match in flight when the direction changed; numbers on
-arrival, kept as intermediate results.)
+**NOT COMPLETED — interrupted by a runtime restart, not re-run.**
+The match ran 54 min (~97/100 games by CPU-time estimate) and
+was killed by a VM/runtime restart at ~07:25 PST 2026-11-14
+(process gone, no output JSON — `selfplay_batch.py` writes only
+at completion, and the progress output was piped through `tail`,
+so no partial record survives). Decision, recorded here: NOT
+re-run. The direction change frames intermediate numbers as
+conditional ("if you have already run 100-game matches on
+unpatched v7") — the completed 20-game smoke (§3.1, 0.80) is the
+pre-patch evidence vs v1, and an hour of compute for a number
+the bar does not use is not worth delaying the fast loop and the
+final battery. The final battery (§3.5-3.8) re-runs the v1 match
+on the patched engine with the same pre-registered seeds. Cost
+of the loss: no precise unpatched-v7-vs-v1 baseline, so the
+patch's isolated effect vs v1 can only be gauged against the
+smoke (n=20, wide CI), not a 100-game number.
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
