@@ -122,6 +122,78 @@ that predicts leaf quality. Comparison with v8's 0.7165 /
 differ (self-play holdout vs heuristic-opponent holdout) — it
 is a sanity check, not an apples-to-apples comparison.
 
+### 1.1a AMENDMENT — learner change (2026-11-14, made BEFORE any training or eval, driven by the smoke-run measurement)
+
+**The round-2 net as learner is ABANDONED: it cannot survive
+against the heuristic long enough to produce representative
+games.** Smoke run (8 games, then 20 more, same settings as
+§1.1): **mean 10.0 plies, max 14, the heuristic won all 28
+games** (rate 1,058–1,620 games/hr — the speed was fine, the
+games were not). The net is far below the heuristic (0W-40L in
+the longrun eval) and walks into a loss within ~10 plies, so
+its games contain ONLY opening positions (plies 0–14) — a
+value net trained on them would never see a mid-game position,
+which is a different distribution mismatch, not the fix. The
+smoke data (28 shards in gitignored `ml/runs/b4-h3-smoke/` and
+`ml/runs/b4-h3-temp0/`) is NOT training data.
+
+**Amended learner: v1 (the 1-ply scoring engine) vs v0
+(baseline).** The opponent is unchanged (v0, the frozen ladder
+anchor); only the learner changes (round-2 net → v1). The
+budget is unchanged: **4,000 games**, alternating colours
+(even games v1=Black, odd games v1=White), 10% game-level
+holdout AFTER dedup (see below). Why v1 is the right learner:
+
+- **Competitive and full-length.** Measured before this
+  amendment: 100 games v1-vs-v0 in 80 s (~4,500 games/hr
+  single-process), v1 54W-37L-9D (0.585), **mean 76.4 plies
+  (min 25, max 225)** — full phase coverage, unlike the net's
+  10-ply games. 4,000 games ≈ 300k samples.
+- **Distribution match.** The leaf's opponent IS the heuristic,
+  and the learner's moves are v1's — whose scores are
+  ValueMCTS's priors, so ValueMCTS's own moves are v1-like.
+  Heuristic-vs-heuristic play is the closest fast proxy to
+  ValueMCTS-vs-heuristic play available (ValueMCTS itself is
+  ~0.5 s/move, ~25 h for 4,000 games — still infeasible).
+- **Variety, measured.** The 100-game measurement: **75/100
+  distinct move sequences, 46 distinct 6-ply openings** — the
+  rng tie-breaks provide real variety. Duplicates (25%) are
+  removed by post-generation dedup (see below), so the training
+  set contains only unique games.
+- **Fast.** ~4,500 games/hr single-process; the generator uses
+  4 worker processes (B1's per-worker shard dirs + validated
+  merge, reused from `selfplay.py`), so 4,000 games take ~1 h
+  or less.
+
+**Generator (new module `ml/gomoku_ml/heuristic_games.py` +
+CLI `ml/scripts/generate_heuristic_games.py`).** Each game uses
+fresh players with seeds derived from the game index
+(`seed_a = base + 2*index`, `seed_b = base + 2*index + 1`),
+so games are independent and reproducible. Positions are
+recorded from BOTH sides (player-to-move perspective, same
+shard schema as self-play: planes/policy/value/moves/winner);
+**policy is one-hot on the played move for both sides**
+(neither side has a visit distribution — the policy head is not
+used by ValueMCTS, so this is a harmless training target).
+History planes follow the batched path's convention exactly
+(`history` = boards before each move, most recent last).
+After the merge, **dedup by move sequence** (keep the first
+occurrence, renumber densely, rebuild the manifest) and record
+the counts; the 10% holdout is then every 10th shard of the
+UNIQUE set. The round-2-net-vs-heuristic path built in §1.4
+(`opponent="heuristic"` in `selfplay.py`) stays in the tree,
+tested — it is the correct tool for a stronger future net, and
+the smoke run that refuted this design used it.
+
+**Confound note (honest):** v1-vs-v0 games average 76 plies vs
+B1's 42.6, so 4,000 unique-ish games yield ~1.5–1.8x v8's
+sample count. If v11 wins, the scale difference is a secondary
+explanation — but v8's own lesson (8.7x more data did NOT fix
+the distribution problem) makes a 1.5x scale effect an
+unlikely sole cause, and the α sweep (does the net now play
+well at HIGHER α?) is the discriminating test, not the raw
+sample count.
+
 **Cross-distribution checks (pre-registered, diagnostic, cheap
 — run with `ml/scripts/eval_value_holdout.py`, no training):**
 (1) v8's net (`ml/runs/b3-h2/value-net.pt`, copied from the main
