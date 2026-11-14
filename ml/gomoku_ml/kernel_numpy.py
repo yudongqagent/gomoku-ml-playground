@@ -137,6 +137,17 @@ def _score_boards(boards: np.ndarray, player: int) -> np.ndarray:
     return total
 
 
+def _attack_from_masks(friendly: np.ndarray, empty: np.ndarray) -> np.ndarray:
+    """Attack-only scores from padded friendly/empty masks: for each
+    cell, the sum over the 4 directions of ``_W[min(run, 5), ends]``
+    for the friendly colour only. No opponent part, no centre term."""
+    total = np.zeros(friendly.shape[:-2] + (SIZE, SIZE), dtype=np.int64)
+    for dy, dx in _DIRECTIONS:
+        run, ends = _run_and_ends(friendly, empty, dy, dx)
+        total += _W[np.minimum(run, 5), ends]
+    return total
+
+
 def score_all(board: np.ndarray, player: int) -> np.ndarray:
     """Score all 225 cells of a single (15, 15) board for ``player``.
 
@@ -162,3 +173,51 @@ def score_batch(boards: np.ndarray, player: int) -> np.ndarray:
             f"expected boards of shape (N, {SIZE}, {SIZE}), got {boards.shape}"
         )
     return _score_boards(boards, player)
+
+
+def attack_all(board: np.ndarray, player: int) -> np.ndarray:
+    """Attack-only scores for all 225 cells of a single (15, 15) board
+    for ``player``: the friendly part of :func:`score_all` only — the
+    sum over the 4 directions of ``_W[min(run, 5), ends]`` for the
+    mover's colour, with NO opponent part and NO centre term.
+
+    This is the colour-asymmetric half of the v0 kernel: the full
+    ``score_all`` total is (up to the 0.9 defence discount and the
+    centre term) symmetric between colours, so a leaf value that must
+    distinguish "our attack" from "their attack" needs this, not the
+    total. Added for the v7 MCTS leaf gradient (batch 3, H1):
+    the leaf counts high-attack moves per side from these scores.
+
+    As with :func:`score_all`, scores are computed for ALL 225 cells
+    including occupied ones (the cell's own content is never read),
+    and the v0 quirks are ported, not fixed: runs are contiguous
+    only, so a broken four (``XX_XX``) scores as two separate runs.
+    Callers must mask with ``board == 0`` for legal moves.
+    """
+    board = np.asarray(board)
+    if board.shape != (SIZE, SIZE):
+        raise ValueError(f"expected board of shape {(SIZE, SIZE)}, got {board.shape}")
+    if player not in (game.BLACK, game.WHITE):
+        raise ValueError(f"player must be BLACK (1) or WHITE (-1), got {player}")
+    return _attack_from_masks(_pad(board == player), _pad(board == game.EMPTY))
+
+
+def attack_both(board: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Attack-only scores for BOTH colours on a single (15, 15) board,
+    in one pass (the empty mask and the padding are shared; the two
+    colours' run sweeps are the same work :func:`score_all` already
+    does for friendly + opponent).
+
+    Returns ``(black_attack, white_attack)`` — two int64 arrays of
+    shape (15, 15), each equal to ``attack_all(board, colour)``.
+    This is the call the v7 leaf uses: it needs both sides' threat
+    breadth, and one call costs about the same as one
+    :func:`score_all`, not two.
+    """
+    board = np.asarray(board)
+    if board.shape != (SIZE, SIZE):
+        raise ValueError(f"expected board of shape {(SIZE, SIZE)}, got {board.shape}")
+    empty = _pad(board == game.EMPTY)
+    black = _attack_from_masks(_pad(board == game.BLACK), empty)
+    white = _attack_from_masks(_pad(board == game.WHITE), empty)
+    return black, white
