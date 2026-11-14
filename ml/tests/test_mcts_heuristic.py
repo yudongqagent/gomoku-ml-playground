@@ -8,6 +8,7 @@ import pytest
 from gomoku_ml import game, scoring
 from gomoku_ml.mcts_heuristic import (
     HeuristicMCTS,
+    _Node,
     _attack_gradient,
     _gradient_leaf_value,
     _priors,
@@ -281,3 +282,153 @@ def test_v7_iter5_game1_regression_xfail():
     v7 = scoring.get_player(7, seed=0)
     move = v7.choose_move(board, game.WHITE)
     assert (move % 15, move // 15) in [(7, 11), (6, 12)]
+
+
+# --- v9 root-decision rules (batch 4, H1) ---------------------------------
+# Tests build synthetic roots (no search): a child's raw q is the
+# OPPONENT's value under the negamax backup, so "q" in every rule
+# means -child.q (iter-9.md §1.0 sign correction).
+
+
+def _synthetic_root(specs):
+    """Root whose children are (move, visits, value_sum, prior).
+
+    Raw q = value_sum / visits (opponent's value); our-q = -q.
+    """
+    root = _Node(1.0)
+    root.children = {}
+    for move, visits, value_sum, prior in specs:
+        child = _Node(prior)
+        child.visit_count = visits
+        child.value_sum = value_sum
+        root.children[move] = child
+    return root
+
+
+def test_root_decision_default_is_visits():
+    mcts = HeuristicMCTS()
+    assert mcts.root_decision == "visits"
+    v7 = scoring.get_player(7, seed=0)
+    assert v7._mcts.root_decision == "visits"
+    v6 = scoring.get_player(6, seed=0)
+    assert v6._mcts.root_decision == "visits"
+
+
+def test_invalid_root_decision_raises():
+    with pytest.raises(ValueError):
+        HeuristicMCTS(root_decision="bogus")
+
+
+def test_root_decision_visits_picks_most_visited():
+    # Most-visited wins even with the worst our-q.
+    root = _synthetic_root([
+        (10, 50, 25.0, 0.1),   # our-q -0.5, most visited
+        (20, 10, -4.0, 0.1),   # our-q +0.4
+        (30, 5, -2.0, 0.1),    # our-q +0.4
+    ])
+    mcts = HeuristicMCTS(root_decision="visits")
+    assert mcts._choose_root_child(root) == 10
+
+
+def test_root_decision_q_uses_our_perspective_value():
+    # SIGN TEST: raw q is the opponent's value, so the child with
+    # the LOWEST raw q (worst for the opponent) is the best move
+    # for us — even with fewer visits. A rule that argmaxed raw q
+    # would pick move 10 (raw q +0.5, great for the opponent).
+    root = _synthetic_root([
+        (10, 50, 25.0, 0.1),   # raw q +0.5 -> our-q -0.5
+        (20, 10, -4.0, 0.1),   # raw q -0.4 -> our-q +0.4 (best)
+        (30, 5, -1.0, 0.1),    # raw q -0.2 -> our-q +0.2
+    ])
+    mcts = HeuristicMCTS(root_decision="q")
+    assert mcts._choose_root_child(root) == 20
+
+
+def test_root_decision_q_ignores_unvisited_children():
+    # An unvisited child's q is 0.0 by convention — not a signal.
+    # It must never beat a visited child with negative our-q.
+    root = _synthetic_root([
+        (10, 10, 2.0, 0.1),    # raw q +0.2 -> our-q -0.2
+        (20, 0, 0.0, 0.1),     # unvisited: q 0.0 by convention
+    ])
+    mcts = HeuristicMCTS(root_decision="q")
+    assert mcts._choose_root_child(root) == 10
+
+
+def test_root_decision_q_ties_broken_by_visits():
+    root = _synthetic_root([
+        (10, 5, -2.0, 0.1),    # our-q +0.4, 5 visits
+        (20, 8, -3.2, 0.1),    # our-q +0.4, 8 visits (wins tie)
+    ])
+    mcts = HeuristicMCTS(root_decision="q")
+    assert mcts._choose_root_child(root) == 20
+
+
+def test_root_decision_tie_q_breaks_visit_ties_by_our_q():
+    root = _synthetic_root([
+        (10, 10, 4.0, 0.1),    # 10 visits, our-q -0.4
+        (20, 10, -1.0, 0.1),   # 10 visits, our-q +0.1 (wins tie)
+        (30, 9, -8.1, 0.1),    # 9 visits, our-q +0.9 (not tied)
+    ])
+    mcts = HeuristicMCTS(root_decision="tie-q")
+    assert mcts._choose_root_child(root) == 20
+
+
+def test_root_decision_blend_formula():
+    # score = our-q + 0.1 * (visits / max_visits).
+    # Move 10: our-q -0.10, 10/10 visits -> -0.10 + 0.10 = 0.00.
+    # Move 20: our-q -0.01, 5/10 visits  -> -0.01 + 0.05 = 0.04.
+    # Move 30: our-q +0.20, 1/10 visits  -> +0.20 + 0.01 = 0.21.
+    # Pure q would pick 30 too, but visits would pick 10: the blend
+    # follows q here because the q gap (0.3) exceeds the 0.1 scale.
+    root = _synthetic_root([
+        (10, 10, 1.0, 0.1),
+        (20, 5, 0.05, 0.1),
+        (30, 1, -0.2, 0.1),
+    ])
+    mcts = HeuristicMCTS(root_decision="blend")
+    assert mcts._choose_root_child(root) == 30
+
+
+def test_root_decision_blend_visits_override_small_q_gap():
+    # q gap 0.05 (< 0.1 scale): visits decide. Move 10: our-q
+    # -0.05, 10/10 visits -> 0.05. Move 20: our-q 0.00, 1/10 visits
+    # -> 0.01. Pure q would pick 20; the blend picks 10.
+    root = _synthetic_root([
+        (10, 10, 0.5, 0.1),
+        (20, 1, 0.0, 0.1),
+    ])
+    mcts = HeuristicMCTS(root_decision="blend")
+    assert mcts._choose_root_child(root) == 10
+
+
+def test_root_decision_tie_prior_breaks_visit_ties_by_prior():
+    root = _synthetic_root([
+        (10, 10, 0.0, 0.05),
+        (20, 10, 0.0, 0.09),   # same visits, higher prior
+        (30, 9, 0.0, 0.50),    # higher prior but fewer visits
+    ])
+    mcts = HeuristicMCTS(root_decision="tie-prior")
+    assert mcts._choose_root_child(root) == 20
+
+
+def test_root_decision_section26_stats():
+    # iter-7 §2.6 root stats (reproduced exactly in iter-9.md
+    # §1.0): (7,4) flat 67 and (8,4) flat 68 tie at 10 visits with
+    # raw q 0.042 / 0.032; (9,8) flat 129 has 7 visits, raw q
+    # 0.071. Correctly signed, q prefers the LOSING (8,4) — so
+    # tie-q and q both pick it, and the blend does too (0.068 vs
+    # 0.058). Only tie-prior can save the game, and only if (7,4)'s
+    # prior exceeds (8,4)'s (v1 ranks (7,4) 3rd, (8,4) 6th).
+    root = _synthetic_root([
+        (67, 10, 0.42, 0.077),    # (7,4) saving, our-q -0.042
+        (68, 10, 0.32, 0.076),    # (8,4) losing, our-q -0.032
+        (129, 7, 0.497, 0.078),   # (9,8) saving, our-q -0.071
+    ])
+    assert HeuristicMCTS(root_decision="tie-q")._choose_root_child(root) == 68
+    assert HeuristicMCTS(root_decision="q")._choose_root_child(root) == 68
+    assert HeuristicMCTS(root_decision="blend")._choose_root_child(root) == 68
+    assert (
+        HeuristicMCTS(root_decision="tie-prior")._choose_root_child(root)
+        == 67
+    )
