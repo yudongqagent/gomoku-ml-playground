@@ -1,6 +1,7 @@
 """Tests for the learned-value MCTS leaf (v8, batch 3 H2)."""
 
 import numpy as np
+import pytest
 import torch
 
 from gomoku_ml import game, scoring
@@ -71,8 +72,11 @@ def test_leaf_value_opponent_one_winning_move(tmp_path):
 
 
 def test_leaf_value_quiet_uses_net(tmp_path):
-    # Quiet position: the net value, in [-1, 1], matching a direct
-    # forward pass on the same encoding.
+    # Quiet position: the net value SHRUNK by VALUE_WEIGHT
+    # (fast-loop iteration 2), in [-1, 1], matching a direct
+    # forward pass on the same encoding times the weight.
+    from gomoku_ml.mcts_value import VALUE_WEIGHT
+
     board = _board_with([(7, 7), (8, 8)], [(7, 9), (9, 9)])
     mcts = _value_mcts(tmp_path)
     value = mcts._leaf_value(board, game.BLACK)
@@ -83,7 +87,18 @@ def test_leaf_value_quiet_uses_net(tmp_path):
     planes = encoding.encode(board, game.BLACK, None, None)
     with torch.no_grad():
         _logits, direct = mcts.net(torch.from_numpy(planes).unsqueeze(0))
-    assert value == float(direct[0, 0].item())
+    assert value == pytest.approx(float(direct[0, 0].item()) * VALUE_WEIGHT)
+    assert 0.0 < VALUE_WEIGHT < 1.0
+
+
+def test_leaf_value_shrink_bound(tmp_path):
+    # The shrink bounds the quiet leaf value by VALUE_WEIGHT in
+    # magnitude, whatever the net outputs.
+    from gomoku_ml.mcts_value import VALUE_WEIGHT
+
+    board = _board_with([(7, 7), (8, 8)], [(7, 9), (9, 9)])
+    mcts = _value_mcts(tmp_path)
+    assert abs(mcts._leaf_value(board, game.BLACK)) <= VALUE_WEIGHT
 
 
 def test_leaf_value_with_history_and_last_move(tmp_path):

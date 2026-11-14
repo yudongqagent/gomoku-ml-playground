@@ -570,7 +570,68 @@ exactly the parent's. Cost: one creators enumeration per move
 
 ### 4.2 Iteration 2
 
-(TBD.)
+**Match: 10 games vs v0 (seeds 1001/2001), patched v8
+(threat check): 0W-10L-0D** — in 60 s, games of 20–29 plies.
+8 distinct lines; 10/10 losses via open four, 0 missed
+blocks. Far worse than v6's 0.41 vs v0. First suspect was the
+iteration-1 patch itself — **A/B refuted it**: the UNPATCHED
+v8 (threat check reverted, same seeds) also loses 0-10
+(`fast-v8-vs-v0-iter2-unpatched.json`). The patch is not the
+cause. Second A/B: **v6 vs v0, same seeds: 4W-4L-2D (0.50)**,
+reproducing batch 2. So the VALUE NET is the problem: v8's
+search with the full net value loses 0-10 where v6's
+terminal-only leaf (0 in quiet positions) scores 0.50.
+
+**Worked game (iter2 game 0, v8 Black, 28 plies):** White
+wins on the diagonal (4,6)–(8,10). At ply 24 (v8 to move)
+White already holds 4 creators and NO safe move exists
+(verified exhaustively) — the position was lost before ply
+24, as in iteration 1. The divergences from v6's games start
+at ply 1–4 (the OPENING): v8 replies (7,9) to (7,7) where v6
+plays (5,5)/(5,7)/(5,9) — the net's opening values are noise
+(it trained on temperature-sampled weak self-play, where
+openings are random), and MCTS exploits the net's
+overvaluations (the optimizer's curse): with the full net
+value the search overrides the v1 priors with noise, and v0's
+direct heuristic attacks convert the loose positions in
+20–29 plies. The net's 0.72 holdout accuracy does not
+transfer: the holdout measures outcome prediction in the
+weak-self-play distribution, not against heuristic opponents.
+
+**Patch (structural cause): shrink the net value toward the
+terminal value (0 in quiet positions).** `_leaf_value` now
+returns `VALUE_WEIGHT * net_value` for quiet positions
+(`ml/gomoku_ml/mcts_value.py`); terminal cases are exact and
+unaffected. Weight tuned on the v0 match (same seeds
+1001/2001, 10 games each — cheap at ~1–2 min per match):
+
+| VALUE_WEIGHT | vs v0 (10 games) |
+|---|---|
+| 1.0 (full net) | 0W-10L (0.00) |
+| 0.5 | 2W-8L (0.20) |
+| **0.25** | **6W-4L (0.60)** |
+| 0.0 (= v6, no threat check) | 4W-4L-2D (0.50) |
+
+The relationship is not monotone: the net HELPS at low weight
+(attack gradient as a weak signal) and HURTS at high weight
+(it overrides the priors). α=0.25 is kept — tuning stopped
+here to avoid overfitting the 10-game v0 sample (finer steps
+would be noise). The threat check from iteration 1 stays (it
+fixed tactics 29/29; the A/B shows it is not the v0 problem).
+
+**Verification:**
+- Tactical (α=0.25): old **20/20**, hard **29/29** — the shrink
+  does not regress tactics.
+  `research/iterations/batch-v8-tactical-patched2.json`.
+- Patched smoke vs v1 (20 games, seeds 100/200):
+  **11W-7L-2D, win rate 0.60, 95% CI [0.3866, 0.7812]**
+  (`batch-v8-vs-v1-smoke-patched.json`, 384 s) — vs unpatched
+  5W-13L-2D (0.30). As Black 7W-2L-1D (0.75), as White
+  4W-5L-1D (0.45): the normal Black edge is restored
+  (unpatched had it reversed). CI still includes 0.50 at
+  n=20 — the 100-game battery decides.
+- Unit tests: leaf shrink bound + quiet-value test updated;
+  targeted suites green (22 passed).
 
 ### 4.3 Iteration 3
 

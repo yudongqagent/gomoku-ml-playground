@@ -70,6 +70,21 @@ from .mcts_heuristic import HeuristicMCTS, _Node, _priors
 # test: test_mcts_value.py asserts the two agree).
 _MUST_BLOCK_VALUE = -0.25
 
+# Fast-loop iteration 2: the learned value is SHRUNK toward the
+# terminal value (0 in quiet positions). The net was trained on
+# weak neural self-play, and its values are unreliable against
+# heuristic opponents — the unpatched v8 lost 0-10 to v0 while
+# v6 (terminal-only leaf, value 0 in quiet positions) scored
+# 4W-4L-2D on the same seeds (iter-8.md §4.2). MCTS exploits the
+# net's overvaluations (the optimizer's curse): with the full net
+# value the search overrides the priors with noise, starting in
+# the opening (v8 replies (7,9) to (7,7) where v6 plays (5,5) /
+# (5,7) / (5,9)). Shrinking by VALUE_WEIGHT keeps the attack
+# gradient as a weak signal while letting the priors and the
+# terminal cases do most of the work. Terminal cases are exact
+# and unaffected (the shrink applies only to quiet positions).
+VALUE_WEIGHT = 0.25
+
 
 class ValueMCTS(HeuristicMCTS):
     """v6's PUCT search with a learned value function as the leaf.
@@ -199,7 +214,9 @@ class ValueMCTS(HeuristicMCTS):
             x = torch.from_numpy(planes).unsqueeze(0).to(self.device)
             _logits, value = self.net(x)
         self.leaf_net_evals += 1
-        return float(value[0, 0].item())
+        # Fast-loop iteration 2: shrink the net value toward the
+        # terminal value (0 here) — see VALUE_WEIGHT.
+        return float(value[0, 0].item()) * VALUE_WEIGHT
 
     def _run_one(
         self,
