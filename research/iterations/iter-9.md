@@ -451,10 +451,26 @@ visit tie, so v9's tactical play is v7's tactical play.
 `~/workspace/b4h1-logs/batch-v9-vs-v7-partial88.json`, not
 committed). The match re-ran IN FULL from game 0 with the same
 seeds — matches are deterministic, so the re-run reproduces
-games 0-87 identically (verified against the backup) and
-completes 88-99 as pre-registered.]
+games 0-87 identically (verified against the backup: prefix
+match confirmed at 10 and 22 games) and completes 88-99 as
+pre-registered.]
 
-[To be filled.]
+**v9 vs v7: 49W-39L-12D, win rate 0.5500, 95% CI [0.4524,
+0.6439]**, 5649.6 s. File:
+`research/iterations/batch-v9-vs-v7.json` (seeds 100/200).
+Per colour: as Black 20W-26L-4D (0.4400), as White 29W-13L-8D
+(0.6600) — a strong colour asymmetry in the OPPOSITE direction
+from v7's vs v1 (Black 0.89, White 0.52): v9's edge over v7
+comes entirely as White, while as Black it LOSES to v7.
+Mean game length 68.21 plies. Loss classifier: 39/39 losses
+via open four, **0 missed blocks**, 153 threatened turns in
+losses, **1 clean missed prevention (0.7%)** — defence is
+essentially solved (the same 1-prevention rate v7 showed in
+its own battery). **Clause 1 FAILS** (0.5500 > 0.50, but CI
+lower bound 0.4524 < 0.50) — v9 beats v7 by 10 games over 100,
+but not by enough for the pre-registered bar. The smoke's
+0.6750 (n=20) did not hold at 100-game scale; the fast-loop
+iter-2 0.5000 (n=10) was the better predictor.
 
 ### 3.7 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
 
