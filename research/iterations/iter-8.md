@@ -576,6 +576,18 @@ the reason match scripts now flush after every game.
 (TBD — smoke for the 4,350-game net, same seeds, for the
 direct comparison.)
 
+**4,350-game net (the final v8 leaf): 5W-13L-2D, win rate
+0.30, 95% CI [0.1455, 0.519]** —
+`batch-v8-vs-v1-smoke-4350.json` (20 games, 268 s, ~13 s/game
+with 1-thread pinning). The better value function plays WORSE
+against v1: 13 losses (vs 4) and only 2 draws (vs 7), mean
+plies 57.2 (vs 112.2). Colour split: as Black 2W-7L-1D, as
+White 3W-6L-1D — loses as both colours. The value gradient
+made v8 play for wins instead of draws, but it loses the
+open-four race — consistent with the tactical finding that the
+new net undervalues PREVENTION (all 5 hard-suite fails).
+These 13 lost games are fast-loop iteration 1's material (§4.1).
+
 ### 5.3 Head-to-head vs v1 (100 games, seeds 100/200)
 
 (TBD.)
