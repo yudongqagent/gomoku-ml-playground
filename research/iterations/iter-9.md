@@ -258,11 +258,47 @@ visits rule and only change tie-breaking — differ from v7 at all.
 
 ### 3.1 Smoke (20 games vs v7 per variant, seeds 300/400)
 
-[To be filled.]
+Driver: `ml/scripts/smoke_root_decision.py`. One JSON per variant
+under `research/iterations/smoke-v9{a,b,c,d}-vs-v7.json`.
+
+| variant | result | win rate | 95% CI | as Black | as White |
+|---|---|---|---|---|---|
+| A — pure q | 4W-16L-0D | 0.2000 | [0.0807, 0.4160] | 4W-6L-0D | **0W-10L-0D** |
+| B — tie-q | 9W-11L-0D | 0.4500 | [0.2582, 0.6579] | 3W-7L-0D | 6W-4L-0D |
+| C — blend | 6W-14L-0D | 0.3000 | [0.1455, 0.5190] | **0W-10L-0D** | 6W-4L-0D |
+| **D — tie-prior** | **12W-5L-3D** | **0.6750** | [0.4567, 0.8369] | 5W-4L-1D (0.55) | 7W-1L-2D (0.80) |
+
+**Winner: D (tie-prior), outright** — highest smoke win rate,
+tactical 29/29 (§1.5), plays the saving move at §2.6. No
+tie-break needed. D is registered as v9
+(`scoring.py`: `leaf_mode="gradient"`, `root_decision="tie-prior"`).
+
+What the smoke says about the q hypothesis: every q-involving
+variant loses to v7, and two of them collapse entirely in one
+colour (A as White 0-10, C as Black 0-10). The q-values at 100
+sims are not just noisy — used as a decision signal they are
+actively misleading, exactly as the sign correction (§1.0)
+predicts: correctly-signed q prefers the losing move in the
+analysed positions, so tie-breaking by q (B, 0.45) is slightly
+worse than v7's RNG coin flip, and deciding by q (A, 0.20) or
+blending it in (C, 0.30) is much worse. The ONLY root-decision
+change that helps is the one that does not use q at all: break
+visit-ties by the v1 prior, the deterministic signal that
+preferred the saving moves in §2.6. D differs from v7 ONLY on
+exact visit ties — yet wins 12-5-3: a single tie-break
+difference diverges the whole game, and D wins those
+divergences systematically (notably as White, 7-1-2 — the colour
+v7 is weakest in). The smoke CI still includes 0.50
+([0.4567, 0.8369]) — n=20 is weak evidence, and the 100-game
+battery is the verdict.
 
 ### 3.2 Tactical suites (per variant, diagnostic)
 
-[To be filled.]
+Measured in §1.5 (full-dispatch driver, same as the battery):
+visits (v7) 20/20 + 29/29; A 19/20 + 22/29; B 20/20 + 29/29; C
+20/20 + 26/29; D 20/20 + 29/29. A and C fail clause 3; B and D
+keep v7's perfect scores. The battery re-runs tactical for the
+registered v9 (D) in §3.5.
 
 ### 3.3 Fast-loop summary (final engine)
 
