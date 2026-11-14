@@ -195,14 +195,16 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # 2-ply threat check at the root are v8's, unchanged — the only
     # intended difference is the training distribution, plus the
     # re-swept α ("value_weight", from the §1.3 sweep grid; the
-    # registry value below is the sweep's winner). The checkpoint
-    # path is relative to the repo root (gitignored data under
-    # ml/runs/); the GOMOKU_V11_CHECKPOINT env var overrides it.
+    # registry value below is the sweep's winner: α=0.125, 11W-8L-1D
+    # vs v0 over 20 games — see research/iterations/iter-11.md §4).
+    # The checkpoint path is relative to the repo root (gitignored
+    # data under ml/runs/); the GOMOKU_V11_CHECKPOINT env var
+    # overrides it.
     11: {"name": "scoring-v11", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/b4-h3/value-net.pt",
          "value_checkpoint_env": "GOMOKU_V11_CHECKPOINT",
-         "value_weight": 0.25},
+         "value_weight": 0.125},
 }
 
 # --- weights --------------------------------------------------------------

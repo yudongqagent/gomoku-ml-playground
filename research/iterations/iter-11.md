@@ -380,6 +380,53 @@ ml/runs/b4-h3/value-net.pt --positions 20 --leaf-samples 200
   the matches; v8's battery ran ~17 s/game, and v11 should be
   similar.
 
+## 4. α (VALUE_WEIGHT) sweep
+
+Pre-registered grid α ∈ {1.0, 0.5, 0.25, 0.125}, 20-game smokes
+vs v0, seeds 1001/2001 (same seeds as v8's sweep matches),
+selection rule: highest win rate, ties toward larger α
+(`ml/scripts/sweep_value_weight.py`,
+`research/iterations/sweep-v11.json`):
+
+| α | vs v0 (20 games) | Win rate | 95% CI |
+|---|---|---|---|
+| 1.0 | 3W-16L-1D | 0.1750 | [0.0661, 0.3886] |
+| 0.5 | 9W-11L-0D | 0.4500 | [0.2582, 0.6579] |
+| 0.25 | 8W-12L-0D | 0.4000 | [0.2188, 0.6134] |
+| **0.125** | **11W-8L-1D** | **0.5750** | [0.3641, 0.7617] |
+
+**Selected α = 0.125** (highest win rate; no tie). Recorded in
+the registry entry (`ENGINE_VERSIONS[11]["value_weight"]`).
+
+vs v8's sweep (10-game smokes vs v0): α=1.0 → 0.00, 0.5 →
+0.20, 0.25 → 0.60. The heuristic-opponent net is better than
+v8's net at EVERY α (0.175 vs 0.00 at full weight; 0.45 vs 0.20
+at α=0.5) — the distribution fix is real — but the SHAPE is
+unchanged (lower α still better) and the PEAK did not move:
+v11's best (0.575 at α=0.125) is indistinguishable from v8's
+best (0.60 at α=0.25; both n≤20, CIs wide and overlapping).
+The optimizer's curse persists: even in-distribution values
+cannot be trusted at full weight, and the net's marginal value
+as a leaf signal is about the same as v8's. The α=0.25 dip
+below α=0.5 (0.40 vs 0.45) is non-monotone and most likely
+n=20 noise. The sweep is a noisy selection procedure; the
+battery (§6) is the arbiter. Tactical at the placeholder
+α=0.25 was 20/20 + 29/29 (§5.1 re-runs it at α=0.125).
+
+## 5. Fast heuristic loop (the loss analysis)
+
+Per the direction change (§1.5), the fast-loop worked games ARE
+the loss analysis; aggregate classification is secondary. Each
+iteration: 10 games vs the weakness-exposing opponent, every
+move read, THE losing move per lost game verified (solver /
+deeper search / corrected playout oracle), patch to the
+structural cause, regression position recorded, replay
+verified.
+
+### 5.1 Iteration 1
+
+(TBD — 10 games vs v0, dev seeds 500/600, α=0.125.)
+
 **Cross-distribution checks (pre-registered, diagnostic, cheap
 — run with `ml/scripts/eval_value_holdout.py`, no training):**
 (1) v8's net (`ml/runs/b3-h2/value-net.pt`, copied from the main
