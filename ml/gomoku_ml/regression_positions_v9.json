@@ -1,0 +1,90 @@
+{
+  "version": 9,
+  "description": "Batch 4 H1 regression positions: the iter-7 \u00a72.6 critical position (v7-as-Black loss to v0, ply 14) plus fast-loop critical positions found for v9. The engine must play an expected move on every position.",
+  "positions": [
+    {
+      "id": "b4h1-sec26-ply14",
+      "source": "batch-v7-vs-v0.json game 16, ply 14 (iter-7.md \u00a72.6)",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          10,
+          4
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          10,
+          6
+        ],
+        [
+          9,
+          4
+        ],
+        [
+          11,
+          4
+        ]
+      ],
+      "white": [
+        [
+          8,
+          7
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          9,
+          7
+        ],
+        [
+          9,
+          6
+        ],
+        [
+          10,
+          5
+        ],
+        [
+          12,
+          4
+        ]
+      ],
+      "to_move": "black",
+      "expected": [
+        [
+          7,
+          4
+        ],
+        [
+          9,
+          8
+        ],
+        [
+          6,
+          9
+        ]
+      ],
+      "played_before_patch": [
+        8,
+        4
+      ],
+      "note": "Oracle-verified saving moves (walk-back seeds 0,1,2): (7,4)/(9,8)/(6,9). v7 played the losing (8,4) after an RNG visit-tie break. Variant D (tie-prior) plays (7,4); B/C play (8,4); A plays (11,3)."
+    }
+  ]
+}
