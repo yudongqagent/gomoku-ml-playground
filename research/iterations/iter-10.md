@@ -97,6 +97,40 @@ fix the known exploration weakness and the design's
 mechanism is in doubt before any match is played. This check
 runs as a unit test, not a match.
 
+**Pre-eval observation (recorded BEFORE any eval, during
+implementation testing — the design stands as pre-registered;
+the evals decide).** The built-in mechanism check FAILS: v10
+as White with 200 sims still plays the losing block (4,9) on
+`fl1-g3-ply23`, not the saving forcing move (9,12). Root
+statistics (same position, gradient leaf, seed 0):
+
+| sims | (4,9) visits / q | (9,12) visits / q |
+|---|---|---|
+| 100 (v7) | 15 / 0.052 | 7 / 0.009 |
+| 200 (v10 White) | 26 / 0.045 | 22 / 0.016 |
+| 400 (probe) | 113 / 0.012 | 29 / 0.021 |
+
+200 sims close the visit gap (7→22 vs 15→26) but do not flip
+the move, and at 400 sims the search converges ON the block
+(113 vs 29). The q-values do not distinguish the moves
+(0.01–0.05 throughout), so this position's real problem is a
+VALUE problem — the search does not see that (9,12) wins —
+not pure visit starvation, and more sims alone does not fix
+it. (The threat check engages on this position but both
+moves are safe, so it cannot decide between them.) The
+position is recorded as an xfail test
+(`test_v10_white_plays_forcing_save_on_fl1_g3_ply23`, the v7
+pattern) so the behaviour stays visible. Following iter-7's
+precedent (§1 pre-eval observation), the pre-registered
+design is NOT amended on the basis of one diagnostic
+position — amending after seeing v10 behave badly on a
+known-hard position would be moving the goalposts, and the
+evals are the pre-registered decision procedure. The fast
+loop (§2) is where a patchable White weakness class would
+show up; if the matches show no White gain, the sims
+hypothesis is refuted and the next batch should look at the
+leaf's value signal for White, not at more search.
+
 **How the White improvement is measured (per-colour splits
 are MANDATORY in every match reported here).** White is the
 target; the overall match score alone cannot show whether
