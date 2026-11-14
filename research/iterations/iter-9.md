@@ -404,7 +404,31 @@ stopping rule (no new patchable weakness class). Details in §2.
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
-[To be filled.]
+**v9 crushes v0: 93W-7L-0D, win rate 0.9300, 95% CI
+[0.8625, 0.9657]**, 2061.5 s. File:
+`research/iterations/batch-v9-vs-v0.json` (seeds 100/200).
+Per colour: as Black 43W-7L-0D (0.8600), as White **50W-0L-0D
+(1.0000)** — v9 as White beats v0 in all 50 games. Mean game
+length 46.57 plies. Loss classifier: 7/7 losses via open four,
+**0 missed blocks**, 63 threatened turns in losses, **0 clean
+missed preventions** — defence is still solved.
+
+Compare v7 vs v0 on the SAME seeds: 64W-31L-5D, 0.6650 (as Black
+34W-13L-3D, as White 30W-18L-2D). v9 gains 29 games over v7
+against v0 — from a tie-break-only change. The first-30-games
+comparison (identical seeds) shows the divergence is present
+from the start: v9 28W-2L-0D vs v7 17W-12L-1D in games 0-29.
+The colour-split inversion is gone and reversed: v7 scored
+LOWER against the weaker v0 (0.6650) than against v1 (0.7050)
+and lost 13 as Black; v9's as-Black losses to v0 drop to 7 and
+its as-White game is perfect. Mechanism (see §5): against v0's
+greedy play, root visit ties are frequent, and v7's RNG
+tie-break throws away half of them; v9's prior tie-break wins
+them systematically, and each better tie-break compounds over
+the game. This is NOT the bar (clause 1 is vs v7), but it is
+the strongest evidence that the tie-prior rule is a real
+improvement, not noise: a 29-game swing on identical seeds
+cannot be a coin flip.
 
 ### 3.5 Tactical suites — FINAL BATTERY
 
