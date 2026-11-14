@@ -154,6 +154,174 @@ def game_over(board: np.ndarray) -> tuple[bool, int]:
     return False, EMPTY
 
 
+# --- swap rule (pie rule) -------------------------------------------------
+# Standard swap rule (NOT Swap2 — see research/iterations/swap-rule.md
+# for the interpretation and the self-play policies):
+#
+# * the opener places 3 stones on the empty board: 2 black, 1 white;
+# * the second player then chooses which colour to play;
+# * play continues with White to move (move 4 is White's — the 3
+#   opening stones ARE moves 1-3, black/white/black, so the game
+#   simply continues alternating; RIF rules Article 2.4).
+#
+# These helpers are purely additive: no existing function changes
+# behaviour. The self-play policies (how the opener places the 3
+# stones, how the second player picks a colour) live in
+# ``gomoku_ml.research`` and are documented in
+# ``research/iterations/swap-rule.md``.
+
+SWAP_OPENING_STONES = 3
+SWAP_OPENING_BLACK = 2
+SWAP_OPENING_WHITE = 1
+
+
+def build_swap_opening(black1: int, black2: int, white1: int) -> np.ndarray:
+    """Build the board after the swap-rule opening: the opener's 2
+    black stones and 1 white stone, on distinct legal points.
+
+    Raises ValueError if the three points are not distinct or not on
+    the board. The order of the two black stones does not matter.
+    """
+    moves = (black1, black2, white1)
+    if len(set(moves)) != 3:
+        raise ValueError(
+            f"swap opening stones must be distinct, got {moves}"
+        )
+    board = empty_board()
+    for move in moves:
+        if not 0 <= move < SIZE * SIZE:
+            raise ValueError(f"swap opening move out of range: {move}")
+    board[black1 // SIZE, black1 % SIZE] = BLACK
+    board[black2 // SIZE, black2 % SIZE] = BLACK
+    board[white1 // SIZE, white1 % SIZE] = WHITE
+    return board
+
+
+def is_swap_opening(board: np.ndarray) -> bool:
+    """True if ``board`` holds exactly a swap opening: 2 black stones
+    and 1 white stone, and the game is not already over."""
+    n_black = int(np.count_nonzero(board == BLACK))
+    n_white = int(np.count_nonzero(board == WHITE))
+    if (n_black, n_white) != (SWAP_OPENING_BLACK, SWAP_OPENING_WHITE):
+        return False
+    over, _ = game_over(board)
+    return not over
+
+
+def choose_swap_color(board: np.ndarray, score_move_fn, judge: str = "attack") -> int:
+    """The second player's colour choice on a swap-opening board.
+
+    ``judge="attack"`` (default, batch-1 policy): compare the best
+    available ATTACK score for each colour (max over legal moves of
+    ``score_move_fn(board, move, colour)``) and take the colour with
+    the higher best score. Ties go to WHITE: White plays move 4 (see
+    below), so the next-move tempo breaks the tie.
+
+    ``judge="tempo"`` (batch 2, H3): the tempo-aware judge — see
+    :func:`choose_swap_color_tempo`. ``score_move_fn`` is injected so
+    this module stays free of engine dependencies — the research
+    harness passes the v1 scoring engine's attack-only scorer
+    (``gomoku_ml.scoring.score_attack``) by default.
+
+    Turn order (verified against the official RIF rules, Article 2.4
+    — "After this, the player with white stones will place a stone"):
+    the 3 opening stones ARE moves 1-3 (black, white, black), so the
+    game continues with White to move (move 4). An earlier version
+    of this program wrongly had Black to move; that gave Black 3 of
+    the first 4 moves and made the swap choice degenerate. See
+    ``research/iterations/swap-rule.md``.
+
+    The scorer MUST be colour-asymmetric (attack-only). A symmetric
+    attack+defence scorer makes the comparison vacuous: at any square
+    the attack and defence components swap roles between colours, so
+    both colours score identically everywhere and the choice always
+    falls to the BLACK tie-break (verified empirically — see
+    ``research/iterations/swap-rule.md``).
+
+    Raises ValueError if ``board`` is not a swap opening (see
+    :func:`is_swap_opening`) or if ``judge`` is unknown.
+    """
+    if not is_swap_opening(board):
+        raise ValueError(
+            "choose_swap_color needs a swap-opening board "
+            "(2 black stones, 1 white stone)"
+        )
+    if judge == "attack":
+        legal = legal_moves(board)
+        best_black = max(int(score_move_fn(board, int(m), BLACK)) for m in legal)
+        best_white = max(int(score_move_fn(board, int(m), WHITE)) for m in legal)
+        return WHITE if best_white >= best_black else BLACK
+    if judge == "tempo":
+        return choose_swap_color_tempo(board, score_move_fn)
+    raise ValueError(f"unknown swap judge: {judge!r} (known: 'attack', 'tempo')")
+
+
+def _setup_value(board: np.ndarray, score_move_fn, player: int) -> int:
+    """Best follow-up attack for ``player`` after its own best move.
+
+    Among ``player``'s best immediate attack moves on ``board``
+    (max of ``score_move_fn``), take the one with the best follow-up
+    (max attack for ``player`` on the board after the setup move)
+    and return that follow-up value. The max-over-ties makes the
+    value independent of which tied setup move is picked (the
+    follow-up varies by at most 1 point across tied setups — see
+    ``research/iterations/swap-judge-v2.md``).
+    """
+    legal = legal_moves(board)
+    scored = [(int(score_move_fn(board, int(m), player)), int(m)) for m in legal]
+    top = max(s for s, _ in scored)
+    best_followup = None
+    for score, move in scored:
+        if score != top:
+            continue
+        after = apply_move(board, move, player)
+        followup = max(
+            int(score_move_fn(after, int(m2), player))
+            for m2 in legal_moves(after)
+        )
+        if best_followup is None or followup > best_followup:
+            best_followup = followup
+    assert best_followup is not None
+    return best_followup
+
+
+def choose_swap_color_tempo(board: np.ndarray, score_move_fn) -> int:
+    """Tempo-aware colour choice on a swap-opening board (batch 2, H3).
+
+    Each colour's value is its best follow-up attack AFTER its own
+    best setup move (see :func:`_setup_value`): the colours are
+    compared after symmetric 1-ply development, as in the real game
+    where White plays move 4 and Black move 5 before the race
+    continues. The colour with the higher value wins; ties go to
+    WHITE, who moves next (move 4) — the tempo breaks the tie.
+
+    Why symmetric setup, not the naive 1-ply lookahead (White's best
+    move 4, then compare best attacks)? The naive version is
+    degenerate in the opposite direction: White's setup move unlocks
+    a gapped three-in-a-window worth ~4006 while Black's
+    non-interacting stones cap at ~164, so it picks White 100/100
+    (measured on 50 balanced openings). Any SEQUENTIAL lookahead has
+    this last-move-wins artifact — a 2-ply minimax version picks
+    Black 20/20 by ~3900. Only the symmetric comparison produces a
+    mixed split (Black 76 / White 24 on 100 balanced openings, with
+    margins of exactly 0 or 78). A tempo handicap on the plain
+    attack gap cannot mix the split either: the gap is 77-78 in
+    every balanced opening, so any fixed handicap picks one colour
+    always. Full design analysis and numbers:
+    ``research/iterations/swap-judge-v2.md``.
+
+    Raises ValueError if ``board`` is not a swap opening.
+    """
+    if not is_swap_opening(board):
+        raise ValueError(
+            "choose_swap_color_tempo needs a swap-opening board "
+            "(2 black stones, 1 white stone)"
+        )
+    value_black = _setup_value(board, score_move_fn, BLACK)
+    value_white = _setup_value(board, score_move_fn, WHITE)
+    return WHITE if value_white >= value_black else BLACK
+
+
 def other_player(player: int) -> int:
     """The opponent of ``player``."""
     return -player
