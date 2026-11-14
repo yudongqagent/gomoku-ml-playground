@@ -199,8 +199,135 @@ hook in `ScoringPlayer.__init__` (a version dict with a
 
 ## 2. Loss analysis (fast loop)
 
-(TBD — fast-loop iterations go here as they run; the worked
-games ARE the loss analysis.)
+The fast-loop worked games (§2.1) ARE the loss analysis — see
+the method note in §1. Aggregate counts (§2.5) are secondary.
+
+### 2.1 Fast-loop iteration 1 — 10 games vs v7
+
+**Batch:** `research/iterations/fastloop1-v10-vs-v7.json`
+(seeds v10=500 / v7=600 — development seeds, distinct from the
+bar battery's 100/200). **3W-7L-0D, win rate 0.3000, CI
+[0.1078, 0.6032]**, 919.2 s (~92 s/game under heavy VM
+contention with the parallel H1/H3 workstreams). The split is
+almost purely colour: v10 wins 3/5 as Black (games 2, 4, 6)
+and loses ALL 5 as White (games 1, 3, 5, 7, 9) — 200 White
+sims did NOT fix the White weakness at 10-game scale.
+Classifier (`ml/scripts/classify_batch_losses.py`): 7/7
+losses via open four, 0 missed blocks, 0 clean missed
+preventions in 26 threatened turns (losses). Defence is still
+solved; the losses are lost races, as in every batch before.
+All 10 games are distinct lines (no deterministic duplicates).
+
+**The losing move in each game** (walk-back,
+`ml/scripts/walkback_loss.py`, corrected oracle method —
+the actual move's v1-vs-v1 playout must lose at all 3 seeds
+before an alternative counts; seeds 0,1,2; alternatives are
+the top-6 by v1 score plus forcing moves):
+
+| Game | Last preventable turn | v10 played (loses 3/3) | Perfect move (oracle) |
+|---|---|---|---|
+| 1 (White, 79 plies) | ply 67 | (0,10) | (8,6)/(8,9)/(9,8) — draw 3/3 |
+| 3 (White, 77 plies) | ply 67 | (14,10) | (14,12) — draws 3/3 |
+| 5 (White, 77 plies) | ply 71 | (4,1) | (5,3) — wins 3/3 |
+| 7 (White, 47 plies) | ply 31 | (8,1) | (10,12) — wins 3/3; (5,7)/(9,9)/(7,11) draw |
+| 9 (White, 31 plies) | ply 19 | (8,7) | (4,9) — wins 3/3 |
+| 0 (Black, 56 plies) | ply 40 | (11,11) | (11,5) — wins/draws; (12,7)/(12,12) draw |
+| 8 (Black, 34 plies) | — | no single losing move (ply 22 loses 3/3, 0 saves; ply 20 draws) | distributed drift |
+
+**The recurring structural weakness — ONE class, 4 of 6
+analysed losses: the q-vs-visits root-decision gap
+(iter-7 §2.6).** Critical-position analysis
+(`ml/scripts/analyse_critical.py`, 200 sims for White):
+
+| Position | Actual (v1 rank / prior) | Actual visits / q | Save visits / q |
+|---|---|---|---|
+| g1 ply 67 | (0,10) rank 1, p=0.114 | 27 / 0.172 | (8,9): 4 / 0.207 |
+| g3 ply 67 | (14,10) rank 1, p=0.255 | 60 / 0.161 | (14,12): 11 / 0.271 |
+| g9 ply 19 | (8,7) rank 3, p=0.049 | 82 / -0.131 | (4,9): 8 / 0.064 |
+| g0 ply 40 | (11,11) rank 1, p=0.062 | 6 / 0.109 | (11,5): 2 / 0.149 |
+
+In all four, the saving move has the HIGHER q but far fewer
+visits, and most-visited decides. Game 9 is the extreme case:
+the losing move (8,7) has 82 visits at q -0.131 (the search
+KNOWS it is bad) while the forcing save (4,9) has 8 visits
+at q +0.064 — and (8,7) leaves Black 2 open-four creators
+while (4,9) leaves 0. The search knows the right move and
+the decision rule discards that knowledge. This is EXACTLY
+iter-7 §2.6's finding, now confirmed as the dominant White
+weakness class at 200 sims: doubling White sims does not fix
+a decision-rule problem — visits follow the prior, and the
+prior is what it is.
+
+**The other two losses are beyond-horizon value errors, not
+the same class.** In game 5 (ply 71) the save (5,3) has LOWER
+q than the actual (0.103 vs 0.163) and in game 7 (ply 31)
+slightly lower (0.097 vs 0.108): the search genuinely does
+not see the save at 200 sims, and the oracle's verdict is
+beyond the search horizon. No leaf tweak is verified to fix
+these — the gradient has no consistent story across the six
+positions (it prefers the loser in g1/g3/g5, the save in g7,
+and is tied in g9).
+
+**What is NOT the cause (checked, not assumed).**
+- The threat check: 5 of the 6 critical positions are
+  QUIET (0 creators for either side), so the check never
+  engages. In game 3 (1 Black creator) both the actual and
+  the save are safe, so the filter cannot distinguish them.
+  The threat check neither helps nor hurts these losses.
+- "Creates creators": only game 9's losing move leaves the
+  opponent creators (2) while the save leaves 0 — 1 of 6
+  positions is not a class, and a "don't create creators"
+  filter would be an unverified new mechanism.
+- The gradient leaf: no consistent direction (above).
+- The prior: the losing moves have higher priors than the
+  saves in all 6 positions — but the prior is v1's shared
+  scoring, and downweighting four-makers for White would be
+  an unverified guess, not a verified fix.
+
+**NO PATCH from iteration 1.** The dominant, recurring class
+is the q-vs-visits gap — which belongs to the parallel H1
+workstream (v9, the q-vs-visits root decision on
+`research/batch-4-h1`), NOT to this workstream. Implementing
+a q-based root decision here would duplicate H1's work and
+conflict at merge. There is no OTHER verified patchable
+class in these games that is v10's to fix. Patching on an
+unverified hypothesis would violate the loop's "never
+guessed" rule (iter-7 §2.2 precedent).
+
+**Regression tests:** `ml/gomoku_ml/regression_positions_v10.json`
+(6 positions, stone lists + expected moves, generated from
+the game records and verified: v10 seed 0 reproduces the
+losing move on all 6) +
+`ml/tests/test_regression_v10.py`. All 6 are documented
+xfails — the executable White-weakness suite a future
+root-decision change (H1/v9) should fix. Targeted suites
+after the (non-)patch: test_regression_v10 1 passed,
+6 xfailed; test_mcts_white + test_mcts_heuristic +
+test_scoring green (see §4).
+
+### 2.2 Fast-loop iteration 2 — NOT RUN (loop stopped after iteration 1)
+
+**Loop stops here (stopping rule).** Iteration 1 found no
+new patchable weakness class for THIS workstream: the
+dominant class (q-vs-visits) is H1's, and the two
+beyond-horizon losses have no verified fix. A second
+iteration vs v7 would only re-confirm the same class (and
+the v0 fallback does not trigger — iteration 1 DID produce
+losses against v7). The loop ends after 1 iteration
+(10 games) per the direction change's stopping rule. v10
+goes to the full battery as pre-registered (§1): v7 +
+threat check + 200 White / 100 Black sims, with the honest
+expectation from the fast loop (3W-7L, White 0W-5L) that the
+sims hypothesis is likely refuted at 100-game scale too —
+the battery measures it precisely.
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 1)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 1)
+
+### 2.5 Aggregate counts (secondary)
+
+(TBD — classifier counts across the final battery's matches.)
 
 ## 3. v10 evaluation (FULL VALIDATION BATTERY — final patched v10 only)
 
