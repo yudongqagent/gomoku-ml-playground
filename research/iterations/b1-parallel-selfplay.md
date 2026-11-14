@@ -383,37 +383,69 @@ of predicting it.
 
 ## The 10k staged dataset
 
-**Run in progress at commit time** — this section is completed when
-the run finishes (or hits the 6-hour cap). Plan: workers=4 (the best
-measured setting), concurrency 8 per worker, 50 sims, round-2
-checkpoint, target 10,000 games in `ml/runs/b3-b1-10k/data/`
-(gitignored data, not committed). At the measured contended rate
-(1073.5/hr) 10k games project to 9.3 hours, past the ~6-hour cap —
-so the run stops at the cap with whatever fits, and the exact count
-is reported here, not rounded up to 10k. The remainder stays
-generatable later by re-running the same command (top-up).
+**PARTIAL — 4,350 of 10,000 games generated within the ~6-hour cap.**
+This is a partial run, reported as partial: the 10k target was not
+reached, and the remaining 5,650 games are generatable later by
+re-running the same command (top-up). Data path (gitignored data, not
+committed):
 
-Run history:
+```
+ml/runs/b3-b1-10k/data/          # 4,350 shards, b3-b1-10k_game0000.npz …
+ml/runs/b3-b1-10k/data/manifest.json
+ml/runs/b3-b1-10k/config.yaml    # resolved config snapshot
+ml/runs/b3-b1-10k/metrics.jsonl  # selfplay_game events
+ml/runs/b3-b1-10k-launch.log     # full CLI log (all legs)
+ml/runs/b3-b1-10k-watchdog.log   # 30-min progress log
+```
 
-* **Leg 1** (07:40:10–08:25 UTC, parent 3162): stopped deliberately
-  after 645 games to investigate the workers' low CPU share and to
-  bench 6/8 workers. The stop exposed the result-queue deadlock
-  (see the design section): two workers stuck in exit-flush until
-  the join timeouts expired and they were terminated. All 645
-  completed games were merged (27,311 samples); the two terminated
-  workers' events were lost and re-emitted synthetically from the
-  shards. The deadlock is fixed in the relaunched code.
-* **Leg 2** (relaunched 08:33 UTC, parent 7653): same command,
-  top-up from the 645 merged games (9,355 to generate). A watchdog
-  (`ml/runs/b3-b1-10k-watchdog.sh`, log
-  `ml/runs/b3-b1-10k-watchdog.log`) enforces the 6-hour cap measured
-  from the original 07:40:10 start — SIGTERM to the parent at
-  13:40:10 UTC, graceful stop + merge. Progress is logged every 30
-  min in the watchdog log; live progress is the shard count under
-  `ml/runs/b3-b1-10k/data/` (merged shards + worker `.parallel-*/`
-  dirs — merged shards only appear at the final merge).
+Config: round-2 checkpoint (`ml/runs/b3-b1/final.pt`), 50 sims/move,
+workers=4, concurrency 8 per worker, seed 0 (worker w seeds
+`seed + w`), c_puct 1.5, Dirichlet α 0.3 / ε 0.25, temperature 1.0,
+temperature_moves 30, no resign threshold, max_moves 225.
 
-[TO FILL: final count, sanity-check results, achieved games/hour]
+Run history (four legs, three VM restarts — the recovery path was
+exercised for real three times and worked every time):
+
+| Leg | Wall (UTC) | Parent | Games at end of leg | Note |
+|-----|-----------|--------|---------------------|------|
+| 1 | 07:40:10–08:25 | 3162 | 645 merged | stopped deliberately to investigate CPU share + bench 6/8 workers; exposed the result-queue deadlock (fixed) |
+| 2 | 08:33–~09:25 | 7653 | 1,489 total | VM replaced; 844 orphaned shards recovered on relaunch |
+| 3 | 09:27–~11:26 | 1731 | 2,901 total | VM replaced; 1,412 orphaned shards recovered on relaunch |
+| 4 | 11:27–13:41:38 | 1690 | **4,350 total** | stopped by the watchdog at the 6h cap (SIGTERM 13:40:37, graceful exit 61 s later, all shards merged, 0 orphaned) |
+
+Per-leg generation rates fell as sibling load grew: leg 1 ~1033/hr,
+leg 2 ~970/hr, leg 3 ~790/hr, leg 4 646/hr (a coordinator pytest run
+at 46% CPU plus H1/H2 jobs during that window). Blended: 4,350 games
+in 6h00m27s of wall-clock budget = **724/hr**. The shortfall vs the
+~6,400 games the 1073/hr bench rate projected is fully accounted
+for: (a) the declining per-leg rate under growing sibling load,
+(b) ~35 min of VM-restart downtime across three restarts, (c) ~55
+min spent on the leg-1 stop, the 6/8-worker bench, and the deadlock
+fix. At the blended 724/hr, the remaining 5,650 games would take
+~7.8 more hours; at the 1073/hr bench rate, ~5.3 hours.
+
+### Data sanity check (all 4,350 shards read, 2026-11-14)
+
+* Shard count: 4,350. Total samples: **185,264**.
+* Shapes: 0 bad (every shard planes `[T, 8, 15, 15]`, policy
+  `[T, 225]`, value `[T]`, moves `[T]`, T = game length).
+* Policy rows: 0 bad — every row sums to 1 (atol 1e-4).
+* Value targets: 0 bad — all in {-1, 0, 1}; +1 93,760 (50.6%),
+  -1 91,504 (49.4%), 0 0 (0.0%, no draws).
+* Game length: mean 42.6 plies, min 14, max 104, median 41.
+* Winners: Black 2,256 (51.9%), White 2,094 (48.1%), draws 0 —
+  the Black edge is the expected first-move advantage; 0 draws
+  matches every bench arm (also 0 draws in 40 games each).
+* Manifest consistent: `manifest.json` reports 4,350 games /
+  185,264 samples, matching the shards on disk exactly.
+
+No net was trained on this data and no eval was run on it — that is
+H2's / the next batch's job. Resume command (recorded in the run's
+`run_interrupted` event):
+
+```
+ml/.venv/bin/python ml/scripts/selfplay.py --config ml/runs/b3-b1/config.yaml --run-dir ml/runs/b3-b1-10k --games 10000 --workers 4 --concurrency 8
+```
 
 ## Limitations for running on a GPU later
 
