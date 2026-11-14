@@ -668,9 +668,15 @@ class found; see §4.3).
 
 ### 4.5 Aggregate classification (secondary)
 
-(TBD — `ml/scripts/classify_losses.py` aggregates across the
-validation-battery matches: losses via open four, missed blocks,
-clean missed preventions with threatened-turn counts.)
+`ml/scripts/classify_losses.py` on the three 100-game battery
+matches, pooled: **136 losses, 136 via open four, 0 missed
+blocks, 0 clean missed preventions in 708 threatened turns**
+(vs v1: 46 losses in 234 turns; vs v0: 45 in 250; swap: 45 in
+224). Defence is completely solved — every battery loss is an
+attack-race loss, the same shape as v6's (iter-6 §2.1). The
+fast-loop worked games (§4.1–4.3) are the primary loss
+analysis; this aggregate confirms there is no defensive
+weakness left to fix.
 
 ## 5. v8 evaluation (FULL VALIDATION BATTERY — final patched v8 only)
 
@@ -780,7 +786,12 @@ plies 42.5.
 
 ### 5.5 Swap match vs v1 (100 games, balanced, placement_seed 11, tempo judge)
 
-(TBD.)
+**39W-45L-16D, win rate 0.47, 95% CI [0.3751, 0.5671]** —
+`batch-v8-vs-v1-swap.json` (100 games, 2,032 s). Consistent
+with normal rules (0.48): under swap the Black edge is
+neutralized and v8's White weakness shows directly — as Black
+0.59, as White 0.35. Mean plies 75.1; 16 draws (vs 12 under
+normal rules) — balanced openings run longer.
 
 ### 5.6 Ladder (20 games/opponent, mcts_sims=100, seed 100)
 
