@@ -191,20 +191,20 @@ describe('each level returns a legal move', () => {
 });
 
 describe('level-specific behaviour', () => {
-  it('master falls back to MCTS when no model URL is provided', async () => {
+  it('master uses the v7 engine (no neural model)', async () => {
     const r = await chooseMove(req(midGameBoard(), 1, 'master'));
-    expect(r.backend).toBe('mcts-fallback');
+    expect(r.backend).toBe('v7');
     expect(isLegalMove(midGameBoard(), r.move)).toBe(true);
   });
 
-  it('master falls back to MCTS when the model URL cannot load', async () => {
+  it('master ignores modelUrl (v7 needs no model)', async () => {
     const r = await chooseMove({
       board: midGameBoard(),
       toMove: 1,
       level: 'master',
       options: { ...SMALL_BUDGET, modelUrl: '/models/does-not-exist.onnx' },
     });
-    expect(r.backend).toBe('mcts-fallback');
+    expect(r.backend).toBe('v7');
   });
 
   it('advanced finds a forced win via VCF search', () => {

@@ -115,6 +115,44 @@ export function countMismatches(a: ArrayLike<number>, b: ArrayLike<number>): num
   return n;
 }
 
+/**
+ * Attack-only scores for every cell (exact port of
+ * `ml/gomoku_ml/kernel_numpy.attack_all`): the friendly part of
+ * `scoreAllJs` only — the sum over the 4 directions of
+ * `W[min(run, 5), ends]` for `player`'s colour, with NO opponent part
+ * and NO centre term. The full total is (up to the 0.9 defence
+ * discount and the centre term) symmetric between colours, so a leaf
+ * value that must distinguish "our attack" from "their attack" needs
+ * this, not the total. Used by the v7 MCTS leaf gradient
+ * (`src/ai/v7.ts`). Scores occupied cells too, exactly as the Python
+ * kernel does; callers mask with the board.
+ */
+export function attackAllJs(board: Int8Array, player: 1 | -1): Int32Array {
+  const out = new Int32Array(CELLS);
+  for (let cell = 0; cell < CELLS; cell++) {
+    const x = cell % SIZE;
+    const y = Math.floor(cell / SIZE);
+    let total = 0;
+    for (const [dx, dy] of DIRS) {
+      const [run, ends] = runAndEnds(board, x, y, dx, dy, player);
+      total += W[Math.min(run, 5) * 3 + ends];
+    }
+    out[cell] = total;
+  }
+  return out;
+}
+
+/**
+ * Attack-only scores for BOTH colours (port of
+ * `kernel_numpy.attack_both`). Returns `[blackAttack, whiteAttack]` —
+ * two Int32Arrays of 225 scores each, each equal to
+ * `attackAllJs(board, colour)`. This is the call the v7 leaf uses: it
+ * needs both sides' threat breadth.
+ */
+export function attackBothJs(board: Int8Array): [Int32Array, Int32Array] {
+  return [attackAllJs(board, 1), attackAllJs(board, -1)];
+}
+
 // ---------------------------------------------------------------------------
 // WebGPU wrapper
 // ---------------------------------------------------------------------------

@@ -50,7 +50,7 @@ export interface WinRatePoint {
 export interface ModelOption {
   id: string;
   name: string;
-  /** URL passed to the AI worker as options.modelUrl. */
+  /** URL of the model file. Retained for the Trainer workflow; the Master level ignores it (v7 uses no model). */
   url: string;
   source: 'bundled' | 'server';
   description?: string;

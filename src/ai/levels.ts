@@ -9,8 +9,8 @@ export interface LevelMeta {
   description: string;
   /**
    * Honest strength note shown to the user. Never claims superhuman play:
-   * the Master level's strength depends entirely on the loaded model, and the
-   * bundled model is a small demo net.
+   * the Master level is the research v7 engine — the strongest version so
+   * far, but still below a strong human amateur.
    */
   strengthNote: string;
   defaultSims: number;
@@ -18,10 +18,11 @@ export interface LevelMeta {
 }
 
 /**
- * AI level metadata. Strength notes are deliberately honest: only the Master
- * level uses a neural network, and with the bundled small demo net it plays
- * at strong search level — not superhuman. A stronger model (trained longer,
- * on more self-play games) is what would raise its ceiling.
+ * AI level metadata. Strength notes are deliberately honest: the Master
+ * level is the research v7 engine (MCTS + attack-gradient leaf), the first
+ * version to pass the auto-research bar — strong search play, not
+ * superhuman. The old AlphaZero-style Master (ONNX net) is retired from
+ * play; the bundled demo net was below the 1-ply heuristic.
  */
 export const LEVEL_META: Record<LevelId, LevelMeta> = {
   beginner: {
@@ -80,16 +81,18 @@ export const LEVEL_META: Record<LevelId, LevelMeta> = {
   },
   master: {
     id: 'master',
-    name: 'Master (AlphaZero-style)',
-    tagline: 'Neural network + tree search',
+    name: 'Master',
+    tagline: 'Research v7 engine — MCTS with an attack-gradient leaf',
     description:
-      'PUCT Monte Carlo tree search guided by an ONNX policy+value network running on-device ' +
-      '(WebGPU when available, otherwise WASM). Without a loaded model it falls back to Expert-style MCTS.',
+      'The strongest engine from the auto-research program (v7): PUCT Monte Carlo tree search ' +
+      'with heuristic priors and an attack-gradient leaf value. The first version to pass the ' +
+      'research bar — it beats the 1-ply heuristic head-to-head (ladder Elo 190.8). No neural ' +
+      'network: it runs entirely on search.',
     strengthNote:
-      'Strength depends entirely on the loaded model. With the bundled small demo net it plays at ' +
-      'strong search level — comparable to Expert, NOT superhuman. A larger net trained on extensive ' +
-      'self-play would be needed to approach top-human play; the bundled demo net is not that.',
-    defaultSims: 400,
+      'Strongest level. Beats the 1-ply heuristic decisively and defends tactics perfectly, but ' +
+      'it is NOT superhuman — it still loses the direct match to a searching opponent and plays ' +
+      'White weakly. A strong human amateur will beat it.',
+    defaultSims: 100,
     defaultTimeMs: 5000,
   },
 };

@@ -5,8 +5,9 @@
 // Benchmark: measures the v0 scoring kernel (WebGPU shader + JS reference)
 // on this device, with a self-check against frozen Python scores.
 //
-// Honesty: no copy here claims the AI beats the best human. Master is an
-// AlphaZero-style level whose strength depends on the loaded model.
+// Honesty: no copy here claims the AI beats the best human. Master is the
+// research v7 engine (MCTS with an attack-gradient leaf) — the strongest
+// version so far, still not superhuman.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LEVEL_META, type LevelId } from './ai/levels';
@@ -187,7 +188,8 @@ export default function App() {
       aiRequestKeyRef.current = key;
       const board = Array.from(liveState.board);
       const toMove = liveState.toMove;
-      // History feeds the ONNX model's history planes (Master level).
+      // History is passed for compatibility; no level currently uses it
+      // (it used to feed the ONNX model's history planes for Master).
       const history = moves.slice();
       aiRef.current
         .requestMove({ board, toMove, level, options: aiRequestOptions, history })
@@ -324,7 +326,7 @@ export default function App() {
       }
       setView('play');
       showToast(
-        `Loaded “${model.name}” into Master level. Strength depends on the model — see its eval numbers in the Trainer.`,
+        `“${model.name}” is saved for the Trainer. Master now plays with the v7 research engine — no neural model is needed for play.`,
       );
     },
     [level, showToast],
@@ -517,9 +519,9 @@ export default function App() {
 
       <footer className="app-footer">
         <p>
-          Master is an AlphaZero-style level: its strength depends on the loaded model. The
-          bundled model is a small demo net, not superhuman — train stronger nets in the
-          Trainer to raise its ceiling.
+          Master plays with the v7 research engine (MCTS + attack-gradient leaf) — the first
+          version to pass the auto-research bar, and still not superhuman. Train stronger nets
+          in the Trainer to push the research forward.
         </p>
       </footer>
 

@@ -3,7 +3,9 @@
 // (bundled manifest + training-server registry), and the per-move perf readout.
 //
 // Honesty: no claim here says the AI beats the best human. Master is labelled
-// "AlphaZero-style" and its strength is explicitly tied to the loaded model.
+// "v7 engine" (the research engine — MCTS with an attack-gradient leaf) and
+// its strength note says plainly that it is not superhuman. The neural-model
+// picker is kept for the Trainer workflow; Master ignores the selection.
 
 import { useState } from 'react';
 import { LEVEL_META, LEVEL_ORDER, type LevelId } from '../ai/levels';
@@ -83,7 +85,7 @@ export default function AiPanel({
             >
               <span className="level-name">
                 {meta.name}
-                {id === 'master' && <span className="level-badge">AlphaZero-style</span>}
+                {id === 'master' && <span className="level-badge">v7 engine</span>}
               </span>
               {meta.tagline && <span className="level-tagline">{meta.tagline}</span>}
               {meta.description && <span className="level-desc">{meta.description}</span>}
@@ -94,8 +96,9 @@ export default function AiPanel({
       </div>
 
       <p className="honesty-note">
-        Strength depends on the loaded model — the bundled model is a small demo net, not
-        superhuman. Train a stronger net in the Trainer tab to raise Master&apos;s ceiling.
+        Master plays with the v7 research engine — the strongest version from the
+        auto-research program, and still not superhuman: it loses the direct match
+        to a searching opponent and plays White weakly.
       </p>
 
       <div className="ai-status-row">
@@ -184,30 +187,39 @@ export default function AiPanel({
                 ↻ Refresh
               </button>
             </span>
-            <select
-              value={selectedModelId ?? ''}
-              onChange={(e) => onModelChange(e.target.value === '' ? null : e.target.value)}
-              disabled={modelsLoading && models.length === 0}
-            >
-              <option value="">Search only (no neural model)</option>
-              {models.map((m) => (
-                <option key={`${m.source}:${m.id}`} value={`${m.source}:${m.id}`}>
-                  {m.name} ({m.source === 'bundled' ? 'Bundled' : 'Server'}
-                  {m.trainedGames !== undefined ? ` · ${m.trainedGames.toLocaleString()} games` : ''})
-                </option>
-              ))}
-            </select>
-            {modelsLoading && <small>Loading models…</small>}
-            {!modelsLoading && models.length === 0 && (
-              <small>{modelsError ?? 'No neural models found — Master falls back to search.'}</small>
-            )}
-            {selectedModel && (
+            {masterUsesModel ? (
               <small>
-                {selectedModel.description ?? ''}
-                {selectedModel.evalWinRate !== undefined &&
-                  ` Eval win rate vs heuristic: ${(selectedModel.evalWinRate * 100).toFixed(1)}%.`}
-                {selectedModel.source === 'bundled' && ' Bundled demo net — modest strength.'}
+                Master uses the v7 research engine and ignores the model selection — no neural
+                model is needed. Models are still used in the Trainer for training and evaluation.
               </small>
+            ) : (
+              <>
+                <select
+                  value={selectedModelId ?? ''}
+                  onChange={(e) => onModelChange(e.target.value === '' ? null : e.target.value)}
+                  disabled={modelsLoading && models.length === 0}
+                >
+                  <option value="">Search only (no neural model)</option>
+                  {models.map((m) => (
+                    <option key={`${m.source}:${m.id}`} value={`${m.source}:${m.id}`}>
+                      {m.name} ({m.source === 'bundled' ? 'Bundled' : 'Server'}
+                      {m.trainedGames !== undefined ? ` · ${m.trainedGames.toLocaleString()} games` : ''})
+                    </option>
+                  ))}
+                </select>
+                {modelsLoading && <small>Loading models…</small>}
+                {!modelsLoading && models.length === 0 && (
+                  <small>{modelsError ?? 'No neural models found.'}</small>
+                )}
+                {selectedModel && (
+                  <small>
+                    {selectedModel.description ?? ''}
+                    {selectedModel.evalWinRate !== undefined &&
+                      ` Eval win rate vs heuristic: ${(selectedModel.evalWinRate * 100).toFixed(1)}%.`}
+                    {selectedModel.source === 'bundled' && ' Bundled demo net — modest strength.'}
+                  </small>
+                )}
+              </>
             )}
           </label>
         </div>

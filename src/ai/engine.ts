@@ -22,17 +22,21 @@
  * - intermediate: alpha-beta, iterative deepening to depth 3.
  * - advanced: alpha-beta to depth 8 + VCF forced-win search.
  * - expert: heuristic MCTS.
- * - master: PUCT MCTS with the ONNX net, or MCTS fallback without a model.
+ * - master: v7 — PUCT MCTS with heuristic priors and a capped
+ *   attack-gradient leaf (the research engine that passed all 4 clauses
+ *   of the "better" bar). No neural network; `modelUrl` is ignored.
+ *   The old AlphaZero-style Master (alphazero.ts) is kept for the
+ *   engine-vs-engine cross-check script, not for play.
  */
 
 import { SIZE, type Player, type Point } from '../engine/gomoku';
-import { chooseMasterMove } from './alphazero';
 import { chooseBeginnerMove } from './beginner';
 import { LEVEL_META } from './levels';
 import { chooseMctsMove } from './mcts';
 import { evaluateBoard, findWinningMove, findWinningMoves, scoreMove, winRateFromEval } from './patterns';
 import { searchMove } from './search';
 import type { AiMoveRequest, AiMoveResult, AnalysisResult, TopMove } from './types';
+import { chooseV7Move } from './v7';
 
 interface RunResult {
   move: Point;
@@ -148,13 +152,9 @@ async function runAi(req: AiMoveRequest): Promise<RunResult> {
       return { ...r, ms: performance.now() - started };
     }
     case 'master': {
-      const r = await chooseMasterMove(board, player, {
-        sims,
-        timeMs,
-        temperature,
-        modelUrl: req.options?.modelUrl,
-        history: req.history,
-      });
+      // v7 research engine. modelUrl is intentionally ignored: Master no
+      // longer uses a neural network.
+      const r = chooseV7Move(board, player, { sims, timeMs, temperature });
       return { ...r, ms: performance.now() - started };
     }
     default: {

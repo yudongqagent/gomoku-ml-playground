@@ -9,7 +9,11 @@ export interface AiOptions {
   timeMs?: number;
   /** Move-selection temperature for MCTS levels (0 = always pick the most-visited move). */
   temperature?: number;
-  /** URL of the ONNX policy+value model (Master only). Omit for MCTS fallback. */
+  /**
+   * URL of the ONNX policy+value model. Retained for compatibility; the
+   * Master level ignores it — Master now uses the v7 research engine,
+   * which needs no model.
+   */
   modelUrl?: string;
 }
 
@@ -20,9 +24,9 @@ export interface AiMoveRequest {
   level: LevelId;
   options?: AiOptions;
   /**
-   * Full move history in order (Black first). Used to build the ONNX model's
-   * history planes (last move, positions 2 and 4 plies ago). Optional: when
-   * absent, those planes are zeros.
+   * Full move history in order (Black first). Retained for compatibility;
+   * no level currently uses it (it used to build the ONNX model's history
+   * planes for the old AlphaZero-style Master).
    */
   history?: Point[];
 }

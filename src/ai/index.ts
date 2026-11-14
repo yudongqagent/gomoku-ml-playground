@@ -40,6 +40,23 @@ export {
 export { chooseBeginnerMove, type BeginnerOptions } from './beginner';
 export { chooseMasterMove, type MasterOptions, type MasterResult } from './alphazero';
 export {
+  HeuristicMCTS,
+  V7_C_PUCT,
+  V7_SIMS,
+  attackGradient,
+  candidateMovesV1,
+  chooseV7Move,
+  gradientLeafValue,
+  scoreAttackV1,
+  scoreMoveV1,
+  scorePartsV1,
+  terminalLeafValue,
+  winningMovesV1,
+  type HeuristicMctsOptions,
+  type V7MoveOptions,
+  type V7Result,
+} from './v7';
+export {
   buildInputPlanes,
   loadModel,
   predict,
