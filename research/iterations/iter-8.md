@@ -366,6 +366,47 @@ dir `ml/runs/b3-h2-value-4350`, log
 accuracy for best.pt / final.pt on the 435-game holdout,
 checkpoint selection, comparison with the 500-game net.)
 
+**Retraining COMPLETE 2026-11-14 14:09 UTC** (~14 min, 5
+epochs — faster than the 500-game run's 28 min despite 8.7x
+the data, because 5 epochs instead of 20 and 1-thread pinning;
+epoch time fell from ~195 s to ~90 s once the smoke match
+finished). Final loss 5.1559 (policy 4.5386, value 0.6173);
+best val loss 5.1570 at epoch 5, so best.pt IS the epoch-5
+checkpoint (final.pt identical in every hold-out number below).
+
+**Hold-out value accuracy (game-level, 435 games, 18,446
+positions, all non-draw) — the data scale FIXED the
+generalization failure:**
+
+| Checkpoint | Full planes | No-history planes |
+|---|---|---|
+| best.pt = final.pt (epoch 5) | **0.7165** (13,216/18,446), MSE 0.7422, mean\|v\| 0.4995 | **0.6278** (11,580/18,446), MSE 0.91, mean\|v\| 0.283 |
+
+vs the 500-game net: full 0.4372, MSE 1.737; no-history
+0.4851, MSE 1.2102. The 8.7x data turned a memorizing net
+into a generalizing one: MSE is now well below the constant-0
+predictor (1.0) on both measures, and the phase profile is
+sane — most accurate late, where outcomes are determined:
+
+| Position bucket (holdout) | Sign agreement | MSE | mean\|v\| |
+|---|---|---|---|
+| Plies-from-end 0–2 | 0.7931 (500g: 0.3600) | 0.585 | 0.642 |
+| Plies-from-end 3–9 | 0.7796 (500g: 0.3657) | 0.631 | 0.621 |
+| Plies-from-end 10–19 | 0.7587 (500g: 0.4520) | 0.668 | 0.580 |
+| Plies-from-end 20+ | 0.6677 (500g: 0.4671) | 0.831 | 0.406 |
+
+The late-game inversion is gone. Train-vs-holdout gaps are
+now small (late 0.85 vs 0.79, early 0.71 vs 0.67; overall
+train ≈0.77 vs holdout 0.72) — mild overfitting, not
+memorization. **Checkpoint selection: best.pt** (tie with
+final.pt on both measures; best.pt is the epoch-5 checkpoint
+by the internal-val rule). Copied to
+`ml/runs/b3-h2/value-net.pt` — **the 4,350-game net is now
+the v8 leaf; the 500-game net is preserved as
+`ml/runs/b3-h2/value-net-500g.pt`.** All evals from here on
+(tactical re-run, smoke, fast loop, battery) are the
+4,350-game v8 unless stated otherwise.
+
 **VM replacement + same-seed resume trap (2026-11-14 ~07:25 UTC).**
 A VM replacement SIGTERM'd the run at 238 games; all 238 shards
 were safe on disk (shards + manifest flush every game) and the
