@@ -1,0 +1,80 @@
+# Batch 3 H2 (v8) — self-play data generation config (RESUME 3, seed 3).
+#
+# Third resume after a third VM replacement (~11:26 UTC, 468 games
+# done). Fresh seed every resume (see iter-8.md §2). Games 1-238 seed 0,
+# 239-403 seed 1, 404-468 seed 2, 469-500 seed 3.
+#
+# Second resume after a second VM replacement (~09:26 UTC, 403 games
+# done). Same rule as the first resume: a fresh seed every time, or
+# the batched path replays already-generated games. Games 1-238 seed 0,
+# 239-403 seed 1, 404-500 seed 2 (see iter-8.md §2).
+#
+# Same as b3-h2-selfplay.yaml except seed 1: the batched self-play
+# path replays (near-)identical games when resumed with the same seed
+# (a same-seed resume duplicated game0001 as game0239), so a resume
+# MUST use a fresh seed. Games 1-238 used seed 0; games 239-500 use
+# seed 1 (see research/iterations/iter-8.md §2).
+#
+# Generates the 500-game training set for the v8 value net, played by
+# the round-2 checkpoint (resnet 32ch/4blocks, copied to
+# ml/runs/b3-h2/round2-final.pt) via the B2 batched path
+# (--concurrency 8 --max-batch-size 32). Self-play settings are the
+# round-2 job's own (see ml/runs/b3-h2/round2-config.yaml).
+#
+# Run (from the worktree root):
+#   OMP_NUM_THREADS=2 TORCH_THREADS=2 \
+#   /home/hatch/workspace/projects/gomoku-ml-playground/ml/.venv/bin/python -u \
+#     ml/scripts/selfplay.py --config b3-h2-selfplay --run-dir ml/runs/b3-h2 \
+#     --checkpoint ml/runs/b3-h2/round2-final.pt --games 500 --sims 100 \
+#     --concurrency 8 --max-batch-size 32
+#
+# Pre-registered budget (research/iterations/iter-8.md §1): 500 games
+# at 100 sims/move. Do not raise it without a new pre-registration.
+
+run_name: b3-h2
+seed: 3
+
+architecture:
+  name: resnet
+  params:
+    channels: 32
+    blocks: 4
+
+base_checkpoint: null
+resume: null
+
+selfplay:
+  games: 500
+  sims_per_move: 100
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_epsilon: 0.25
+  temperature: 1.0
+  temperature_moves: 30
+  resign_threshold: null
+  max_moves: 225
+  checkpoint_every_games: 10
+
+train:
+  epochs: 20
+  batch_size: 64
+  lr: 0.002
+  lr_schedule: cosine
+  lr_step_size: 10
+  lr_gamma: 0.5
+  warmup_steps: 20
+  weight_decay: 0.0001
+  policy_weight: 1.0
+  value_weight: 1.0
+  augmentation: true
+  val_fraction: 0.05
+  checkpoint_every_epochs: 5
+
+eval:
+  games: 40
+  sims: 100
+  opponents: [random, heuristic, mcts]
+  mcts_sims: 100
+  tactical: true
+  tactical_sims: 50
+  auto: false
