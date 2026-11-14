@@ -949,6 +949,32 @@ def generate_games_parallel(
     ctx = multiprocessing.get_context("spawn")
     stop_event = ctx.Event()
     result_queue = ctx.Queue()
+    results: dict[int, dict] = {}
+
+    def drain_queue() -> None:
+        """Collect every result item available right now (non-blocking).
+
+        Called continuously while the workers run — NOT only after
+        they exit. A worker's result (shard paths + one event per
+        game) grows with its game count; at 2500 games/worker it is
+        tens of KB per worker, and four of them exceed the pipe
+        buffer. A worker cannot finish exiting until its result is
+        flushed to the pipe, so a parent that only drains after
+        joining deadlocks: the parent waits for the worker to exit
+        and the worker waits for the parent to read. (Observed
+        2026-11-13: two workers stuck in exit-flush with frozen CPU
+        time until the join timeouts expired and they were
+        terminated — their shards were still merged, but their events
+        were lost.) Draining every poll iteration keeps the pipe
+        empty and the workers' exits prompt.
+        """
+        while True:
+            try:
+                item = result_queue.get_nowait()
+            except queue.Empty:
+                return
+            results[item["worker"]] = item
+
     procs = []
     for w in range(workers):
         spec = {
@@ -973,10 +999,15 @@ def generate_games_parallel(
         proc.start()
         procs.append(proc)
 
-    # Poll for completion; on interrupt, ask the workers to stop
-    # gracefully, then terminate stragglers after the grace period.
+    # Poll for completion, draining the result queue as we go (see
+    # drain_queue). On interrupt, ask the workers to stop gracefully,
+    # then terminate stragglers after ONE shared grace period (not
+    # one per worker — sequential per-worker timeouts made a 4-worker
+    # stop take up to 12 minutes).
     interrupted = False
+    terminated_by_us: set[int] = set()
     while any(p.is_alive() for p in procs):
+        drain_queue()
         if (
             stop_flag is not None
             and stop_flag.requested
@@ -989,32 +1020,43 @@ def generate_games_parallel(
                 "round boundary",
                 file=sys.stderr, flush=True,
             )
-            for p in procs:
-                p.join(timeout=worker_join_timeout)
-            for p in procs:
+            deadline = time.time() + worker_join_timeout
+            while any(p.is_alive() for p in procs):
+                drain_queue()
+                if time.time() >= deadline:
+                    break
+                time.sleep(0.2)
+            for w, p in enumerate(procs):
                 if p.is_alive():
+                    terminated_by_us.add(w)
                     p.terminate()
             break
         time.sleep(0.2)
     for p in procs:
         p.join()
+    drain_queue()
+    result_queue.close()
+    result_queue.join_thread()
 
-    # Collect worker results (success or error). Workers put exactly
-    # one item each unless terminated before finishing.
-    results: dict[int, dict] = {}
-    while True:
-        try:
-            item = result_queue.get_nowait()
-        except queue.Empty:
-            break
-        results[item["worker"]] = item
+    # Collect failures. A worker we terminated ourselves after an
+    # interrupt is NOT a failure: it was killed deliberately once the
+    # grace period expired, and its completed shards are merged below
+    # like any other worker's. A worker that died on its own, or
+    # reported an error, is a failure even on an interrupted run.
     errors: list[str] = []
     for w, proc in enumerate(procs):
         result = results.get(w)
         if result is None:
-            errors.append(
-                f"worker {w}: no result (exit code {proc.exitcode})"
-            )
+            if w in terminated_by_us:
+                print(
+                    f"  worker {w}: terminated after the interrupt "
+                    "grace period (its completed shards are merged)",
+                    file=sys.stderr, flush=True,
+                )
+            else:
+                errors.append(
+                    f"worker {w}: no result (exit code {proc.exitcode})"
+                )
         elif "error" in result:
             errors.append(f"worker {w}:\n{result['error']}")
         elif proc.exitcode not in (0, None):

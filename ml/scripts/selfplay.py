@@ -163,30 +163,52 @@ def main() -> int:
                 f"concurrency per worker={args.concurrency}, "
                 f"max_batch_size={args.max_batch_size}"
             )
-            paths = selfplay.generate_games_parallel(
-                selfplay.NetSpec(
-                    arch_name=arch["name"],
-                    arch_params=arch["params"],
-                    checkpoint=checkpoint,
-                    device=args.device,
-                    c_puct=float(sp["c_puct"]),
-                    dirichlet_alpha=float(sp["dirichlet_alpha"]),
-                    dirichlet_epsilon=float(sp["dirichlet_epsilon"]),
-                ),
-                num_games=to_generate,
-                num_simulations=sims,
-                out_dir=out_dir,
-                run_name=cfg["run_name"],
-                workers=args.workers,
-                concurrency=args.concurrency,
-                max_batch_size=args.max_batch_size,
-                seed=int(cfg["seed"]),
-                on_event=lambda rec: run.log_event(**rec),
-                live_path=os.path.join(run_dir, "current_game.json"),
-                stop_flag=flag,
-                checkpoint_every_games=int(sp["checkpoint_every_games"]),
-                **game_kwargs,
-            )
+            try:
+                paths = selfplay.generate_games_parallel(
+                    selfplay.NetSpec(
+                        arch_name=arch["name"],
+                        arch_params=arch["params"],
+                        checkpoint=checkpoint,
+                        device=args.device,
+                        c_puct=float(sp["c_puct"]),
+                        dirichlet_alpha=float(sp["dirichlet_alpha"]),
+                        dirichlet_epsilon=float(sp["dirichlet_epsilon"]),
+                    ),
+                    num_games=to_generate,
+                    num_simulations=sims,
+                    out_dir=out_dir,
+                    run_name=cfg["run_name"],
+                    workers=args.workers,
+                    concurrency=args.concurrency,
+                    max_batch_size=args.max_batch_size,
+                    seed=int(cfg["seed"]),
+                    on_event=lambda rec: run.log_event(**rec),
+                    live_path=os.path.join(run_dir, "current_game.json"),
+                    stop_flag=flag,
+                    checkpoint_every_games=int(sp["checkpoint_every_games"]),
+                    **game_kwargs,
+                )
+            except RuntimeError as e:
+                # A worker failed on its own (not an interrupt — an
+                # interrupted run returns normally). Completed shards
+                # are already merged; re-running the same command
+                # tops up the rest.
+                resume_cmd = (
+                    f"ml/.venv/bin/python ml/scripts/selfplay.py "
+                    f"--config {common.config_path(args.config)} "
+                    f"--run-dir {run_dir} --games {num_games} "
+                    f"--workers {args.workers} "
+                    f"--concurrency {args.concurrency}"
+                )
+                run.log_event(
+                    "run_error", kind="selfplay", error=str(e),
+                    resume_command=resume_cmd,
+                )
+                run.info(f"parallel self-play failed: {e}")
+                run.info("completed games are merged and saved; "
+                         "re-run the same command to top up the rest:")
+                run.info(f"  {resume_cmd}")
+                return 1
             if flag.requested:
                 completed_total = already + len(paths)
                 remaining = num_games - completed_total

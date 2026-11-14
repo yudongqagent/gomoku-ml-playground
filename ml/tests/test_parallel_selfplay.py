@@ -10,6 +10,7 @@ numbers live in research/iterations/b1-parallel-selfplay.md, not here.
 """
 
 import json
+import time
 from pathlib import Path
 
 import numpy as np
@@ -229,3 +230,62 @@ def test_generate_games_parallel_events(tmp_path):
     assert all(e["event"] == "selfplay_game" for e in events)
     assert all(e["games_total"] == 4 for e in events)
     assert all(e["moves"] > 0 for e in events)
+
+
+def test_generate_games_parallel_many_games_no_deadlock(tmp_path):
+    """Regression test for the result-queue deadlock (2026-11-13):
+    a worker's result (paths + one event per game) grows with its
+    game count, and at ~200 games/worker the two workers' results
+    exceed the 64KB pipe buffer. A parent that only drains the queue
+    after joining hangs forever (workers cannot finish exiting until
+    their results flush; the parent waits for them to exit). The
+    parent must drain continuously. This test hangs on the pre-fix
+    code and completes in ~30s on the fixed code."""
+    out = tmp_path / "data"
+    paths = selfplay.generate_games_parallel(
+        _tiny_spec(), num_games=400, num_simulations=2, out_dir=str(out),
+        run_name="test", workers=2, concurrency=2, seed=0,
+        temperature_moves=2, max_moves=10,
+    )
+    assert len(paths) == 400
+    assert selfplay.load_manifest(str(out))["games"] == 400
+    assert list(out.glob(".parallel-*")) == []
+
+
+class _SettableFlag:
+    """Minimal stop_flag: ``requested`` settable from another thread."""
+
+    def __init__(self) -> None:
+        self.requested = False
+
+
+def test_generate_games_parallel_interrupt_merges_partial(tmp_path):
+    """SIGTERM-style interrupt mid-run: the call returns normally
+    (no RuntimeError), the completed games are merged, the manifest
+    is consistent, and no worker dirs are left behind. The stop is
+    triggered once the first shard appears, so at least one game is
+    complete at interrupt time."""
+    import threading
+
+    out = tmp_path / "data"
+    flag = _SettableFlag()
+
+    def trigger() -> None:
+        for _ in range(120):  # up to 60s
+            if list(out.glob(".parallel-*/worker*/*.npz")):
+                break
+            time.sleep(0.5)
+        flag.requested = True
+
+    threading.Thread(target=trigger, daemon=True).start()
+    paths = selfplay.generate_games_parallel(
+        _tiny_spec(), num_games=6, num_simulations=4, out_dir=str(out),
+        run_name="test", workers=2, concurrency=2, seed=0,
+        stop_flag=flag, worker_join_timeout=30,
+        temperature_moves=2, max_moves=225,
+    )
+    assert 1 <= len(paths) < 6
+    assert selfplay.load_manifest(str(out))["games"] == len(paths)
+    assert list(out.glob(".parallel-*")) == []
+    for p in paths:
+        _assert_valid_shard(p)
