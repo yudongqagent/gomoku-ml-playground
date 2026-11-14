@@ -1,9 +1,12 @@
 # Iteration 7 — v7: MCTS leaf with an attack gradient (batch 3, H1)
 
-**Status: pre-registered — implementation in progress, no evals run
-yet.** Comparison target and eval seeds recorded BEFORE the first
-eval (see §1). This is the first version of batch 3 (max 3
-versions: v7, v8, v9).
+**Status: COMPLETE — final battery done on the final patched engine
+(§3.4–3.8). Clauses 1–3 PASS; clause 4 is green on every suite
+runnable in this worktree (full ml pytest green), with npm test
+pending coordinator verification at batch end — see §4.** This is
+the first version of batch 3 (max 3 versions: v7, v8, v9).
+Comparison target and eval seeds were recorded BEFORE the first
+eval (see §1).
 
 **METHOD CHANGE (directed mid-batch by Yudong, ~23:00 PST
 2026-11-13; see `research/batch-3-direction-change.md` in the
@@ -416,7 +419,8 @@ results, NOT the bar verdict — the bar battery (§3.5-3.8) runs
 on the final patched engine. Tactical (§3.2) was also measured
 on unpatched v7 and is re-run on the final engine in §3.5.
 
-(TODO — filled in after the evals.)
+(Intermediate results in §3.1–3.3; final battery on the patched
+engine in §3.4–3.8.)
 
 ### 3.1 Smoke (20 games vs v1, seeds 100/200)
 
@@ -533,7 +537,36 @@ first MCTS version in this program to beat v1 head-to-head
 
 ### 3.7 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
 
-(TODO — runs on the final patched engine.)
+vs random 20W-0L-0D (1.0000, CI [0.8389, 1.0000]; as Black
+10W-0L-0D, as White 10W-0L-0D); vs heuristic 15W-5L-0D (0.7500,
+CI [0.5313, 0.8881]; as Black 8W-2L-0D, as White 7W-3L-0D); vs
+mcts 8W-12L-0D (0.4000, CI [0.2188, 0.6134]; as Black 5W-5L-0D,
+as White 3W-7L-0D). **Elo 190.8, interval [21.8, 359.9]** —
+strictly above v1's 70.4 (interval [-80.2, 221.1]) at identical
+game counts and opponents. **Clause 2 PASSES.** (The intervals
+overlap — the bar requires the point estimate strictly higher,
+which holds; the overlap is recorded honestly, and the Elo
+estimate is driven by the vs-heuristic matchup, elo_diff
++190.8.) Run time 1469.1 s; EVAL_JSON saved to
+`research/iterations/ladder-v7.json` (full log:
+`research/iterations/ladder-v7.log`). The script's tactical
+probe line was disregarded per the brief (it bypasses the MCTS
+dispatch); tactical is §3.5's full-dispatch 20/20 + 29/29.
+
+Two things stand out. First, the vs-heuristic 15W-5L is the
+first time an MCTS version in this program beats the heuristic
+anchor outright (v6: 7W-13L; v5: 0.28 h2h vs v0) — the capped
+gradient turns the search from a liability against 1-ply play
+into a real edge, in both colours (8-2 as Black, 7-3 as White).
+Second, the vs-mcts 8W-12L is slightly WORSE than v6's 9W-11L:
+against the baseline MCTS (same 100 sims / c_puct 1.5, crude
+local-attack leaf), v7's capped gradient still does not win the
+direct A/B — the gradient's match value shows against the
+1-ply heuristic, not against a search opponent whose own leaf
+already carries an (uncapped, cruder) attack signal. The
+colour pattern vs mcts is the familiar one (5-5 as Black, 3-7
+as White): v7 as White still cannot create the attack against
+a searching opponent.
 
 ### 3.8 Swap match vs v1 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
 
@@ -541,8 +574,135 @@ first MCTS version in this program to beat v1 head-to-head
 
 ## 4. Bar check (v7 vs v1)
 
-(TODO — filled in after the evals.)
+| Clause | Requirement | v7 result | Verdict |
+|---|---|---|---|
+| 1. Head-to-head vs v1 | >= 40 games, win rate > 0.50, Wilson 95% CI lower bound > 0.50 | 100 games: 62W-21L-17D, 0.7050, CI [0.6094, 0.7855] | **PASS** |
+| 2. Ladder Elo | strictly higher than v1's 70.4, identical games/opponents | 190.8 (interval [21.8, 359.9]), vs v1's 70.4 | **PASS** |
+| 3. Tactical | pass rate >= v1's | old 20/20 = v1's 20/20; hard 29/29 vs v1's 12/29 | **PASS** |
+| 4. Test suites | ml pytest + npm test green | ml pytest 208 passed, 1 skipped, 2 xfailed, 0 failures (targeted suites: test_regression_v7 + test_mcts_heuristic 26 passed, 2 xfailed); npm test NOT run here — no node_modules in this worktree; verified by the coordinator at batch end | **PENDING** coordinator verification (npm test) |
+
+**Verdict: v7 PASSES clauses 1–3 — the first version in this
+program to pass all three.** Clause 4 is green on every suite
+runnable in this worktree (full ml pytest green, 0 failures),
+but npm test could not run here and is verified by the
+coordinator at batch end. The overall verdict is therefore
+**PASSES SUBJECT TO the coordinator's npm-test verification**;
+only the coordinator may decide a master push, and only if all
+four clauses pass. Nothing has been pushed to master from this
+workstream.
 
 ## 5. What this means
 
-(TODO — filled in after the evals.)
+**The attack-gradient hypothesis is CONFIRMED — with the cap
+as part of the result, not a footnote.** v6 proved the
+terminal-only leaf defends perfectly and attacks nothing (loses
+to v0 0.41, ties v1 0.535, Elo -107.5). v7 adds exactly one
+thing — a breadth-of-attack gradient in quiet leaves — and
+becomes the first MCTS version in the program to beat v1
+head-to-head (0.7050, CI lower 0.6094), the first to beat the
+heuristic ladder anchor (15W-5L), and the highest-Elo version
+yet (190.8, above v3's 107.5 and v1's 70.4). But the UNCAPPED
+gradient failed: tactical 26/29 (three positions lost vs v6),
+fast-loop 5W-5L vs v0 with all five White losses from the same
+1-ply myopia (the gradient rewards blocking over counterplay),
+and the iter-5 regression failure. The cap at ±0.2 — strictly
+below the smallest terminal value (0.25) — is what makes the
+gradient safe: a static heuristic must never outweigh an exact
+terminal signal, and as a tie-breaker between quiet lines the
+gradient is worth ~300 Elo points of ladder improvement (v6's
+-107.5 to v7's 190.8) with zero tactical cost. The cap patch
+restored tactical 26/29 -> 29/29 AND the match wins (fast loop
+5W-5L -> 9W-1L; final battery 0.7050 vs v1), confirmed on
+positions the fast loop never touched. The lesson generalises:
+any future leaf signal (learned value included) should be
+capped below the terminal floor, or the search will trade exact
+forcing sequences for heuristic comfort.
+
+**The remaining weaknesses, in order of importance.**
+
+1. **White play.** v7 as White vs v1 is 20W-18L-12D (0.52);
+   18 of its 21 losses come as White. The fast loop fixed
+   White's fast losses to v0 (0/5 -> 4/5), but against v1
+   White still cannot CREATE the attack to overcome Black's
+   first-move tempo — the same weakness every version has
+   shown. The gradient helps White defend-and-counterattack,
+   but building an attack from nothing, a move ahead of
+   Black's, is still missing. This is the single biggest
+   remaining gap and the main reason the v1 match is 0.7050
+   rather than higher.
+2. **The q-vs-visits root-decision gap (§2.6).** In the worked
+   game the saving moves had the HIGHER q ((7,4) 0.042 vs
+   (8,4) 0.032; (9,8) 0.071, (6,9) 0.065) but tied or trailed
+   on visits, and most-visited plus an RNG tie-break picked
+   the loser. The same pattern appeared in fast-loop
+   iteration 1 (q preferred the saving move in 4/5 positions;
+   visits decided). The search KNOWS the right move and the
+   decision rule discards that knowledge. **Recommendation
+   for the next batch (v8): decide the root move by q (or a
+   q/visit blend), or at minimum break visit-ties by q.**
+   That single change saves the §2.6 game and addresses the
+   recurring gap. It is cheap, it is verified against real
+   losses, and it should be the first v8 candidate.
+3. **The colour-split inversion vs v0 — recorded prominently.**
+   v7 scores LOWER against the weaker v0 (0.6650) than
+   against v1 (0.7050), and loses 13 games as Black to v0
+   versus only 3 as Black to v1. This is NOT full
+   non-transitivity (v7 beats v0 outright, 64W-31L-5D), but
+   the inversion is real and unexplained: v0's crude greedy
+   play exploits something in v7's Black game that v1's
+   stronger play does not. The §2.6 worked game is one such
+   loss (a forcing move that compels White onto the key
+   square of its own attack — a danger invisible to the
+   terminal leaf and worth only the capped −0.2 gradient,
+   5 plies deep). The next batch should work at least one
+   more as-Black loss to v0 before assuming the inversion is
+   noise: if v7's Black game has a systematic hole against
+   greedy attack, it will show against stronger opponents
+   too.
+4. **The direct A/B vs the baseline MCTS still goes the wrong
+   way.** Ladder vs mcts is 8W-12L, slightly worse than v6's
+   9W-11L. v7's capped gradient beats the 1-ply heuristic
+   decisively but does not beat a searching opponent whose
+   own leaf already carries an (uncapped, cruder) attack
+   signal. The gradient's edge is opponent-dependent: it
+   punishes engines that cannot search, and roughly ties
+   engines that can.
+5. **Open single-position items (no recurring class behind
+   them in the loop's games):** the iteration-1 game-3
+   forcing-move exploration weakness (regression xfail — the
+   saving move ranked 8th, prior 0.04, starved of visits in
+   100 sims) and the iter-5 regression xfail (the gradient's
+   ORDERING, not its magnitude, prefers the block over the
+   counterattack). Plus the §2.2 observation: a
+   double-open-three CREATION is invisible to prevention
+   logic, which tracks existing creators only.
+
+**What the next version/batch should try.** In priority order:
+(a) the §2.6 root-decision change (q or q/visit blend, or
+visit-ties broken by q) — the cheapest verified fix in the log;
+(b) a worked game on the as-Black inversion vs v0, to find
+whether there is a second structural weakness behind the 13
+Black losses; (c) a v1-kernel gradient — the current gradient
+ports v0's contiguous-run scoring and is blind to broken fours,
+so it undervalues broken-four setups relative to v1's 5-window
+scoring (a documented follow-up from §1); (d) gradient signal
+in the -0.25 leaf: §1's pre-eval observation showed the breadth
+information is discarded exactly where it matters most (opponent
+holds a winning move -> flat -0.25, even with six creators
+behind a single four) — a capped breadth term there is a
+candidate, kept below the terminal floor per this iteration's
+lesson; (e) White-specific attack creation — the persistent
+weakness across all seven versions, and the likeliest place H2's
+learned value function earns its keep. NOT to retry: the
+one-sided gradient, refuted in §2.1 (it also prefers the losing
+move in all 5 critical positions, and it saturates).
+
+**A note on the fast loop itself.** Ten-game batches found the
+dominant weakness fast (iteration 1: all five White losses,
+one structural class, one patch) and the stopping rule worked
+(iteration 2: no new patchable class, loop stops). But the
+10-game batches never surfaced the as-Black weakness against
+v0 (5/5 as Black in both iterations; 13/50 as-Black losses only
+appear at 100-game scale). Fast loops find the dominant
+weakness; the full battery still finds the sub-dominant ones.
+Both are needed, in that order.
