@@ -246,15 +246,77 @@ four seed segments) moved to `ml/runs/b3-h2/val-data/` and NEVER
 used in training: **450 train games (18,904 samples), 50 val
 games (2,109 samples)** (manifests rebuilt after the move).
 
-**Training (in progress).** Smoke ResNet 16ch/2 blocks from
-scratch, `ml/scripts/train.py --config b3-h2-train --run-dir
-ml/runs/b3-h2-value --data ml/runs/b3-h2/data`: 20 epochs, batch
-64, lr 0.002 cosine, warmup 20, augmentation on, internal
-val_fraction 0.05, torch threads 2. Log:
-`ml/runs/b3-h2-value-train.log`.
+**Training COMPLETE 2026-11-14 12:57 UTC** (~28 min, 20 epochs).
+Final loss 4.7199 (policy 4.4552, value 0.2647); best internal val
+loss 4.9144 at epoch 18 (`best.pt`; `final.pt` is epoch 20, val
+4.9191). 17,959 train samples (5% internal val split).
 
-(TBD — training completion time, final/val loss, hold-out
-accuracy for best.pt / final.pt, checkpoint selection.)
+**Hold-out value accuracy (game-level, 50 games, 2,109 positions,
+all non-draw) — measured BEFORE any match, per §1:**
+
+| Checkpoint | Full planes | No-history planes |
+|---|---|---|
+| best.pt (epoch 18) | 0.4372 (922/2109), MSE 1.737, mean\|v\| 0.6633 | **0.4851** (1023/2109), MSE 1.2102, mean\|v\| 0.3663 |
+| final.pt (epoch 20) | 0.4391 (926/2109), MSE 1.7403, mean\|v\| 0.6669 | 0.4836 (1020/2109), MSE 1.2112, mean\|v\| 0.3698 |
+
+**Checkpoint selection (pre-registered rule, §1): best.pt** —
+selected on the no-history measure, which §1 designates as the
+one that predicts leaf quality (0.4851 vs 0.4836). The difference
+is 3 positions out of 2,109 — pure noise — and final.pt wins the
+full-planes measure by 4 positions; either checkpoint is equally
+(chance-level) good. Copied to `ml/runs/b3-h2/value-net.pt` (the
+path the v8 registry entry points at).
+
+**THE VALUE FUNCTION DID NOT GENERALIZE — the central finding of
+this iteration.** On TRAINING data the net scores 0.9088 sign
+agreement (MSE 0.2577, consistent with the train value loss);
+on held-out games from the SAME generator it scores 0.44
+(full planes) — below chance, and worse than a constant-0
+predictor (MSE 1.74 vs 1.0). It is worst exactly where the
+outcome should be most predictable:
+
+| Position bucket (holdout, final.pt) | Sign agreement | MSE | mean\|v\| |
+|---|---|---|---|
+| Plies-from-end 0–2 (game nearly over) | 0.3600 | 2.009 | 0.780 |
+| Plies-from-end 3–9 | 0.3657 | 2.089 | 0.764 |
+| Plies-from-end 10–19 | 0.4520 | 1.824 | 0.733 |
+| Plies-from-end 20+ (early/mid) | 0.4671 | 1.556 | 0.591 |
+| TRAIN plies-from-end 0–2 (same net) | 0.9763 | 0.101 | 0.889 |
+| TRAIN plies-from-end 3–9 | 0.9822 | 0.070 | 0.906 |
+| TRAIN plies-from-end 20+ | 0.8445 | 0.417 | 0.651 |
+
+The net memorized the 450 training games (each game's positions
+are unique fingerprints it can identify and recall the outcome
+of) and learned no generalizable value function; on unseen games
+it is confidently wrong late (mean|v| 0.78 at 0.36 accuracy) and
+at chance in mid-game. (Caveat: positions cluster by game, so
+the effective sample size is ~50 games, not 2,109 positions —
+0.44 vs 0.50 is within game-level noise; the robust claims are
+"no signal" and "MSE far above the constant predictor", not the
+exact degree of anti-correlation.) Plausible mechanism for the
+late-game inversion: the net's dominant late feature is "the
+opponent holds a four → losing", which is right 1 ply before the
+end (the side to move loses) but wrong at the final position
+(the side to move holds the winning move while the opponent's
+four is still on the board); memorization masked this on train
+(0.976) but it dominates on unseen games. Reference point: the
+ROUND-2 net itself (the data generator, trained on ~400 of its
+own games) scores 0.4955 / MSE 1.5483 on this holdout — also
+chance-level — so weak-play game outcomes in this distribution
+carry little position-predictable signal at this data scale.
+The internal random-sample val split (value MSE ~0.45) is leaky
+and optimistic: positions 1 ply apart in the same game are near-
+duplicates, so it measures memorization, not generalization.
+**Consequence for v8:** the leaf values are confident noise
+(mean|v| 0.66, uncorrelated with outcomes). v8 is evaluated as
+pre-registered anyway — the evals measure what a memorized-value
+leaf does to the search — but the realistic expectation is v8 ≈
+v6 or worse, and the fast loop (§4) will treat leaf noise as the
+prime suspect weakness class. The structural fix is data scale
+(B1's 10k set, §1.2) and/or a training setup that cannot
+memorize game identities (far more games, stronger play, early
+stopping gated on game-level hold-out) — not more epochs on 500
+games.
 
 **VM replacement + same-seed resume trap (2026-11-14 ~07:25 UTC).**
 A VM replacement SIGTERM'd the run at 238 games; all 238 shards
@@ -302,7 +364,27 @@ final.pt; checkpoint selection.)
 
 ## 3. Leaf cost measurement
 
-(TBD — per-leaf net eval cost on CPU, per-move cost at 100 sims.)
+Measured with `ml/scripts/bench_value_leaf.py --checkpoint
+ml/runs/b3-h2/value-net.pt --positions 20 --leaf-samples 200
+--sims 100` (13:04 UTC, while the H1 and B1 workstreams were
+running — CONTENDED numbers; the uncontended cost is lower):
+
+- **Per-leaf net eval (encode + batch=1 forward pass): median
+  7.6 ms, mean 26.9 ms, p95 86.3 ms, range [1.4, 215.4] ms.**
+  The mean is inflated by contention stalls; the minimum (1.4
+  ms) and the earlier random-net bench (median 1.9 ms) bracket
+  the uncontended cost at ~1.5–2 ms. v6's terminal-only leaf
+  costs ~0.4 ms — the net leaf is ~4–5x more expensive per eval.
+- **Per-move cost at 100 sims: mean 5.8 s, median 4.6 s, p95
+  13.9 s; net leaf evals per move: mean 81.4 (min 5, max 99).**
+  Again contended (and on random scattered mid-game positions,
+  which have larger candidate sets — hence pricier priors — than
+  real game positions). Quiet-VM estimate: v6's ~0.1 s/move +
+  81 × ~2 ms ≈ 0.25 s/move. Real match timings (smoke + battery)
+  are the numbers that matter; they are recorded with the
+  matches in §5. Expectation: 100-game matches take 20 min
+  (quiet VM) to several hours (contended VM) — run one at a
+  time, in the background.
 
 ## 4. Fast heuristic loop (the loss analysis)
 
