@@ -1,0 +1,686 @@
+# Iteration 9 — v9: q-vs-visits root decision (batch 4, H1)
+
+**Status: IN PROGRESS — pre-registration (§1) written BEFORE any eval.
+Smoke (§3.1) and fast loop (§2) to follow; full battery (§3.5–3.8) runs
+on the smoke winner only. Comparison target and eval seeds were
+recorded BEFORE the first eval (see §1).**
+
+**METHOD (carried over from batch 3).** The fast 10-game loop stays
+the finding method: play 10 games, read every move, find each game's
+losing move (solver/deeper-search verified, never guessed), patch the
+algorithm to reproduce the perfect move in those positions (regression
+test), repeat — max 4 iterations, or stop when an iteration finds no
+new patchable weakness class. The 4-clause bar stays the validation
+gate. Fast-loop games use development seeds (1001/2001, 1002/2002,
+...) distinct from the bar battery's pre-registered seeds (100/200).
+Per the §2.6 warning, fast loops include as-Black games vs v0, and a
+10-game batch alone never concludes "no weakness".
+
+## 1. Design and pre-registration
+
+**Comparison target: v7** (the new reference, batch-4 plan). Clause 1
+is head-to-head vs v7 (normal rules, >= 100 games, alternating
+colours, win rate > 0.50 with Wilson 95% CI lower bound > 0.50);
+clause 2 is ladder Elo strictly higher than v7's 190.8 (identical 20
+games/opponent: random, heuristic, mcts; mcts_sims=100); clause 3 is
+tactical pass rate >= v7's (20/20 old suite + 29/29 hard suite);
+clause 4 is all test suites green (ml pytest, npm test, tsc).
+**Secondary head-to-heads, also pre-registered:** v9 vs v0 (100
+games) and a 100-game swap match vs v7 under the tempo judge (the
+harness default). Non-transitivity is recorded prominently.
+
+**The improvement: v9 = v7 with ONLY the root move-decision rule
+changed.** Everything else is v7 unchanged: v6's PUCT MCTS (100 sims,
+c_puct 1.5, v1 priors over all candidates, win/block scans before
+search) + the capped (+/-0.2) attack-gradient leaf in quiet
+positions. The ONLY change is how the root child is picked after the
+100 sims.
+
+### 1.0 SIGN CORRECTION — read this before the variants
+
+**Iter-7 §2.6's (and §2.1's, and iter-6 §2.2c's) "q prefers the
+saving move" claim is SIGN-INVERTED, and the batch-4 plan's H1
+rationale inherits the error.** Verified three independent ways
+BEFORE any eval, by exact reproduction:
+
+1. **Exact reproduction.** Replaying batch-v7-vs-v0.json game 16 to
+   ply 14 and re-running v7's search reproduces iter-7's numbers
+   exactly: (7,4) 10 visits, q 0.042; (8,4) 10 visits, q 0.032;
+   (9,8) 7 visits, q 0.071; (6,9) 7 visits, q 0.065.
+2. **Code.** The backup is negamax: each node's `value_sum` is from
+   the perspective of the player to move AT THAT NODE, so a root
+   child's raw `q` is the OPPONENT's value. `_select_child`
+   confirms it: PUCT exploits `-child.q`. `analyse_critical.py`
+   (the script behind the §2.6 numbers) reports raw `c.q`.
+3. **Unit check.** A root child whose subtree is a forced win for
+   the opponent has raw q = +1.0 — good for the opponent, bad for
+   us.
+
+So in §2.6, correctly signed (our-perspective value = `-child.q`),
+the saving moves rank LOWEST: (8,4) -0.032 beats (7,4) -0.042, and
+(9,8) -0.071 / (6,9) -0.065 are worse still. **The search's q does
+NOT know the right move in this position — it prefers the loser.**
+The same inversion applies to §2.1 ("q preferred the saving move in
+4/5 positions": game 1 saving -0.07 vs losing -0.257, game 5 saving
++0.106 vs losing -0.381 — correctly signed, q prefers the LOSING
+move in all of them) and to iter-6 §2.2c's "pathology" ((5,6) at
+raw q 0.333 is a move the search correctly AVOIDS, not a good move
+starved of visits). The engines are unaffected — only the analysis
+text is wrong: the engines use `-child.q` correctly in PUCT and
+most-visited for the decision.
+
+**What §2.6 actually shows, correctly read:** at 100 sims, in this
+position, the search (visits AND q) cannot see the 5-ply-deep loss
+— iter-7 itself says the -1 is beyond what 100 sims reliably reach,
+and the gradient masks the -0.25 penalties. The ONLY signal that
+prefers the saves is v1's 1-ply score ranking ((9,8) rank 2, (7,4)
+rank 3, (6,9) rank 5, (8,4) rank 6). The q hypothesis therefore
+loses its motivating evidence — but the general question "does
+q-based root choice beat visit-based root choice?" is still a
+legitimate empirical question (one position does not settle a
+match-level question), so the q variants are tested as tasked,
+with correctly-signed q. Variant D (below) is the variant the
+CORRECTED evidence actually supports, and is included in the smoke
+on that basis.
+
+**"q" in every variant below means our-perspective value,
+`-child.q`.** Using raw child q would play the move the search
+thinks is WORST for us — a bug, not a hypothesis. All variants
+consider only root children with visit_count >= 1: an unvisited
+child's q is undefined (0.0 by convention), not a signal — a
+0-visit child must never win an argmax over q.
+
+### 1.1 The variants (pre-registered)
+
+- **A — pure q.** Argmax our-q over visited root children; ties
+  broken by visits, then RNG. The naive hypothesis: trust the
+  searched values entirely. Known risk, stated in advance: q of a
+  1-visit child is a single leaf value — noisy — so A may pick
+  low-visit children on lucky leaves. The smoke is the test of
+  that risk.
+- **B — tie-q.** Most-visited; ties broken by our-q, then RNG. The
+  minimal change: identical to v7 except on exact visit ties.
+- **C — blend.** Score = our-q + 0.1 * (visits / max_visits);
+  argmax score; ties broken by visits, then RNG. The 0.1
+  coefficient is fixed here, NOT tuned on any eval: q gaps below
+  0.1 are within one gradient step (the gradient's full range is
+  +/-0.2, so 0.1 is half the maximum gradient swing), so visits
+  override only sub-gradient-scale q differences, while a real
+  searched q gap (> 0.1) always wins.
+- **D — tie-prior.** Most-visited; ties broken by the v1 prior
+  (a monotone transform of the v1 1-ply score, so this is
+  tie-breaking by v1 score), then RNG. The variant the CORRECTED
+  §2.6 evidence supports: v1's ranking prefers the saves. The
+  minimal change, like B, but with a deterministic, prior-tested
+  tie-break signal instead of noisy q.
+
+Implementation: `HeuristicMCTS(root_decision=...)` with values
+`"visits"` (v6/v7 default, unchanged behaviour), `"q"`, `"tie-q"`,
+`"blend"`, `"tie-prior"`; wired through `ENGINE_VERSIONS` via a
+`"root_decision"` key (default `"visits"` when absent, so v6/v7
+are untouched). v9 is registered in `scoring.py` AFTER the smoke,
+with the winner's `root_decision`.
+
+### 1.2 Winner selection (pre-registered)
+
+**Smoke: 20 games vs v7 per variant** (seeds 300/400 — fresh,
+NOT the battery's 100/200, so selection is independent of the
+verdict battery; alternating colours). Driver:
+`ml/scripts/smoke_root_decision.py`; one JSON per variant under
+`research/iterations/` recording the variant. Winner = highest
+smoke win rate vs v7. Tie-breaks, in order: (1) higher hard-suite
+tactical score (29 positions, full-dispatch driver); (2) plays a
+saving move on the §2.6 diagnostic position (see §1.3) and keeps
+all 5 v7 regression positions passing; (3) simplicity order
+D > B > C > A (D and B are minimal single-rule changes; D's
+tie-break signal is deterministic and prior-tested, B's is
+search-noisy; C blends; A discards visits entirely).
+
+**The full 100-game battery is the verdict, never the smoke.**
+The battery runs on the smoke winner. Only the winner gets the
+battery. If the winner fails the battery, v9 is REJECTED and the
+other variants' smoke numbers stay recorded as evidence (a
+runner-up battery would be a different version, for the
+coordinator to decide).
+
+**Honest caveat, stated in advance:** B and D differ from v7 only
+on exact visit ties (rare events), so their 20-game smokes will
+likely sit near 0.50 with wide CIs and the smoke "winner" between
+them may be decided by noise. The smoke picks which variant gets
+the battery; the 100-game battery is the real verdict.
+
+### 1.3 The §2.6 diagnostic position (pre-registered, not the verdict)
+
+batch-v7-vs-v0.json game 16, replayed to ply 14 (Black to move;
+v7 played the losing (8,4), flat 68). Oracle-verified saving
+moves (iter-7 §2.6, walk-back seeds 0,1,2): (7,4) flat 67, (9,8)
+flat 129, (6,9) flat 141. Each variant's move here is recorded as
+a pre-eval observation after implementation (like iter-7 §1's
+pre-eval observation). **Expected from the reproduced root stats:
+B picks the LOSER (8,4)** — correctly-signed q prefers it
+(-0.032 vs -0.042) — **and C likely does too** (blend scores
+(8,4) 0.068 vs (7,4) 0.058 among the top children); A picks
+argmax our-q, which among the top-10 visited children is (7,8)
+-0.030 (oracle-untested); D picks by prior among the tied pair
+(full-precision priors to be checked). The design stands as
+pre-registered regardless: the evals decide. If the smoke winner
+plays a saving move here, the position becomes v9's first
+regression test (`regression_positions_v9.json`); if it plays
+(8,4), that is recorded honestly as a known miss, not hidden.
+
+### 1.4 Eval seeds (pre-registered, battery)
+
+h2h vs v7: v9=100 / v7=200; h2h vs v0: v9=100 / v0=200; ladder
+seed 100, 20 games/opponent, mcts_sims=100; swap 100 games vs v7,
+balanced placement, placement_seed 11, tempo judge (the harness
+default; recorded in the JSON). Harness commands follow iter-7
+§3 exactly (`selfplay_batch.py`, `eval_version.py` for the
+ladder, `eval_tactical_full.py` for tactical).
+
+### 1.5 Pre-eval observation (recorded AFTER implementation, BEFORE any eval)
+
+Diagnostic only — the design stands as pre-registered; the evals
+decide. Driver: `ml/scripts/diag_root_decision.py`.
+
+**§2.6 position** (full-precision root stats): (7,4) v=10,
+our-q -0.041882, prior 0.077230; (8,4) v=10, our-q -0.032228,
+prior 0.076957; (9,8) v=7, our-q -0.071229; (6,9) v=7, our-q
+-0.064911. The prior DOES separate the tied pair ((7,4) >
+(8,4)), as v1's ranking (3rd vs 6th) implied.
+
+| rule | plays at ply 14 | verdict |
+|---|---|---|
+| visits (v7, no RNG) | (7,4) | SAVING — the no-RNG first-tie-break picks (7,4); the match RNG picked (8,4). The §2.6 loss was literally a coin flip. |
+| q (A) | (11,3) | other (oracle-untested) — a **1-visit** child, our-q +0.0249 from a single lucky leaf. The pre-registered noise risk, manifesting: argmax our-q over 33 visited children is dominated by 1-visit children (the only well-visited child above (8,4)'s our-q is (7,8), 9 visits, -0.0295). |
+| tie-q (B) | (8,4) | LOSING — as predicted in §1.3: correctly-signed q prefers the loser. |
+| blend (C) | (8,4) | LOSING — as predicted (blend 0.068 vs 0.058). |
+| tie-prior (D) | (7,4) | SAVING — as predicted; the prior separates the tie toward v1's higher-ranked move. |
+
+**v7 regression positions (5):** visits 4/5 (known xfail
+fl1-g3-ply23 only); q 3/5 (also breaks fl1-g1-ply13); tie-q 4/5;
+blend 3/5 (also breaks fl1-g1-ply13); tie-prior 4/5.
+
+**Tactical suites (full-dispatch driver, same driver/seeds/suites
+as the battery — so these ARE the clause-3 numbers for each
+variant):**
+
+| rule | old | hard | hard failures |
+|---|---|---|---|
+| visits (v7) | 20/20 | 29/29 | — |
+| q (A) | 19/20 | **22/29** | 7 prevention positions |
+| tie-q (B) | 20/20 | 29/29 | — |
+| blend (C) | 20/20 | **26/29** | prev-v1v0s-g13, prev-v1v0s-g26, prev-v1v0s-g48 |
+| tie-prior (D) | 20/20 | 29/29 | — |
+
+**Consequence, recorded before the smoke: A and C FAIL clause 3
+(tactical < v7's 29/29) and are disqualified as battery
+candidates.** The battery cannot pass them — their outcome is
+already decided (fail) — so the smoke chooses between the viable
+candidates B and D. The A/C smokes still run as pre-registered,
+to give the q hypothesis its match-level numbers for the record;
+if A or C somehow wins the smoke, that number is reported
+prominently but does not earn it the battery, because clause 3
+is a hard gate of the bar and it is already failed. Pure q's
+failure mode is now visible twice over: it picks 1-visit
+children on lucky leaves (§2.6: (11,3)) and it fails prevention
+positions (22/29) — the q-values at 100 sims are too noisy to
+decide the root move, which is exactly why most-visited is the
+standard rule. The q hypothesis, in its pure and blended forms,
+is refuted on tactical evidence before a single match game; the
+smoke tests whether the tie-break forms (B, D) — which keep the
+visits rule and only change tie-breaking — differ from v7 at all.
+
+## 2. Loss analysis for iteration 9
+
+[Fast-loop worked games go here — see the method note at the top.]
+
+### 2.1 Fast-loop iteration 1 — 10 games vs v0
+
+**Batch:** `research/iterations/fast-v9-vs-v0-iter1.json`
+(seeds v9=1001 / v0=2001 — development seeds, distinct from the bar
+battery's 100/200). **8W-2L-0D, win rate 0.8000, CI [0.4902,
+0.9433]**, 214.4 s. Per colour: as Black 3W-2L-0D, as White
+5W-0L-0D. v9 as White beats v0 5/5 (v7's fast-loop iter 1 was 0/5
+as White before the cap patch); the losses are both as Black, both
+LONG games (124 plies each — v7's fast-loop losses were 21-31
+plies). Classifier
+(`ml/scripts/classify_batch_losses.py`): 2/2 losses via open
+four, 0 missed blocks, 0 clean missed preventions in 18
+threatened turns (losses). Defence is still perfect.
+
+**No single verified losing move in either loss — distributed
+drift, and the oracle is too noisy at 100+ plies to pinpoint
+one.** Walk-back (corrected oracle method, seeds 0,1,2), game 0:
+in the last 8 Black turns the actual move loses 3/3 only at plies
+120/122, where NO alternative saves (0/5) — too late. Widened to
+24 turns, plies 76-92 ALL show the actual move losing 3/3 with
+saving alternatives (e.g. ply 92: actual (9,13) loses 3/3;
+(5,11)/(5,10)/(13,9) save) — but at plies 94-106 the actual move
+draws or wins at all seeds, so the oracle's verdicts flip turn to
+turn: v0's weak replies let Black back in, Black's later moves
+let White back in, and the v1-playout oracle cannot pin a single
+turn as THE losing move in a 124-ply see-saw endgame. Game 2
+shows the same pattern (no clean losing move in the last 12
+turns). The saving alternatives cluster around (5,11)/(5,10)/
+(6,11)/(5,12) in game 0 — suggestive of an ignored White threat
+in that region — but the SAME oracle rates Black's position
+drawable at ply 94 without ever playing there, so the cluster is
+recorded here as an observation, NOT a verified losing move, and
+per the loop's "never guessed" rule there is NO PATCH from this
+iteration. The as-Black long-game losses to v0 (3W-2L here; v7
+lost 13/50 as Black to v0 at 100-game scale) remain the open
+weakness — the battery's 100-game vs-v0 match is the real
+measure of it.
+
+### 2.2 Fast-loop iteration 2 — 10 games vs v7
+
+**Batch:** `research/iterations/fast-v9-vs-v7-iter2.json`
+(seeds v9=1002 / v7=2002). **4W-4L-2D, win rate 0.5000, CI
+[0.2366, 0.7634]**, 681.5 s. Per colour: as Black 3W-2L-0D, as
+White 1W-2L-2D. Classifier: 4/4 losses via open four, 0 missed
+blocks, 0 clean missed preventions in 19 threatened turns
+(losses). Defence is still perfect. The two long as-White losses
+(games 7, 9 — 107 plies each) have NO single losing move
+(walk-back game 7: plies 99-105 lose 3/3 with 0 saving
+alternatives; plies 91-97 draw) — distributed drift, as in
+iteration 1. The two SHORT as-Black losses (games 2, 6 — 30/32
+plies) each have a clean verified losing move, worked below.
+Neither yields a patch — see the end of this subsection.
+
+**Game 2, ply 22 (Black to move; v9 played (5,10), loses 3/3;
+(8,5) wins 3/3, (5,8) draws/wins).** `analyse_critical.py`:
+(5,10) is v1 rank 2 (20091), FORCING, gradient for Black +0.072,
+9 visits (the max), our-q +0.045. (8,5) is v1 rank 6 (4492), not
+forcing, gradient for Black +0.119, 4 visits, our-q +0.057.
+**The saving move has the HIGHER our-q AND the higher gradient —
+but half the prior (0.031 vs 0.065), so PUCT starves it of visits
+(4 vs 9) and most-visited decides.** This is a REAL q-vs-visits
+gap with correctly-signed q — but it is an EXPLORATION gap (low
+prior → few visits), not a decision-rule gap: no root-decision
+rule in the pre-registered set fixes it deterministically (pure q
+might, if no 1-visit child outranks +0.057 — but pure q is
+already rejected on tactical 22/29 and smoke 0.20). It is the
+SAME class as iter-7's fast-loop-1 game-3 xfail (forcing move
+ranked 8th, prior 0.04, starved of visits) — a known open
+weakness class, not a new one. A fix would be exploration-side
+(higher c_puct, a prior floor) — a search change beyond the H1
+root-decision brief, needing its own pre-registration as a new
+version.
+
+**Game 6, ply 20 (Black to move; v9 played (7,4), loses 3/3;
+(3,8) wins 3/3).** `analyse_critical.py`: v1 ranks (3,8) #1
+(200167) and (7,4) #2 (200163) — 4 points apart. Under the
+gradient leaf (v9's search): (7,4) 18 visits, (3,8) 17 visits —
+the actual wins by ONE visit, so the tie-prior rule does not even
+apply (not a tie). Our-q also prefers the loser (-0.045 vs
+-0.051) and the gradient slightly prefers it (+0.012 vs -0.000).
+Under the TERMINAL leaf (v6's search): (3,8) 16 visits, (7,4)
+11 — v6 plays the saving move. **The gradient leaf's ORDERING
+breaks this position** — the same mechanism as iter-7 §1's
+pre-eval iter-5 regression (the cap fixed the gradient's
+magnitude, not its ordering). No root-decision rule fixes a
+non-tie 18-vs-17 visit gap where q and gradient also prefer the
+loser.
+
+**No patch from iteration 2; loop stops here (stopping rule).**
+The two worked losses have different mechanisms (exploration
+starvation; gradient-ordering knife-edge), neither is a
+root-decision fix, and the exploration class is already known
+from iter-7. Both critical positions are recorded as xfail
+regression tests (`regression_positions_v9.json`: fl2-g2-ply22,
+fl2-g6-ply20) — documented open weaknesses for the next batch,
+not silently dropped. The battery runs on the as-registered v9
+(tie-prior, no fast-loop patches).
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
+
+### 2.5 Aggregate counts (secondary)
+
+Across the three 100-game battery matches (v9 as A): **94 losses,
+94/94 via open four (100%), 0 missed blocks**, 378 threatened turns
+in losses, **5 clean missed preventions (1.3% of threatened turns)**.
+Per match: vs v0 7 losses, 7/7 via open four, 0 missed blocks, 63
+threatened turns, 0 missed preventions; vs v7 39 losses, 39/39 via
+open four, 0 missed blocks, 153 threatened turns, 1 missed
+prevention (0.7%); vs v7 (swap) 48 losses, 48/48 via open four,
+0 missed blocks, 162 threatened turns, 4 missed preventions
+(2.5%). Fast loops add 6 more losses (2 vs v0, 4 vs v7), all via
+open four, 0 missed blocks, 0 missed preventions, 37 threatened
+turns. **Grand total: 100 losses, 100/100 via open four, 0 missed
+blocks, 5 missed preventions in 415 threatened turns (1.2%).**
+Defence is solved for this engine family; every loss is losing
+the open-four race, same as v6/v7/v8. The 5 missed preventions
+are the only concrete errors the classifier finds — and §2.6
+shows even those do not verify as single losing moves.
+
+### 2.6 Worked game: swap game 41 — the tie-prior rule's failure mode
+
+Swap match, game 41, v9 as White, 25 plies, Black (v7) wins. The
+classifier flags ply 21 as a clean missed prevention: Black's
+open-four creators were (6,7) and (7,8) (diagonal-adjacent in
+the centre); v9 played **(7,8)**, occupying one creator but
+leaving (6,7) live; Black played (6,7) at ply 22 and created
+the open four; White (9,7) at ply 23 blocked one winning move;
+Black (4,7) at ply 24 won. The preventing moves were **(3,11)
+and (2,12)** — both FORCING (they create a White four, so Black
+must answer instead of playing the creator).
+
+Why v9 played (7,8) — root stats at ply 21 (100 sims, gradient
+leaf): a **three-way tie at 5 visits** between (2,12), (3,11)
+and (7,8). Correctly-signed our-q prefers the preventing moves
+(−0.2044 for both, vs −0.4215 for (7,8)); v1's 1-ply score
+prefers the played move by a mile — (7,8) scores 204024 (rank
+1, occupying a creator square) vs (3,11) 20167 (rank 4) and
+(2,12) 20010 (rank 8). So the priors are (7,8) 0.1244 vs
+(3,11) 0.0391 / (2,12) 0.0390, and **the tie-prior rule picks
+the loser**. Tie-q (variant B) would have played a preventing
+move. v7 (visits, no RNG) plays (7,8) too. This is the exact
+mirror of iter-7 §2.6: there the prior was the only signal
+preferring the saves and q preferred the loser; here q prefers
+the saves and the prior prefers the loser. **Neither signal
+dominates** — which is consistent with the battery verdict
+(v9 ≈ v7).
+
+Verification — and the honest limit: ply 21 does NOT verify as
+a single losing move. The v1-vs-v1 oracle walk-back
+(`walkback_loss.py`, seeds 0,1,2) says the actual move's playout
+WINS 3/3 — the oracle's Black never plays the creator, so the
+1-ply oracle cannot see this loss (an oracle limitation, not
+evidence the move was fine). And match-engine playouts from ply
+21 (v9-as-White vs v7-as-Black, seeds 0,1,2) show the preventing
+moves do NOT save the game either: actual (7,8) loses 3/3,
+(3,11) loses 3/3, (2,12) loses 3/3. The 1-ply prevention only
+defuses the creator for one move — Black must answer the four,
+but the position was already losing and v7 wins it anyway. At
+ply 23, 0 of 8 alternatives save (already lost). **No verified
+single losing move; the loss is distributed drift.** The
+position is therefore NOT added as a regression test (there is
+no verified saving move to assert). Scripts:
+`~/workspace/b4h1-logs/diag_swap_g41.py`,
+`~/workspace/b4h1-logs/verify_swap_g41.py`,
+`~/workspace/b4h1-logs/walkback-swap-g41.json`.
+
+The same structural class accounts for all 4 flagged swap
+preventions: games 43 and 83 are the IDENTICAL game (the same
+balanced placement repeats under placement_seed 11 — creators
+(8,7)/(7,8), v9 plays (8,7), Black plays (7,8)); game 55 is the
+mirror (creators (8,7)/(7,8), v9 plays (7,8), Black plays
+(8,7)). Three distinct positions, one class: two
+diagonal-adjacent creators, v9 blocks one, v7 plays the other.
+The mechanism lesson stands even though the alternative doesn't
+save game 41: **v1's 1-ply score undervalues forcing
+counter-threats (~20k) against occupying a creator (~204k), so
+the prior tie-break systematically prefers blocking one of two
+creators over forcing — and with two creators, blocking one is
+useless.** A future variant could break ties by forcing-ness
+first, then prior — but §2.6's own evidence says even the right
+tie-break doesn't save this game, so the expected gain is small.
+
+## 3. v9 evaluation
+
+### 3.1 Smoke (20 games vs v7 per variant, seeds 300/400)
+
+Driver: `ml/scripts/smoke_root_decision.py`. One JSON per variant
+under `research/iterations/smoke-v9{a,b,c,d}-vs-v7.json`.
+
+| variant | result | win rate | 95% CI | as Black | as White |
+|---|---|---|---|---|---|
+| A — pure q | 4W-16L-0D | 0.2000 | [0.0807, 0.4160] | 4W-6L-0D | **0W-10L-0D** |
+| B — tie-q | 9W-11L-0D | 0.4500 | [0.2582, 0.6579] | 3W-7L-0D | 6W-4L-0D |
+| C — blend | 6W-14L-0D | 0.3000 | [0.1455, 0.5190] | **0W-10L-0D** | 6W-4L-0D |
+| **D — tie-prior** | **12W-5L-3D** | **0.6750** | [0.4567, 0.8369] | 5W-4L-1D (0.55) | 7W-1L-2D (0.80) |
+
+**Winner: D (tie-prior), outright** — highest smoke win rate,
+tactical 29/29 (§1.5), plays the saving move at §2.6. No
+tie-break needed. D is registered as v9
+(`scoring.py`: `leaf_mode="gradient"`, `root_decision="tie-prior"`).
+
+What the smoke says about the q hypothesis: every q-involving
+variant loses to v7, and two of them collapse entirely in one
+colour (A as White 0-10, C as Black 0-10). The q-values at 100
+sims are not just noisy — used as a decision signal they are
+actively misleading, exactly as the sign correction (§1.0)
+predicts: correctly-signed q prefers the losing move in the
+analysed positions, so tie-breaking by q (B, 0.45) is slightly
+worse than v7's RNG coin flip, and deciding by q (A, 0.20) or
+blending it in (C, 0.30) is much worse. The ONLY root-decision
+change that helps is the one that does not use q at all: break
+visit-ties by the v1 prior, the deterministic signal that
+preferred the saving moves in §2.6. D differs from v7 ONLY on
+exact visit ties — yet wins 12-5-3: a single tie-break
+difference diverges the whole game, and D wins those
+divergences systematically (notably as White, 7-1-2 — the colour
+v7 is weakest in). The smoke CI still includes 0.50
+([0.4567, 0.8369]) — n=20 is weak evidence, and the 100-game
+battery is the verdict.
+
+### 3.2 Tactical suites (per variant, diagnostic)
+
+Measured in §1.5 (full-dispatch driver, same as the battery):
+visits (v7) 20/20 + 29/29; A 19/20 + 22/29; B 20/20 + 29/29; C
+20/20 + 26/29; D 20/20 + 29/29. A and C fail clause 3; B and D
+keep v7's perfect scores. The battery re-runs tactical for the
+registered v9 (D) in §3.5.
+
+### 3.3 Fast-loop summary (final engine)
+
+Two iterations, no patches — the battery runs on the
+as-registered v9 (tie-prior). Iteration 1 vs v0: 8W-2L-0D, both
+losses long as-Black endgames with no verified single losing
+move (distributed drift; oracle too noisy at 100+ plies).
+Iteration 2 vs v7: 4W-4L-2D; two short as-Black losses worked
+(g2 ply 22: exploration starvation of the saving move; g6 ply 20:
+gradient-ordering knife-edge 18-17) — neither a root-decision
+fix, both recorded as xfail regressions. Loop stopped per the
+stopping rule (no new patchable weakness class). Details in §2.
+
+### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
+
+**v9 crushes v0: 93W-7L-0D, win rate 0.9300, 95% CI
+[0.8625, 0.9657]**, 2061.5 s. File:
+`research/iterations/batch-v9-vs-v0.json` (seeds 100/200).
+Per colour: as Black 43W-7L-0D (0.8600), as White **50W-0L-0D
+(1.0000)** — v9 as White beats v0 in all 50 games. Mean game
+length 46.57 plies. Loss classifier: 7/7 losses via open four,
+**0 missed blocks**, 63 threatened turns in losses, **0 clean
+missed preventions** — defence is still solved.
+
+Compare v7 vs v0 on the SAME seeds: 64W-31L-5D, 0.6650 (as Black
+34W-13L-3D, as White 30W-18L-2D). v9 gains 29 games over v7
+against v0 — from a tie-break-only change. The first-30-games
+comparison (identical seeds) shows the divergence is present
+from the start: v9 28W-2L-0D vs v7 17W-12L-1D in games 0-29.
+The colour-split inversion is gone and reversed: v7 scored
+LOWER against the weaker v0 (0.6650) than against v1 (0.7050)
+and lost 13 as Black; v9's as-Black losses to v0 drop to 7 and
+its as-White game is perfect. Mechanism (see §5): against v0's
+greedy play, root visit ties are frequent — measured by replaying
+games 0-2 with the search re-run at every v9 move: 22/90 searched
+v9 moves (24.4%) had a max-visit tie, with tie sizes up to 8 —
+and v7's RNG tie-break throws away half of them (worse: with
+8-way ties it usually picks a bad one); v9's prior tie-break wins
+them systematically, and each better tie-break compounds over
+the game. This is NOT the bar (clause 1 is vs v7), but it is
+the strongest evidence that the tie-prior rule is a real
+improvement, not noise: a 29-game swing on identical seeds
+cannot be a coin flip.
+
+### 3.5 Tactical suites — FINAL BATTERY
+
+Old 20-position suite, full-dispatch driver
+(`ml/scripts/eval_tactical_full.py --version 9 --suite both
+--seed 0`): **v9 20/20**. Hard suite (29 positions): **v9
+29/29** (prevention 16/16, setup 7/7, winning 2/2, vcf 4/4).
+**Clause 3 PASSES** (old 20/20 = v7's 20/20; hard 29/29 =
+v7's 29/29). The tie-prior rule changes nothing on tactical
+positions: none of the 49 positions is decided by an exact
+visit tie, so v9's tactical play is v7's tactical play.
+
+### 3.6 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
+
+[NOTE: a runtime restart killed the first run at 88/100 games
+(43W-33L-12D, 0.5568 — partial JSON backed up to
+`~/workspace/b4h1-logs/batch-v9-vs-v7-partial88.json`, not
+committed). The match re-ran IN FULL from game 0 with the same
+seeds — matches are deterministic, so the re-run reproduces
+games 0-87 identically (verified against the backup: prefix
+match confirmed at 10 and 22 games) and completes 88-99 as
+pre-registered.]
+
+**v9 vs v7: 49W-39L-12D, win rate 0.5500, 95% CI [0.4524,
+0.6439]**, 5649.6 s. File:
+`research/iterations/batch-v9-vs-v7.json` (seeds 100/200).
+Per colour: as Black 20W-26L-4D (0.4400), as White 29W-13L-8D
+(0.6600) — a strong colour asymmetry in the OPPOSITE direction
+from v7's vs v1 (Black 0.89, White 0.52): v9's edge over v7
+comes entirely as White, while as Black it LOSES to v7.
+Mean game length 68.21 plies. Loss classifier: 39/39 losses
+via open four, **0 missed blocks**, 153 threatened turns in
+losses, **1 clean missed prevention (0.7%)** — defence is
+essentially solved (the same 1-prevention rate v7 showed in
+its own battery). **Clause 1 FAILS** (0.5500 > 0.50, but CI
+lower bound 0.4524 < 0.50) — v9 beats v7 by 10 games over 100,
+but not by enough for the pre-registered bar. The smoke's
+0.6750 (n=20) did not hold at 100-game scale; the fast-loop
+iter-2 0.5000 (n=10) was the better predictor.
+
+### 3.7 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
+
+vs random 20W-0L-0D (1.0000, CI [0.8389, 1.0000]; as Black
+10W-0L-0D, as White 10W-0L-0D); vs heuristic **20W-0L-0D
+(1.0000, CI [0.8389, 1.0000]; as Black 10W-0L-0D, as White
+10W-0L-0D)** — a PERFECT score against the heuristic anchor
+(v7: 15W-5L, 0.7500); vs mcts **10W-10L-0D (0.5000, CI [0.2993,
+0.7007]; as Black 5W-5L-0D, as White 5W-5L-0D)** — the first
+version in this program NOT to lose the direct A/B against the
+baseline MCTS (v6: 9W-11L; v7: 8W-12L). **Ladder Elo: point
+estimate undefined (None), interval [286.6, None]** — v9 beat
+BOTH anchored opponents 20-0, so both per-opponent scores are
+1.0 and the logistic estimator has no finite point estimate
+(the rating is unbounded above); the interval's lower bound
+(286.6) comes from the heuristic matchup's Wilson CI lower
+(0.8389 → +286.6 over the 0 anchor). Run: `eval_version.py
+--version 9 --ladder-games 20 --mcts-sims 100 --seed 100`;
+EVAL_JSON saved to `research/iterations/ladder-v9.json` (full
+log: `research/iterations/ladder-v9.log`). The script's tactical
+probe line was disregarded per the brief (it bypasses the MCTS
+dispatch); tactical is §3.5's full-dispatch 20/20 + 29/29.
+
+**Clause 2 PASSES, with the caveat stated plainly:** the bar's
+letter ("ladder Elo strictly higher than v7's 190.8") assumes a
+finite point estimate, and v9 has none — its perfect scores
+make the estimate unbounded above. The verdict rests on (a) the
+interval lower bound 286.6, which is strictly above v7's 190.8
+(the entire interval [286.6, ∞) lies above v7's point estimate),
+and (b) the per-opponent results, which are strictly better
+than v7's on every matchup (heuristic 20-0 vs 15-5, mcts 10-10
+vs 8-12, random 20-0 = 20-0). By the ladder's own logic a
+version that beats the anchor 20-0 is rated above one that
+beats it 15-5; the None is an artifact of perfection, not of
+weakness. (v7's interval was [21.8, 359.9] — v9's lower bound
+exceeds v7's point estimate but not v7's upper bound; the
+intervals overlap, as they did for v7 vs v1.)
+
+### 3.8 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
+
+**v9 vs v7 (swap): 48W-48L-4D, win rate 0.5000, 95% CI [0.4038,
+0.5962]**, 3833.3 s. File:
+`research/iterations/batch-v9-vs-v7-swap.json` (seeds 100/200).
+Mean game length 49.11 plies. Loss classifier: 48/48 losses
+via open four, **0 missed blocks**, 162 threatened turns in
+losses, **4 clean missed preventions (2.5%)** — a slightly
+higher prevention-miss rate than the normal match (1/153,
+0.7%), but still small; defence is essentially solved, and v9
+loses the open-four race, same as every version before it.
+**No swap edge at all**: under the official rule v9 and v7 are
+exactly even, and the CI is centred on 0.50. Combined with
+§3.6's colour split (v9's normal-rules edge comes entirely as
+White), this says v9's tie-prior advantage is an opening /
+colour-dynamic effect, not a general strength gain: once the
+swap rule neutralises the opening advantage, the two engines
+are indistinguishable. (v7's swap vs v1 was 51W-37L-12D,
+0.57, CI including 0.50 — also no established edge.)
+
+[NOTE: a SECOND runtime restart killed the first swap run at
+17/100 games (8W-9L-0D, 0.4706 — partial JSON backed up to
+`~/workspace/b4h1-logs/batch-v9-vs-v7-swap-partial17.json`, not
+committed). The match re-ran IN FULL from game 0 with the same
+seeds and placement; the re-run reproduces games 0-16
+identically (verified: first 17 games' moves and winners all
+match).]
+
+## 4. Bar check (v9 vs v7)
+
+| Clause | Requirement | v9 | Verdict |
+|---|---|---|---|
+| 1. Head-to-head | ≥100 games vs v7, win rate > 0.50 with Wilson 95% CI lower > 0.50 | 49W-39L-12D, 0.5500, CI [0.4524, 0.6439] | **FAIL** |
+| 2. Ladder Elo | Strictly > v7's 190.8, identical counts | Estimate undefined (perfect 20-0 vs both anchors), interval [286.6, None]; lower bound 286.6 > 190.8 | **PASS** (see §3.7 caveat) |
+| 3. Tactical | ≥ v7's 20/20 old + 29/29 hard | 20/20 + 29/29 | **PASS** |
+| 4. Test suites | All green | ml pytest 247 passed, 7 skipped, 4 xfailed, 0 failures; npm test/tsc not runnable in this worktree (no node_modules) — coordinator verifies at batch end; no web changes in this branch | **PASS (ml); npm pending coordinator** |
+
+**Verdict: v9 FAILS the bar — clause 1 fails.** v9 beats v7 by
+10 games over 100 (0.5500), but the Wilson 95% CI lower bound
+(0.4524) is below 0.50, so the edge is not established at the
+pre-registered bar. **v9 is REJECTED as the new reference; v7
+remains the reference.** The swap match (48W-48L-4D, 0.5000)
+confirms the reading: under the official rule v9 and v7 are
+indistinguishable. Clauses 2 and 3 pass — v9 is the strongest
+version yet on the ladder (first to tie the baseline MCTS) and
+holds tactical — but the bar requires all 4 clauses, and the
+head-to-head is the clause that matters.
+
+## 5. What this means
+
+1. **The root-decision hypothesis is refuted as a strength
+   lever at this scale.** The tie-prior rule is a real but small
+   improvement: it shows up big against weak opposition (vs v0:
+   93W-7L, +29 games over v7 on identical seeds — a 29-game
+   swing cannot be a coin flip) and on the ladder (heuristic
+   20-0, first version to tie the baseline MCTS 10-10), but
+   against v7 itself it is +10 games over 100 with a CI that
+   includes 0.50, and under swap it is exactly even. Root
+   visit ties are frequent (24.4% of searched moves vs v0, tie
+   sizes up to 8) and v7's RNG tie-break throws half of them
+   away — but against an MCTS opponent the tied moves are
+   genuinely close in value, so the prior's edge is small.
+   The rule is worth keeping in the codebase (it is strictly
+   better than an RNG coin flip and costs nothing), but it is
+   not a step change.
+2. **The §1.0 sign correction stands, and the q-rules are dead.**
+   Every q-involving variant lost to v7 in the smoke (A 0.20,
+   B 0.45, C 0.30); pure q is catastrophic (tactical 19/20 +
+   22/29). At 100 sims the search's q is too noisy to decide
+   the root move — a 1-visit child can win on one lucky leaf.
+   The iter-7 §2.6 rationale for H1 was sign-inverted; the
+   corrected evidence pointed to the prior, and the prior
+   delivered exactly the small, real gain the evidence
+   supported. Do not revisit q-based root decisions at this
+   sim count.
+3. **The tie-prior rule has a known failure mode (§2.6).**
+   When the only prevention is a forcing counter-threat, v1's
+   1-ply score undervalues it (~20k) against occupying a
+   creator (~204k), so the prior tie-break prefers blocking
+   one of two creators over forcing — and with two creators,
+   blocking one is useless. Tie-q would have saved that
+   position's root decision; tie-prior lost it. A
+   forcing-first tie-break is the obvious next micro-variant,
+   but §2.6's own verification says even the right tie-break
+   doesn't save that game — the expected gain is small.
+4. **The White game is where v9 improved — and it is still the
+   gap.** v9's entire edge over v7 comes as White (29W-13L-8D,
+   0.66; as Black 20W-26L-4D, 0.44). v7's White game was its
+   weak side (0.52 vs v1); v9's tie-break helps the
+   defending/counterattacking side more. This is the
+   batch-4 H2 candidate's territory (White weakness /
+   colour-conditional value) — v9's result says the White
+   game is improvable by small changes, but a tie-break alone
+   does not close it.
+5. **The open-four race is still the whole game.** 100/100
+   losses via open four, 0 missed blocks, 5 missed preventions
+   in 415 threatened turns. Defence is solved; the gap is
+   attack — finding the open four first. The next lever is
+   not a root-decision rule; it is the H2/H3 candidates
+   (colour-conditional value, value net on heuristic-opponent
+   games) or a stronger attack gradient.
