@@ -755,7 +755,19 @@ These 13 lost games are fast-loop iteration 1's material (§4.1).
 
 ### 5.3 Head-to-head vs v1 (100 games, seeds 100/200)
 
-(TBD.)
+**42W-46L-12D, win rate 0.48, 95% CI [0.3846, 0.5768]** —
+`batch-v8-vs-v1.json` (100 games, 1,660 s, ~17 s/game). **Clause
+1 FAILS** (win rate < 0.50, CI lower bound < 0.50). The
+patched smoke's 0.60 was a first-20-games fluke: the first 20
+battery games are byte-identical to the patched smoke
+(11W-7L-2D, determinism verified) and games 20–99 went
+31W-39L-10D (0.45). Colour split is extreme: as Black
+31W-14L-5D (0.67), as White 11W-32L-7D (0.29) — a 0.38 gap at
+n=50 per colour (~3.8 SE), far beyond the normal first-move
+edge. v8-as-White is the residual weakness (see §7): White
+starts a tempo behind in the threat race, and v8's
+threat-building is weaker than v1's, so the tempo deficit is
+fatal as White but survivable as Black. Mean plies 63.0.
 
 ### 5.4 Head-to-head vs v0 (100 games, seeds 100/200)
 
