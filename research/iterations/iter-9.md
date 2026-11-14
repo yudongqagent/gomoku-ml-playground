@@ -274,11 +274,67 @@ measure of it.
 
 ### 2.2 Fast-loop iteration 2 — 10 games vs v7
 
-[To be filled.]
+**Batch:** `research/iterations/fast-v9-vs-v7-iter2.json`
+(seeds v9=1002 / v7=2002). **4W-4L-2D, win rate 0.5000, CI
+[0.2366, 0.7634]**, 681.5 s. Per colour: as Black 3W-2L-0D, as
+White 1W-2L-2D. Classifier: 4/4 losses via open four, 0 missed
+blocks, 0 clean missed preventions in 19 threatened turns
+(losses). Defence is still perfect. The two long as-White losses
+(games 7, 9 — 107 plies each) have NO single losing move
+(walk-back game 7: plies 99-105 lose 3/3 with 0 saving
+alternatives; plies 91-97 draw) — distributed drift, as in
+iteration 1. The two SHORT as-Black losses (games 2, 6 — 30/32
+plies) each have a clean verified losing move, worked below.
+Neither yields a patch — see the end of this subsection.
 
-### 2.3 Fast-loop iteration 3 — NOT RUN unless iterations 1–2 find a new patchable class
+**Game 2, ply 22 (Black to move; v9 played (5,10), loses 3/3;
+(8,5) wins 3/3, (5,8) draws/wins).** `analyse_critical.py`:
+(5,10) is v1 rank 2 (20091), FORCING, gradient for Black +0.072,
+9 visits (the max), our-q +0.045. (8,5) is v1 rank 6 (4492), not
+forcing, gradient for Black +0.119, 4 visits, our-q +0.057.
+**The saving move has the HIGHER our-q AND the higher gradient —
+but half the prior (0.031 vs 0.065), so PUCT starves it of visits
+(4 vs 9) and most-visited decides.** This is a REAL q-vs-visits
+gap with correctly-signed q — but it is an EXPLORATION gap (low
+prior → few visits), not a decision-rule gap: no root-decision
+rule in the pre-registered set fixes it deterministically (pure q
+might, if no 1-visit child outranks +0.057 — but pure q is
+already rejected on tactical 22/29 and smoke 0.20). It is the
+SAME class as iter-7's fast-loop-1 game-3 xfail (forcing move
+ranked 8th, prior 0.04, starved of visits) — a known open
+weakness class, not a new one. A fix would be exploration-side
+(higher c_puct, a prior floor) — a search change beyond the H1
+root-decision brief, needing its own pre-registration as a new
+version.
 
-### 2.4 Fast-loop iteration 4 — NOT RUN unless iterations 1–3 find a new patchable class
+**Game 6, ply 20 (Black to move; v9 played (7,4), loses 3/3;
+(3,8) wins 3/3).** `analyse_critical.py`: v1 ranks (3,8) #1
+(200167) and (7,4) #2 (200163) — 4 points apart. Under the
+gradient leaf (v9's search): (7,4) 18 visits, (3,8) 17 visits —
+the actual wins by ONE visit, so the tie-prior rule does not even
+apply (not a tie). Our-q also prefers the loser (-0.045 vs
+-0.051) and the gradient slightly prefers it (+0.012 vs -0.000).
+Under the TERMINAL leaf (v6's search): (3,8) 16 visits, (7,4)
+11 — v6 plays the saving move. **The gradient leaf's ORDERING
+breaks this position** — the same mechanism as iter-7 §1's
+pre-eval iter-5 regression (the cap fixed the gradient's
+magnitude, not its ordering). No root-decision rule fixes a
+non-tie 18-vs-17 visit gap where q and gradient also prefer the
+loser.
+
+**No patch from iteration 2; loop stops here (stopping rule).**
+The two worked losses have different mechanisms (exploration
+starvation; gradient-ordering knife-edge), neither is a
+root-decision fix, and the exploration class is already known
+from iter-7. Both critical positions are recorded as xfail
+regression tests (`regression_positions_v9.json`: fl2-g2-ply22,
+fl2-g6-ply20) — documented open weaknesses for the next batch,
+not silently dropped. The battery runs on the as-registered v9
+(tie-prior, no fast-loop patches).
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
 
 ### 2.5 Aggregate counts (secondary)
 

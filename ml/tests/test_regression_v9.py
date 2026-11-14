@@ -24,7 +24,16 @@ POSITIONS_PATH = os.path.join(
 )
 
 # Positions the current engine does not fix (open weaknesses).
-XFAIL = {}
+# fl2-g2-ply22: the saving move (8,5) is starved of visits by its
+# low prior (v1 rank 6) despite higher our-q and gradient — the
+# exploration class from iter-7's fl1-g3 xfail, not a root-decision
+# fix. fl2-g6-ply20: knife-edge 18-vs-17 visits; the gradient
+# leaf's ordering prefers the loser (iter-7 §1 pre-eval mechanism).
+# See iter-9.md §2.2.
+XFAIL = {
+    "fl2-g2-ply22": "saving move starved by low prior; see iter-9.md §2.2",
+    "fl2-g6-ply20": "gradient ordering prefers the loser 18-17; see iter-9.md §2.2",
+}
 
 
 def _load_positions():
