@@ -207,6 +207,24 @@ eval; 50k -> eval; 100k+ -> eval, each stage gated on Elo
 improvement, quality bar = the project's "good level" bar) is the
 longer arc; v8 is its first step.
 
+**UPDATE 2026-11-14 ~13:55 UTC (coordinator handoff): B1 is done
+and the dataset has landed — PARTIAL, 4,350 games / 185,264
+samples** at `gomoku-b3-b1/ml/runs/b3-b1-10k/data/` (verified by
+the coordinator: 4,350 shards, manifest total_samples 185264,
+spot checks clean; the 10k run hit its 6-hour cap, remaining
+5,650 games need ~5–7 more hours — NOT resumed by this
+workstream). **Decision: RETRAIN.** This workstream is in early
+evals (smoke running, fast loop not started, battery not
+started), the 500-game net demonstrably does not generalize
+(§2), and 4,350 games is 8.7x the data — the most plausible fix
+for the memorization finding. The retrained net becomes the
+final v8 (battery re-run on it); BOTH versions' numbers are
+reported (§2, §5). B1 findings adopted: torch pinned to 1
+thread for the retrain (B1: default 4 threads slowed a batched
+forward ~290x under contention, 579 ms vs 2.0 ms); workers=4 is
+the VM's best parallel setting (2.38x over B2-only, 1,073.5
+games/hr at 50 sims — not used here, the data already exists).
+
 **Why this change — traced to the analysed gaps (iter-6 §2).**
 v6 defends perfectly (166/166 losses via open four, 0 missed
 blocks, 1 clean missed prevention in 1,061 threatened turns) and
@@ -317,6 +335,36 @@ prime suspect weakness class. The structural fix is data scale
 memorize game identities (far more games, stronger play, early
 stopping gated on game-level hold-out) — not more epochs on 500
 games.
+
+### 2.1 Retraining on the B1 4,350-game dataset
+
+B1's dataset (round-2 checkpoint, 50 sims, workers=4) verified
+on receipt: 4,350 shards, manifest total_samples 185,264,
+shard format identical to the 500-game data (planes/policy/
+value/moves/winner; policy rows sum to 1 within 6e-8, values in
+{-1, 1}; mean 42.6 plies/game). Copied (not moved — B1's copy
+is untouched) to `ml/runs/b3-h2-4350/` and split with the SAME
+game-level hold-out protocol as §2: every 10th shard by sorted
+name (`b3-b1-10k_gameNNNN.npz`, indices 9, 19, …, 4349) to
+`val-data/`: **3,915 train games (166,818 samples), 435 val
+games (18,446 samples)**; totals reconcile exactly with B1's
+manifest (4,350 / 185,264). The 500-game net is preserved as
+`ml/runs/b3-h2/value-net-500g.pt`.
+
+Retrain config `ml/configs/b3-h2-train-4350.yaml`: same smoke
+ResNet 16ch/2 blocks, same recipe (batch 64, lr 0.002 cosine,
+warmup 20, augmentation on, internal val_fraction 0.05) —
+the only changes are the data and **5 epochs** instead of 20
+(5 × 166,818 ≈ 834k sample-passes, ~2.3x the 500-game run's
+optimization; 20 epochs here would be ~10x the compute and
+would re-invite memorization). Threads pinned to 1
+(`OMP_NUM_THREADS=1 TORCH_THREADS=1`) per B1's finding. Run
+dir `ml/runs/b3-h2-value-4350`, log
+`ml/runs/b3-h2-value-4350-train.log`.
+
+(TBD — retraining completion time, final/val loss, hold-out
+accuracy for best.pt / final.pt on the 435-game holdout,
+checkpoint selection, comparison with the 500-game net.)
 
 **VM replacement + same-seed resume trap (2026-11-14 ~07:25 UTC).**
 A VM replacement SIGTERM'd the run at 238 games; all 238 shards
