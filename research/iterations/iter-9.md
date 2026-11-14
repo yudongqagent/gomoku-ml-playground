@@ -179,9 +179,56 @@ ladder, `eval_tactical_full.py` for tactical).
 
 ### 1.5 Pre-eval observation (recorded AFTER implementation, BEFORE any eval)
 
-[To be filled: what each variant plays on the §2.6 position, the
-v7 regression positions, and the tactical suites — diagnostic
-only, the design stands as pre-registered.]
+Diagnostic only — the design stands as pre-registered; the evals
+decide. Driver: `ml/scripts/diag_root_decision.py`.
+
+**§2.6 position** (full-precision root stats): (7,4) v=10,
+our-q -0.041882, prior 0.077230; (8,4) v=10, our-q -0.032228,
+prior 0.076957; (9,8) v=7, our-q -0.071229; (6,9) v=7, our-q
+-0.064911. The prior DOES separate the tied pair ((7,4) >
+(8,4)), as v1's ranking (3rd vs 6th) implied.
+
+| rule | plays at ply 14 | verdict |
+|---|---|---|
+| visits (v7, no RNG) | (7,4) | SAVING — the no-RNG first-tie-break picks (7,4); the match RNG picked (8,4). The §2.6 loss was literally a coin flip. |
+| q (A) | (11,3) | other (oracle-untested) — a **1-visit** child, our-q +0.0249 from a single lucky leaf. The pre-registered noise risk, manifesting: argmax our-q over 33 visited children is dominated by 1-visit children (the only well-visited child above (8,4)'s our-q is (7,8), 9 visits, -0.0295). |
+| tie-q (B) | (8,4) | LOSING — as predicted in §1.3: correctly-signed q prefers the loser. |
+| blend (C) | (8,4) | LOSING — as predicted (blend 0.068 vs 0.058). |
+| tie-prior (D) | (7,4) | SAVING — as predicted; the prior separates the tie toward v1's higher-ranked move. |
+
+**v7 regression positions (5):** visits 4/5 (known xfail
+fl1-g3-ply23 only); q 3/5 (also breaks fl1-g1-ply13); tie-q 4/5;
+blend 3/5 (also breaks fl1-g1-ply13); tie-prior 4/5.
+
+**Tactical suites (full-dispatch driver, same driver/seeds/suites
+as the battery — so these ARE the clause-3 numbers for each
+variant):**
+
+| rule | old | hard | hard failures |
+|---|---|---|---|
+| visits (v7) | 20/20 | 29/29 | — |
+| q (A) | 19/20 | **22/29** | 7 prevention positions |
+| tie-q (B) | 20/20 | 29/29 | — |
+| blend (C) | 20/20 | **26/29** | prev-v1v0s-g13, prev-v1v0s-g26, prev-v1v0s-g48 |
+| tie-prior (D) | 20/20 | 29/29 | — |
+
+**Consequence, recorded before the smoke: A and C FAIL clause 3
+(tactical < v7's 29/29) and are disqualified as battery
+candidates.** The battery cannot pass them — their outcome is
+already decided (fail) — so the smoke chooses between the viable
+candidates B and D. The A/C smokes still run as pre-registered,
+to give the q hypothesis its match-level numbers for the record;
+if A or C somehow wins the smoke, that number is reported
+prominently but does not earn it the battery, because clause 3
+is a hard gate of the bar and it is already failed. Pure q's
+failure mode is now visible twice over: it picks 1-visit
+children on lucky leaves (§2.6: (11,3)) and it fails prevention
+positions (22/29) — the q-values at 100 sims are too noisy to
+decide the root move, which is exactly why most-visited is the
+standard rule. The q hypothesis, in its pure and blended forms,
+is refuted on tactical evidence before a single match game; the
+smoke tests whether the tie-break forms (B, D) — which keep the
+visits rule and only change tie-breaking — differ from v7 at all.
 
 ## 2. Loss analysis for iteration 9
 
