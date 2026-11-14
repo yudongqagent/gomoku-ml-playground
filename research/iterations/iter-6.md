@@ -282,7 +282,7 @@ this is the re-run on the fresh VM.)
 | 1. Head-to-head vs v1 | >= 40 games, win rate > 0.50, Wilson 95% CI lower bound > 0.50 | 100 games: 44W-37L-19D, 0.5350, CI [0.4378, 0.6296] | **FAIL** (lower bound 0.4378 < 0.50) |
 | 2. Ladder Elo | strictly higher than v1's 70.4, identical games/opponents | -107.5 (interval [-262.0, 46.9]), vs v1's 70.4 | **FAIL** |
 | 3. Tactical | pass rate >= v1's | old 20/20 = v1's 20/20; hard 29/29 vs v1's 12/29 | **PASS** |
-| 4. Test suites | ml pytest + npm test green | ml pytest green (192 passed at v6 commit; final run at batch end); npm test at batch end | pending final run |
+| 4. Test suites | ml pytest + npm test green | ml pytest 192 passed; npm test 55 passed | **PASS** |
 
 **Verdict: v6 REJECTED.** Clauses 1 and 2 both fail. v6 is the
 tactically strongest version ever built in this program (hard
