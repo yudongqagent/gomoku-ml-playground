@@ -126,6 +126,87 @@ def test_heuristic_games_rejects_mcts_version(tmp_path):
         heuristic_games.play_heuristic_game(7, 0, 0, 1)
 
 
+def test_sampled_choose_move_never_skips_win_or_block():
+    """Even at eps=1.0 (always sample), the hard rules hold: take
+    an immediate win, block the opponent's single immediate win."""
+    import pytest  # noqa: F401  (kept local, as in the MCTS test)
+
+    from gomoku_ml import scoring
+
+    rng = np.random.default_rng(0)
+    v1 = scoring.get_player(1, seed=0)
+    # Black has a winning move (four in a row) -> must take it.
+    board = game.empty_board()
+    for x, y in [(7, 7), (7, 8), (7, 9), (7, 10)]:
+        board[y, x] = game.BLACK
+    board[3, 3] = game.WHITE
+    for _ in range(20):
+        move = heuristic_games._sampled_choose_move(
+            v1, board, game.BLACK, rng, eps=1.0, topk=8
+        )
+        assert (move % 15, move // 15) in [(7, 6), (7, 11)]
+    # White's broken four: only (5,7) wins; Black must block it.
+    board = game.empty_board()
+    board[3, 3] = game.BLACK
+    for x, y in [(5, 5), (5, 6), (5, 8), (5, 9)]:
+        board[y, x] = game.WHITE
+    for _ in range(20):
+        move = heuristic_games._sampled_choose_move(
+            v1, board, game.BLACK, rng, eps=1.0, topk=8
+        )
+        assert (move % 15, move // 15) == (5, 7)
+
+
+def test_sampled_games_are_unique(tmp_path):
+    """100 sampled games (eps=0.2, topk=8) are (near-)all unique —
+    the fix for the pure-play pool collapse (75/100 unique at n=100,
+    621/4000 at n=4000)."""
+    out = tmp_path / "data"
+    stats = heuristic_games.generate_heuristic_games(
+        out_dir=str(out), run_name="test", num_games=100,
+        version_a=1, version_b=0, workers=2, seed=0,
+        sample_eps=0.2, sample_topk=8,
+    )
+    assert stats["games_generated"] == 100
+    assert stats["games_total"] >= 95, (
+        f"sampled games still collapsing: {stats['games_total']}/100 unique"
+    )
+    assert stats["sample_eps"] == 0.2
+    assert stats["sample_topk"] == 8
+
+
+def test_sampled_games_deterministic(tmp_path):
+    """Same seeds + same sampling params replay the same game."""
+    a = heuristic_games.play_heuristic_game(
+        1, 0, 0, 1, sample_eps=0.2, sample_topk=8, sample_version=1
+    )
+    b = heuristic_games.play_heuristic_game(
+        1, 0, 0, 1, sample_eps=0.2, sample_topk=8, sample_version=1
+    )
+    assert [int(m) for m in a["moves"]] == [int(m) for m in b["moves"]]
+    assert int(a["winner"]) == int(b["winner"])
+    # Sampling changes the game (vs pure play with the same seeds).
+    pure = heuristic_games.play_heuristic_game(1, 0, 0, 1)
+    assert [int(m) for m in a["moves"]] != [int(m) for m in pure["moves"]]
+
+
+def test_sampling_validation():
+    import pytest
+
+    with pytest.raises(ValueError, match="scoring engine"):
+        heuristic_games.play_heuristic_game(
+            1, 0, 0, 1, sample_eps=0.2, sample_topk=8, sample_version=0
+        )
+    with pytest.raises(ValueError, match="sample_eps"):
+        heuristic_games.play_heuristic_game(
+            1, 0, 0, 1, sample_eps=1.5, sample_topk=8, sample_version=1
+        )
+    with pytest.raises(ValueError, match="sample_topk"):
+        heuristic_games.play_heuristic_game(
+            1, 0, 0, 1, sample_eps=0.2, sample_topk=0, sample_version=1
+        )
+
+
 def test_deduplicate_shards(tmp_path):
     """Dedup keeps the first occurrence, renumbers densely, rebuilds
     the manifest."""

@@ -77,12 +77,55 @@ def _game_seeds(seed: int, game_index: int) -> tuple[int, int]:
     return base, base + 1
 
 
+def _sampled_choose_move(
+    player,
+    board: np.ndarray,
+    player_to_move: int,
+    rng: np.random.Generator,
+    eps: float,
+    topk: int,
+) -> int:
+    """ε-greedy move choice over the top-``topk`` moves by the
+    player's 1-ply score (batch 4 H3, amendment 2 — see
+    ``research/iterations/iter-11.md`` §1.1b).
+
+    Pure 1-ply engines collapse onto a small pool of lines (~621
+    unique games from 4,000 v1-vs-v0 games), so the learner samples:
+    with probability ``eps`` it plays a uniform random move among
+    its top-``topk`` scoring moves instead of its top move. The
+    hard rules are NEVER sampled away: an immediate win is always
+    taken, and the opponent's single immediate win is always
+    blocked — sampling only varies quiet moves. With ``eps`` 0
+    this is exactly the player's top move (rng tie-break).
+    """
+    wins = scoring._winning_moves(board, player_to_move)
+    if wins:
+        return wins[0]
+    opp_wins = scoring._winning_moves(board, -player_to_move)
+    if len(opp_wins) == 1:
+        return opp_wins[0]
+    cands = scoring._candidate_moves(board)
+    scored = sorted(
+        ((player.score_move(board, m, player_to_move), m) for m in cands),
+        key=lambda t: -t[0],
+    )
+    top = scored[: max(1, topk)]
+    if rng.random() < eps:
+        return int(rng.choice([m for _s, m in top]))
+    best_score = top[0][0]
+    best = [m for s, m in top if s == best_score]
+    return int(rng.choice(best))
+
+
 def play_heuristic_game(
     version_black: int,
     version_white: int,
     seed_black: int,
     seed_white: int,
     max_moves: int = 225,
+    sample_eps: float = 0.0,
+    sample_topk: int = 0,
+    sample_version: int | None = None,
 ) -> dict[str, np.ndarray]:
     """Play one game between two 1-ply engines; return shard arrays.
 
@@ -93,9 +136,32 @@ def play_heuristic_game(
     -1 loss / 0 draw). ``history`` holds the boards before each
     move, most recent last — the same convention
     :func:`gomoku_ml.encoding.encode` expects.
+
+    Sampling (amendment 2): when ``sample_version`` is not None,
+    the side playing that version chooses moves with
+    :func:`_sampled_choose_move` (ε-greedy over its top-
+    ``sample_topk`` moves; the other side plays pure). The
+    sampling rng is derived from the game seeds, so the game stays
+    deterministic given (versions, seeds, sampling params).
+    ``sample_eps`` 0 (the default) disables sampling.
     """
+    if sample_version is not None:
+        if sample_version == 0:
+            raise ValueError(
+                "sampling needs a scoring engine (version >= 1) — "
+                "the baseline has no score_move to rank by"
+            )
+        if not 0.0 <= sample_eps <= 1.0:
+            raise ValueError(f"sample_eps must be in [0, 1], got {sample_eps}")
+        if sample_topk < 1:
+            raise ValueError(
+                f"sample_topk must be >= 1 when sampling, got {sample_topk}"
+            )
     black = _build_player(version_black, seed_black)
     white = _build_player(version_white, seed_white)
+    sample_rng = np.random.default_rng(
+        (int(seed_black) + 1) * 1_000_003 + int(seed_white)
+    )
     board = game.empty_board()
     history: list[np.ndarray] = []
     last_move: int | None = None
@@ -113,9 +179,18 @@ def play_heuristic_game(
         if len(moves) >= max_moves:
             winner = game.EMPTY
             break
-        chooser = black if player == game.BLACK else white
+        if player == game.BLACK:
+            chooser, version = black, version_black
+        else:
+            chooser, version = white, version_white
         planes.append(encoding.encode(board, player, history, last_move))
-        move = int(chooser.choose_move(board, player))
+        if sample_version is not None and version == sample_version:
+            move = _sampled_choose_move(
+                chooser, board, player, sample_rng,
+                sample_eps, sample_topk,
+            )
+        else:
+            move = int(chooser.choose_move(board, player))
         policy = np.zeros(225, dtype=np.float32)
         policy[move] = 1.0
         policies.append(policy)
@@ -201,15 +276,25 @@ def _heuristic_worker(spec: dict) -> None:
         os.makedirs(spec["out_dir"], exist_ok=True)
         for local_i, g in enumerate(spec["game_indices"]):
             seed_a, seed_b = _game_seeds(spec["seed"], g)
+            kwargs = dict(
+                max_moves=spec["max_moves"],
+                sample_eps=spec["sample_eps"],
+                sample_topk=spec["sample_topk"],
+                # eps 0 = pure play (sample_version None), so the
+                # unsampled path is byte-identical to before.
+                sample_version=(
+                    spec["version_a"] if spec["sample_eps"] > 0 else None
+                ),
+            )
             if g % 2 == 0:
                 arrays = play_heuristic_game(
                     spec["version_a"], spec["version_b"],
-                    seed_a, seed_b, max_moves=spec["max_moves"],
+                    seed_a, seed_b, **kwargs,
                 )
             else:
                 arrays = play_heuristic_game(
                     spec["version_b"], spec["version_a"],
-                    seed_b, seed_a, max_moves=spec["max_moves"],
+                    seed_b, seed_a, **kwargs,
                 )
             path = os.path.join(
                 spec["out_dir"], f"{spec['run_name']}_game{local_i:04d}.npz"
@@ -235,6 +320,8 @@ def generate_heuristic_games(
     max_moves: int = 225,
     stop_flag=None,
     dedup: bool = True,
+    sample_eps: float = 0.0,
+    sample_topk: int = 0,
 ) -> dict:
     """Generate ``num_games`` heuristic-vs-heuristic games across
     ``workers`` processes and merge them into ``out_dir``.
@@ -244,6 +331,11 @@ def generate_heuristic_games(
     are global and dense from the existing count, so a top-up run
     continues the alternation and the seed sequence. Returns stats
     (games merged, dedup counts, samples, games/hour, winner split).
+
+    Sampling (amendment 2): ``sample_eps`` > 0 makes version A (the
+    learner) choose moves ε-greedily over its top-``sample_topk``
+    moves (see :func:`_sampled_choose_move`); version B plays pure.
+    The default (0.0) is pure play on both sides.
     """
     if workers < 1:
         raise ValueError(f"workers must be >= 1, got {workers}")
@@ -301,6 +393,8 @@ def generate_heuristic_games(
             "version_b": version_b,
             "seed": int(seed),
             "max_moves": int(max_moves),
+            "sample_eps": float(sample_eps),
+            "sample_topk": int(sample_topk),
             "result_queue": result_queue,
         }
         proc = ctx.Process(target=_heuristic_worker, args=(spec,),
@@ -352,6 +446,10 @@ def generate_heuristic_games(
         "games_generated": merged,
         "games_total": merge["manifest"]["games"],
         "total_samples": merge["manifest"]["total_samples"],
+        "version_a": version_a,
+        "version_b": version_b,
+        "sample_eps": sample_eps,
+        "sample_topk": sample_topk,
     }
     if dedup:
         stats["dedup"] = deduplicate_shards(out_dir, run_name)

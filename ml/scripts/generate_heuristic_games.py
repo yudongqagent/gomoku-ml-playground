@@ -49,11 +49,27 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--max-moves", type=int, default=225)
+    parser.add_argument("--sample-eps", type=float, default=0.0,
+                        help="learner sampling: with this probability "
+                        "version A plays a uniform random move among "
+                        "its top --sample-topk moves instead of its "
+                        "top move (default 0 = pure play)")
+    parser.add_argument("--sample-topk", type=int, default=0,
+                        help="top-k pool for learner sampling "
+                        "(required when --sample-eps > 0)")
     parser.add_argument("--no-dedup", action="store_true",
                         help="skip duplicate removal (default: dedup)")
     args = parser.parse_args()
     if args.workers < 1:
         print(f"--workers must be >= 1, got {args.workers}", file=sys.stderr)
+        return 2
+    if args.sample_eps > 0 and args.sample_topk < 1:
+        print("--sample-topk must be >= 1 when --sample-eps > 0",
+              file=sys.stderr)
+        return 2
+    if args.sample_eps < 0 or args.sample_eps > 1:
+        print(f"--sample-eps must be in [0, 1], got {args.sample_eps}",
+              file=sys.stderr)
         return 2
 
     flag = InterruptFlag().install()
@@ -84,6 +100,8 @@ def main() -> int:
             max_moves=args.max_moves,
             stop_flag=flag,
             dedup=not args.no_dedup,
+            sample_eps=args.sample_eps,
+            sample_topk=args.sample_topk,
         )
     except RuntimeError as e:
         print(f"heuristic game generation failed: {e}", file=sys.stderr)
