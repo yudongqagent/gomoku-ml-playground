@@ -538,6 +538,26 @@ Raw JSON: `research/iterations/batch-v8-tactical-pre.json`
 (copied from the run output; TACTICAL_JSON line). Re-run on
 the final patched v8 for the battery (TBD below).
 
+**4,350-game net (the final v8 leaf)** —
+`ml/scripts/eval_tactical_full.py --version 8 --suite both
+--seed 0` (2026-11-14 ~14:12 UTC; 20 s for 49 positions,
+≈0.4 s/position — the 1-thread pinning plus the quiet VM):
+
+- **Old suite: 20/20 (100%).** The `double-threat-create`
+  regression is fixed — clause 3's old-suite half now passes.
+- **Hard suite: 24/29 (82.8%),** up from 21/29 (500-game net).
+  All 5 fails are now PREVENTION positions (`prev-v2v0-g2`,
+  `prev-v2v1s-g28`, `prev-v1v0s-g26`, `prev-v1v0s-g48`,
+  `prev-v1v1s-g45`); every setup, winning-quiet and VCF
+  position passes. Net change vs the 500-game net: +7 fixes
+  (4 setup, `winning-quiet-setup`, `vcf-two-four-sequence-rot`,
+  `prev-v1bl-g2`) against −4 regressions (4 prevention
+  positions the 500-game net passed). The value gradient now
+  helps attack-building but undervalues preventing the
+  opponent's open-four SETUP in favour of own attack — the
+  prime fast-loop target (§4). Raw JSON:
+  `research/iterations/batch-v8-tactical-4350.json`.
+
 ### 5.2 Smoke (20 games vs v1, seeds 100/200)
 
 **500-game net (the pre-registered v8): 9W-4L-7D, win rate
