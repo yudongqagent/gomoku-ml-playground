@@ -181,7 +181,48 @@ visible in the suite without breaking clause 4.
 
 ### 3.1 Smoke (20 games vs v1, seeds 100/200)
 
+**14W-2L-4D, win rate 0.8000, CI [0.5840, 0.9193]**, 790.8 s
+(~39.5 s/game; plies mean 83.2, min 22, max 225); as Black
+9W-0L-1D (0.95), as White 5W-2L-3D (0.65). Win plies mean 49.1,
+loss plies mean 39.0 (v7 wins and loses FAST — unlike v6, which
+ground out 85-ply games and lost slower than it won). The 4
+draws are full-board 225-ply games. Far above v6's smoke
+(6W-10L-4D, 0.40) — but n=20 with a wide CI, and the 2 losses
+are the SAME game played twice (games 9 and 13, both v7 as
+White, both 39 plies, identical move lists: deterministic
+engines transpose). Not conclusive; the pre-registered 100-game
+match decides. Cost note: 39.5 s/game is ~4x v6's 9.3 s/game —
+the gradient roughly doubles v7's per-move cost (~0.95 s/move
+measured here, vs v6's ~0.21 s/move), and this run shared the VM
+with the parallel H2 workstream plus a full test-suite run for
+its first 12 minutes. The 100-game matches will each take
+~35-60 min under contention.
+
 ### 3.2 Tactical suites
+
+Old 20-position suite, full-dispatch driver
+(`ml/scripts/eval_tactical_full.py`, `player.choose_move` —
+NOT `eval_version.py`'s probe, which bypasses the MCTS dispatch):
+**v7 20/20** (= v1's 20/20, = v6's 20/20).
+Hard suite (29 positions): **v7 26/29** (prevention 15/16, setup
+6/7, winning 1/2, vcf 4/4) vs v1's 12/29 and v6's 29/29. The
+gradient COST v7 three positions vs v6's perfect score:
+
+- `prev-v1v1s-g45` (prevention): chose (6,2), expected (11,7)/(12,7).
+- `setup-v1v1s-g33` (setup): chose (9,4), expected (6,7).
+- `winning-quiet-setup-2` (winning): chose (9,7), expected
+  (7,7)/(8,7)/(8,9)/(10,10) — one of the 3 positions v3 failed
+  that v6 passed. The trap is "the 58k double three is a decoy"
+  (gap-threes whose extensions give only single-ended fours) —
+  and a breadth gradient is exactly the wrong tool there: it
+  rewards the move that creates the most threats, decoys included.
+
+Clause 3 still passes (26/29 >= v1's 12/29), but the direction
+is the wrong one: the gradient makes single-move tactical
+decisions WORSE than v6's terminal-only leaf, consistent with
+the pre-eval iter-5 regression failure (§1). If v7 nevertheless
+wins matches, the gradient's match value comes from multi-move
+attack-building, not from tactical accuracy.
 
 ### 3.3 Head-to-head vs v1 (100 games, seeds 100/200)
 
