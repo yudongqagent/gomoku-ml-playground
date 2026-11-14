@@ -209,7 +209,87 @@ the top of this log. Aggregate counts (§2.5) are secondary.
 
 ### 2.1 Fast-loop iteration 1 — 10 games vs v0
 
-(TODO — after iteration 1.)
+**Batch:** `research/iterations/fastloop1-v7-vs-v0.json`
+(seeds v7=500 / v0=600 — development seeds, distinct from the bar
+battery's 100/200). **5W-5L-0D, win rate 0.5000, CI [0.2366,
+0.7634]**, 112.1 s. The split is PURELY colour: v7 wins all 5 as
+Black and loses all 5 as White, all fast (21, 31, 29, 21, 21
+plies). v7 as White cannot overcome Black's first-move tempo
+against v0's direct attacking play — the same White weakness v6
+showed vs v0 (0.26 as White). Classifier
+(`ml/scripts/classify_batch_losses.py`): 5/5 losses via open
+four, 0 missed blocks, 0 clean missed preventions in 21
+threatened turns (in losses). Defence is still perfect; the
+losses are lost races, as in every batch before.
+
+**The losing move in each game** (walk-back,
+`ml/scripts/walkback_loss.py`, corrected oracle method — the
+actual move's v1-vs-v1 playout must lose at all 3 seeds before an
+alternative counts; seeds 0,1,2):
+
+| Game | Last preventable turn | v7 played (loses 3/3) | Perfect move (oracle) |
+|---|---|---|---|
+| 1 (21 plies) | ply 13 | (4,6) | (8,6) — wins 3/3 |
+| 3 (31 plies) | ply 23 | (4,9) | (9,12) — wins 3/3 |
+| 5 (29 plies) | ply 21 | (9,11) | (5,7) or (8,12) — win 3/3 |
+| 7 (21 plies) | ply 15 | (7,6) | (7,10) — draws/wins |
+| 9 (21 plies) | ply 15 | (8,7) | (4,7) — wins/draws |
+
+**The recurring structural weakness — ONE class, all 5 games.**
+In every critical position Black holds exactly 2 creators and
+White holds 0: White is defending against Black's open-four
+threat. In every case the losing move is a PURE BLOCK (v1 rank
+1-2, ~200k) and the saving move is either a DUAL-PURPOSE
+block+counterattack (games 1, 7, 9 — v1 rank 1) or a FORCING
+move that creates a four (games 3, 5 — v1 rank 8 and 4). And in
+every case the uncapped gradient PREFERS the losing move:
+game 1: +0.510 (actual) vs +0.245 (saving); game 3: +0.358 vs
+0.000; game 5: +0.762 vs +0.303; games 7/9: +0.671 vs +0.635
+(leaf values for White, from `ml/scripts/analyse_critical.py`).
+The gradient rewards immediate threat-reduction (blocking kills
+Black's breadth NOW) over counterplay (building White's attack
+for the NEXT move) — the 1-ply myopia of iter-5, rebuilt inside
+the leaf. Worse, the gradient's dense positive values on the
+blocking move's lines MASK the sparse -0.25 penalties from
+Black's forcing sequences: in 4/5 positions v7's own q-values
+ALREADY prefer the saving move (game 1: -0.07 vs -0.257;
+game 5: +0.106 vs -0.381; games 7/9: -0.253 vs -0.335), but the
+visit counts follow the gradient-inflated early values (48/68/67
+vs 15/2/18) and most-visited decides — iter-6 §2.2c's pathology,
+amplified by the gradient. v6's terminal-only leaf finds a
+saving move in 4/5 positions (games 1, 5, 7, 9 — game 5 via
+(8,12)); the gradient is what breaks it. The one-sided gradient
+(reward only our breadth) was measured and REFUTED as a fix: it
+also prefers the losing move in all 5 cases (the block raises
+White's breadth too), and it saturates (breadths 7-11.5 all map
+to 0.94-0.99) — see the analysis in §2.1's working notes.
+
+**The patch (structural, generalises): cap the gradient at
++/-0.2.** A static heuristic must never outweigh an exact
+terminal signal: the cap is strictly below the smallest terminal
+value (the must-block 0.25), so forcing moves always beat quiet
+gradient differences in leaf value and the gradient acts as a
+tie-breaker between quiet lines — all a static heuristic can
+honestly claim. (`_GRADIENT_CAP = 0.2` in `mcts_heuristic.py`.)
+Patch candidates were tested by replaying all 5 critical
+positions (`ml/scripts/test_patch_candidates.py`): uncapped
+base 0/5, cap 0.2 **4/5**, suppress-on-creator 3/5,
+cap+suppress 4/5 (no better than the cap alone — the cap is the
+single patch). Game 3 is fixed by NONE of them: its saving move
+(9,12) is a forcing move ranked 8th (prior 0.04), starved of
+visits in 100 sims — an EXPLORATION weakness, not a leaf-value
+weakness, and the target for iteration 2 if it recurs.
+
+**Regression tests:** `ml/gomoku_ml/regression_positions_v7.json`
+(5 positions, stone lists + expected moves, generated from the
+game records) + `ml/tests/test_regression_v7.py`. After the
+patch: 4/5 pass (g1, g5, g7, g9); g3 is a documented xfail (the
+open forcing-move exploration weakness). The pre-eval iter-5
+regression (test_mcts_heuristic.py xfail) is NOT fixed by the
+cap either — its mechanism is the gradient's ORDERING (the block
+beats the counterattack in breadth terms), not its magnitude —
+and stays xfail. Targeted suites after the patch:
+test_regression_v7 + test_mcts_heuristic 26 passed, 2 xfailed.
 
 ### 2.2 Fast-loop iteration 2 — 10 games vs v0
 

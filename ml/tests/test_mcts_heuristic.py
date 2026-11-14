@@ -157,7 +157,9 @@ def test_attack_gradient_zero_on_empty_board():
 
 def test_attack_gradient_antisymmetric_and_bounded():
     # A mid-game board: the gradient for Black is exactly the
-    # negative of the gradient for White, and strictly inside (-1, 1).
+    # negative of the gradient for White, and strictly inside
+    # (-0.2, 0.2) — the fast-loop iteration-1 cap, below the
+    # must-block value 0.25.
     rng = np.random.default_rng(0)
     board = game.empty_board()
     cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
@@ -167,7 +169,7 @@ def test_attack_gradient_antisymmetric_and_bounded():
     gb = _attack_gradient(board, game.BLACK)
     gw = _attack_gradient(board, game.WHITE)
     assert gb == -gw
-    assert -1.0 < gb < 1.0
+    assert -0.2 < gb < 0.2
 
 
 def test_attack_gradient_ordering_open_three_vs_nothing():
@@ -199,16 +201,16 @@ def test_attack_gradient_counts_breadth_not_best():
                       [(3, 3)])
     assert scoring._winning_moves(two, game.BLACK) == []
     assert _attack_gradient(two, game.BLACK) > _attack_gradient(one, game.BLACK)
-    # And the value is the tanh of the breadth difference / 4:
+    # And the value is the capped tanh of the breadth difference:
     # two open threes give Black 4 strong moves vs White's 0
     # (each open three has 2 four-makers), White's lone stone gives
     # only developing moves; check the exact value via the formula.
     from gomoku_ml import kernel_numpy
-    from gomoku_ml.mcts_heuristic import _breadth
+    from gomoku_ml.mcts_heuristic import _GRADIENT_CAP, _breadth
 
     black, white = kernel_numpy.attack_both(two)
     mask = two == game.EMPTY
-    expected = math.tanh(
+    expected = _GRADIENT_CAP * math.tanh(
         (_breadth(black, mask) - _breadth(white, mask)) / 4.0
     )
     assert _attack_gradient(two, game.BLACK) == expected

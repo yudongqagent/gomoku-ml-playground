@@ -25,7 +25,11 @@ Design (see ``research/iterations/iter-6.md`` for v6 and
   kernel's attack-only scores, squashed with tanh — so the
   search has a gradient toward building threats in quiet
   positions (iter-6 §2: v6 defends perfectly and loses the
-  open-four race because its leaf gives no attack signal).
+  open-four race because its leaf gives no attack signal). The
+  gradient is capped at +/-0.2 (fast-loop iteration 1): a static
+  heuristic must never outweigh an exact terminal signal, and the
+  uncapped gradient masked the -0.25 forcing penalties (see
+  ``_GRADIENT_CAP`` and iter-7.md §2.1).
 * Win/block scans run before the search (as in every version).
 * Move choice: the most-visited root child, ties by the seeded
   RNG. Sims: 100, c_puct: 1.5 — the SAME settings as the
@@ -79,10 +83,27 @@ _MUST_BLOCK_VALUE = -0.25
 # neither side has a strong move yet. The tanh scale (4) is fixed in
 # the pre-registration from the measured breadth-difference
 # distribution (std 2.26 on batch-2 game positions).
+#
+# The gradient CAP (0.2) is fast-loop iteration 1's patch (see
+# iter-7.md §2.1): the uncapped gradient (range +/-1) overwhelmed
+# the exact terminal values — in all 5 fast-loop losses the
+# gradient preferred the losing move, and its dense positive values
+# on the blocking move's lines masked the sparse -0.25 penalties
+# from the opponent's forcing sequences, so the search's visit
+# counts followed the gradient while its own q-values preferred the
+# saving move. A static heuristic must never outweigh an exact
+# terminal signal: the cap (0.2) is strictly below the smallest
+# terminal value (the must-block 0.25), so forcing moves always beat
+# quiet gradient differences in leaf value, and the gradient acts as
+# a tie-breaker between quiet lines — which is all a static
+# heuristic can honestly claim to be. Capping fixed 4/5 critical
+# positions (the 5th, a forcing move starved by a low prior, is a
+# different weakness class — see the regression file).
 _GRADIENT_STRONG = 1000
 _GRADIENT_DEVELOPING = 100
 _GRADIENT_DEVELOPING_WEIGHT = 0.25
 _GRADIENT_SCALE = 4.0
+_GRADIENT_CAP = 0.2
 
 
 class _Node:
@@ -157,10 +178,13 @@ def _breadth(attack: np.ndarray, empty_mask: np.ndarray) -> float:
 
 
 def _attack_gradient(board: np.ndarray, player: int) -> float:
-    """Breadth-gradient leaf value in (-1, 1) for ``player`` to move
-    in a quiet position: ``tanh((breadth(ours) - breadth(theirs))
-    / 4)`` from the kernel's attack-only scores for both colours
-    (one ``attack_both`` call). Antisymmetric under colour swap."""
+    """Breadth-gradient leaf value in (-0.2, 0.2) for ``player`` to
+    move in a quiet position: ``0.2 * tanh((breadth(ours) -
+    breadth(theirs)) / 4)`` from the kernel's attack-only scores for
+    both colours (one ``attack_both`` call). Antisymmetric under
+    colour swap. The 0.2 cap (fast-loop iteration 1) keeps the
+    static gradient strictly below the smallest exact terminal
+    value (the must-block 0.25) — see ``_GRADIENT_CAP``."""
     black, white = kernel_numpy.attack_both(board)
     mask = board == game.EMPTY
     if player == game.BLACK:
@@ -168,7 +192,7 @@ def _attack_gradient(board: np.ndarray, player: int) -> float:
     else:
         ours, theirs = white, black
     diff = _breadth(ours, mask) - _breadth(theirs, mask)
-    return math.tanh(diff / _GRADIENT_SCALE)
+    return _GRADIENT_CAP * math.tanh(diff / _GRADIENT_SCALE)
 
 
 def _gradient_leaf_value(board: np.ndarray, player: int) -> float:
