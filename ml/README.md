@@ -576,10 +576,13 @@ ml/
 
 ## Known limitations / future work
 
-- MCTS evaluates leaves one at a time (batch=1). Batched leaf
-  evaluation and parallel self-play (multiprocessing) would speed up
-  self-play substantially and are the first things to build for a
-  serious run.
+- MCTS evaluates leaves one at a time (batch=1) in the default
+  single-game path. Batched leaf evaluation across concurrent games
+  is implemented (`MCTS.search_many`,
+  `selfplay.generate_games_batched`, `--concurrency` on
+  `ml/scripts/selfplay.py`) — see
+  research/iterations/batched-leaf-eval.md. Multiprocessing across
+  processes is still future work.
 - The training loader reads all shards into memory; a streaming loader
   is needed at AlphaZero-scale data volumes.
 - Dynamic int8 ONNX quantisation is documented in `export_onnx.py` but

@@ -66,6 +66,13 @@ def main() -> int:
     parser.add_argument("--out-dir", default=None, help="override shard output directory")
     parser.add_argument("--run-name", default=None, help="override run name (used for the run-dir suffix)")
     parser.add_argument("--device", default="cpu", help="torch device (default: cpu)")
+    parser.add_argument("--concurrency", type=int, default=1,
+                        help="games played at once with batched leaf eval "
+                        "(default 1 = the original sequential single-leaf "
+                        "path; >1 uses generate_games_batched)")
+    parser.add_argument("--max-batch-size", type=int, default=32,
+                        help="max positions per batched forward pass "
+                        "(only used with --concurrency > 1)")
     args = parser.parse_args()
 
     try:
@@ -90,7 +97,9 @@ def main() -> int:
         to_generate = max(0, num_games - already)
         run.log_event("run_started", kind="selfplay", run_dir=run_dir,
                       config=cfg["run_name"], games=num_games, sims=sims,
-                      games_existing=already, games_to_generate=to_generate)
+                      games_existing=already, games_to_generate=to_generate,
+                      concurrency=args.concurrency,
+                      max_batch_size=args.max_batch_size)
         run.info(f"run dir: {run_dir}")
         if to_generate == 0:
             run.info(
@@ -132,21 +141,44 @@ def main() -> int:
             dirichlet_epsilon=float(sp["dirichlet_epsilon"]),
         )
         run.info(f"generating {to_generate} games x {sims} sims -> {out_dir}")
-        paths = selfplay.generate_games(
-            mcts,
-            num_games=to_generate,
-            num_simulations=sims,
-            out_dir=out_dir,
-            run_name=cfg["run_name"],
-            on_event=lambda rec: run.log_event(**rec),
-            live_path=os.path.join(run_dir, "current_game.json"),
-            stop_flag=flag,
-            checkpoint_every_games=int(sp["checkpoint_every_games"]),
+        game_kwargs = dict(
             temperature_moves=int(sp["temperature_moves"]),
             temperature=float(sp["temperature"]),
             resign_threshold=sp["resign_threshold"],
             max_moves=int(sp["max_moves"]),
         )
+        if args.concurrency > 1:
+            run.info(
+                f"batched mode: concurrency={args.concurrency}, "
+                f"max_batch_size={args.max_batch_size}"
+            )
+            paths = selfplay.generate_games_batched(
+                mcts,
+                num_games=to_generate,
+                num_simulations=sims,
+                out_dir=out_dir,
+                run_name=cfg["run_name"],
+                concurrency=args.concurrency,
+                max_batch_size=args.max_batch_size,
+                on_event=lambda rec: run.log_event(**rec),
+                live_path=os.path.join(run_dir, "current_game.json"),
+                stop_flag=flag,
+                checkpoint_every_games=int(sp["checkpoint_every_games"]),
+                **game_kwargs,
+            )
+        else:
+            paths = selfplay.generate_games(
+                mcts,
+                num_games=to_generate,
+                num_simulations=sims,
+                out_dir=out_dir,
+                run_name=cfg["run_name"],
+                on_event=lambda rec: run.log_event(**rec),
+                live_path=os.path.join(run_dir, "current_game.json"),
+                stop_flag=flag,
+                checkpoint_every_games=int(sp["checkpoint_every_games"]),
+                **game_kwargs,
+            )
         if flag.requested:
             completed_total = already + len(paths)
             remaining = num_games - completed_total

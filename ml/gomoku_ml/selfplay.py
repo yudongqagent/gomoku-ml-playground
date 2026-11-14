@@ -33,8 +33,13 @@ Long-run support (see ml/README.md "Long runs"):
 * **Throughput**: every ``selfplay_game`` event carries
   ``games_per_hour`` (running rate since generation started).
 
-Single-process v1: games run sequentially. Multiprocessing / batched
-MCTS across parallel games is future work — see ml/README.md.
+Single-process v1: games run sequentially. Batched self-play
+(``generate_games_batched``) plays up to ``concurrency`` games at
+once in one process, batching their MCTS leaf evaluations across
+games via :meth:`gomoku_ml.mcts.MCTS.search_many` — this is what lets
+a GPU accelerate self-play (one batched forward pass per simulation
+round instead of one batch=1 pass per leaf). Multiprocessing across
+processes remains future work — see ml/README.md.
 """
 
 from __future__ import annotations
@@ -50,7 +55,7 @@ from typing import Callable
 import numpy as np
 
 from . import encoding, game
-from .mcts import MCTS
+from .mcts import MCTS, SearchRequest
 
 _SHARD_RE = re.compile(r"^(?P<run>.+)_game(?P<idx>\d+)\.npz$")
 
@@ -337,4 +342,266 @@ def generate_games(
             })
         if stop_flag is not None and stop_flag.requested:
             break
+    return paths
+
+
+class _BatchedGame:
+    """Mutable state of one game inside :func:`generate_games_batched`.
+
+    Mirrors the local state of :func:`play_game` (same move loop, same
+    sample recording) so a batched game produces the same shard schema.
+    """
+
+    __slots__ = (
+        "number", "board", "history", "last_move", "player", "ply",
+        "planes", "policies", "players", "moves", "moves_xy",
+        "winner", "done", "started",
+    )
+
+    def __init__(self, number: int) -> None:
+        self.number = number  # 1-based, absolute in the run dir
+        self.board = game.empty_board()
+        self.history: list[np.ndarray] = []
+        self.last_move: int | None = None
+        self.player = game.BLACK
+        self.ply = 0
+        self.planes: list[np.ndarray] = []
+        self.policies: list[np.ndarray] = []
+        self.players: list[int] = []
+        self.moves: list[int] = []
+        self.moves_xy: list[dict] = []
+        self.winner = game.EMPTY
+        self.done = False
+        self.started = time.time()
+
+    def samples(self) -> dict[str, np.ndarray]:
+        """Build the shard arrays, exactly as :func:`play_game` does."""
+        values = np.zeros(len(self.players), dtype=np.float32)
+        for i, p in enumerate(self.players):
+            if self.winner == game.EMPTY:
+                values[i] = 0.0
+            else:
+                values[i] = 1.0 if self.winner == p else -1.0
+        n = len(self.moves)
+        return {
+            "planes": (
+                np.stack(self.planes).astype(np.float32)
+                if self.planes
+                else np.zeros((0, 8, 15, 15), dtype=np.float32)
+            ),
+            "policy": (
+                np.stack(self.policies).astype(np.float32)
+                if self.policies
+                else np.zeros((0, 225), dtype=np.float32)
+            ),
+            "value": values,
+            "moves": np.array(self.moves, dtype=np.int64),
+            "winner": np.array(self.winner, dtype=np.int64),
+            "aborted": np.array(False, dtype=bool),
+        }
+
+
+def generate_games_batched(
+    mcts: MCTS,
+    num_games: int,
+    num_simulations: int,
+    out_dir: str,
+    run_name: str = "run",
+    concurrency: int = 8,
+    max_batch_size: int = 32,
+    on_event: Callable[[dict], None] | None = None,
+    live_path: str | None = None,
+    stop_flag=None,
+    checkpoint_every_games: int = 0,
+    on_move: Callable[[dict], None] | None = None,
+    **game_kwargs,
+) -> list[str]:
+    """Generate ``num_games`` self-play games with batched leaf eval.
+
+    Same shard/manifest/progress contract as :func:`generate_games`
+    (same ``.npz`` schema, same ``selfplay_game`` events, same
+    resume-safe numbering), but up to ``concurrency`` games run at
+    once in this process: each round, every active game runs one MCTS
+    move-search, and the leaf evaluations of all active searches are
+    batched into shared forward passes via
+    :meth:`gomoku_ml.mcts.MCTS.search_many` (chunked to
+    ``max_batch_size``). A finished game is saved immediately and a
+    replacement game starts, so the batch stays full until the last
+    games. Per-game search semantics are identical to the sequential
+    path (see :meth:`MCTS.search_many`); games differ from a
+    sequential run only through RNG interleaving order and ~1e-6 float
+    noise in batched forward passes, so outcomes are statistically
+    equivalent, not move-for-move identical.
+
+    ``game_kwargs`` are the :func:`play_game` options
+    (``temperature_moves``, ``temperature``, ``resign_threshold``,
+    ``max_moves``, ``add_noise``). ``on_move`` is called after every
+    move with ``{"game", "ply", "move", "x", "y", "player"}``.
+
+    Differences from the sequential path, by design:
+
+    * The live feed (``live_path``) shows one representative game —
+      the game that moved most recently — not every game at once.
+    * ``stop_flag`` aborts at the next round boundary and discards
+      ALL in-progress games (not just one); completed games are
+      already on disk, as before.
+    """
+    if concurrency < 1:
+        raise ValueError(f"concurrency must be >= 1, got {concurrency}")
+    temperature_moves = int(game_kwargs.get("temperature_moves", 30))
+    temperature = float(game_kwargs.get("temperature", 1.0))
+    resign_threshold = game_kwargs.get("resign_threshold")
+    max_moves = int(game_kwargs.get("max_moves", game.SIZE * game.SIZE))
+    add_noise = bool(game_kwargs.get("add_noise", True))
+
+    os.makedirs(out_dir, exist_ok=True)
+    start_index = existing_game_count(out_dir, run_name)
+    total_target = start_index + num_games
+    paths: list[str] = []
+    started = time.time()
+    games_done = 0
+    games_started = 0
+    active: list[_BatchedGame] = []
+    last_live: _BatchedGame | None = None
+
+    def start_game() -> _BatchedGame:
+        nonlocal games_started
+        games_started += 1
+        return _BatchedGame(start_index + games_started)
+
+    def write_live(g: _BatchedGame) -> None:
+        if live_path is None:
+            return
+        _atomic_write_json(live_path, {
+            "game": g.number,
+            "moves": list(g.moves_xy),
+            "to_move": g.player if not g.done else (
+                game.BLACK if len(g.moves) % 2 == 0 else game.WHITE
+            ),
+            "status": "finished" if g.done else "playing",
+            "winner": int(g.winner) if g.done else None,
+        })
+
+    def finish_game(g: _BatchedGame) -> None:
+        nonlocal games_done
+        samples = g.samples()
+        path = os.path.join(out_dir, f"{run_name}_game{g.number - 1:04d}.npz")
+        np.savez_compressed(
+            path, **{k: v for k, v in samples.items() if k != "aborted"}
+        )
+        paths.append(path)
+        games_done += 1
+        winner_name = (
+            "Black" if g.winner == 1
+            else "White" if g.winner == -1 else "draw"
+        )
+        elapsed = time.time() - g.started
+        total_elapsed = time.time() - started
+        games_per_hour = games_done / total_elapsed * 3600 if total_elapsed > 0 else 0.0
+        manifest = update_manifest(out_dir)
+        if checkpoint_every_games and games_done % checkpoint_every_games == 0:
+            _atomic_write_json(os.path.join(out_dir, "selfplay_state.json"), {
+                "games_completed_this_call": games_done,
+                "games_total_target": total_target,
+                "games_in_manifest": manifest["games"],
+                "total_samples": manifest["total_samples"],
+                "games_per_hour": round(games_per_hour, 2),
+                "elapsed_seconds": round(total_elapsed, 1),
+            })
+        print(
+            f"  game {g.number}/{total_target}: {len(g.moves)} moves, "
+            f"winner={winner_name}, {elapsed:.1f}s "
+            f"({games_per_hour:.1f} games/hour)",
+            file=sys.stderr, flush=True,
+        )
+        if on_event is not None:
+            on_event({
+                "event": "selfplay_game",
+                "game": g.number,
+                "games_total": total_target,
+                "moves": len(g.moves),
+                "winner": winner_name,
+                "seconds": round(elapsed, 2),
+                "games_per_hour": round(games_per_hour, 2),
+                "path": path,
+            })
+
+    while games_done < num_games:
+        if stop_flag is not None and stop_flag.requested:
+            break
+        # Top up the active set.
+        while len(active) < concurrency and games_started < num_games:
+            active.append(start_game())
+        if not active:
+            break
+
+        # 1. Settle games that ended on the previous round's move
+        #    (or hit the move cap), exactly as play_game's per-ply
+        #    game_over check does at the top of its loop.
+        still_playing: list[_BatchedGame] = []
+        for g in active:
+            over, win = game.game_over(g.board)
+            if over:
+                g.winner = win
+                g.done = True
+                finish_game(g)
+                last_live = g
+            elif g.ply >= max_moves:
+                g.winner = game.EMPTY
+                g.done = True
+                finish_game(g)
+                last_live = g
+            else:
+                still_playing.append(g)
+        active = still_playing
+        if not active:
+            continue
+
+        # 2. One batched MCTS search per active game (one move each).
+        requests = [
+            SearchRequest(
+                board=g.board, player=g.player,
+                num_simulations=num_simulations,
+                history=g.history, last_move=g.last_move,
+                add_noise=add_noise,
+            )
+            for g in active
+        ]
+        results = mcts.search_many(requests, max_batch_size=max_batch_size)
+
+        # 3. Apply one move per game.
+        next_active: list[_BatchedGame] = []
+        for g, (root, root_value) in zip(active, results):
+            if (
+                resign_threshold is not None
+                and g.ply >= 10
+                and root_value < resign_threshold
+            ):
+                g.winner = -g.player
+                g.done = True
+                finish_game(g)
+                last_live = g
+                continue
+            temp = temperature if g.ply < temperature_moves else 0.0
+            g.planes.append(encoding.encode(g.board, g.player, g.history, g.last_move))
+            g.policies.append(MCTS.visit_distribution(root, temperature=temp))
+            g.players.append(g.player)
+            move = MCTS.choose_move(root, temperature=temp)
+            g.moves.append(move)
+            g.history.append(g.board)
+            g.board = game.apply_move(g.board, move, g.player)
+            g.last_move = move
+            x, y = game.move_to_xy(move)
+            g.moves_xy.append({"x": x, "y": y})
+            if on_move is not None:
+                on_move({"game": g.number, "ply": g.ply, "move": int(move),
+                         "x": x, "y": y, "player": g.player})
+            g.player = -g.player
+            g.ply += 1
+            last_live = g
+            next_active.append(g)
+        active = next_active
+        if last_live is not None:
+            write_live(last_live)
+
     return paths
