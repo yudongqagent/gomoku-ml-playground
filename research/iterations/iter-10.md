@@ -333,13 +333,15 @@ Across the final battery's matches (classifier:
 | match | losses | via open four | missed blocks | threatened turns (losses) | clean missed preventions (losses) |
 |---|---|---|---|---|---|
 | vs v7 | 59 | 59 | 0 | 251 | 0 (0.0%) |
-| vs v0 | 61 | (TBD — classifier run after the ladder) | | | |
+| vs v0 | 61 | 61 | 0 | 280 | 0 (0.0%) |
 | vs v7 swap | (TBD) | | | | |
 
-Defence is solved: 59/59 vs-v7 losses via open four, 0 missed
-blocks, 0 clean missed preventions in 251 threatened turns.
-Every loss is the opponent winning the open-four race, not a
-defensive error — the same shape as every version since v6.
+Defence is solved: 120/120 pooled losses via open four, 0
+missed blocks, 0 clean missed preventions in 531 threatened
+turns. Every loss is the opponent winning the open-four
+race, not a defensive error — the same shape as every
+version since v6. v10's White collapse is an ATTACK failure
+(White never creates first), not a defence failure.
 
 ## 3. v10 evaluation (FULL VALIDATION BATTERY — final v10)
 
@@ -450,7 +452,32 @@ non-monotonicity: the visit gap on fl1-g3-ply23 closes at
 
 ### 3.4 Ladder (20 games/opponent, mcts_sims=100, seed 100)
 
-(TBD — running.)
+**Ladder Elo -147.2, 95% CI [-307.6, 13.2]** (anchors:
+random = -800, heuristic = 0; relative to THIS ladder
+only). File: `research/iterations/ladder-v10.json` (EVAL_JSON
+from `ml/scripts/eval_version.py --version 10
+--ladder-games 20 --mcts-sims 100 --seed 100`).
+
+| Opponent | W-L-D | Win rate | 95% CI | as Black | as White |
+|---|---|---|---|---|---|
+| random | 20W-0L-0D | 1.0000 | [0.8389, 1.0000] | 10W-0L | 10W-0L |
+| heuristic | 6W-14L-0D | 0.3000 | [0.1455, 0.5190] | 6W-4L | 0W-10L |
+| mcts (100 sims) | 6W-14L-0D | 0.3000 | [0.1455, 0.5190] | 5W-5L | 1W-9L |
+
+(The ladder's built-in tactical probe line is disregarded —
+it bypasses the MCTS dispatch; see §3.1 for the
+full-dispatch tactical result.)
+
+**Clause 2 FAILS decisively**: -147.2 vs v7's 190.8, a
+338-point drop, and the interval [-307.6, 13.2] does not
+reach v7's estimate (let alone exceed it). v10 loses to the
+heuristic anchor 0.30 (v7: 0.75) and to the baseline MCTS
+0.30 (v7: 0.40). The White collapse is cross-opponent: vs
+heuristic White 0W-10L (v7: 7W-3L, 0.70), vs mcts White
+1W-9L (v7: 3W-7L, 0.30). v10-White loses to EVERY
+non-random ladder opponent; only random (10W-0L as White)
+is beaten. v10-as-Black on the ladder (11W-9L pooled) is
+roughly v7-level; the entire Elo drop is White.
 
 ### 3.5 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge)
 
@@ -458,8 +485,83 @@ non-monotonicity: the visit gap on fl1-g3-ply23 closes at
 
 ## 4. Bar check (v10 vs v7)
 
-(TBD.)
+| Clause | Requirement | v10 result | Verdict |
+|---|---|---|---|
+| 1. H2H vs v7 (100 games) | Win rate > 0.50, Wilson 95% CI lower > 0.50 | 37W-59L-4D, 0.3900, CI [0.3002, 0.4880] | **FAIL** |
+| 2. Ladder Elo (20/opponent) | Strictly > v7's 190.8 | -147.2, CI [-307.6, 13.2] | **FAIL** |
+| 3. Tactical (old + hard) | ≥ v7's 20/20 + 29/29 | 20/20 + 29/29 | **PASS** |
+| 4. Test suites | All green | ml pytest 245 passed, 7 skipped (pre-existing data-dependent), 9 xfailed, 0 failures; npm + tsc coordinator-verified | **PASS (ml)** |
+
+**v10 REJECTED: 2 of 4 clauses pass.** Clauses 1 and 2 fail
+decisively (not within noise: the clause-1 CI upper bound
+0.4880 is below 0.50, and the ladder interval tops out at
+13.2 against a 190.8 bar). Clauses 3 and 4 pass cleanly.
+v7 remains the reference version; v10 is NOT merged to
+master. The swap match (§3.5) is a battery item, not a bar
+clause.
 
 ## 5. What this means
 
-(TBD.)
+**The hypothesis was refuted in the strongest possible
+way.** The pre-registered design assumed White's gap was an
+exploration problem — too few visits for the saving move —
+and that doubling White's sims would fix it. It did the
+opposite: v10-White lost 0W-50L to v0, 0W-10L to the
+heuristic ladder anchor, 1W-9L to the baseline MCTS, and
+17W-33L to v7. v10-as-White is the worst White in the
+program's history, against every opponent, in every
+matchup. Meanwhile v10-as-Black (100 sims + threat check)
+is fine — 0.78 vs v0 (better than v7's 0.71), 0.44 vs v7,
+11W-9L pooled on the ladder — so the damage is exactly the
+White-specific change, and the three-way probe (§3.3)
+pins it on the sims increase, not the threat check.
+
+**More search is not monotonically better.** With a
+misleading prior (v1) and a weak leaf signal (capped
+gradient ±0.2), deeper search concentrates visits on the
+prior's favourite — and in White's quiet positions the
+prior's favourite is wrong. 200 sims makes White MORE
+consistently wrong, not better. The mechanism check (§1)
+showed the same non-monotonicity in miniature: the visit
+gap on fl1-g3-ply23 closes at 200 sims (26 vs 22) then
+explodes at 400 (113 vs 29). This is the program's first
+clean demonstration that a sims increase can be
+catastrophically harmful — the "just search more" lever is
+dead for White, and any future sims change needs its own
+sweep, not an assumption.
+
+**The dominant White weakness is the q-vs-visits
+root-decision gap, not visit starvation.** 4 of 6
+fast-loop losses (§2.1) had the saving move ranked higher
+on q but losing on visits — including g9, where the loser
+had 82 visits at q −0.131 and the save had 8 visits at
+q +0.064. That gap is H1's workstream (v9); the 6 v10
+regression positions (`ml/gomoku_ml/regression_positions_v10.json`,
+all xfails) are the executable suite for it.
+
+**The threat check is cleared as a cause and keeps its
+durable-gain status.** It never changes a move when it
+engages (v7 already plays the safe move) and is
+colour-symmetric; Black's improvement (0.78 vs v0) may
+partly be the check, though that is not separated here.
+
+**Non-transitivity is extreme.** v10-as-Black beats v0
+0.78 while v10-as-White loses to v0 0.00 — the same engine
+is both far stronger and far weaker than the baseline
+depending on colour. Any future version's evaluation MUST
+report per-colour splits (as this one does); an aggregate
+win rate (0.39) hides a 0.78/0.00 split.
+
+**What to try next (for a future batch, not this one):**
+(1) H1's q-vs-visits root decision (v9) — the dominant
+class, already in flight. (2) A colour-conditional VALUE
+function (the road not taken here): the White value problem
+is real (the §1 mechanism check showed v10's q still
+prefers the block at 200 sims), but v8's lesson says a net
+value needs a hard α sweep and better-than-weak-self-play
+data. (3) A sims SWEEP (50/100/150/200 as White) to map
+the non-monotonicity — 100 may not be the optimum either.
+(4) White-specific priors or a White opening book: v10-White's
+losses start in the opening (27–29 plies), and the
+saving moves ((7,5), (7,6) in the §3.3 walk-back) are
+quiet counterplay moves neither sims count finds.
