@@ -77,6 +77,11 @@ Two policies exist (`research.place_swap_opening(..., placement=...)`):
 
 ## Policy (ii): how the colour choice is made
 
+> **Update (batch 2, H3, 2026-11-13):** the harness default is now
+> the tempo-aware judge (`judge="tempo"` — symmetric setup values,
+> ties to White; see `swap-judge-v2.md`). The attack-gap judge below
+> remains available as `judge="attack"`.
+
 The second player compares the **best available ATTACK score for each
 colour** (max over legal moves of the v1 attack-only scorer,
 `gomoku_ml.scoring.score_attack`) and takes the colour with the higher
@@ -185,6 +190,49 @@ after the opening) with balanced placement (see
   equally. The swap rule's purpose (letting the second player pick
   the better colour) is not yet realised, however.
 
+## Findings from batch 2, H3 (2026-11-13, tempo-aware judge)
+
+The tempo-aware judge is implemented
+(`game.choose_swap_color_tempo`, `judge="tempo"`) and is now the
+**harness default** (`research.play_swap_game` / `play_match`
+default to `judge="tempo"`). Full definition, design analysis and
+numbers: `research/iterations/swap-judge-v2.md`.
+
+- **Definition:** each colour's value is its best follow-up attack
+  after its own best setup move (symmetric 1-ply development; ties
+  among best-immediate moves broken by best follow-up). Higher value
+  wins; ties go to White (White moves next — the tempo breaks the
+  tie). The old attack-gap judge stays available as
+  `judge="attack"`; `game.choose_swap_color` keeps its own default
+  of `"attack"`.
+- **Why not the naive 1-ply lookahead:** simulating White's best
+  move 4 and comparing best attacks after it picks White 50/50
+  (after-margin mean −3842) — White's setup unlocks a gapped
+  three-in-a-window (~4006) while Black's non-interacting stones
+  cap at ~164. Any sequential lookahead has this last-move-wins
+  artifact (a 2-ply minimax version picks Black 20/20 by ~3900).
+  A fixed tempo handicap cannot mix the split either: the attack
+  gap is 77–78 in every balanced opening. Only the symmetric
+  comparison mixes the split.
+- **Choice split (same 200 balanced openings, seed 23):** attack
+  judge Black 200 / White 0; tempo judge **Black 157 / White 43**.
+  Tempo margins are exactly bimodal (0 in 43 openings, 78 in 157):
+  all White picks are exact ties decided by the tempo tie-break.
+- **Swap matches (v1 vs v0, 100 games, balanced, placement seed
+  11):** attack judge 62W-35L-3D (win rate 0.6350, CI [0.5373,
+  0.7227]), swap Black 100 / White 0, winners by colour Black 41 /
+  White 56 / draws 3 — this rerun reproduces batch 1's recorded
+  match exactly (identical per-game records). Tempo judge
+  60W-33L-7D (win rate 0.6350, same CI), swap Black 76 / White 24,
+  winners by colour Black 43 / White 50 / draws 7. White's excess
+  shrank from +15 to +7.
+- **Decision: SWITCHED.** Both pre-registered clauses met (split
+  off 100/100 Black; White's excess shrinks). Caveat: the match
+  still starts White-favouring (+7) — the residual edge lives in
+  the openings, and fully balancing winners-by-colour needs the
+  placer to balance the tempo-aware values, not the attack gap
+  (follow-up work, not part of H3).
+
 ## Open questions for the user
 
 1. **Swap or Swap2?** The harness implements the standard 3-stone
@@ -197,3 +245,8 @@ after the opening) with balanced placement (see
    (White wins more). Should the choice use a deeper evaluation
    (e.g. a short search per colour, or a tempo-aware 1-ply
    lookahead)?
+   **Resolved in batch 2 (H3, 2026-11-13):** the tempo-aware judge
+   (symmetric setup values, ties to White) is now the harness
+   default — split 157/43 on 200 openings, White's match excess
+   +15 → +7. See `swap-judge-v2.md`. The residual White edge is a
+   placer question now, not a judge question.

@@ -14,6 +14,11 @@ Usage:
     python ml/scripts/selfplay_batch.py --engine-a v1 --engine-b v0 \\
         --games 100 --swap-rule --placement balanced \\
         --out research/iterations/batch-v1-vs-v0-swap.json
+
+Swap-rule batches use a colour judge (see
+``research/iterations/swap-judge-v2.md``): ``--judge tempo`` (the
+harness default since batch 2, H3) or ``--judge attack`` (the
+batch-1 judge). The judge is recorded in the output JSON.
 """
 
 from __future__ import annotations
@@ -75,7 +80,8 @@ def run_batch(args) -> dict:
                 opener, args.placement, scorer, placement_rng
             )
             gap, bb, bw = research.opening_gap(board, scorer)
-            second_colour = game.choose_swap_color(board, scorer)
+            second_colour = game.choose_swap_color(
+                board, scorer, judge=args.judge)
             if second_colour == game.BLACK:
                 choose_black, choose_white = second, opener
             else:
@@ -135,6 +141,7 @@ def run_batch(args) -> dict:
         "swap_rule": args.swap_rule,
         "placement": args.placement if args.swap_rule else None,
         "placement_seed": args.placement_seed if args.swap_rule else None,
+        "judge": args.judge if args.swap_rule else None,
         "seed_a": args.seed_a,
         "seed_b": args.seed_b,
         "wins": wins,
@@ -162,6 +169,9 @@ def main() -> int:
     parser.add_argument("--placement", default="balanced",
                         choices=["chooser", "balanced"])
     parser.add_argument("--placement-seed", type=int, default=0)
+    parser.add_argument("--judge", default="tempo",
+                        choices=["attack", "tempo"],
+                        help="swap colour judge (swap-rule batches only)")
     parser.add_argument("--seed-a", type=int, default=100)
     parser.add_argument("--seed-b", type=int, default=200)
     parser.add_argument("--out", required=True)
@@ -169,7 +179,7 @@ def main() -> int:
 
     print(f"== batch: {args.engine_a} vs {args.engine_b}, "
           f"{args.games} games"
-          + (f", swap rule ({args.placement} placement)"
+          + (f", swap rule ({args.placement} placement, {args.judge} judge)"
              if args.swap_rule else ", normal rules") + " ==",
           file=sys.stderr)
     result = run_batch(args)

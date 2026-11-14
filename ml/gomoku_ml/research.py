@@ -187,23 +187,27 @@ def play_swap_game(
     max_moves: int = game.SIZE * game.SIZE,
     placement: str = "chooser",
     placement_rng: np.random.Generator | None = None,
+    judge: str = "tempo",
 ) -> tuple[int, int]:
     """Play one game under the swap rule.
 
     The opener places the 3 opening stones (:func:`place_swap_opening`
     with the given ``placement`` policy); the second player chooses a
-    colour (:func:`gomoku_ml.game.choose_swap_color`); then White
-    moves (move 4 is White's — the 3 opening stones are moves 1-3,
-    so the game simply continues alternating; RIF rules Art. 2.4).
-    Returns ``(winner, second_player_colour)`` — the winner is
-    ``game.BLACK`` / ``game.WHITE`` / ``game.EMPTY`` (draw), and the
-    second element records which colour the second player took.
+    colour (:func:`gomoku_ml.game.choose_swap_color` with ``judge`` —
+    ``"tempo"`` (default) uses the tempo-aware symmetric-setup judge,
+    ``"attack"`` compares best attack scores; see
+    ``research/iterations/swap-judge-v2.md``); then White moves (move
+    4 is White's — the 3 opening stones are moves 1-3, so the game
+    simply continues alternating; RIF rules Art. 2.4). Returns
+    ``(winner, second_player_colour)`` — the winner is ``game.BLACK``
+    / ``game.WHITE`` / ``game.EMPTY`` (draw), and the second element
+    records which colour the second player took.
     """
     scorer = swap_scorer or scoring.score_attack
     board, _moves = place_swap_opening(
         choose_opener, placement, scorer, placement_rng
     )
-    second_colour = game.choose_swap_color(board, scorer)
+    second_colour = game.choose_swap_color(board, scorer, judge=judge)
     if second_colour == game.BLACK:
         choose_black, choose_white = choose_second, choose_opener
     else:
@@ -228,6 +232,7 @@ def play_match(
     max_moves: int = game.SIZE * game.SIZE,
     placement: str = "chooser",
     placement_seed: int = 0,
+    judge: str = "tempo",
 ) -> dict:
     """Play ``games`` games between choosers A and B, alternating
     colours (game ``i`` is Black for A when ``i`` is even; with an
@@ -239,11 +244,12 @@ def play_match(
     colour via :func:`gomoku_ml.game.choose_swap_color` with
     ``swap_scorer`` (default: the v1 attack-only scorer
     :func:`gomoku_ml.scoring.score_attack` — see its docstring for
-    why the scorer must be colour-asymmetric). The ``as_black`` /
-    ``as_white`` breakdown then reflects the colours the players
-    actually ended up with, which need not be balanced — the swap
-    choice decides them. ``placement`` selects the opening policy
-    (see :func:`place_swap_opening`); ``"balanced"`` is the
+    why the scorer must be colour-asymmetric) and ``judge``
+    (``"tempo"`` (default) or ``"attack"``; see :func:`play_swap_game`). The
+    ``as_black`` / ``as_white`` breakdown then reflects the colours
+    the players actually ended up with, which need not be balanced —
+    the swap choice decides them. ``placement`` selects the opening
+    policy (see :func:`place_swap_opening`); ``"balanced"`` is the
     recommended policy for research batches, with ``placement_seed``
     seeding its White-stone draw (deterministic per seed).
 
@@ -265,13 +271,13 @@ def play_match(
             if a_opens:
                 winner, second_colour = play_swap_game(
                     choose_a, choose_b, swap_scorer, max_moves, placement,
-                    placement_rng,
+                    placement_rng, judge,
                 )
                 a_colour = game.WHITE if second_colour == game.BLACK else game.BLACK
             else:
                 winner, second_colour = play_swap_game(
                     choose_b, choose_a, swap_scorer, max_moves, placement,
-                    placement_rng,
+                    placement_rng, judge,
                 )
                 a_colour = second_colour
             swap_choices["black" if second_colour == game.BLACK else "white"] += 1

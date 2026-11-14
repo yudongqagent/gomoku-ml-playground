@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from gomoku_ml import game, scoring
+from gomoku_ml import baseline, game, research, scoring
 
 
 def _opening(black1=(7, 7), black2=(8, 8), white1=(7, 8)):
@@ -119,3 +119,123 @@ def test_choose_swap_color_rejects_non_opening():
     b = game.apply_move(game.empty_board(), 0, game.BLACK)
     with pytest.raises(ValueError):
         game.choose_swap_color(b, scoring.score_attack)
+
+
+# --- tempo-aware judge (batch 2, H3) --------------------------------------
+# value(colour) = best follow-up attack after the colour's own best
+# setup move (max over tied best-immediate moves); higher value wins,
+# ties to White. See game.choose_swap_color_tempo and
+# research/iterations/swap-judge-v2.md.
+
+
+def _tempo_stub(board, move, player):
+    """Stub scorer keyed on stone counts: on the 3-stone opening
+    Black's best attack (100) beats White's (50), so the attack judge
+    picks Black — but after each colour's own setup move White's
+    follow-up (90) beats Black's (40), so the tempo judge picks
+    White. Boards are distinguished by (n_black, n_white): (2, 1)
+    opening, (2, 2) after White's setup, (3, 1) after Black's."""
+    n_b = int(np.count_nonzero(board == game.BLACK))
+    n_w = int(np.count_nonzero(board == game.WHITE))
+    if (n_b, n_w) == (2, 1):
+        return 100 if player == game.BLACK else 50
+    if (n_b, n_w) == (2, 2):
+        return 90 if player == game.WHITE else 10
+    if (n_b, n_w) == (3, 1):
+        return 40 if player == game.BLACK else 10
+    raise AssertionError(f"unexpected board: {(n_b, n_w)}")
+
+
+def test_choose_swap_color_tempo_mechanism():
+    b = _opening()
+    assert game.choose_swap_color(b, _tempo_stub) == game.BLACK  # attack judge
+    assert game.choose_swap_color(b, _tempo_stub, judge="tempo") == game.WHITE
+    assert game.choose_swap_color_tempo(b, _tempo_stub) == game.WHITE
+    assert game._setup_value(b, _tempo_stub, game.BLACK) == 40
+    assert game._setup_value(b, _tempo_stub, game.WHITE) == 90
+
+
+def test_choose_swap_color_tempo_tie_goes_to_white():
+    b = _opening()
+    stub = lambda board, move, player: 5  # every value ties
+    assert game.choose_swap_color(b, stub, judge="tempo") == game.WHITE
+    assert game.choose_swap_color_tempo(b, stub) == game.WHITE
+
+
+def test_choose_swap_color_tempo_rejects_non_opening():
+    with pytest.raises(ValueError):
+        game.choose_swap_color_tempo(game.empty_board(), scoring.score_attack)
+    b = game.apply_move(game.empty_board(), 0, game.BLACK)
+    with pytest.raises(ValueError):
+        game.choose_swap_color_tempo(b, scoring.score_attack)
+
+
+def test_choose_swap_color_unknown_judge_raises():
+    b = _opening()
+    with pytest.raises(ValueError):
+        game.choose_swap_color(b, scoring.score_attack, judge="bogus")
+
+
+def test_choose_swap_color_tempo_real_scorer_black():
+    # First balanced opening of the seed-11 stream (black1, white1,
+    # black2) = (112, 83, 51): Black's setup value (4084) beats
+    # White's (4006), so both judges pick Black.
+    b = game.build_swap_opening(112, 51, 83)
+    assert game._setup_value(b, scoring.score_attack, game.BLACK) == 4084
+    assert game._setup_value(b, scoring.score_attack, game.WHITE) == 4006
+    assert game.choose_swap_color(b, scoring.score_attack) == game.BLACK
+    assert game.choose_swap_color(b, scoring.score_attack, judge="tempo") == game.BLACK
+
+
+def test_choose_swap_color_tempo_real_scorer_white():
+    # Third balanced opening of the seed-11 stream (black1, white1,
+    # black2) = (112, 140, 168): the setup values tie (4006 vs 4006),
+    # so the tempo judge picks White on the tempo tie-break while the
+    # attack judge still picks Black (gap 78).
+    b = game.build_swap_opening(112, 168, 140)
+    assert game._setup_value(b, scoring.score_attack, game.BLACK) == 4006
+    assert game._setup_value(b, scoring.score_attack, game.WHITE) == 4006
+    assert game.choose_swap_color(b, scoring.score_attack) == game.BLACK
+    assert game.choose_swap_color(b, scoring.score_attack, judge="tempo") == game.WHITE
+
+
+def test_play_swap_game_accepts_tempo_judge():
+    a = scoring.ScoringPlayer(seed=21)
+    b = baseline.HeuristicPlayer(seed=22)
+    winner, second_colour = research.play_swap_game(
+        a.choose_move, b.choose_move, placement="balanced",
+        placement_rng=np.random.default_rng(5), judge="tempo",
+    )
+    assert winner in (game.BLACK, game.WHITE, game.EMPTY)
+    assert second_colour in (game.BLACK, game.WHITE)
+
+
+def test_play_match_tempo_judge_deterministic():
+    def run():
+        a = scoring.ScoringPlayer(seed=23)
+        b = baseline.HeuristicPlayer(seed=24)
+        return research.play_match(
+            a.choose_move, b.choose_move, games=2, swap_rule=True,
+            placement="balanced", placement_seed=3, judge="tempo",
+        )
+
+    r1, r2 = run(), run()
+    assert r1 == r2
+    assert r1["games"] == 2
+    assert r1["wins"] + r1["losses"] + r1["draws"] == 2
+    assert r1["swap_choices"]["black"] + r1["swap_choices"]["white"] == 2
+
+
+def test_play_match_default_judge_is_tempo():
+    # H3 decision (2026-11-13): the harness default is the tempo-aware
+    # judge — a default swap match must equal an explicit tempo match.
+    def run(judge):
+        a = scoring.ScoringPlayer(seed=25)
+        b = baseline.HeuristicPlayer(seed=26)
+        kwargs = dict(games=2, swap_rule=True, placement="balanced",
+                      placement_seed=4)
+        if judge is not None:
+            kwargs["judge"] = judge
+        return research.play_match(a.choose_move, b.choose_move, **kwargs)
+
+    assert run(None) == run("tempo")
