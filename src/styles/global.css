@@ -567,6 +567,24 @@ h5 {
   font-size: 0.9rem;
 }
 
+/* Swap-rule colour choice: the second player picks a side after the opening. */
+.swap-choice-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  color: #d1fae5;
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-size: 0.9rem;
+}
+
+.swap-choice-banner .btn {
+  white-space: nowrap;
+}
+
 .board-wrap {
   border-radius: var(--radius);
   box-shadow: var(--shadow);

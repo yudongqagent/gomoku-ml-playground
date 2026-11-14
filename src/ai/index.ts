@@ -39,6 +39,23 @@ export {
 } from './mcts';
 export { chooseBeginnerMove, type BeginnerOptions } from './beginner';
 export { chooseMasterMove, type MasterOptions, type MasterResult } from './alphazero';
+// Swap rule (standard swap / pie rule): v1 attack scorer port, balanced
+// opening placement, and the tempo-aware colour judge.
+export {
+  SWAP_OPENING_STONES,
+  SWAP_CENTRE,
+  SWAP_WIN_SCORE,
+  scoreAttackV1,
+  bestAttack,
+  openingGap,
+  isSwapOpening,
+  buildSwapOpeningBoard,
+  setupValue,
+  chooseSwapColorTempo,
+  chooseSwapColorAttack,
+  createSeededRng,
+  placeBalancedOpening,
+} from './swap';
 export {
   buildInputPlanes,
   loadModel,

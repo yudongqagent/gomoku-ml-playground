@@ -1,7 +1,8 @@
-// Game controls: mode picker, colour choice, new game, undo/redo, flip,
-// and the AI-vs-AI demo transport (play/pause + speed).
+// Game controls: mode picker, rules (swap / freestyle), colour / opener
+// choice, new game, undo/redo, flip, and the AI-vs-AI demo transport
+// (play/pause + speed).
 
-import type { GameMode } from '../hooks/useGomokuGame';
+import type { GameMode, RulesMode } from '../hooks/useGomokuGame';
 import type { Player } from '../engine/gomoku';
 
 export interface GameControlsProps {
@@ -9,6 +10,10 @@ export interface GameControlsProps {
   onModeChange: (mode: GameMode) => void;
   humanColor: Player;
   onHumanColorChange: (color: Player) => void;
+  rules: RulesMode;
+  onRulesChange: (rules: RulesMode) => void;
+  humanOpens: boolean;
+  onHumanOpensChange: (opens: boolean) => void;
   onNewGame: () => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -29,6 +34,10 @@ export default function GameControls({
   onModeChange,
   humanColor,
   onHumanColorChange,
+  rules,
+  onRulesChange,
+  humanOpens,
+  onHumanOpensChange,
   onNewGame,
   canUndo,
   canRedo,
@@ -75,7 +84,34 @@ export default function GameControls({
         </div>
       </div>
 
-      {mode === 'vs-ai' && (
+      <div className="control-row" role="group" aria-label="Rules">
+        <span className="control-label">Rules</span>
+        <div className="segmented">
+          <button
+            type="button"
+            className={rules === 'swap' ? 'seg active' : 'seg'}
+            aria-pressed={rules === 'swap'}
+            onClick={() => onRulesChange('swap')}
+            title="Official swap rule: the opener places 3 stones (black, white, black), then the other player picks a side. White plays move 4."
+          >
+            🔄 Swap
+          </button>
+          <button
+            type="button"
+            className={rules === 'freestyle' ? 'seg active' : 'seg'}
+            aria-pressed={rules === 'freestyle'}
+            onClick={() => onRulesChange('freestyle')}
+            title="Freestyle: Black opens, no swap — first to five in a row wins."
+          >
+            Freestyle
+          </button>
+        </div>
+        <span className="control-hint">
+          {rules === 'swap' ? 'Official rule: 3 stones, then pick a side.' : 'Black opens, no swap.'}
+        </span>
+      </div>
+
+      {mode === 'vs-ai' && rules === 'freestyle' && (
         <div className="control-row" role="group" aria-label="Play as">
           <span className="control-label">Play as</span>
           <div className="segmented">
@@ -97,6 +133,35 @@ export default function GameControls({
             </button>
           </div>
           <span className="control-hint">Black moves first.</span>
+        </div>
+      )}
+
+      {mode === 'vs-ai' && rules === 'swap' && (
+        <div className="control-row" role="group" aria-label="Opening">
+          <span className="control-label">Opening</span>
+          <div className="segmented">
+            <button
+              type="button"
+              className={humanOpens ? 'seg active' : 'seg'}
+              aria-pressed={humanOpens}
+              onClick={() => onHumanOpensChange(true)}
+              title="You place the 3 opening stones; the AI picks a side."
+            >
+              👤 You open
+            </button>
+            <button
+              type="button"
+              className={!humanOpens ? 'seg active' : 'seg'}
+              aria-pressed={!humanOpens}
+              onClick={() => onHumanOpensChange(false)}
+              title="The AI places the 3 opening stones; you pick a side."
+            >
+              🤖 AI opens
+            </button>
+          </div>
+          <span className="control-hint">
+            {humanOpens ? 'You place 3 stones, AI picks a side.' : 'AI places 3 stones, you pick a side.'}
+          </span>
         </div>
       )}
 

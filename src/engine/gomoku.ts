@@ -7,9 +7,15 @@
  *   in a row is a win, not a loss. (This is the common casual/free-style rule;
  *   Renju treats overline as a loss for Black, which we do not implement.)
  * - No captures, no Renju forbidden moves (no 3-3 / 4-4 / long-connection
- *   restrictions), no swap2 / swap opening rule.
+ *   restrictions), no Swap2.
  *
- * Future options (not implemented): Renju forbidden moves, swap2, timed games.
+ * The official swap rule (pie rule) needs no engine changes and is
+ * implemented on top of this module (src/ai/swap.ts + the game hook):
+ * the opening stones are just moves 1–3 (Black, White, Black) through
+ * applyMove, the second player then picks a side, and White plays move 4
+ * — which is already what toMove says after 3 moves.
+ *
+ * Future options (not implemented): Renju forbidden moves, Swap2, timed games.
  *
  * State is immutable: `applyMove` returns a NEW GameState and never mutates
  * its argument. The search code in src/ai works directly on raw Int8Array
