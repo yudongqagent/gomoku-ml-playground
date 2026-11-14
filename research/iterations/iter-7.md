@@ -430,7 +430,20 @@ smoke (n=20, wide CI), not a 100-game number.
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
-(TODO — runs on the final patched engine.)
+**v7 beats v0: 64W-31L-5D, win rate 0.6650, 95% CI
+[0.5679, 0.7499]**, 3598.5 s. File:
+`research/iterations/batch-v7-vs-v0.json` (seeds 100/200).
+Per colour: as Black 34W-13L-3D (0.7100), as White 30W-18L-2D
+(0.6200). Note the anomaly: v7 scores LOWER against the weaker
+v0 (0.6650) than against v1 (0.7050), and loses 13 games as
+Black to v0 versus only 3 as Black to v1 — v0's crude greedy
+play exploits something in v7's Black game that v1's stronger
+play does not (see §2.5 for the classifier breakdown). This is
+NOT full non-transitivity (v7 still beats v0 outright), but the
+colour-split inversion is recorded here prominently per the
+brief. (First attempt at this match was killed by a runtime
+restart at ~09:25 PST with no JSON written; the match is
+deterministic, so the re-run reproduces the same games.)
 
 ### 3.5 Tactical suites — FINAL BATTERY (re-run on the final patched engine)
 
