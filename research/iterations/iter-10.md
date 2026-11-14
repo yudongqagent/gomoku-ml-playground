@@ -334,10 +334,11 @@ Across the final battery's matches (classifier:
 |---|---|---|---|---|---|
 | vs v7 | 59 | 59 | 0 | 251 | 0 (0.0%) |
 | vs v0 | 61 | 61 | 0 | 280 | 0 (0.0%) |
-| vs v7 swap | (TBD) | | | | |
+| vs v7 swap | 47 | 47 | 0 | 171 | 0 (0.0%) |
+| **Pooled** | **167** | **167** | **0** | **702** | **0 (0.0%)** |
 
-Defence is solved: 120/120 pooled losses via open four, 0
-missed blocks, 0 clean missed preventions in 531 threatened
+Defence is solved: 167/167 pooled losses via open four, 0
+missed blocks, 0 clean missed preventions in 702 threatened
 turns. Every loss is the opponent winning the open-four
 race, not a defensive error — the same shape as every
 version since v6. v10's White collapse is an ATTACK failure
@@ -481,7 +482,33 @@ roughly v7-level; the entire Elo drop is White.
 
 ### 3.5 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge)
 
-(TBD — not started.)
+**v10 ties v7 under swap: 46W-47L-7D, win rate 0.4950,
+95% CI [0.3990, 0.5914]**, 5536.7 s. File:
+`research/iterations/batch-v10-vs-v7-swap.json`
+(`ml/scripts/selfplay_batch.py --engine-a v10 --engine-b
+v7 --games 100 --swap-rule --placement balanced
+--placement-seed 11 --judge tempo --seed-a 100
+--seed-b 200`). Per colour: as Black 28W-21L-1D (0.5700),
+as White 18W-26L-6D (0.4200). The chooser alternates, so
+v10 plays 50 games as each colour by design. The swap rule
+neutralizes v7's empty-board Black opening advantage (v7's
+edge over v1 lived largely there: 0.89 as Black under
+normal rules vs 0.52 under swap) — and under swap v10 is
+even with v7, not better (CI includes 0.50, no edge
+established). Notably v10-as-White under swap (0.42) is
+far better than v10-as-White under normal rules vs v7
+(0.34) or vs v0 (0.00): the structured 3-stone opening
+plus the tempo judge's colour choice partially masks the
+White weakness, because White starts from a placed
+position instead of the empty board where 200-sim White
+goes wrong. Loss classifier: 47/47 losses via open four,
+0 missed blocks, 171 threatened turns in losses, 0 clean
+missed preventions.
+
+(First run killed by a runtime restart at 55 games
+(27W-25L-3D, 0.5182; partial saved as
+`batch-v10-vs-v7-swap-partial55.json`); the re-run with
+the same seeds reproduced the 55-game prefix exactly.)
 
 ## 4. Bar check (v10 vs v7)
 
