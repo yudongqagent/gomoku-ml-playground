@@ -434,7 +434,18 @@ smoke (n=20, wide CI), not a 100-game number.
 
 ### 3.5 Tactical suites — FINAL BATTERY (re-run on the final patched engine)
 
-(TODO — old suite + hard suite, full-dispatch driver.)
+Old 20-position suite, full-dispatch driver: **v7 20/20** (=
+v1's 20/20, = v6's 20/20). Hard suite (29 positions): **v7
+29/29 — a perfect score** (prevention 16/16, setup 7/7, winning
+2/2, vcf 4/4), matching v6's 29/29 and up from the unpatched
+v7's 26/29. The cap patch restored all three positions the
+uncapped gradient had cost (`prev-v1v1s-g45`,
+`setup-v1v1s-g33`, `winning-quiet-setup-2`) — independent
+confirmation, on positions the fast loop never touched, that the
+uncapped gradient's magnitude was the problem: capping it
+restores v6's tactical perfection while keeping the gradient's
+match-play value (see §3.6-3.8). **Clause 3 PASSES** (old 20/20
+= v1's 20/20; hard 29/29 vs v1's 12/29).
 
 ### 3.6 Head-to-head vs v1 (100 games, seeds 100/200) — FINAL BATTERY
 
