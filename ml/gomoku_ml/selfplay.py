@@ -63,7 +63,7 @@ from typing import Callable
 
 import numpy as np
 
-from . import encoding, game
+from . import baseline, encoding, game
 from .mcts import MCTS, SearchRequest
 
 _SHARD_RE = re.compile(r"^(?P<run>.+)_game(?P<idx>\d+)\.npz$")
@@ -512,11 +512,22 @@ class _BatchedGame:
     __slots__ = (
         "number", "board", "history", "last_move", "player", "ply",
         "planes", "policies", "players", "moves", "moves_xy",
-        "winner", "done", "started",
+        "winner", "done", "started", "heuristic_player", "rng",
     )
 
-    def __init__(self, number: int) -> None:
+    def __init__(
+        self,
+        number: int,
+        heuristic_player: int | None = None,
+        rng: np.random.Generator | None = None,
+    ) -> None:
         self.number = number  # 1-based, absolute in the run dir
+        # Batch 4 H3 (v11): when set, this colour is played by the
+        # frozen heuristic (baseline.choose_move) instead of the
+        # neural MCTS, and ``rng`` breaks the heuristic's ties.
+        # None = pure self-play (both colours neural).
+        self.heuristic_player = heuristic_player
+        self.rng = rng
         self.board = game.empty_board()
         self.history: list[np.ndarray] = []
         self.last_move: int | None = None
@@ -595,6 +606,21 @@ def generate_games_batched(
     ``max_moves``, ``add_noise``). ``on_move`` is called after every
     move with ``{"game", "ply", "move", "x", "y", "player"}``.
 
+    Heuristic-opponent mode (batch 4 H3, v11 — see
+    ``research/iterations/iter-11.md`` §1.1): pass
+    ``opponent="heuristic"`` in ``game_kwargs`` and one colour per
+    game is played by the frozen heuristic
+    (:func:`gomoku_ml.baseline.choose_move`) instead of the neural
+    MCTS — odd-numbered games the net plays Black (heuristic White),
+    even-numbered the net plays White (heuristic Black), so the two
+    colours split evenly. Heuristic turns never enter
+    ``search_many`` (their moves cost ~ms, no net eval); their
+    policy target is one-hot on the played move (the heuristic has
+    no visit distribution). Positions are recorded from BOTH sides
+    (player-to-move perspective), exactly as in self-play. The
+    default ``opponent=None`` is pure self-play, unchanged.
+    
+
     Differences from the sequential path, by design:
 
     * The live feed (``live_path``) shows one representative game —
@@ -610,6 +636,11 @@ def generate_games_batched(
     resign_threshold = game_kwargs.get("resign_threshold")
     max_moves = int(game_kwargs.get("max_moves", game.SIZE * game.SIZE))
     add_noise = bool(game_kwargs.get("add_noise", True))
+    opponent = game_kwargs.get("opponent")
+    if opponent not in (None, "heuristic"):
+        raise ValueError(
+            f"opponent must be None or 'heuristic', got {opponent!r}"
+        )
 
     os.makedirs(out_dir, exist_ok=True)
     start_index = existing_game_count(out_dir, run_name)
@@ -624,7 +655,25 @@ def generate_games_batched(
     def start_game() -> _BatchedGame:
         nonlocal games_started
         games_started += 1
-        return _BatchedGame(start_index + games_started)
+        number = start_index + games_started
+        if opponent == "heuristic":
+            # Odd-numbered games the net plays Black, even-numbered
+            # the net plays White (parity by absolute number, so the
+            # alternation survives top-up resumes). The per-game rng
+            # is seeded from the worker's global stream, which is
+            # seeded per worker (seed + worker index) — so workers
+            # get different tie-breaks and the run stays
+            # deterministic given (seed, workers, concurrency).
+            heuristic_player = (
+                game.WHITE if number % 2 == 1 else game.BLACK
+            )
+            rng = np.random.default_rng(
+                int(np.random.randint(0, 2**31))
+            )
+            return _BatchedGame(
+                number, heuristic_player=heuristic_player, rng=rng
+            )
+        return _BatchedGame(number)
 
     def write_live(g: _BatchedGame) -> None:
         if live_path is None:
@@ -714,36 +763,67 @@ def generate_games_batched(
         if not active:
             continue
 
-        # 2. One batched MCTS search per active game (one move each).
-        requests = [
-            SearchRequest(
-                board=g.board, player=g.player,
-                num_simulations=num_simulations,
-                history=g.history, last_move=g.last_move,
-                add_noise=add_noise,
-            )
-            for g in active
+        # 2. One batched MCTS search per NEURAL-turn game (one move
+        #    each). Heuristic-turn games get their move directly from
+        #    the frozen heuristic — no net eval, no search.
+        neural_turn = [
+            g for g in active if g.player != g.heuristic_player
         ]
-        results = mcts.search_many(requests, max_batch_size=max_batch_size)
+        heuristic_turn = [
+            g for g in active if g.player == g.heuristic_player
+        ]
+        results: dict[int, tuple] = {}
+        if neural_turn:
+            requests = [
+                SearchRequest(
+                    board=g.board, player=g.player,
+                    num_simulations=num_simulations,
+                    history=g.history, last_move=g.last_move,
+                    add_noise=add_noise,
+                )
+                for g in neural_turn
+            ]
+            for g, result in zip(
+                neural_turn,
+                mcts.search_many(requests, max_batch_size=max_batch_size),
+            ):
+                results[id(g)] = result
+        heuristic_moves: dict[int, int] = {
+            id(g): baseline.choose_move(g.board, g.player, g.rng)
+            for g in heuristic_turn
+        }
 
         # 3. Apply one move per game.
         next_active: list[_BatchedGame] = []
-        for g, (root, root_value) in zip(active, results):
-            if (
-                resign_threshold is not None
-                and g.ply >= 10
-                and root_value < resign_threshold
-            ):
-                g.winner = -g.player
-                g.done = True
-                finish_game(g)
-                last_live = g
-                continue
-            temp = temperature if g.ply < temperature_moves else 0.0
-            g.planes.append(encoding.encode(g.board, g.player, g.history, g.last_move))
-            g.policies.append(MCTS.visit_distribution(root, temperature=temp))
-            g.players.append(g.player)
-            move = MCTS.choose_move(root, temperature=temp)
+        for g in active:
+            if id(g) in heuristic_moves:
+                # Heuristic turn: record the position with a one-hot
+                # policy on the played move (the heuristic has no
+                # visit distribution); no temperature, no resign.
+                move = heuristic_moves[id(g)]
+                g.planes.append(encoding.encode(
+                    g.board, g.player, g.history, g.last_move))
+                policy = np.zeros(225, dtype=np.float32)
+                policy[move] = 1.0
+                g.policies.append(policy)
+                g.players.append(g.player)
+            else:
+                root, root_value = results[id(g)]
+                if (
+                    resign_threshold is not None
+                    and g.ply >= 10
+                    and root_value < resign_threshold
+                ):
+                    g.winner = -g.player
+                    g.done = True
+                    finish_game(g)
+                    last_live = g
+                    continue
+                temp = temperature if g.ply < temperature_moves else 0.0
+                g.planes.append(encoding.encode(g.board, g.player, g.history, g.last_move))
+                g.policies.append(MCTS.visit_distribution(root, temperature=temp))
+                g.players.append(g.player)
+                move = MCTS.choose_move(root, temperature=temp)
             g.moves.append(move)
             g.history.append(g.board)
             g.board = game.apply_move(g.board, move, g.player)
