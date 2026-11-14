@@ -263,10 +263,14 @@ winners by colour: Black 53, White 44, draws 3.
 Old 20-position suite, fixed driver (full move choice):
 **v4 20/20**; v1 20/20; v3 re-measured with the fixed driver
 20/20 (unchanged — the threat check does not affect the old
-suite). The old suite still does not discriminate. v4's score on
-the NEW harder suite (batch 2, Step 0) is recorded when that
-suite lands — it was not yet delivered at the time of this eval,
-so clause 3 is assessed on the old suite only for now (see §4).
+suite). The old suite still does not discriminate. NEW harder
+suite (29 positions, batch 2 Step 0 — see
+`research/iterations/tactical-suite-v2.md`): **v4 25/29**
+(prevention 13/16, setup 6/7, winning 2/2, vcf 4/4; fails
+`prev-v1bl-g2`, `prev-v2v1-g36`, `prev-v2v1-g60`,
+`setup-v1v0s-g92`), vs v1's 12/29 (2/16 prevention) and v3's
+26/29 (16/16 prevention). v4 passes all 4 VCF positions (the
+minimax finds forced wins) but misses 3 preventions.
 
 ### 3.6 Cost
 
@@ -281,7 +285,7 @@ the flaw is in the value function, not the speed.
 |---|---|---|---|
 | 1. Head-to-head vs v1 | >= 40 games, win rate > 0.50, Wilson 95% CI lower bound > 0.50 | 100 games, 0.7900, CI [0.7002, 0.8583] | **PASS** |
 | 2. Ladder Elo | strictly higher than v1's 70.4, identical counts/opponents | -70.4 (interval [-221.1, 80.2]) | **FAIL** |
-| 3. Tactical | pass rate >= v1's | old suite 20/20 = v1's 20/20; hard suite pending | PASS (old suite); hard-suite score to follow |
+| 3. Tactical | pass rate >= v1's | old suite 20/20 = v1's 20/20; hard suite 25/29 vs v1's 12/29 | **PASS** |
 | 4. Tests green | ml pytest, npm test | targeted suites green at implementation (69 tests: test_minimax, test_scoring, test_research, test_swap_rule, test_game); full suites run at batch end | not finally assessed |
 
 **Verdict: v4 is REJECTED.** Clause 2 fails: ladder Elo -70.4 is

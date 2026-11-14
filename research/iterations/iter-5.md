@@ -238,8 +238,14 @@ change and is a secondary-metric caveat only.
 ### 3.6 Tactical and cost
 
 Old 20-position suite, fixed driver: **v5 20/20** (= v1's 20/20;
-v3/v4 also 20/20). Hard-suite score pending (Step 0 subagent not
-yet delivered). Cost: v5 is slower than v4 per move (extra
+v3/v4 also 20/20). NEW harder suite (29 positions): **v5 25/29**
+(prevention 15/16, setup 6/7, winning 2/2, vcf 2/4; fails
+`prev-v1bl-g2`, `setup-v1v0s-g92`, `vcf-race-block-or-win`,
+`vcf-race-block-or-win-white`), vs v1's 12/29 and v3's 26/29.
+v5's prevention (15/16) beats v4's (13/16) — the terminal-aware
+leaf helps prevention — but v5 fails both VCF race positions
+(the defensive leaf blocks instead of winning the race), where
+v4 passes all 4 VCF positions. Cost: v5 is slower than v4 per move (extra
 `_winning_moves` calls in the leaf) AND plays much longer games
 (88.3 plies mean vs v1, vs v4's 31.8): 100 games vs v1 took
 481.4 s (~4.8 s/game) vs v4's 89.9 s (~0.9 s/game). Affordable
@@ -252,7 +258,7 @@ v0.
 |---|---|---|---|
 | 1. Head-to-head vs v1 | >= 40 games, win rate > 0.50, Wilson 95% CI lower bound > 0.50 | 100 games, 0.6500, CI [0.5525, 0.7364] | **PASS** (vs v1; vs v4 it ties 0.49 — see §3.2) |
 | 2. Ladder Elo | strictly higher than v1's 70.4, identical counts/opponents | -107.5 (interval [-262.0, 46.9]) | **FAIL** |
-| 3. Tactical | pass rate >= v1's | old suite 20/20 = v1's 20/20; hard suite pending | PASS (old suite); hard-suite score to follow |
+| 3. Tactical | pass rate >= v1's | old suite 20/20 = v1's 20/20; hard suite 25/29 vs v1's 12/29 | **PASS** |
 | 4. Tests green | ml pytest, npm test | targeted suites green at implementation (test_minimax + test_scoring: 47 passed); full suites run at batch end | not finally assessed |
 
 **Verdict: v5 is REJECTED.** Clause 2 fails decisively: ladder
