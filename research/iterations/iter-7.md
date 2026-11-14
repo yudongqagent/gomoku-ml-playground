@@ -291,17 +291,58 @@ beats the counterattack in breadth terms), not its magnitude —
 and stays xfail. Targeted suites after the patch:
 test_regression_v7 + test_mcts_heuristic 26 passed, 2 xfailed.
 
-### 2.2 Fast-loop iteration 2 — 10 games vs v0
+### 2.2 Fast-loop iteration 2 — 10 games vs v0 (patched engine)
 
-(TODO — after iteration 2, if run.)
+**Batch:** `research/iterations/fastloop2-v7-vs-v0.json`
+(seeds v7=501 / v0=601). **9W-1L-0D, win rate 0.9000, CI
+[0.5958, 0.9821]**, 120.8 s — up from 5W-5L in iteration 1.
+v7 now wins 4/5 as White (was 0/5). The cap patch holds:
+White's fast losses to v0 are largely gone. Classifier: the
+single loss is via open four, 0 missed blocks, 0 clean missed
+preventions (4 threatened turns in the loss).
 
-### 2.3 Fast-loop iteration 3 — 10 games vs v0
+**The single loss (game 5, v7 as White, 21 plies) has NO single
+losing move.** Walk-back (corrected oracle method, seeds 0,1,2):
+from ply 13 on, the actual move loses at all 3 seeds but NO
+tested alternative saves — not in the top-6+forcing set, and not
+in a widened top-15+forcing set re-tested at ply 13 and ply 15
+(14 alternatives each, 0 saves). At ply 11 the actual move
+(5,4) does NOT lose ([draw, win, draw]), so by the corrected
+method it is not the losing move either. This is the iter-6
+result: distributed drift, not a blunder.
 
-(TODO — after iteration 3, if run.)
+**What happened (verified, not guessed).** White played
+CORRECTLY by prevention logic at every turn: at ply 11 Black
+had 0 creators; at ply 13 Black had 1 creator (10,4) and White
+occupied it (v1 rank 1); at ply 15 Black had 2 creators
+(10,3),(6,7), White played (6,7) — verified preventing (it
+kills both) — and White had NO forcing move available. Then
+Black's (9,6) at ply 16 created a DOUBLE OPEN THREE from a
+zero-creator position: row 6 (7,6),(8,6),(9,6) plus the diagonal
+(7,4),(8,5),(9,6), giving Black FOUR creators at ply 17
+[(6,3),(6,6),(10,6),(10,7)] — verified. No single White move
+can stop four creators; Black plays (6,3) (open four on the
+diagonal), White blocks (5,2), Black plays (10,7) and wins.
+The structural note: a double-open-three CREATION is invisible
+to prevention logic, which tracks EXISTING creators only — the
+creators did not exist before (9,6). But there is no verified
+losing move to patch against (no alternative saves at any turn),
+so there is NO PATCH from this iteration: patching on an
+unverified hypothesis would violate the loop's "never guessed"
+rule. The double-three shape is recorded here as an observation
+for the next batch, not a patch target.
 
-### 2.4 Fast-loop iteration 4 — 10 games vs v0
+**Loop stops here (stopping rule).** Iteration 2 found no new
+patchable weakness class, so the fast loop ends after 2
+iterations (20 games) per the direction change's stopping rule.
+Open items carried forward (not patched): the iteration-1 game-3
+forcing-move exploration weakness (regression xfail) and the
+iter-5 regression xfail — both single-position cases without a
+recurring class behind them in the loop's games.
 
-(TODO — after iteration 4, if run.)
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
 
 ### 2.5 Aggregate counts (secondary)
 
