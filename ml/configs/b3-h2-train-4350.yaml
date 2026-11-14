@@ -1,0 +1,73 @@
+# Batch 3 H2 (v8) — value-net RETRAINING config on the B1 4,350-game dataset.
+#
+# Same smoke ResNet 16ch/2 blocks and same recipe as b3-h2-train.yaml
+# (batch 64, lr 0.002 cosine, augmentation on, internal val_fraction
+# 0.05) — the ONLY change is the data scale (3,915 train games /
+# 166,818 samples instead of 450 / 18,904) and the epoch count: 5
+# epochs on 166,818 samples is ~834k sample-passes, ~2.3x the
+# 500-game run's optimization with 8.7x the data diversity. 20 epochs
+# here would be ~10x the compute for no reason (and would re-invite
+# the memorization the 500-game run demonstrated).
+#
+# Data: B1 parallel self-play (round-2 checkpoint, 50 sims, workers=4),
+# copied from gomoku-b3-b1/ml/runs/b3-b1-10k/data/ into
+# ml/runs/b3-h2-4350/data/ with the same game-level hold-out protocol
+# (every 10th shard -> ml/runs/b3-h2-4350/val-data/, 435 games, NEVER
+# passed to this config).
+#
+# Run (from the worktree root):
+#   OMP_NUM_THREADS=1 TORCH_THREADS=1 \
+#   /home/hatch/workspace/projects/gomoku-ml-playground/ml/.venv/bin/python -u \
+#     ml/scripts/train.py --config b3-h2-train-4350 --run-dir ml/runs/b3-h2-value-4350 \
+#     --data ml/runs/b3-h2-4350/data
+#
+# Threads pinned to 1 per B1's finding: under contention the default
+# 4 torch threads slowed a batched forward pass ~290x (579 ms vs 2.0 ms).
+
+run_name: b3-h2-value-4350
+seed: 0
+
+architecture:
+  name: resnet
+  params:
+    channels: 16
+    blocks: 2
+
+base_checkpoint: null
+resume: null
+
+selfplay:
+  games: 4350
+  sims_per_move: 50
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_epsilon: 0.25
+  temperature: 1.0
+  temperature_moves: 30
+  resign_threshold: null
+  max_moves: 225
+  checkpoint_every_games: 10
+
+train:
+  epochs: 5
+  batch_size: 64
+  lr: 0.002
+  lr_schedule: cosine
+  lr_step_size: 10
+  lr_gamma: 0.5
+  warmup_steps: 20
+  weight_decay: 0.0001
+  policy_weight: 1.0
+  value_weight: 1.0
+  augmentation: true
+  val_fraction: 0.05
+  checkpoint_every_epochs: 0
+
+eval:
+  games: 4
+  sims: 32
+  opponents: [random, heuristic]
+  mcts_sims: 100
+  tactical: true
+  tactical_sims: 50
+  auto: false

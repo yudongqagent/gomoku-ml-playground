@@ -72,6 +72,8 @@ four-value.
 
 from __future__ import annotations
 
+import os
+
 import numpy as np
 
 from . import game
@@ -176,6 +178,16 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # broken fours. Sims 100 and c_puct 1.5 unchanged.
     7: {"name": "scoring-v7", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient"},
+    # v8 (iteration 8, batch 3): H2 — v6's PUCT MCTS with a LEARNED
+    # value leaf (see gomoku_ml.mcts_value). The "value_checkpoint"
+    # key makes ScoringPlayer dispatch to ValueMCTS instead of
+    # HeuristicMCTS. The checkpoint path is relative to the repo
+    # root (gitignored data under ml/runs/); the GOMOKU_V8_CHECKPOINT
+    # env var overrides it. The terminal leaf cases stay exact
+    # (+1/-1/-0.25); the net values quiet positions only.
+    8: {"name": "scoring-v8", "defence_weight": 1.0, "threat_check": False,
+        "mcts": True, "mcts_sims": 100,
+        "value_checkpoint": "ml/runs/b3-h2/value-net.pt"},
 }
 
 # --- weights --------------------------------------------------------------
@@ -736,14 +748,34 @@ class ScoringPlayer:
         self.rng = np.random.default_rng(seed)
         self._mcts = None
         if self.mcts:
-            # Lazy import: mcts_heuristic imports this module.
-            from .mcts_heuristic import HeuristicMCTS
+            value_ckpt = ENGINE_VERSIONS[version].get("value_checkpoint")
+            if value_ckpt is not None:
+                # Learned-value MCTS (v8): lazy import, mcts_value
+                # imports this module (via mcts_heuristic). The path
+                # is relative to the repo root unless absolute; the
+                # GOMOKU_V8_CHECKPOINT env var overrides it.
+                from .mcts_value import ValueMCTS
 
-            self._mcts = HeuristicMCTS(
-                sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
-                leaf_mode=ENGINE_VERSIONS[version].get("leaf_mode", "terminal"),
-                rng=self.rng,
-            )
+                path = os.environ.get("GOMOKU_V8_CHECKPOINT") or value_ckpt
+                if not os.path.isabs(path):
+                    repo_root = os.path.dirname(
+                        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    )
+                    path = os.path.join(repo_root, path)
+                self._mcts = ValueMCTS(
+                    checkpoint_path=path,
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    rng=self.rng,
+                )
+            else:
+                # Lazy import: mcts_heuristic imports this module.
+                from .mcts_heuristic import HeuristicMCTS
+
+                self._mcts = HeuristicMCTS(
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    leaf_mode=ENGINE_VERSIONS[version].get("leaf_mode", "terminal"),
+                    rng=self.rng,
+                )
 
     def score_move(self, board: np.ndarray, move: int, player: int) -> int:
         """This version's heuristic score for ``player`` playing

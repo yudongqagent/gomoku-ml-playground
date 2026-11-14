@@ -1,0 +1,64 @@
+# Batch 3 H2 (v8) — value-net training config.
+#
+# Trains the smoke ResNet 16ch/2 blocks on the 450 training games
+# (500 generated minus the 50-game hold-out, which lives in
+# ml/runs/b3-h2/val-data/ and is NEVER passed to this config).
+#
+# Run (from the worktree root, after the hold-out split):
+#   OMP_NUM_THREADS=2 TORCH_THREADS=2 \
+#   /home/hatch/workspace/projects/gomoku-ml-playground/ml/.venv/bin/python -u \
+#     ml/scripts/train.py --config b3-h2-train --run-dir ml/runs/b3-h2-value \
+#     --data ml/runs/b3-h2/data
+#
+# Pre-registered (research/iterations/iter-8.md §1): 20 epochs, batch
+# 64, lr 0.002 cosine, augmentation on, internal val_fraction 0.05
+# (for best.pt selection only — the reported accuracy is the
+# game-level hold-out, measured separately).
+
+run_name: b3-h2-value
+seed: 0
+
+architecture:
+  name: resnet
+  params:
+    channels: 16
+    blocks: 2
+
+base_checkpoint: null
+resume: null
+
+selfplay:
+  games: 500
+  sims_per_move: 100
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_epsilon: 0.25
+  temperature: 1.0
+  temperature_moves: 30
+  resign_threshold: null
+  max_moves: 225
+  checkpoint_every_games: 10
+
+train:
+  epochs: 20
+  batch_size: 64
+  lr: 0.002
+  lr_schedule: cosine
+  lr_step_size: 10
+  lr_gamma: 0.5
+  warmup_steps: 20
+  weight_decay: 0.0001
+  policy_weight: 1.0
+  value_weight: 1.0
+  augmentation: true
+  val_fraction: 0.05
+  checkpoint_every_epochs: 0
+
+eval:
+  games: 4
+  sims: 32
+  opponents: [random, heuristic]
+  mcts_sims: 100
+  tactical: true
+  tactical_sims: 50
+  auto: false
