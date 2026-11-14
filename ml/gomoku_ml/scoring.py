@@ -141,6 +141,23 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # it; symmetric for our winning moves. Search unchanged.
     5: {"name": "scoring-v5", "defence_weight": 1.0, "threat_check": False,
         "minimax": True, "minimax_topk": 8, "terminal_aware": True},
+    # v6 (iteration 6, batch 2): H2 — PUCT MCTS with v1 scores as
+    # priors and a terminal-aware leaf value (see
+    # gomoku_ml.mcts_heuristic). NOT a parameter set of the 1-ply /
+    # minimax engine: the "mcts" flag makes ScoringPlayer dispatch
+    # to HeuristicMCTS. The 2-ply minimax lineage hit its ceiling
+    # in iter-5: the saving move in v5-vs-v0 game 1 ranked 11th-12th
+    # by 1-ply score (outside the top-8), and the static leaf
+    # values the BEST attack, not the BREADTH of threats. MCTS
+    # explores all candidates (guided, not restricted, by priors)
+    # and evaluates by searched win rates across many lines. Sims
+    # 100 and c_puct 1.5 match the ladder's HeuristicMCTSPlayer, so
+    # any edge comes purely from the better priors (v1 vs v0
+    # scoring) and the better leaf value (terminal-aware vs crude
+    # local attack). The scoring params below are vestigial for
+    # this version (the MCTS uses v1's scorer for priors).
+    6: {"name": "scoring-v6", "defence_weight": 1.0, "threat_check": False,
+        "mcts": True, "mcts_sims": 100},
 }
 
 # --- weights --------------------------------------------------------------
@@ -697,7 +714,17 @@ class ScoringPlayer:
         self.minimax = ENGINE_VERSIONS[version].get("minimax", False)
         self.minimax_topk = ENGINE_VERSIONS[version].get("minimax_topk", 8)
         self.terminal_aware = ENGINE_VERSIONS[version].get("terminal_aware", False)
+        self.mcts = ENGINE_VERSIONS[version].get("mcts", False)
         self.rng = np.random.default_rng(seed)
+        self._mcts = None
+        if self.mcts:
+            # Lazy import: mcts_heuristic imports this module.
+            from .mcts_heuristic import HeuristicMCTS
+
+            self._mcts = HeuristicMCTS(
+                sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                rng=self.rng,
+            )
 
     def score_move(self, board: np.ndarray, move: int, player: int) -> int:
         """This version's heuristic score for ``player`` playing
@@ -706,6 +733,8 @@ class ScoringPlayer:
         return _score_move_flat(flat, move, player, self.defence_weight)
 
     def choose_move(self, board: np.ndarray, player: int) -> int:
+        if self.mcts:
+            return self._mcts.choose_move(board, player)
         return _choose_move(
             board, player, self.rng, self.defence_weight, self.threat_check,
             self.minimax, self.minimax_topk, self.terminal_aware,
