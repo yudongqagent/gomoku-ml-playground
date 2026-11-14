@@ -58,18 +58,34 @@ that combines their shards into one run dir.
   and, when its own interrupt flag fires, sets a shared stop event;
   workers see it at the next round boundary, exit gracefully, and
   whatever they completed is still merged. Stragglers are terminated
-  after a 180 s grace period (their completed shards are still
-  merged; a shard truncated mid-write is dropped by merge
-  validation). If the parent is killed outright, the orphaned shards
-  sit under `.parallel-*/` and are recovered by
+  after ONE shared grace period (180 s, not one per worker —
+  sequential per-worker timeouts made a 4-worker stop take up to 12
+  minutes). Workers terminated by the parent after an interrupt are
+  not failures — their completed shards are merged like any other's.
+  If the parent is killed outright, the orphaned shards sit under
+  `.parallel-*/` and are recovered by
   `recover_parallel_shards` on the next run (called automatically at
   the start of `generate_games_parallel` and by the self-play CLI
   before its top-up computation), so an interrupted parallel run
   resumes without losing completed games or regenerating them. If a
-  worker crashes, the surviving workers' shards are still merged and
-  then a `RuntimeError` is raised with the worker's traceback —
-  partial data is never silently lost, and a failed worker never
-  silently produces a short run.
+  worker crashes on its own, the surviving workers' shards are still
+  merged and then a `RuntimeError` is raised with the worker's
+  traceback — partial data is never silently lost, and a failed
+  worker never silently produces a short run. The CLI logs a genuine
+  worker failure as a `run_error` event with the resume command
+  instead of a bare traceback.
+* **The parent drains the result queue continuously** while polling
+  — not only after the workers exit. A worker's result (shard paths
+  + one event per game) grows with its game count; at 2500
+  games/worker the four results exceed the 64KB pipe buffer, and a
+  parent that only drains after joining deadlocks: the worker cannot
+  finish exiting until its result flushes to the pipe, and the
+  parent waits for the worker to exit. (Observed on the 10k run's
+  first leg: two workers stuck in exit-flush with frozen CPU time
+  until the join timeouts expired and they were terminated — their
+  shards were still merged, but their events were lost.) Draining
+  every poll iteration keeps the pipe empty and the workers' exits
+  prompt.
 * **Events and live feed.** Workers collect their per-game events and
   return them; the parent re-emits them with the final merged game
   numbers, in final-number order. The live feed (`current_game.json`)
@@ -109,7 +125,7 @@ in `selfplay.py` and the scripts.
   that times one arm per worker count (default 1, 2, 3, 4) with the
   same config/checkpoint/sims/seed/game count, records load average
   before/after each arm, and prints a JSON summary.
-* `ml/tests/test_parallel_selfplay.py` — **new**: 7 tests (see below).
+* `ml/tests/test_parallel_selfplay.py` — **new**: 9 tests (see below).
 * `ml/README.md` — the "multiprocessing is future work" limitation
   updated to point here.
 
@@ -117,7 +133,7 @@ in `selfplay.py` and the scripts.
 
 ### (a) Tests
 
-`ml/tests/test_parallel_selfplay.py` (7 tests), run with the main
+`ml/tests/test_parallel_selfplay.py` (9 tests), run with the main
 worktree venv (`/home/hatch/workspace/projects/gomoku-ml-playground/ml/.venv/bin/python`)
 from the worktree root:
 
@@ -137,10 +153,19 @@ from the worktree root:
 * two parallel calls into one dir append with dense numbering (the
   resume story for an interrupted 10k run);
 * `on_event` receives one `selfplay_game` event per merged game,
-  with final merged game numbers in order.
+  with final merged game numbers in order;
+* a 400-game run (2 workers × 200 games) completes — a regression
+  test for the result-queue deadlock: the two workers' results
+  exceed the 64KB pipe buffer, so a parent that only drains after
+  joining hangs forever; this test hangs on the pre-fix code;
+* a mid-run interrupt returns normally (no `RuntimeError`), merges
+  the completed games, and leaves a consistent manifest and no
+  worker dirs.
 
-Result: **7 passed** (plus the 8 batched tests in
-`test_batched_mcts.py` still passing — 15 passed together).
+Result: **9 passed** (plus the 8 batched tests in
+`test_batched_mcts.py` still passing — 15 passed together in the
+first run; the 9 parallel tests re-run after the deadlock fix in
+126 s).
 
 ### (b) Torch threads: the 290x measurement
 
@@ -242,6 +267,37 @@ Two more caveats:
   only ~3 CPUs were free, so the 4th worker had no core to run on
   (1070.3 → 1073.5/hr, within noise). On a quiet 4-CPU VM, 4 workers
   should beat 3; the 10k run below uses workers=4 for that reason.
+  (This reading was later revised — see "Run 2" below: the plateau
+  turned out to be a sandbox CPU budget, not sibling contention.)
+
+### Run 2: workers 6 and 8 — the plateau is a CPU budget, not a core count
+
+After the 10k run's first leg, the workers' CPU usage looked wrong:
+each worker ran at only ~17–23% of one CPU while the VM sat 57%
+idle (vmstat) with ~0% steal. A pure CPU burner (`while True: pass`)
+got only 11–14% of one core. The first hypothesis — a per-process
+throttle, which more workers would route around — predicted
+workers=8 would roughly double workers=4. It was tested directly
+(same command, `--workers 6,8`, summary
+`ml/runs/b3-b1/bench-b1-run2.json`) and **refuted**:
+
+| Workers | Wall (40 games) | Games/hour | vs run 1 workers=4 |
+|---------|-----------------|------------|--------------------|
+| 6 | 160.7 s | **896.1** | 0.83x |
+| 8 | 156.3 s | **921.4** | 0.86x |
+
+With 8 workers, each worker's share dropped to ~9–16% CPU (total
+~1.0 CPU for all 8, vs ~0.85 CPU for 4 workers): more processes
+split the same budget more thinly instead of adding throughput.
+The ceiling is the sandbox's CPU allocation for this process tree
+(~1 CPU effective, whatever the mechanism — per-cell quota or
+per-tool-call cgroup; the cgroup files are not readable from here,
+so the mechanism is inferred from the numbers, not observed
+directly), not the 4 physical cores and not sibling contention.
+**Workers=4 stays the best measured setting** (1073.5/hr); the 10k
+run uses it. The practical consequence: on this VM, no worker count
+beats ~1100 games/hour at 50 sims — scaling past that needs a bigger
+CPU budget (a different machine), not more processes here.
 
 **Self-play equivalence** (same config, same net, same seed scheme):
 
@@ -266,16 +322,19 @@ on a GPU.
 
 ## Ceiling analysis
 
-The ceiling on THIS VM is set by CPU count, not by the design: each
-worker is a single-threaded Python process, and the bottleneck inside
-a worker is the Python tree search (selection, backprop, encoding),
-not the net evaluation (the 32ch net's batched forward pass at batch
-8 is milliseconds; the 290x thread measurement above shows what
-happens when the *threading* is wrong, not when the net is slow).
-Measured per-worker throughput at 50 sims is ~268 games/hour
-(1073.5 / 4 workers, contended). Adding workers past the CPU count
-buys nothing — the 3→4 plateau above is that wall, one CPU early
-because of the sibling jobs.
+The ceiling on THIS VM is set by the sandbox's CPU budget for this
+process tree, not by the design and not by the 4 physical cores.
+Measured (see "Run 2" above): the process tree gets ~0.85–1.0 CPU
+total whatever the worker count past 4 — each worker runs at
+~17–23% of one core at 4 workers and ~9–16% at 8 workers, while the
+VM sits 57% idle with ~0% steal, and a pure CPU burner gets only
+11–14% of one core. Inside a worker, the bottleneck is the Python
+tree search (selection, backprop, encoding), not the net evaluation
+(the 32ch net's batched forward pass at batch 8 is milliseconds;
+the 290x thread measurement above shows what happens when the
+*threading* is wrong, not when the net is slow). Adding workers past
+4 buys nothing here — the 3→4 plateau and the 6/8-worker regression
+are that wall.
 
 Projected time for staged data at the measured (contended) best rate
 of **1073.5 games/hour**, 50 sims:
@@ -286,48 +345,75 @@ of **1073.5 games/hour**, 50 sims:
 | 50,000 | **46.6 hours (~1.9 days)** | 110.8 hours (~4.6 days) |
 | 100,000 | **93.2 hours (~3.9 days)** | 221.7 hours (~9.2 days) |
 
-On a quiet VM these times would be shorter by the contention factor
-(unknown for this workload; the H2 job's ~3.5x slowdown is the only
-in-repo bound, and it is H2's job, not this one — do not quote a
-clean rate without measuring it). Even so, the shape is clear: this
-4-CPU VM cannot do tens of thousands of games per batch in hours.
-50k games is a ~2-day job here; 100k is a ~4-day job — and that is
-at 50 sims; at 100 sims the times roughly double.
+These projections use the throttled rate, so they are the time on
+*this* VM as it is. The sibling jobs' share of the contention is
+secondary: the H2 job's own ~3.5x slowdown vs batch 2's clean number
+is the same throttle seen from another cell, and a "quiet VM" here
+would still throttle this tree to ~1 CPU — do not quote a clean rate
+without measuring it on unthrottled hardware.
 
 What would it take to do **10,000 games in ~1 hour** at 50 sims?
-10,000 games/hour is 9.3x the measured 4-worker rate. At ~268
-games/hour per worker-core, that is **~37 worker-cores** — a
-~40-CPU machine (or equivalent), assuming linear scaling and no
-other bottleneck. In practice the shape is: many parallel workers
-(one per core) + batched inference + a faster engine. The GPU part
-of that story is architectural, not measured: today the GPU sits
-idle most of the time because the Python tree search on few cores is
-the bottleneck, not the net eval — a GPU only helps once enough
-concurrent games feed it big enough batches (high concurrency per
-worker, many workers), and even then the Python selection/backprop
+10,000 games/hour is 9.3x the measured 4-worker rate. The per-core
+rate is not directly measured (no unthrottled run exists), but it
+can be estimated from the throttle: each worker used ~20% of a core
+to produce ~268 games/hour, so an unthrottled core would produce
+roughly 268 / 0.2 ≈ **1300 games/hour** (estimate, not a
+measurement — the 20% share itself is observed, the linearity is
+assumed). On that estimate, 10k games/hour needs **~8 unthrottled
+cores** (one worker each, concurrency 8), not the ~37 cores a naive
+scaling of the throttled per-worker rate would suggest. The durable
+reading is: the fix is a bigger CPU budget (a different machine) +
+many parallel workers + batched inference + a faster engine — and
+even then the Python tree search per simulation stays on the CPU.
+The GPU part of that story is architectural, not measured: today the
+GPU sits idle most of the time because the Python tree search on few
+cores is the bottleneck, not the net eval — a GPU only helps once
+enough concurrent games feed it big enough batches (high concurrency
+per worker, many workers), and even then the Python selection/backprop
 per simulation stays on the CPU. The durable fixes, in order, are
-(1) more CPU cores with one worker each, (2) a vectorised /
-torch-native encoder (per-position NumPy encoding is the next
-bottleneck once the forward pass is fast), and (3) a compiled engine
-for the tree search itself. None of those is claimed to reach a
-particular Elo: **no Elo numbers are promised at any game count** —
-the staged program (10k → train → full eval, 50k → eval, 100k+ →
-eval, each stage gated on Elo improvement against the project's
-"good level" bar) measures strength at each stage instead of
-predicting it.
+(1) more unthrottled CPU cores with one worker each, (2) a
+vectorised / torch-native encoder (per-position NumPy encoding is
+the next bottleneck once the forward pass is fast), and (3) a
+compiled engine for the tree search itself. None of those is claimed
+to reach a particular Elo: **no Elo numbers are promised at any game
+count** — the staged program (10k → train → full eval, 50k → eval,
+100k+ → eval, each stage gated on Elo improvement against the
+project's "good level" bar) measures strength at each stage instead
+of predicting it.
 
 ## The 10k staged dataset
 
 **Run in progress at commit time** — this section is completed when
-the run finishes (or hits the 6-hour cap). Plan: workers=4,
-concurrency 8 per worker, 50 sims, round-2 checkpoint, target
-10,000 games in `ml/runs/b3-b1-10k/data/` (gitignored data, not
-committed). At the measured contended rate (1073.5/hr) 10k games
-project to 9.3 hours, past the ~6-hour cap — so the run stops at the
-cap with whatever fits (~6,400+ games at the contended rate, more
-if the VM quiets when the sibling jobs finish), and the exact count
+the run finishes (or hits the 6-hour cap). Plan: workers=4 (the best
+measured setting), concurrency 8 per worker, 50 sims, round-2
+checkpoint, target 10,000 games in `ml/runs/b3-b1-10k/data/`
+(gitignored data, not committed). At the measured contended rate
+(1073.5/hr) 10k games project to 9.3 hours, past the ~6-hour cap —
+so the run stops at the cap with whatever fits, and the exact count
 is reported here, not rounded up to 10k. The remainder stays
 generatable later by re-running the same command (top-up).
+
+Run history:
+
+* **Leg 1** (07:40:10–08:25 UTC, parent 3162): stopped deliberately
+  after 645 games to investigate the workers' low CPU share and to
+  bench 6/8 workers. The stop exposed the result-queue deadlock
+  (see the design section): two workers stuck in exit-flush until
+  the join timeouts expired and they were terminated. All 645
+  completed games were merged (27,311 samples); the two terminated
+  workers' events were lost and re-emitted synthetically from the
+  shards. The deadlock is fixed in the relaunched code.
+* **Leg 2** (relaunched 08:33 UTC, parent 7653): same command,
+  top-up from the 645 merged games (9,355 to generate). A watchdog
+  (`ml/runs/b3-b1-10k-watchdog.sh`, log
+  `ml/runs/b3-b1-10k-watchdog.log`) enforces the 6-hour cap measured
+  from the original 07:40:10 start — SIGTERM to the parent at
+  13:40:10 UTC, graceful stop + merge. Progress is logged every 30
+  min in the watchdog log; live progress is the shard count under
+  `ml/runs/b3-b1-10k/data/` (merged shards + worker `.parallel-*/`
+  dirs — merged shards only appear at the final merge).
+
+[TO FILL: final count, sanity-check results, achieved games/hour]
 
 ## Limitations for running on a GPU later
 
