@@ -771,7 +771,12 @@ fatal as White but survivable as Black. Mean plies 63.0.
 
 ### 5.4 Head-to-head vs v0 (100 games, seeds 100/200)
 
-(TBD.)
+**54W-45L-1D, win rate 0.545, 95% CI [0.4475, 0.6391]** —
+`batch-v8-vs-v0.json` (100 games, 907 s). v8 beats v0
+comfortably (v6 managed 0.41) — no non-transitivity in the
+bad direction: the ordering is v1 ≈ v8 > v0. Colour split
+again favours Black (0.64 / 0.45), smaller than vs v1. Mean
+plies 42.5.
 
 ### 5.5 Swap match vs v1 (100 games, balanced, placement_seed 11, tempo judge)
 
