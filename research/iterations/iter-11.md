@@ -194,6 +194,52 @@ unlikely sole cause, and the α sweep (does the net now play
 well at HIGHER α?) is the discriminating test, not the raw
 sample count.
 
+### 1.1b AMENDMENT 2 — learner sampling (2026-11-14, made BEFORE any training or eval, driven by the generation measurement)
+
+**Pure v1-vs-v0 games collapse onto a small pool of lines.**
+The 4,000-game run (25 min, 9,588 games/hr) deduped to **only
+621 unique games (93,756 samples)** — 3,379 duplicates. At
+n=20 the generator behaves normally (19/20 unique, mean 87
+plies, diagnostic in §2), so the pool of distinct lines is
+finite (~10^3) and heavily skewed: at n=4,000 it is exhausted.
+Worse, dedup SELECTS for long games (a 225-ply draw has more
+chances to diverge than a 30-ply win), so the unique set is
+49% draws (303/621) with mean 151 plies — vs 9% draws / 76
+plies in the raw distribution. 621 games is far below v8's
+3,915-game generalizing set and close to its 450-game
+memorizing set: training on it risks the same memorization
+failure. The 621 pure games are kept on disk (gitignored) as a
+pilot, NOT the training set.
+
+**Amended learner: v1 with ε-greedy sampling over its top-k
+moves (the opponent, v0, stays PURE).** At each learner move:
+take an immediate win if one exists; block the opponent's
+single immediate win if one exists (the hard rules are never
+sampled away); otherwise play the top-scoring move with
+probability 1−ε and a uniform random move among the top-k by
+v1 score with probability ε. This is the same diversity
+mechanism as the project's own self-play (temperature sampling)
+and as AlphaZero: deterministic engines need sampling to
+generate diverse games. The opponent stays pure v0 — the
+opponent's distribution is the one the net must match (the
+leaf faces the pure heuristic in real games). The learner's
+sampling is, if anything, a BETTER proxy for ValueMCTS's move
+distribution than pure v1 (MCTS deviates from its priors by
+design). The budget is unchanged: **4,000 games**, alternating
+colours, 10% game-level holdout after dedup.
+
+**Calibration (pre-registered — the setting is selected by
+rule, not by eval).** Grid (ε, k) ∈ {(0.1, 5), (0.2, 8),
+(0.3, 10)}, 200 games each (100 per colour): measure unique
+rate, mean plies, v1 win rate, draw rate. **Selection rule:
+the SMALLEST ε achieving ≥90% unique games AND mean plies ≥ 40
+AND v1 win rate ≥ 0.40** (least deviation from pure v1 that
+fixes the pool problem). If none achieves ≥90% unique, take
+the highest-ε setting and record it; if all achieve it, take
+ε=0.1. The calibration measures game DIVERSITY only — no
+training, no eval, no strength claim — so it cannot leak eval
+information into the design.
+
 **Cross-distribution checks (pre-registered, diagnostic, cheap
 — run with `ml/scripts/eval_value_holdout.py`, no training):**
 (1) v8's net (`ml/runs/b3-h2/value-net.pt`, copied from the main
