@@ -14,6 +14,95 @@ def _board_from(black, white):
     return board
 
 
+# Batch-2 game 1 (v4-vs-v0), before White's move 12. Black holds an
+# open three (4,7),(5,6),(6,5) with creators (3,8) and (7,4). v4
+# plays (8,4) (its own open three) and loses by force; the blocks
+# (3,8)/(7,4) avoid the forced loss (VCF-solver verified — see
+# research/iterations/iter-4.md §2.3). v5 must play a block.
+GAME1_V4V0_BLACK = [[7, 7], [7, 6], [6, 5], [5, 6], [6, 4], [4, 7]]
+GAME1_V4V0_WHITE = [[5, 5], [7, 5], [5, 4], [8, 6], [6, 6]]
+
+
+def test_v5_registered():
+    assert 5 in scoring.ENGINE_VERSIONS
+    p = scoring.get_player(5, seed=0)
+    assert p.name == "scoring-v5"
+    assert p.minimax is True
+    assert p.minimax_topk == 8
+    assert p.terminal_aware is True
+    assert p.defence_weight == 1.0
+    assert p.threat_check is False
+
+
+def test_leaf_value_open_four_is_terminal_loss():
+    # Black holds an open four; White to move is lost no matter what
+    # White's attack is. The value must be exactly -WIN_SCORE (no
+    # compensation from our attack score).
+    black = [[7, 7], [8, 7], [9, 7], [10, 7]]
+    white = [[5, 5], [6, 6]]  # White's own diagonal two (some attack)
+    board = _board_from(black, white)
+    assert len(scoring._winning_moves(board, game.BLACK)) == 2
+    assert scoring._leaf_value(board, game.WHITE) == -scoring.WIN_SCORE
+
+
+def test_leaf_value_open_four_is_terminal_win():
+    white = [[7, 7], [8, 7], [9, 7], [10, 7]]
+    black = [[5, 5], [6, 6]]
+    board = _board_from(black, white)
+    assert len(scoring._winning_moves(board, game.WHITE)) == 2
+    assert scoring._leaf_value(board, game.WHITE) == scoring.WIN_SCORE
+
+
+def test_leaf_value_single_winning_move_capped():
+    # Black has a four with exactly one winning square: (6,7) is
+    # blocked by White, so only (11,7) wins. White to move blocks
+    # it — the position is bad for White but NOT terminal: the value
+    # must be far from -WIN_SCORE (a single four capped at FOUR
+    # plus Black's best non-winning attack).
+    black = [[7, 7], [8, 7], [9, 7], [10, 7]]
+    white = [[6, 7], [5, 5]]
+    board = _board_from(black, white)
+    assert scoring._winning_moves(board, game.BLACK) == [game.xy_to_move(11, 7)]
+    value = scoring._leaf_value(board, game.WHITE)
+    assert value < 0
+    assert value > -scoring.WIN_SCORE // 2
+
+
+def test_v5_blocks_on_game1_regression():
+    # Pre-registered check (iter-5 §1): v5 must play a block on the
+    # game-1 position where v4 played the losing attack (8,4).
+    board = _board_from(GAME1_V4V0_BLACK, GAME1_V4V0_WHITE)
+    assert sorted(game.move_to_xy(c)
+                  for c in scoring._opponent_creators(board, game.WHITE)) == [
+        (3, 8), (7, 4)]
+    choice = scoring._choose_move(board, game.WHITE, None, 1.0,
+                                  threat_check=False, minimax=True,
+                                  minimax_topk=8, terminal_aware=True)
+    assert game.move_to_xy(choice) in [(3, 8), (7, 4)]
+    # Same via the versioned player.
+    p5 = scoring.get_player(5, seed=0)
+    assert game.move_to_xy(p5.choose_move(board, game.WHITE)) in [(3, 8), (7, 4)]
+
+
+def test_v4_still_plays_attack_on_game1():
+    # Guards v4's behaviour: the terminal-aware change must not alter
+    # v4 (terminal_aware=False is the default path).
+    board = _board_from(GAME1_V4V0_BLACK, GAME1_V4V0_WHITE)
+    choice = scoring._choose_move(board, game.WHITE, None, 1.0,
+                                  threat_check=False, minimax=True,
+                                  minimax_topk=8, terminal_aware=False)
+    assert game.move_to_xy(choice) == (8, 4)
+    p4 = scoring.get_player(4, seed=0)
+    assert game.move_to_xy(p4.choose_move(board, game.WHITE)) == (8, 4)
+
+
+def test_v5_takes_win_and_blocks():
+    # Win/block scans run before minimax for v5 too.
+    board = _board_from([[7, 7], [8, 7], [9, 7], [10, 7]], [[5, 5]])
+    p5 = scoring.get_player(5, seed=0)
+    assert game.move_to_xy(p5.choose_move(board, game.BLACK)) in [(6, 7), (11, 7)]
+    board = _board_from([[5, 5]], [[7, 7], [8, 7], [9, 7], [10, 7]])
+    assert game.move_to_xy(p5.choose_move(board, game.BLACK)) in [(6, 7), (11, 7)]
 # Batch-1 game 13 (v1-vs-v0 swap), after 22 plies, Black to move.
 # White holds four open-four creators; v1 plays (5, 4) (double open
 # three, 1-ply best) and loses the race. The preventing move is

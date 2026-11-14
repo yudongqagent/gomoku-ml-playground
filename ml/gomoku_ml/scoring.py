@@ -64,7 +64,10 @@ discount (0.9); v3 adds a 2-ply threat check (prefer a move that
 leaves the opponent with no live open-four creator). v4 adds a 2-ply
 minimax over the top 1-ply candidates (opponent modelled as v1;
 positions evaluated by best-attack difference — see
-:func:`_minimax_choose`).
+:func:`_minimax_choose`). v5 keeps v4's search and replaces the leaf
+value with a terminal-aware evaluation (see :func:`_leaf_value`):
+>= 2 winning moves for a side is terminal, exactly 1 is capped at
+four-value.
 """
 
 from __future__ import annotations
@@ -125,6 +128,19 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # replies + ~16 attack scans per move (~70 ms/call worst case).
     4: {"name": "scoring-v4", "defence_weight": 1.0, "threat_check": False,
         "minimax": True, "minimax_topk": 8},
+    # v5 (iteration 5, batch 2): v4 + terminal-aware minimax leaf
+    # evaluation. v4's leaf value (best-attack difference) counts a
+    # single blockable winning move as -10M — the same as an open
+    # four — and lets our attack compensate for the opponent's win,
+    # so the minimax overrides the #1-ranked blocking move (iter-4
+    # §2.3: game 1 vs v0, verified with the VCF solver; all 77
+    # analysed missed preventions follow this pattern). v5 counts
+    # winning moves on the leaf board: >= 2 for the opponent is a
+    # terminal loss (-WIN_SCORE, no compensation); exactly 1 is
+    # capped at four-value (20,000) since the player to move blocks
+    # it; symmetric for our winning moves. Search unchanged.
+    5: {"name": "scoring-v5", "defence_weight": 1.0, "threat_check": False,
+        "minimax": True, "minimax_topk": 8, "terminal_aware": True},
 }
 
 # --- weights --------------------------------------------------------------
@@ -480,16 +496,52 @@ def _move_is_safe(board: np.ndarray, move: int, player: int,
 # score, then the RNG (or the first move when no RNG is given).
 
 def _best_attack_on(board: np.ndarray, player: int,
-                    defence_weight: float = 1.0) -> int:
+                    defence_weight: float = 1.0,
+                    exclude: set[int] | None = None) -> int:
     """Max attack-only score for ``player`` over the candidate moves
-    on ``board`` (0 when the board has no candidates)."""
+    on ``board`` (0 when the board has no candidates), skipping moves
+    in ``exclude`` (used by the terminal-aware leaf value to skip
+    winning moves, which are valued separately)."""
     flat = board.reshape(-1).tolist()
     best = 0
     for m in _candidate_moves(board):
+        if exclude is not None and m in exclude:
+            continue
         attack, _defence = _score_parts_flat(flat, m, player, defence_weight)
         if attack > best:
             best = attack
     return best
+
+
+def _leaf_value(board: np.ndarray, player: int,
+                defence_weight: float = 1.0) -> int:
+    """Terminal-aware static evaluation of ``board`` from ``player``'s
+    perspective (v5 leaf value). Counts each side's winning moves:
+
+    - Opponent with >= 2 winning moves: terminal loss, -WIN_SCORE.
+      ``player`` moves next but can block only one square (open
+      four) — no attack score can compensate.
+    - ``player`` with >= 2 winning moves: terminal win, +WIN_SCORE.
+    - Exactly 1 winning move for a side: capped at FOUR — the player
+      to move blocks it, so it is a forcing threat, not a win.
+    - Otherwise: best-attack difference over non-winning moves.
+
+    The v4 leaf value (raw best-attack difference) scores a single
+    blockable winning move at WIN_SCORE, which inverts the ranking
+    of blocking vs attacking moves (see iter-4 §2.3)."""
+    our_wins = set(_winning_moves(board, player))
+    opp_wins = set(_winning_moves(board, -player))
+    if len(opp_wins) >= 2:
+        return -WIN_SCORE
+    if len(our_wins) >= 2:
+        return WIN_SCORE
+    ours = _best_attack_on(board, player, defence_weight, exclude=our_wins)
+    theirs = _best_attack_on(board, -player, defence_weight, exclude=opp_wins)
+    if len(our_wins) == 1:
+        ours += FOUR
+    if len(opp_wins) == 1:
+        theirs += FOUR
+    return ours - theirs
 
 
 def _minimax_choose(board: np.ndarray, player: int,
@@ -497,12 +549,15 @@ def _minimax_choose(board: np.ndarray, player: int,
                     scored: list[tuple[int, int]],
                     rng: np.random.Generator | None,
                     defence_weight: float,
-                    topk: int) -> int:
+                    topk: int,
+                    terminal_aware: bool = False) -> int:
     """Pick the best of the top-``topk`` 1-ply candidates by 2-ply
     minimax. ``scored`` is the 1-ply ``(score, move)`` list from
     :func:`_choose_move` (win/block scans already ran, so no
     candidate wins immediately and the opponent has no immediate win
-    on the current board). Returns a legal move."""
+    on the current board). With ``terminal_aware`` (v5) the leaf is
+    evaluated by :func:`_leaf_value`; otherwise by raw best-attack
+    difference (v4). Returns a legal move."""
     top = sorted(scored, key=lambda sm: (-sm[0], sm[1]))[:max(1, topk)]
     best_key: tuple[int, int] | None = None
     best_moves: list[int] = []
@@ -521,6 +576,8 @@ def _minimax_choose(board: np.ndarray, player: int,
             if game.is_winning_stone(b3, reply, -player):
                 # The opponent wins on the reply: this candidate loses.
                 key = (-WIN_SCORE, s1)
+            elif terminal_aware:
+                key = (_leaf_value(b3, player, defence_weight), s1)
             else:
                 ours = _best_attack_on(b3, player, defence_weight)
                 theirs = _best_attack_on(b3, -player, defence_weight)
@@ -540,7 +597,8 @@ def _choose_move(board: np.ndarray, player: int,
                  defence_weight: float,
                  threat_check: bool = False,
                  minimax: bool = False,
-                 minimax_topk: int = 8) -> int:
+                 minimax_topk: int = 8,
+                 terminal_aware: bool = False) -> int:
     """Versioned move choice (see :func:`choose_move`).
 
     With ``threat_check`` (v3): after the win/block scans, if the
@@ -582,7 +640,8 @@ def _choose_move(board: np.ndarray, player: int,
 
     if minimax:
         return _minimax_choose(board, player, flat, scored, rng,
-                               defence_weight, minimax_topk)
+                               defence_weight, minimax_topk,
+                               terminal_aware)
     if not threat_check:
         return _pick(best_moves)
     # 3b. 2-ply threat check: if the opponent can create an open four
@@ -637,6 +696,7 @@ class ScoringPlayer:
         self.threat_check = ENGINE_VERSIONS[version].get("threat_check", False)
         self.minimax = ENGINE_VERSIONS[version].get("minimax", False)
         self.minimax_topk = ENGINE_VERSIONS[version].get("minimax_topk", 8)
+        self.terminal_aware = ENGINE_VERSIONS[version].get("terminal_aware", False)
         self.rng = np.random.default_rng(seed)
 
     def score_move(self, board: np.ndarray, move: int, player: int) -> int:
@@ -648,7 +708,7 @@ class ScoringPlayer:
     def choose_move(self, board: np.ndarray, player: int) -> int:
         return _choose_move(
             board, player, self.rng, self.defence_weight, self.threat_check,
-            self.minimax, self.minimax_topk,
+            self.minimax, self.minimax_topk, self.terminal_aware,
         )
 
 
