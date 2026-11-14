@@ -357,10 +357,10 @@ reproduce iter-6's numbers exactly):
 |---|---|---|---|---|---|
 | vs v1 | 21 | 21 | 0 | 93 | 1 (1.1%) |
 | vs v0 | 31 | 31 | 0 | 141 | 0 (0.0%) |
-| vs v1 swap | (TODO — after the swap match) | | | | |
+| vs v1 swap | 37 | 37 | 0 | 150 | 0 (0.0%) |
 
-Defence is solved: 52 losses, 52 via open four, 0 missed
-blocks, 1 clean missed prevention in 234 threatened turns.
+Defence is solved: 89 losses, 89 via open four, 0 missed
+blocks, 1 clean missed prevention in 384 threatened turns.
 Every loss is the opponent winning the open-four race, not a
 defensive error.
 
@@ -570,7 +570,30 @@ a searching opponent.
 
 ### 3.8 Swap match vs v1 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
 
-(TODO — runs on the final patched engine.)
+**51W-37L-12D, win rate 0.5700, CI [0.4722, 0.6627]**, 6444.5 s
+(secondary metric, not the bar). File:
+`research/iterations/batch-v7-vs-v1-swap.json` (seeds 100/200).
+As Black 25W-23L-2D (0.5200); as White 26W-14L-10D (0.6200).
+second_colour Black 76 / White 24 — both engines chose
+identically (38 Black / 12 White each), since the tempo judge is
+deterministic on the same balanced placements; v7's win rate is
+0.570 whether v7 or v1 chose the colour, so the choice itself
+does not drive the result. Winners Black 39, White 49, draws 12
+(White-favouring by 10 — the reverse of v6's swap, where Black
+won 43 vs White 37). Plies mean 73.0 (min 19, max 225). Loss
+classifier: 37/37 losses via open four, **0 missed blocks**,
+150 threatened turns in losses, **0 clean missed preventions**.
+
+Note the contrast with §3.6: under swap rules v7's edge over v1
+is NOT statistically established (CI [0.4722, 0.6627] includes
+0.50), while the normal-rules match is decisive (0.7050, CI
+lower 0.6094). The swap rule removes the empty-board opening
+phase where v7's Black edge is largest (normal rules as Black
+0.89; swap as Black 0.52) — v7's advantage over v1 lives
+substantially in the opening, and from a balanced 3-stone start
+the two engines are much closer. The bar's clause 1 is the
+normal-rules match and it passes; the swap number is recorded
+here as the honest tempering caveat.
 
 ## 4. Bar check (v7 vs v1)
 
@@ -676,6 +699,18 @@ forcing sequences for heuristic comfort.
    counterattack). Plus the §2.2 observation: a
    double-open-three CREATION is invisible to prevention
    logic, which tracks existing creators only.
+
+**A tempering note from the swap match (§3.8).** Under swap
+rules v7 beats v1 only 0.5700 with a CI that includes 0.50 —
+the edge is not established there, even though the normal-rules
+match is decisive (0.7050, CI lower 0.6094). The swap rule
+removes the empty-board opening where v7's Black edge is
+largest (0.89 as Black in normal rules, 0.52 under swap), so
+much of v7's advantage over v1 lives in the opening phase. The
+bar's clause 1 is the normal-rules match and it passes; but a
+version that only wins from the empty board has not yet shown
+it outplays v1 from a balanced start. The next batch should
+treat the swap number as a second target, not a curiosity.
 
 **What the next version/batch should try.** In priority order:
 (a) the §2.6 root-decision change (q or q/visit blend, or
