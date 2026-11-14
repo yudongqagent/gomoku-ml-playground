@@ -446,6 +446,14 @@ visit tie, so v9's tactical play is v7's tactical play.
 
 ### 3.6 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
 
+[NOTE: a runtime restart killed the first run at 88/100 games
+(43W-33L-12D, 0.5568 — partial JSON backed up to
+`~/workspace/b4h1-logs/batch-v9-vs-v7-partial88.json`, not
+committed). The match re-ran IN FULL from game 0 with the same
+seeds — matches are deterministic, so the re-run reproduces
+games 0-87 identically (verified against the backup) and
+completes 88-99 as pre-registered.]
+
 [To be filled.]
 
 ### 3.7 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
