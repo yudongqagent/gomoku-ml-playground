@@ -236,7 +236,41 @@ visits rule and only change tie-breaking — differ from v7 at all.
 
 ### 2.1 Fast-loop iteration 1 — 10 games vs v0
 
-[To be filled.]
+**Batch:** `research/iterations/fast-v9-vs-v0-iter1.json`
+(seeds v9=1001 / v0=2001 — development seeds, distinct from the bar
+battery's 100/200). **8W-2L-0D, win rate 0.8000, CI [0.4902,
+0.9433]**, 214.4 s. Per colour: as Black 3W-2L-0D, as White
+5W-0L-0D. v9 as White beats v0 5/5 (v7's fast-loop iter 1 was 0/5
+as White before the cap patch); the losses are both as Black, both
+LONG games (124 plies each — v7's fast-loop losses were 21-31
+plies). Classifier
+(`ml/scripts/classify_batch_losses.py`): 2/2 losses via open
+four, 0 missed blocks, 0 clean missed preventions in 18
+threatened turns (losses). Defence is still perfect.
+
+**No single verified losing move in either loss — distributed
+drift, and the oracle is too noisy at 100+ plies to pinpoint
+one.** Walk-back (corrected oracle method, seeds 0,1,2), game 0:
+in the last 8 Black turns the actual move loses 3/3 only at plies
+120/122, where NO alternative saves (0/5) — too late. Widened to
+24 turns, plies 76-92 ALL show the actual move losing 3/3 with
+saving alternatives (e.g. ply 92: actual (9,13) loses 3/3;
+(5,11)/(5,10)/(13,9) save) — but at plies 94-106 the actual move
+draws or wins at all seeds, so the oracle's verdicts flip turn to
+turn: v0's weak replies let Black back in, Black's later moves
+let White back in, and the v1-playout oracle cannot pin a single
+turn as THE losing move in a 124-ply see-saw endgame. Game 2
+shows the same pattern (no clean losing move in the last 12
+turns). The saving alternatives cluster around (5,11)/(5,10)/
+(6,11)/(5,12) in game 0 — suggestive of an ignored White threat
+in that region — but the SAME oracle rates Black's position
+drawable at ply 94 without ever playing there, so the cluster is
+recorded here as an observation, NOT a verified losing move, and
+per the loop's "never guessed" rule there is NO PATCH from this
+iteration. The as-Black long-game losses to v0 (3W-2L here; v7
+lost 13/50 as Black to v0 at 100-game scale) remain the open
+weakness — the battery's 100-game vs-v0 match is the real
+measure of it.
 
 ### 2.2 Fast-loop iteration 2 — 10 games vs v7
 
