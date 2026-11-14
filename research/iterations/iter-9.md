@@ -392,7 +392,15 @@ registered v9 (D) in §3.5.
 
 ### 3.3 Fast-loop summary (final engine)
 
-[To be filled.]
+Two iterations, no patches — the battery runs on the
+as-registered v9 (tie-prior). Iteration 1 vs v0: 8W-2L-0D, both
+losses long as-Black endgames with no verified single losing
+move (distributed drift; oracle too noisy at 100+ plies).
+Iteration 2 vs v7: 4W-4L-2D; two short as-Black losses worked
+(g2 ply 22: exploration starvation of the saving move; g6 ply 20:
+gradient-ordering knife-edge 18-17) — neither a root-decision
+fix, both recorded as xfail regressions. Loop stopped per the
+stopping rule (no new patchable weakness class). Details in §2.
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
@@ -400,7 +408,14 @@ registered v9 (D) in §3.5.
 
 ### 3.5 Tactical suites — FINAL BATTERY
 
-[To be filled.]
+Old 20-position suite, full-dispatch driver
+(`ml/scripts/eval_tactical_full.py --version 9 --suite both
+--seed 0`): **v9 20/20**. Hard suite (29 positions): **v9
+29/29** (prevention 16/16, setup 7/7, winning 2/2, vcf 4/4).
+**Clause 3 PASSES** (old 20/20 = v7's 20/20; hard 29/29 =
+v7's 29/29). The tie-prior rule changes nothing on tactical
+positions: none of the 49 positions is decided by an exact
+visit tie, so v9's tactical play is v7's tactical play.
 
 ### 3.6 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
 
