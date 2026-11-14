@@ -346,10 +346,64 @@ recurring class behind them in the loop's games.
 
 ### 2.5 Aggregate counts (secondary)
 
-(TODO — filled in after the final battery: losses via open four,
-missed blocks, clean missed preventions with threatened-turn
-counts, across the three 100-game matches of the final battery,
-via `ml/scripts/classify_batch_losses.py`.)
+Across the final battery's three 100-game matches (classifier:
+`ml/scripts/classify_batch_losses.py`, validated in batch 2 to
+reproduce iter-6's numbers exactly):
+
+| match | losses | via open four | missed blocks | threatened turns (losses) | clean missed preventions (losses) |
+|---|---|---|---|---|---|
+| vs v1 | 21 | 21 | 0 | 93 | 1 (1.1%) |
+| vs v0 | 31 | 31 | 0 | 141 | 0 (0.0%) |
+| vs v1 swap | (TODO — after the swap match) | | | | |
+
+Defence is solved: 52 losses, 52 via open four, 0 missed
+blocks, 1 clean missed prevention in 234 threatened turns.
+Every loss is the opponent winning the open-four race, not a
+defensive error.
+
+### 2.6 Worked game from the final battery — v7-as-Black loses to v0 (game 16)
+
+The most informative final-battery loss: v7 as Black loses to
+v0 in 22 plies (games 16 and 38 are the identical deterministic
+replay). Walk-back (corrected oracle, seeds 0,1,2): the losing
+move is **ply 14, (8,4)** — loses 3/3, with saving moves (6,9)
+[win,win,win], (9,8) [draw,win,draw], (7,4) [win,win,loss];
+at ply 12 the actual move (11,4) draws/wins, so the game turns
+at ply 14. Mechanism (verified): (8,4) creates a half-open four
+(8,4)-(11,4), open only at (7,4) — White's block there is
+FORCED (verified: White playing (5,5), (9,9) or (3,3) instead
+leaves Black winning at (7,4) immediately). But (7,4) is the key
+square of White's own diagonal attack (7,4),(8,5),(9,6),(10,7),
+(11,8): Black's forcing move compels White to occupy it, and
+White then plays (8,5) (attack score 58001), (10,7) (open
+four), (11,8) (win). After the forced (7,4), White has 0
+creators and 0 winning moves — the danger is invisible to the
+terminal leaf and worth only the capped −0.2 gradient — and the
+−1 is 5 plies deep, beyond what 100 sims reliably reach.
+
+The deeper finding is in the root statistics at ply 14: (7,4)
+and (8,4) TIE at 10 visits each (the max), and the match RNG
+broke the tie toward the losing (8,4). The saving move (7,4)
+had the HIGHER q (0.042 vs 0.032), and the other saving moves
+rank higher still on q ((9,8) 0.071, (6,9) 0.065, both at 7
+visits). v1's own 1-ply ranking also prefers the saves ((9,8)
+rank 2, (7,4) rank 3, (6,9) rank 5, (8,4) rank 6). So the
+search's q-values know the right move, but the **most-visited
+decision rule discards q and the RNG tie-break loses the
+coin-flip** — the same pattern as fast-loop iteration 1 (§2.1),
+where q preferred the saving move in 4/5 positions but visits
+decided. Recommendation for the next batch (v8): decide the
+root move by q (or a q/visit blend), or at minimum break
+visit-ties by q — that single change saves this game and
+addresses the recurring q-vs-visits gap. No patch is made here:
+this finding comes from the final battery, whose numbers are the
+verdict; it is recorded for the next batch.
+
+A limitation of the fast loop, noted honestly: the 10-game
+batches never surfaced this as-Black weakness (v7 won 5/5 as
+Black in both iterations); the 13/50 as-Black loss rate to v0
+only appears at 100-game scale. Ten-game batches find the
+dominant weakness fast but miss sub-dominant patterns.
 
 ## 3. v7 evaluation
 
