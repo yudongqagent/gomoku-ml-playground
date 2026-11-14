@@ -206,6 +206,22 @@ ENGINE_VERSIONS: dict[int, dict] = {
     9: {"name": "scoring-v9", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
         "root_decision": "tie-prior"},
+    # v10 (iteration 10, batch 4): H2 — v7's PUCT MCTS (capped
+    # attack-gradient leaf) + v3's 2-ply threat check at the root +
+    # COLOUR-ASYMMETRIC search depth (see gomoku_ml.mcts_white
+    # and research/iterations/iter-10.md). The "white_sims" key
+    # makes ScoringPlayer dispatch to WhiteMCTS instead of
+    # HeuristicMCTS. White gets 200 sims/move, Black keeps v7's
+    # 100; nothing else varies by colour. The White gap is an
+    # exploration/tempo problem (iter-7 §2.1: a White saving move,
+    # forcing, ranked 8th with prior 0.04, starved of visits in
+    # 100 sims) — doubling White sims targets visit starvation
+    # of low-prior forcing moves. No net value is used (v8's
+    # lesson: the net leaf lands at Elo 0.0 against the gradient
+    # leaf's 190.8).
+    10: {"name": "scoring-v10", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+         "white_sims": 200},
 }
 
 # --- weights --------------------------------------------------------------
@@ -767,7 +783,18 @@ class ScoringPlayer:
         self._mcts = None
         if self.mcts:
             value_ckpt = ENGINE_VERSIONS[version].get("value_checkpoint")
-            if value_ckpt is not None:
+            white_sims = ENGINE_VERSIONS[version].get("white_sims")
+            if white_sims is not None:
+                # Colour-asymmetric MCTS (v10): lazy import,
+                # mcts_white imports this module (via mcts_heuristic).
+                from .mcts_white import WhiteMCTS
+
+                self._mcts = WhiteMCTS(
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    white_sims=white_sims,
+                    rng=self.rng,
+                )
+            elif value_ckpt is not None:
                 # Learned-value MCTS (v8): lazy import, mcts_value
                 # imports this module (via mcts_heuristic). The path
                 # is relative to the repo root unless absolute; the
