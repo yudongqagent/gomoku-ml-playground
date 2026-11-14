@@ -226,9 +226,35 @@ not the search.
 
 ## 2. Data generation and training
 
-**Data generation (in progress).** 500 games at 100 sims, round-2
-checkpoint, B2 batched path, concurrency 8, max-batch-size 32
-(pre-registered budget, §1). Started 2026-11-14 06:06 UTC.
+**Data generation COMPLETE 2026-11-14 12:28 UTC.** 500 games at
+100 sims, round-2 checkpoint, B2 batched path (concurrency 8,
+max-batch-size 32). Started 06:06 UTC; total wall time ~6h22m
+across 4 process runs (3 VM replacements; heavy contention with
+the parallel H1 and B1 workstreams throughout — the rate ranged
+from ~200 games/hour early to ~30–40/hour under peak contention,
+vs ~570/hour measured on a quiet VM in batch 2). Final dataset:
+**500 shards, 500 distinct move sequences, 0 duplicates**
+(verified by comparing all move lists); 273 Black wins / 227
+White wins / 0 draws; plies mean 42.0 (min 16, max 102); 21,013
+total samples. Seed split (forced by the VM replacements, see
+above): games 1–238 seed 0, 239–403 seed 1, 404–468 seed 2,
+469–500 seed 3.
+
+**Hold-out split (pre-registered, §1).** Every 10th shard by
+index (game0009, game0019, …, game0499 — 50 games, spanning all
+four seed segments) moved to `ml/runs/b3-h2/val-data/` and NEVER
+used in training: **450 train games (18,904 samples), 50 val
+games (2,109 samples)** (manifests rebuilt after the move).
+
+**Training (in progress).** Smoke ResNet 16ch/2 blocks from
+scratch, `ml/scripts/train.py --config b3-h2-train --run-dir
+ml/runs/b3-h2-value --data ml/runs/b3-h2/data`: 20 epochs, batch
+64, lr 0.002 cosine, warmup 20, augmentation on, internal
+val_fraction 0.05, torch threads 2. Log:
+`ml/runs/b3-h2-value-train.log`.
+
+(TBD — training completion time, final/val loss, hold-out
+accuracy for best.pt / final.pt, checkpoint selection.)
 
 **VM replacement + same-seed resume trap (2026-11-14 ~07:25 UTC).**
 A VM replacement SIGTERM'd the run at 238 games; all 238 shards
