@@ -226,7 +226,40 @@ not the search.
 
 ## 2. Data generation and training
 
-(TBD — filled in after generation and training.)
+**Data generation (in progress).** 500 games at 100 sims, round-2
+checkpoint, B2 batched path, concurrency 8, max-batch-size 32
+(pre-registered budget, §1). Started 2026-11-14 06:06 UTC.
+
+**VM replacement + same-seed resume trap (2026-11-14 ~07:25 UTC).**
+A VM replacement SIGTERM'd the run at 238 games; all 238 shards
+were safe on disk (shards + manifest flush every game) and the
+run resumed via top-up. BUT the first resume used the same seed
+(0), and the batched path replays (near-)identical games on a
+same-seed resume: the resumed run's first completed game
+(`b3-h2_game0239.npz`) was move-for-move identical to
+`b3-h2_game0001.npz` (verified by comparing move lists across all
+239 shards — exactly 1 duplicate). The replay is offset by one
+game (game0239 duplicated game0001, not game0000); the mechanism
+is unknown (likely an RNG draw consumed before the first game in
+one of the runs, or float noise flipping a near-tied early
+selection), but the empirical duplicate is what matters. The
+resume was killed within ~2 minutes, the duplicate shard deleted,
+the manifest rebuilt (238 games, 9,844 samples), and generation
+restarted with a FRESH seed (1) via
+`ml/configs/b3-h2-selfplay-resume.yaml` (identical to
+`b3-h2-selfplay.yaml` except the seed). **Games 1–238 use seed 0;
+games 239–500 use seed 1.** The data budget (500 games @ 100
+sims) is unchanged; only the RNG seed for the second half differs
+(a forced deviation from the pre-registered "config seed 0",
+recorded here). RULE for any further resume: a fresh seed every
+time (seed 2, 3, …) — never resume with the seed of an
+already-generated half. The run dir's `config.yaml` snapshot now
+says seed 1 (the resume overwrote it); the per-half seeds are
+recorded here, not in that file.
+
+(TBD — generation completion time, final games/hour, shard stats;
+hold-out split; training run; hold-out accuracy for best.pt /
+final.pt; checkpoint selection.)
 
 ## 3. Leaf cost measurement
 
