@@ -17,10 +17,16 @@ engine A's losses:
   earlier check subsumes the later one.
 * **Missed block:** on A's turn the opponent had exactly 1 winning
   move and A did not play it (>= 2 winning moves is unblockable
-  and is NOT a missed block).
+  and is NOT a missed block). Taking A's OWN immediate win instead
+  of blocking is NOT a miss — the game ends with A's win (the
+  win scan runs before the block scan in every version).
 * **Threatened turn:** on A's turn the opponent held >= 1
   open-four creator and no immediate winning move (prevention was
-  relevant). Counted on A's turns across ALL games of the match.
+  relevant). Headline counts follow the batch-2 convention:
+  threatened turns and missed preventions are counted on A's
+  turns in A's LOSSES only (iter-6's 1,061 threatened turns =
+  221 + 510 + 330 across the three v6 matches, all in losses);
+  all-games counts are reported alongside as secondary numbers.
 * **Clean missed prevention:** on a threatened turn, A's move was
   not preventing (not forcing and left a creator live) while a
   preventing alternative existed. If NO preventing move existed,
@@ -110,8 +116,12 @@ def classify_game(rec: dict) -> dict:
         opp = -player
         opp_wins = scoring._winning_moves(board, opp)
         if len(opp_wins) == 1 and move != opp_wins[0]:
-            out["missed_blocks"].append({"ply": ply, "block": int(opp_wins[0]),
-                                         "played": int(move)})
+            # Taking our own immediate win instead of blocking is
+            # not a miss — the game ends with our win.
+            b2 = game.apply_move(board, move, player)
+            if not game.is_winning_stone(b2, move, player):
+                out["missed_blocks"].append({"ply": ply, "block": int(opp_wins[0]),
+                                             "played": int(move)})
         if opp_wins:
             continue  # prevention is moot when a win is on the board
         creators = scoring._opponent_creators(board, player)
@@ -169,18 +179,20 @@ def main() -> int:
           f"{summary['engine_b']} ==")
     print(f"  losses: {summary['losses']}, via open four: "
           f"{summary['losses_via_open_four']}")
-    print(f"  missed blocks: {summary['missed_blocks']} "
+    print(f"  missed blocks (all games): {summary['missed_blocks']} "
           f"(in losses: {summary['missed_blocks_in_losses']})")
-    print(f"  threatened turns: {summary['threatened_turns']} "
-          f"(in losses: {summary['threatened_turns_in_losses']})")
-    print(f"  clean missed preventions: "
-          f"{summary['clean_missed_preventions']} "
-          f"(in losses: {summary['clean_missed_preventions_in_losses']}, "
+    print(f"  threatened turns in losses: "
+          f"{summary['threatened_turns_in_losses']} "
+          f"(all games: {summary['threatened_turns']})")
+    print(f"  clean missed preventions in losses: "
+          f"{summary['clean_missed_preventions_in_losses']} "
+          f"(all games: {summary['clean_missed_preventions']}, "
           f"in {summary['games_with_missed_prevention']} games)")
-    if summary["threatened_turns"]:
-        rate = (summary["clean_missed_preventions"]
-                / summary["threatened_turns"])
-        print(f"  missed-prevention rate: {rate:.1%} of threatened turns")
+    if summary["threatened_turns_in_losses"]:
+        rate = (summary["clean_missed_preventions_in_losses"]
+                / summary["threatened_turns_in_losses"])
+        print(f"  missed-prevention rate (in losses): {rate:.1%} "
+              f"of threatened turns")
     if args.json_out:
         with open(args.json_out, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2)
