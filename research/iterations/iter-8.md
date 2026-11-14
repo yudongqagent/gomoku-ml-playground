@@ -499,7 +499,21 @@ the final patched v8 for the battery (TBD below).
 
 ### 5.2 Smoke (20 games vs v1, seeds 100/200)
 
-(TBD.)
+**500-game net (the pre-registered v8): 9W-4L-7D, win rate
+0.625, 95% CI [0.4095, 0.8002]** — `batch-v8-vs-v1-smoke.json`
+(20 games, 815 s, ~41 s/game on the post-replacement quiet VM).
+CI includes 0.50: suggestive, not significant, at n=20. The
+story is the DRAWS: 7 of 20 games went the full 225 plies with
+neither side winning (mean plies 112.2) — v8 is hard to beat
+(4 losses) but cannot convert (9 wins). Colour split: as Black
+3W-3L-4D (0.50), as White 6W-1L-3D (0.75) — White better, the
+reverse of the usual Black edge, but n=10 per colour is noise.
+First attempt at this smoke (started 13:19 UTC) was killed by
+the ~13:50 UTC VM replacement after ~36 min with no output —
+the reason match scripts now flush after every game.
+
+(TBD — smoke for the 4,350-game net, same seeds, for the
+direct comparison.)
 
 ### 5.3 Head-to-head vs v1 (100 games, seeds 100/200)
 
