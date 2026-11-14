@@ -327,11 +327,134 @@ the battery measures it precisely.
 
 ### 2.5 Aggregate counts (secondary)
 
-(TBD — classifier counts across the final battery's matches.)
+Across the final battery's matches (classifier:
+`ml/scripts/classify_batch_losses.py`):
 
-## 3. v10 evaluation (FULL VALIDATION BATTERY — final patched v10 only)
+| match | losses | via open four | missed blocks | threatened turns (losses) | clean missed preventions (losses) |
+|---|---|---|---|---|---|
+| vs v7 | 59 | 59 | 0 | 251 | 0 (0.0%) |
+| vs v0 | 61 | (TBD — classifier run after the ladder) | | | |
+| vs v7 swap | (TBD) | | | | |
 
-(TBD — tactical, h2h vs v7, h2h vs v0, swap vs v7, ladder.)
+Defence is solved: 59/59 vs-v7 losses via open four, 0 missed
+blocks, 0 clean missed preventions in 251 threatened turns.
+Every loss is the opponent winning the open-four race, not a
+defensive error — the same shape as every version since v6.
+
+## 3. v10 evaluation (FULL VALIDATION BATTERY — final v10)
+
+No fast-loop patch was made (§2.1–2.2), so the battery runs
+on the pre-registered engine (§1) unchanged. The tactical
+suites were measured on this exact engine before the fast
+loop (§3.1) and are NOT re-run — there is no patch to
+re-verify, and the engine is byte-identical.
+
+### 3.1 Tactical suites
+
+Old 20-position suite, full-dispatch driver
+(`ml/scripts/eval_tactical_full.py`, `player.choose_move`):
+**v10 20/20** (= v7's 20/20). Hard suite (29 positions):
+**v10 29/29** (= v7's 29/29). Raw JSON:
+`research/iterations/batch-v10-tactical-pre.json` (seed 0,
+149 s for 49 positions). **Clause 3 PASSES** (old 20/20 =
+v7's 20/20; hard 29/29 = v7's 29/29). The threat check and
+the White sims increase cost nothing tactically.
+
+### 3.2 Head-to-head vs v7 (100 games, seeds 100/200)
+
+**v10 loses to v7: 37W-59L-4D, win rate 0.3900, 95% CI
+[0.3002, 0.4880]**, 6176.1 s. File:
+`research/iterations/batch-v10-vs-v7.json` (seeds 100/200).
+Per colour: as Black 20W-26L-4D (0.4400), as White
+17W-33L-0D (0.3400) — v10 loses in BOTH colours. The White
+split (0.34) is far below the pre-registered target (> 0.50
+as White against v7-as-Black) and below v7-as-White vs v1
+(0.52). **Clause 1 FAILS decisively** (0.3900 < 0.50, and
+the CI upper bound 0.4880 is itself below 0.50 — v10 loses
+to v7 outright, not within noise). Mean game length 56.53
+plies (min 15, max 225). Loss classifier: 59/59 losses via open
+four, **0 missed blocks**, 251 threatened turns in losses,
+**0 clean missed preventions** — defence solved; v10 loses
+the open-four race to v7 in both colours.
+
+(First run of this match was killed by a VM/runtime restart
+at 42 games (15W-27L-0D, partial JSON flushed); the re-run
+with the same seeds reproduced the 42-game prefix EXACTLY
+(all 42 records byte-identical — determinism verified), so
+the completed match is the pre-registered one, not a
+different sample.)
+
+### 3.3 Head-to-head vs v0 (100 games, seeds 100/200)
+
+**v10 loses to v0: 39W-61L-0D, win rate 0.3900, 95% CI
+[0.3002, 0.4880]**, 2042.5 s. File:
+`research/iterations/batch-v10-vs-v0.json` (seeds 100/200).
+Per colour: as Black 39W-11L-0D (0.7800), as White
+**0W-50L-0D (0.0000)** — v10-as-White lost EVERY game to the
+frozen baseline heuristic. This is the most extreme colour
+split in the program's history (v4-as-White vs v0 was
+1W-49L, 0.02). v7-as-White vs v0 was 0.62 (30W-18L-2D): the
+White-specific change took White from 0.62 to 0.00 against
+v0, while Black IMPROVED (0.78 vs v7's 0.71 as Black).
+All 50 White losses run 27–29 plies (mean 28.4) — v0's
+crude greedy attack converts against v10-White in ~28
+plies from any opening (11 distinct 10-ply openings across
+the 50 games, 12 distinct lines — not a single-line
+artefact). Mean game length 37.23 plies overall (min 22,
+max 115).
+
+(First run killed by a VM/runtime restart at 27 games
+(11W-16L-0D, split Black 11W-3L / White 0W-13L); the re-run
+with the same seeds reproduced the 27-game prefix exactly.)
+
+**Why White collapses — diagnostic probe (NOT an eval).**
+v10-White differs from v7-White in TWO ways (200 sims, the
+threat check), so the collapse could be either. A three-way
+probe on White turns from the v0 losses separates them:
+v7 (100 sims, no check) vs WhiteMCTS with white_sims=100
+(check only) vs v10 (200 sims + check), same seed:
+
+| Position | Black creators | v7 (100, no chk) | chk-only (100) | v10 (200, chk) | v10's actual move |
+|---|---|---|---|---|---|
+| g1 ply 15 | 2 | (10,5) | (10,5) [filter=1] | (10,5) [filter=1] | (10,5) |
+| g1 ply 21 | 0 | (5,10) | (5,10) [filter=0] | (5,8) [filter=0] | (5,8) |
+| g3 ply 15 | 2 | (4,5) | (4,5) [filter=1] | (4,5) [filter=1] | (4,5) |
+| g3 ply 21 | 0 | (9,10) | (9,10) [filter=0] | (9,8) [filter=0] | (9,8) |
+| g5 ply 17 | 2 | (7,4) | (7,4) [filter=1] | (7,4) [filter=1] | (7,4) |
+
+When Black has creators, all three play the SAME move — the
+threat check engages but does not change the choice (v7
+already plays the safe move). When the position is QUIET
+(0 creators, check disengaged), v7 and the check-only
+version agree, but v10 (200 sims) plays a DIFFERENT move.
+**The sims increase, not the threat check, changes White's
+play.** The threat check is exonerated as the cause of the
+collapse (it is also colour-symmetric, and Black is fine).
+
+A walk-back of game 1 vs v0 refines the mechanism: the
+losing move is ply 21, (5,8) — loses 3/3, with saves (7,5)
+[wins 3/3] and (7,6) [draws 3/3]. (5,8) is exactly the
+sims-flipped move (100 sims plays (5,10)). BUT (5,10) also
+loses 3/3 by the oracle — so the collapse is a SYSTEMATIC
+line divergence across the game (200-sim White takes
+different, worse lines from the opening), not a single
+flipped move. The saves ((7,5), (7,6)) are found by NEITHER
+sims count. Mechanism (hypothesis, supported by the probe
+and the mechanism check in §1): with a misleading prior and
+a weak leaf signal (capped gradient ±0.2), deeper search
+concentrates visits on the prior's favourite — more sims
+means more consistent wrongness in quiet positions, not
+better play. The §1 mechanism check showed the same
+non-monotonicity: the visit gap on fl1-g3-ply23 closes at
+200 sims (26 vs 22) then EXPLODES at 400 (113 vs 29).
+
+### 3.4 Ladder (20 games/opponent, mcts_sims=100, seed 100)
+
+(TBD — running.)
+
+### 3.5 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge)
+
+(TBD — not started.)
 
 ## 4. Bar check (v10 vs v7)
 
