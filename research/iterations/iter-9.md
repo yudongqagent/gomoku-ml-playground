@@ -338,11 +338,85 @@ not silently dropped. The battery runs on the as-registered v9
 
 ### 2.5 Aggregate counts (secondary)
 
-[To be filled from the final battery.]
+Across the three 100-game battery matches (v9 as A): **94 losses,
+94/94 via open four (100%), 0 missed blocks**, 378 threatened turns
+in losses, **5 clean missed preventions (1.3% of threatened turns)**.
+Per match: vs v0 7 losses, 7/7 via open four, 0 missed blocks, 63
+threatened turns, 0 missed preventions; vs v7 39 losses, 39/39 via
+open four, 0 missed blocks, 153 threatened turns, 1 missed
+prevention (0.7%); vs v7 (swap) 48 losses, 48/48 via open four,
+0 missed blocks, 162 threatened turns, 4 missed preventions
+(2.5%). Fast loops add 6 more losses (2 vs v0, 4 vs v7), all via
+open four, 0 missed blocks, 0 missed preventions, 37 threatened
+turns. **Grand total: 100 losses, 100/100 via open four, 0 missed
+blocks, 5 missed preventions in 415 threatened turns (1.2%).**
+Defence is solved for this engine family; every loss is losing
+the open-four race, same as v6/v7/v8. The 5 missed preventions
+are the only concrete errors the classifier finds — and §2.6
+shows even those do not verify as single losing moves.
 
-### 2.6 Worked game(s) from the final battery
+### 2.6 Worked game: swap game 41 — the tie-prior rule's failure mode
 
-[To be filled — verified walk-backs like iter-7 §2.6.]
+Swap match, game 41, v9 as White, 25 plies, Black (v7) wins. The
+classifier flags ply 21 as a clean missed prevention: Black's
+open-four creators were (6,7) and (7,8) (diagonal-adjacent in
+the centre); v9 played **(7,8)**, occupying one creator but
+leaving (6,7) live; Black played (6,7) at ply 22 and created
+the open four; White (9,7) at ply 23 blocked one winning move;
+Black (4,7) at ply 24 won. The preventing moves were **(3,11)
+and (2,12)** — both FORCING (they create a White four, so Black
+must answer instead of playing the creator).
+
+Why v9 played (7,8) — root stats at ply 21 (100 sims, gradient
+leaf): a **three-way tie at 5 visits** between (2,12), (3,11)
+and (7,8). Correctly-signed our-q prefers the preventing moves
+(−0.2044 for both, vs −0.4215 for (7,8)); v1's 1-ply score
+prefers the played move by a mile — (7,8) scores 204024 (rank
+1, occupying a creator square) vs (3,11) 20167 (rank 4) and
+(2,12) 20010 (rank 8). So the priors are (7,8) 0.1244 vs
+(3,11) 0.0391 / (2,12) 0.0390, and **the tie-prior rule picks
+the loser**. Tie-q (variant B) would have played a preventing
+move. v7 (visits, no RNG) plays (7,8) too. This is the exact
+mirror of iter-7 §2.6: there the prior was the only signal
+preferring the saves and q preferred the loser; here q prefers
+the saves and the prior prefers the loser. **Neither signal
+dominates** — which is consistent with the battery verdict
+(v9 ≈ v7).
+
+Verification — and the honest limit: ply 21 does NOT verify as
+a single losing move. The v1-vs-v1 oracle walk-back
+(`walkback_loss.py`, seeds 0,1,2) says the actual move's playout
+WINS 3/3 — the oracle's Black never plays the creator, so the
+1-ply oracle cannot see this loss (an oracle limitation, not
+evidence the move was fine). And match-engine playouts from ply
+21 (v9-as-White vs v7-as-Black, seeds 0,1,2) show the preventing
+moves do NOT save the game either: actual (7,8) loses 3/3,
+(3,11) loses 3/3, (2,12) loses 3/3. The 1-ply prevention only
+defuses the creator for one move — Black must answer the four,
+but the position was already losing and v7 wins it anyway. At
+ply 23, 0 of 8 alternatives save (already lost). **No verified
+single losing move; the loss is distributed drift.** The
+position is therefore NOT added as a regression test (there is
+no verified saving move to assert). Scripts:
+`~/workspace/b4h1-logs/diag_swap_g41.py`,
+`~/workspace/b4h1-logs/verify_swap_g41.py`,
+`~/workspace/b4h1-logs/walkback-swap-g41.json`.
+
+The same structural class accounts for all 4 flagged swap
+preventions: games 43 and 83 are the IDENTICAL game (the same
+balanced placement repeats under placement_seed 11 — creators
+(8,7)/(7,8), v9 plays (8,7), Black plays (7,8)); game 55 is the
+mirror (creators (8,7)/(7,8), v9 plays (7,8), Black plays
+(8,7)). Three distinct positions, one class: two
+diagonal-adjacent creators, v9 blocks one, v7 plays the other.
+The mechanism lesson stands even though the alternative doesn't
+save game 41: **v1's 1-ply score undervalues forcing
+counter-threats (~20k) against occupying a creator (~204k), so
+the prior tie-break systematically prefers blocking one of two
+creators over forcing — and with two creators, blocking one is
+useless.** A future variant could break ties by forcing-ness
+first, then prior — but §2.6's own evidence says even the right
+tie-break doesn't save this game, so the expected gain is small.
 
 ## 3. v9 evaluation
 
@@ -539,8 +613,74 @@ match).]
 
 ## 4. Bar check (v9 vs v7)
 
-[To be filled.]
+| Clause | Requirement | v9 | Verdict |
+|---|---|---|---|
+| 1. Head-to-head | ≥100 games vs v7, win rate > 0.50 with Wilson 95% CI lower > 0.50 | 49W-39L-12D, 0.5500, CI [0.4524, 0.6439] | **FAIL** |
+| 2. Ladder Elo | Strictly > v7's 190.8, identical counts | Estimate undefined (perfect 20-0 vs both anchors), interval [286.6, None]; lower bound 286.6 > 190.8 | **PASS** (see §3.7 caveat) |
+| 3. Tactical | ≥ v7's 20/20 old + 29/29 hard | 20/20 + 29/29 | **PASS** |
+| 4. Test suites | All green | ml pytest 247 passed, 7 skipped, 4 xfailed, 0 failures; npm test/tsc not runnable in this worktree (no node_modules) — coordinator verifies at batch end; no web changes in this branch | **PASS (ml); npm pending coordinator** |
+
+**Verdict: v9 FAILS the bar — clause 1 fails.** v9 beats v7 by
+10 games over 100 (0.5500), but the Wilson 95% CI lower bound
+(0.4524) is below 0.50, so the edge is not established at the
+pre-registered bar. **v9 is REJECTED as the new reference; v7
+remains the reference.** The swap match (48W-48L-4D, 0.5000)
+confirms the reading: under the official rule v9 and v7 are
+indistinguishable. Clauses 2 and 3 pass — v9 is the strongest
+version yet on the ladder (first to tie the baseline MCTS) and
+holds tactical — but the bar requires all 4 clauses, and the
+head-to-head is the clause that matters.
 
 ## 5. What this means
 
-[To be filled.]
+1. **The root-decision hypothesis is refuted as a strength
+   lever at this scale.** The tie-prior rule is a real but small
+   improvement: it shows up big against weak opposition (vs v0:
+   93W-7L, +29 games over v7 on identical seeds — a 29-game
+   swing cannot be a coin flip) and on the ladder (heuristic
+   20-0, first version to tie the baseline MCTS 10-10), but
+   against v7 itself it is +10 games over 100 with a CI that
+   includes 0.50, and under swap it is exactly even. Root
+   visit ties are frequent (24.4% of searched moves vs v0, tie
+   sizes up to 8) and v7's RNG tie-break throws half of them
+   away — but against an MCTS opponent the tied moves are
+   genuinely close in value, so the prior's edge is small.
+   The rule is worth keeping in the codebase (it is strictly
+   better than an RNG coin flip and costs nothing), but it is
+   not a step change.
+2. **The §1.0 sign correction stands, and the q-rules are dead.**
+   Every q-involving variant lost to v7 in the smoke (A 0.20,
+   B 0.45, C 0.30); pure q is catastrophic (tactical 19/20 +
+   22/29). At 100 sims the search's q is too noisy to decide
+   the root move — a 1-visit child can win on one lucky leaf.
+   The iter-7 §2.6 rationale for H1 was sign-inverted; the
+   corrected evidence pointed to the prior, and the prior
+   delivered exactly the small, real gain the evidence
+   supported. Do not revisit q-based root decisions at this
+   sim count.
+3. **The tie-prior rule has a known failure mode (§2.6).**
+   When the only prevention is a forcing counter-threat, v1's
+   1-ply score undervalues it (~20k) against occupying a
+   creator (~204k), so the prior tie-break prefers blocking
+   one of two creators over forcing — and with two creators,
+   blocking one is useless. Tie-q would have saved that
+   position's root decision; tie-prior lost it. A
+   forcing-first tie-break is the obvious next micro-variant,
+   but §2.6's own verification says even the right tie-break
+   doesn't save that game — the expected gain is small.
+4. **The White game is where v9 improved — and it is still the
+   gap.** v9's entire edge over v7 comes as White (29W-13L-8D,
+   0.66; as Black 20W-26L-4D, 0.44). v7's White game was its
+   weak side (0.52 vs v1); v9's tie-break helps the
+   defending/counterattacking side more. This is the
+   batch-4 H2 candidate's territory (White weakness /
+   colour-conditional value) — v9's result says the White
+   game is improvable by small changes, but a tie-break alone
+   does not close it.
+5. **The open-four race is still the whole game.** 100/100
+   losses via open four, 0 missed blocks, 5 missed preventions
+   in 415 threatened turns. Defence is solved; the gap is
+   attack — finding the open four first. The next lever is
+   not a root-decision rule; it is the H2/H3 candidates
+   (colour-conditional value, value net on heuristic-opponent
+   games) or a stronger attack gradient.
