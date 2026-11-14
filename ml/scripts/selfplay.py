@@ -69,11 +69,27 @@ def main() -> int:
     parser.add_argument("--concurrency", type=int, default=1,
                         help="games played at once with batched leaf eval "
                         "(default 1 = the original sequential single-leaf "
-                        "path; >1 uses generate_games_batched)")
+                        "path; >1 uses generate_games_batched; with "
+                        "--workers > 1 this is the per-worker concurrency)")
     parser.add_argument("--max-batch-size", type=int, default=32,
                         help="max positions per batched forward pass "
                         "(only used with --concurrency > 1)")
+    parser.add_argument("--workers", type=int, default=1,
+                        help="worker processes for parallel self-play "
+                        "(default 1 = the single-process path, unchanged; "
+                        ">1 runs generate_games_parallel: each worker runs "
+                        "the batched path with --concurrency games at once "
+                        "into its own shard dir, then the shards are merged "
+                        "into the run dir — see "
+                        "research/iterations/b1-parallel-selfplay.md)")
     args = parser.parse_args()
+    if args.workers < 1:
+        print(f"--workers must be >= 1, got {args.workers}", file=sys.stderr)
+        return 2
+    if args.workers > 1 and args.concurrency < 1:
+        print(f"--concurrency must be >= 1, got {args.concurrency}",
+              file=sys.stderr)
+        return 2
 
     try:
         cfg = load_config(common.config_path(args.config))
@@ -91,6 +107,15 @@ def main() -> int:
 
     with runs.Run(run_dir) as run:
         run.save_config(cfg)
+        # Recover completed games orphaned by an interrupted parallel
+        # run BEFORE the top-up computation, so they are counted and
+        # not regenerated (a no-op when there are no leftovers).
+        recovered = selfplay.recover_parallel_shards(out_dir, cfg["run_name"])
+        if recovered["merged"]:
+            run.info(
+                f"recovered {len(recovered['merged'])} orphaned shard(s) "
+                "from an interrupted parallel run"
+            )
         # Top-up: generate only the games still missing to reach the
         # target total (see module docstring).
         already = selfplay.existing_game_count(out_dir, cfg["run_name"])
@@ -99,7 +124,8 @@ def main() -> int:
                       config=cfg["run_name"], games=num_games, sims=sims,
                       games_existing=already, games_to_generate=to_generate,
                       concurrency=args.concurrency,
-                      max_batch_size=args.max_batch_size)
+                      max_batch_size=args.max_batch_size,
+                      workers=args.workers)
         run.info(f"run dir: {run_dir}")
         if to_generate == 0:
             run.info(
@@ -115,14 +141,86 @@ def main() -> int:
                 f"generating {to_generate} more to reach {num_games}"
             )
 
+        arch = cfg["architecture"]
+        checkpoint = args.checkpoint or cfg.get("base_checkpoint")
+        game_kwargs = dict(
+            temperature_moves=int(sp["temperature_moves"]),
+            temperature=float(sp["temperature"]),
+            resign_threshold=sp["resign_threshold"],
+            max_moves=int(sp["max_moves"]),
+        )
+        run.info(f"generating {to_generate} games x {sims} sims -> {out_dir}")
+        if args.workers > 1:
+            # Parallel path: the parent never builds the net — each
+            # worker loads its own copy from this spec (spawn).
+            if checkpoint:
+                run.info(f"workers will load checkpoint {checkpoint}")
+            else:
+                run.info("no checkpoint given: workers will play with a "
+                         "randomly initialised net")
+            run.info(
+                f"parallel mode: workers={args.workers}, "
+                f"concurrency per worker={args.concurrency}, "
+                f"max_batch_size={args.max_batch_size}"
+            )
+            paths = selfplay.generate_games_parallel(
+                selfplay.NetSpec(
+                    arch_name=arch["name"],
+                    arch_params=arch["params"],
+                    checkpoint=checkpoint,
+                    device=args.device,
+                    c_puct=float(sp["c_puct"]),
+                    dirichlet_alpha=float(sp["dirichlet_alpha"]),
+                    dirichlet_epsilon=float(sp["dirichlet_epsilon"]),
+                ),
+                num_games=to_generate,
+                num_simulations=sims,
+                out_dir=out_dir,
+                run_name=cfg["run_name"],
+                workers=args.workers,
+                concurrency=args.concurrency,
+                max_batch_size=args.max_batch_size,
+                seed=int(cfg["seed"]),
+                on_event=lambda rec: run.log_event(**rec),
+                live_path=os.path.join(run_dir, "current_game.json"),
+                stop_flag=flag,
+                checkpoint_every_games=int(sp["checkpoint_every_games"]),
+                **game_kwargs,
+            )
+            if flag.requested:
+                completed_total = already + len(paths)
+                remaining = num_games - completed_total
+                resume_cmd = (
+                    f"ml/.venv/bin/python ml/scripts/selfplay.py "
+                    f"--config {common.config_path(args.config)} "
+                    f"--run-dir {run_dir} --games {num_games} "
+                    f"--workers {args.workers} "
+                    f"--concurrency {args.concurrency}"
+                )
+                run.log_event(
+                    "run_interrupted", kind="selfplay",
+                    signal=flag.signal_name,
+                    games_completed=completed_total,
+                    games_remaining=remaining, resume_command=resume_cmd,
+                )
+                run.info(
+                    f"interrupted ({flag.signal_name}) — "
+                    f"{completed_total}/{num_games} games completed and "
+                    "saved; re-run the same command to top up the rest:"
+                )
+                run.info(f"  {resume_cmd}")
+                return flag.exit_code()
+            run.log_event("run_finished", kind="selfplay", games=len(paths))
+            run.info(f"done. {already + len(paths)} shards in {out_dir}")
+            return 0
+
+        # Single-process path (unchanged behaviour).
         # Seed for reproducibility (Dirichlet noise, move sampling, and
         # the random-init weights all draw from these generators).
         np.random.seed(int(cfg["seed"]))
         torch.manual_seed(int(cfg["seed"]))
 
-        arch = cfg["architecture"]
         model = build_architecture(arch["name"], arch["params"])
-        checkpoint = args.checkpoint or cfg.get("base_checkpoint")
         if checkpoint:
             load_checkpoint(checkpoint, model, device=args.device)
             run.info(f"loaded checkpoint {checkpoint}")
@@ -139,13 +237,6 @@ def main() -> int:
             c_puct=float(sp["c_puct"]),
             dirichlet_alpha=float(sp["dirichlet_alpha"]),
             dirichlet_epsilon=float(sp["dirichlet_epsilon"]),
-        )
-        run.info(f"generating {to_generate} games x {sims} sims -> {out_dir}")
-        game_kwargs = dict(
-            temperature_moves=int(sp["temperature_moves"]),
-            temperature=float(sp["temperature"]),
-            resign_threshold=sp["resign_threshold"],
-            max_moves=int(sp["max_moves"]),
         )
         if args.concurrency > 1:
             run.info(
