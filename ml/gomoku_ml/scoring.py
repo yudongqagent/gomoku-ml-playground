@@ -61,7 +61,10 @@ module-level :func:`score_move` / :func:`choose_move` / :class:`ScoringPlayer`
 defaults stay v1 forever so old results remain reproducible and old
 versions stay importable for A/B comparisons. v2 tests a defence
 discount (0.9); v3 adds a 2-ply threat check (prefer a move that
-leaves the opponent with no live open-four creator).
+leaves the opponent with no live open-four creator). v4 adds a 2-ply
+minimax over the top 1-ply candidates (opponent modelled as v1;
+positions evaluated by best-attack difference — see
+:func:`_minimax_choose`).
 """
 
 from __future__ import annotations
@@ -105,6 +108,23 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # open-four creators (or a forcing move) whenever the 1-ply best
     # does not.
     3: {"name": "scoring-v3", "defence_weight": 1.0, "threat_check": True},
+    # v4 (iteration 4, batch 2): v1 + 2-ply minimax over the top-K
+    # 1-ply candidates. Batch 1's loss analysis: every decisive game
+    # (35/35) was decided by an open four, and v1 loses the race to
+    # the first open four (loses fast, 27.5 plies; wins slow, 69.5).
+    # A 1-ply scorer can value open fours but cannot PLAN a sequence
+    # to create one while denying the opponent's. v4 searches: for
+    # each of the top-K 1-ply moves, it plays the opponent's v1 best
+    # reply, then evaluates the resulting position by best-attack
+    # difference (attack-only — the TOTAL score is colour-symmetric
+    # at defence_weight=1.0, so a total-score difference would always
+    # be 0; see _score_parts_flat). Unlike v3's safety filter (which
+    # only avoids losing creators), minimax also FINDS attacking
+    # sequences: a move that creates a double threat while the
+    # opponent's reply is forced scores highly. Cost: ~8 opponent
+    # replies + ~16 attack scans per move (~70 ms/call worst case).
+    4: {"name": "scoring-v4", "defence_weight": 1.0, "threat_check": False,
+        "minimax": True, "minimax_topk": 8},
 }
 
 # --- weights --------------------------------------------------------------
@@ -443,10 +463,84 @@ def _move_is_safe(board: np.ndarray, move: int, player: int,
     return True
 
 
+# --- 2-ply minimax (v4) -----------------------------------------------------
+# For each of the top-K 1-ply candidates, play the opponent's v1 best
+# reply, then evaluate the resulting position statically. The static
+# evaluation is the BEST-ATTACK DIFFERENCE (attack-only scores): the
+# total score is colour-symmetric at defence_weight=1.0 (attack and
+# defence swap roles between colours — see _score_parts_flat), so a
+# total-score difference would always be 0. Attack-only scores are
+# colour-asymmetric: a side with a winning move next scores 10M, a
+# side facing an open four scores 200k, so the difference encodes
+# who wins the open-four race from the resulting position.
+#
+# The opponent is modelled as v1 (win/block scans + best 1-ply move,
+# no threat check, no minimax — the reply call must NOT recurse into
+# minimax). Ties on minimax value break toward the better 1-ply
+# score, then the RNG (or the first move when no RNG is given).
+
+def _best_attack_on(board: np.ndarray, player: int,
+                    defence_weight: float = 1.0) -> int:
+    """Max attack-only score for ``player`` over the candidate moves
+    on ``board`` (0 when the board has no candidates)."""
+    flat = board.reshape(-1).tolist()
+    best = 0
+    for m in _candidate_moves(board):
+        attack, _defence = _score_parts_flat(flat, m, player, defence_weight)
+        if attack > best:
+            best = attack
+    return best
+
+
+def _minimax_choose(board: np.ndarray, player: int,
+                    flat: list[int],
+                    scored: list[tuple[int, int]],
+                    rng: np.random.Generator | None,
+                    defence_weight: float,
+                    topk: int) -> int:
+    """Pick the best of the top-``topk`` 1-ply candidates by 2-ply
+    minimax. ``scored`` is the 1-ply ``(score, move)`` list from
+    :func:`_choose_move` (win/block scans already ran, so no
+    candidate wins immediately and the opponent has no immediate win
+    on the current board). Returns a legal move."""
+    top = sorted(scored, key=lambda sm: (-sm[0], sm[1]))[:max(1, topk)]
+    best_key: tuple[int, int] | None = None
+    best_moves: list[int] = []
+    for s1, move in top:
+        b2 = game.apply_move(board, move, player)
+        if game.is_winning_stone(b2, move, player):
+            return move  # unreachable (win scan runs first) but safe
+        if len(game.legal_moves(b2)) == 0:
+            key = (0, s1)  # our move fills the board: draw
+        else:
+            # Opponent's best reply, modelled as v1 (no minimax —
+            # no recursion).
+            reply = _choose_move(b2, -player, None, defence_weight,
+                                 threat_check=False, minimax=False)
+            b3 = game.apply_move(b2, reply, -player)
+            if game.is_winning_stone(b3, reply, -player):
+                # The opponent wins on the reply: this candidate loses.
+                key = (-WIN_SCORE, s1)
+            else:
+                ours = _best_attack_on(b3, player, defence_weight)
+                theirs = _best_attack_on(b3, -player, defence_weight)
+                key = (ours - theirs, s1)
+        if best_key is None or key > best_key:
+            best_key = key
+            best_moves = [move]
+        elif key == best_key:
+            best_moves.append(move)
+    if rng is not None:
+        return int(rng.choice(best_moves))
+    return best_moves[0]
+
+
 def _choose_move(board: np.ndarray, player: int,
                  rng: np.random.Generator | None,
                  defence_weight: float,
-                 threat_check: bool = False) -> int:
+                 threat_check: bool = False,
+                 minimax: bool = False,
+                 minimax_topk: int = 8) -> int:
     """Versioned move choice (see :func:`choose_move`).
 
     With ``threat_check`` (v3): after the win/block scans, if the
@@ -455,6 +549,11 @@ def _choose_move(board: np.ndarray, player: int,
     the 1-ply best move when the 1-ply best is unsafe. If no safe
     move exists, fall back to the 1-ply best. With no opponent
     creator, v3 chooses exactly like v1.
+
+    With ``minimax`` (v4): after the win/block scans, pick the best
+    of the top-``minimax_topk`` 1-ply candidates by 2-ply minimax
+    (see :func:`_minimax_choose`). ``minimax`` takes precedence over
+    ``threat_check`` (no version sets both).
     """
     legal = game.legal_moves(board)
     if len(legal) == 0:
@@ -481,6 +580,9 @@ def _choose_move(board: np.ndarray, player: int,
             return int(rng.choice(moves))
         return moves[0]
 
+    if minimax:
+        return _minimax_choose(board, player, flat, scored, rng,
+                               defence_weight, minimax_topk)
     if not threat_check:
         return _pick(best_moves)
     # 3b. 2-ply threat check: if the opponent can create an open four
@@ -533,6 +635,8 @@ class ScoringPlayer:
         self.name = ENGINE_VERSIONS[version]["name"]
         self.defence_weight = ENGINE_VERSIONS[version]["defence_weight"]
         self.threat_check = ENGINE_VERSIONS[version].get("threat_check", False)
+        self.minimax = ENGINE_VERSIONS[version].get("minimax", False)
+        self.minimax_topk = ENGINE_VERSIONS[version].get("minimax_topk", 8)
         self.rng = np.random.default_rng(seed)
 
     def score_move(self, board: np.ndarray, move: int, player: int) -> int:
@@ -543,7 +647,8 @@ class ScoringPlayer:
 
     def choose_move(self, board: np.ndarray, player: int) -> int:
         return _choose_move(
-            board, player, self.rng, self.defence_weight, self.threat_check
+            board, player, self.rng, self.defence_weight, self.threat_check,
+            self.minimax, self.minimax_topk,
         )
 
 

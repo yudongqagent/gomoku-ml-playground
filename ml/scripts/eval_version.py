@@ -39,9 +39,16 @@ def main() -> int:
 
     print(f"== tactical suite (20 positions): {player.name} ==",
           file=sys.stderr)
+    # NOTE (batch 2): the tactical probe must use the version's FULL
+    # move choice (threat check / minimax), not just its defence
+    # weight — an earlier version of this driver dropped the search
+    # flags, so v3's 20/20 was measured as v1. rng stays None so
+    # tactical measurement is deterministic and comparable with
+    # batch-1 numbers.
     tac = research.run_tactical(
         lambda board, p: scoring._choose_move(
-            board, p, None, player.defence_weight
+            board, p, None, player.defence_weight, player.threat_check,
+            player.minimax, player.minimax_topk,
         )
     )
     out["tactical"] = tac
