@@ -1,0 +1,78 @@
+{
+  "version": 11,
+  "description": "Fast-loop iteration 1 critical positions: the losing move of each v11-vs-v0 loss and the oracle-verified perfect move instead. The patched engine must play an expected move on every position (fl1-g9-ply11 is a known xfail \u2014 the q-vs-visits gap, H1's territory \u2014 see its note).",
+  "positions": [
+    {
+      "id": "fl1-g9-ply11",
+      "source": "fast-v11-vs-v0-iter1.json game 9, ply 11 (v11 White, lost in 25 plies)",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          9,
+          8
+        ],
+        [
+          10,
+          9
+        ],
+        [
+          8,
+          9
+        ]
+      ],
+      "white": [
+        [
+          8,
+          6
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          11,
+          10
+        ]
+      ],
+      "to_move": "white",
+      "played_before_patch": [
+        6,
+        6
+      ],
+      "expected": [
+        [
+          11,
+          6
+        ],
+        [
+          10,
+          7
+        ],
+        [
+          11,
+          9
+        ]
+      ],
+      "note": "Oracle-verified losing move (walkback, seeds 0/1/2): (6,6) loses 3/3; (11,6) wins 3/3, (10,7) and (11,9) draw 3/3. v11's own search KNOWS (6,6) is bad (q=-0.105, 30 visits) vs (11,6) (q=+0.024, 4 visits) but most-visited picks (6,6) \u2014 the q-vs-visits gap (iter-7 \u00a72.6), batch-4 H1's territory. The net's leaf values are near-neutral here (+0.022 vs 0.000 for White), so no H3-scope leaf patch fixes it. xfail: open weakness, H1's target. See iter-11.md \u00a75.1."
+    }
+  ]
+}

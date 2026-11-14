@@ -423,9 +423,72 @@ deeper search / corrected playout oracle), patch to the
 structural cause, regression position recorded, replay
 verified.
 
-### 5.1 Iteration 1
+### 5.1 Iteration 1 — vs v0, 8W-1L-1D; the single loss is H1's gap, not H3's
 
-(TBD — 10 games vs v0, dev seeds 500/600, α=0.125.)
+**Result: v11 8W-1L-1D (0.85, CI [0.5411, 0.9646]) vs v0, 866 s
+(~87 s/game — inflated by a 225-ply draw, game 0; the other 9
+games averaged ~50 s).** `research/iterations/fast-v11-vs-v0-iter1.json`.
+Mean 70.0 plies. Classifier: 1 loss via open four, 0 missed
+blocks in 102 threatened turns, 0 missed preventions. Defence
+is solved, as for every version since v6.
+
+**The single loss — game 9 (v11 White, 25 plies).** Moves
+(r,c): (7,7) (6,8) (6,7) (8,7) (7,8) (7,6) (8,9) (5,6) (9,10)
+(10,11) (9,8) (6,6) (8,6) (4,6) (3,6) (5,7) (7,9) (2,4) (3,5)
+(7,10) (9,9) (4,8) (9,7) (8,4) (9,6). Black wins by completing
+the row-9 five: (9,10), (9,8), (9,9), (9,7), (9,6).
+
+**THE losing move: ply 11, (6,6)** — verified by the corrected
+oracle (`walkback_loss.py`, seeds 0/1/2):
+- Ply 9 (actual (10,11) in (x,y)): draws 3/3 — does NOT lose.
+- Ply 11 (actual (6,6)): loses 3/3; 5 of 6 alternatives save:
+  (11,6) wins 3/3, (10,7) and (11,9) draw 3/3, (6,9) and (7,10)
+  save at 2/3 seeds each. (9,9) also loses 3/3.
+- Plies 13, 15, 17, 19, 21, 23: actual loses 3/3 but the game
+  is already lost (plies 17+ have 0 saving alternatives).
+
+The position at ply 11 is QUIET (0 opponent wins, 0 opponent
+threats), and (6,6) is the 1-ply-best move by every local
+criterion: v1 score 4096 (rank 8/67), 2 own threats after
+(more than any alternative). The loss is a slow race, not a
+tactical miss — the same class as iter-6/iter-8's
+"no single losing move" cases, except the oracle DOES
+pinpoint it here.
+
+**Why v11 played (6,6) — v11's own search on the position:**
+(6,6) has 30 visits, q=-0.105 (NEGATIVE — the worst of the
+top children); (11,6) has 4 visits, q=+0.024. The search
+KNOWS (6,6) is bad and (11,6) is good, but most-visited picks
+(6,6). This is the q-vs-visits pathology of iter-7 §2.6:
+(6,6)'s early threat-creation lines (+1 terminal leaves in
+the subtree) attract visits before the deeper −1s propagate,
+and the visit count never corrects. The net's leaf values are
+near-neutral here (after (6,6): +0.022 for White; after
+(11,6): −0.000) — at α=0.125 the net is NOT the cause.
+
+**Patch decision: NO PATCH from iteration 1.** The structural
+cause is the q-vs-visits root decision — batch-4 H1's
+workstream (candidate 1 in the batch-4 plan), not H3's. There
+is no H3-scope (value-net / leaf) patch for a position where
+the net's values are neutral and the loss comes from the
+search's visit dynamics. Patching the root rule here would
+duplicate H1's work and confound v11's A/B (the change would
+no longer be attributable to the training distribution).
+
+**Regression:** the position is recorded as
+`fl1-g9-ply11` in `ml/gomoku_ml/regression_positions_v11.json`
+(expected: (11,6), (10,7), (11,9); played: (6,6)) with an
+xfail test in `ml/tests/test_regression_v11.py` — a documented
+open weakness and a concrete test case for H1, never silently
+dropped.
+
+### 5.2 Iteration 2
+
+(TBD — vs v7, dev seeds 501/601, α=0.125. v0 is no longer a
+good weakness-exposing opponent for v11 — 8W-1L-1D with the
+single loss's mechanism in H1's territory — so iteration 2
+uses the bar opponent, which will produce more losses to learn
+from.)
 
 **Cross-distribution checks (pre-registered, diagnostic, cheap
 — run with `ml/scripts/eval_value_holdout.py`, no training):**
