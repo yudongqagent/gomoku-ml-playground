@@ -259,11 +259,16 @@ recorded here, not in that file.
 
 **Second VM replacement (~09:26 UTC, 403 games done).** Same
 story: all 403 shards safe, resumed with the next fresh seed (2)
-via `ml/configs/b3-h2-selfplay-resume2.yaml`. **Final seed split:
-games 1–238 seed 0, games 239–403 seed 1, games 404–500 seed 2.**
-(A duplicate 25-minute progress check was accidentally launched
-just before this replacement; both waiters died with the VM.
-One waiter at a time from here on.)
+via `ml/configs/b3-h2-selfplay-resume2.yaml`. (A duplicate
+25-minute progress check was accidentally launched just before
+this replacement; both waiters died with the VM. One waiter at a
+time from here on.)
+
+**Third VM replacement (~11:26 UTC, 468 games done).** Same
+story again: all 468 shards safe, resumed with the next fresh
+seed (3) via `ml/configs/b3-h2-selfplay-resume3.yaml`. **Final
+seed split: games 1–238 seed 0, games 239–403 seed 1, games
+404–468 seed 2, games 469–500 seed 3.**
 
 (TBD — generation completion time, final games/hour, shard stats;
 hold-out split; training run; hold-out accuracy for best.pt /
