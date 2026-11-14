@@ -706,8 +706,20 @@ weakness left to fix.
   pass.
 
 Raw JSON: `research/iterations/batch-v8-tactical-pre.json`
-(copied from the run output; TACTICAL_JSON line). Re-run on
-the final patched v8 for the battery (TBD below).
+(copied from the run output; TACTICAL_JSON line).
+
+**Final patched v8 (4,350-game net + threat check +
+VALUE_WEIGHT 0.25)** — same driver, seed 0 (2026-11-14, 23 s
+for 49 positions):
+
+- **Old suite: 20/20 (100%).**
+- **Hard suite: 29/29 (100%)** — the threat check (§4.1)
+  fixed all 5 prevention fails with no regressions; the
+  α=0.25 shrink (§4.2) did not regress tactics. Raw JSON:
+  `research/iterations/batch-v8-tactical-patched2.json`
+  (patched1 is the same 29/29 with α=1.0).
+  **Clause 3 PASSES** (20/20 and 29/29 ≥ v1's 20/20 and
+  12/29).
 
 **4,350-game net (the final v8 leaf)** —
 `ml/scripts/eval_tactical_full.py --version 8 --suite both
@@ -744,11 +756,10 @@ First attempt at this smoke (started 13:19 UTC) was killed by
 the ~13:50 UTC VM replacement after ~36 min with no output —
 the reason match scripts now flush after every game.
 
-(TBD — smoke for the 4,350-game net, same seeds, for the
-direct comparison.)
+These 13 lost games are fast-loop iteration 1's material (§4.1).
 
-**4,350-game net (the final v8 leaf): 5W-13L-2D, win rate
-0.30, 95% CI [0.1455, 0.519]** —
+**4,350-game net (the final v8 leaf), unpatched: 5W-13L-2D,
+win rate 0.30, 95% CI [0.1455, 0.519]** —
 `batch-v8-vs-v1-smoke-4350.json` (20 games, 268 s, ~13 s/game
 with 1-thread pinning). The better value function plays WORSE
 against v1: 13 losses (vs 4) and only 2 draws (vs 7), mean
@@ -758,6 +769,15 @@ made v8 play for wins instead of draws, but it loses the
 open-four race — consistent with the tactical finding that the
 new net undervalues PREVENTION (all 5 hard-suite fails).
 These 13 lost games are fast-loop iteration 1's material (§4.1).
+
+**Final patched v8 (threat check + VALUE_WEIGHT 0.25):
+11W-7L-2D, win rate 0.60, 95% CI [0.3866, 0.7812]** —
+`batch-v8-vs-v1-smoke-patched.json` (20 games, 384 s). The
+patches doubled the smoke win rate (0.30 → 0.60) and restored
+the normal Black edge (Black 7W-2L-1D, White 4W-5L-1D). CI
+still includes 0.50 at n=20 — and the 100-game battery (§5.3)
+showed the 0.60 was a first-20-games fluke (games 20–99 went
+0.45). The smoke is not evidence; the battery is.
 
 ### 5.3 Head-to-head vs v1 (100 games, seeds 100/200)
 
