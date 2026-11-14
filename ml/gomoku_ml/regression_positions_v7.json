@@ -1,0 +1,458 @@
+{
+  "version": 7,
+  "description": "Fast-loop iteration 1 critical positions: the losing move of each v7-vs-v0 loss and the oracle-verified perfect move instead. The patched engine must play an expected move on every position (game 3 is a known xfail \u2014 see its note).",
+  "positions": [
+    {
+      "id": "fl1-g1-ply13",
+      "source": "fastloop1-v7-vs-v0.json game 1, ply 13",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          5,
+          6
+        ]
+      ],
+      "white": [
+        [
+          9,
+          5
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          7,
+          4
+        ],
+        [
+          8,
+          4
+        ]
+      ],
+      "to_move": "white",
+      "expected": [
+        [
+          8,
+          6
+        ]
+      ],
+      "played_before_patch": [
+        4,
+        6
+      ],
+      "note": "White to move, Black holds 2 creators. (8,6) is the dual-purpose block+counterattack (v1 rank 1); (4,6) is the pure flank block (v1 rank 2) that the uncapped gradient preferred (0.510 vs 0.245) and that loses. Oracle: (4,6) loses 3/3, (8,6) wins 3/3."
+    },
+    {
+      "id": "fl1-g3-ply23",
+      "source": "fastloop1-v7-vs-v0.json game 3, ply 23",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          5,
+          4
+        ],
+        [
+          8,
+          9
+        ],
+        [
+          8,
+          10
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          10,
+          9
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "white": [
+        [
+          5,
+          5
+        ],
+        [
+          7,
+          10
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          9,
+          8
+        ],
+        [
+          4,
+          3
+        ],
+        [
+          9,
+          10
+        ],
+        [
+          8,
+          11
+        ],
+        [
+          7,
+          11
+        ],
+        [
+          11,
+          9
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          6,
+          8
+        ]
+      ],
+      "to_move": "white",
+      "expected": [
+        [
+          9,
+          12
+        ]
+      ],
+      "played_before_patch": [
+        4,
+        9
+      ],
+      "note": "White to move, Black holds 2 creators. (9,12) is FORCING (creates a four, v1 rank 8) and wins 3/3 in the oracle; (4,9) is the pure block (v1 rank 2) that loses 3/3. KNOWN OPEN WEAKNESS: no leaf patch fixes this one \u2014 the forcing move is starved by its low prior (0.04) in 100 sims. Iteration-2 target (forcing-move exploration). xfail."
+    },
+    {
+      "id": "fl1-g5-ply21",
+      "source": "fastloop1-v7-vs-v0.json game 5, ply 21",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          4,
+          7
+        ],
+        [
+          9,
+          10
+        ],
+        [
+          9,
+          12
+        ]
+      ],
+      "white": [
+        [
+          5,
+          5
+        ],
+        [
+          9,
+          7
+        ],
+        [
+          8,
+          9
+        ],
+        [
+          10,
+          10
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          7,
+          10
+        ],
+        [
+          8,
+          10
+        ],
+        [
+          8,
+          11
+        ]
+      ],
+      "to_move": "white",
+      "expected": [
+        [
+          5,
+          7
+        ],
+        [
+          8,
+          12
+        ]
+      ],
+      "played_before_patch": [
+        9,
+        11
+      ],
+      "note": "White to move, Black holds 2 creators. (5,7) is FORCING (creates a four, v1 rank 4) and (8,12) is the quiet setup \u2014 both win 3/3 in the oracle. (9,11) is the v1-rank-1 block the uncapped gradient preferred (0.762) and that loses 3/3. The capped engine plays (8,12)."
+    },
+    {
+      "id": "fl1-g7-ply15",
+      "source": "fastloop1-v7-vs-v0.json game 7, ply 15",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          7,
+          8
+        ]
+      ],
+      "white": [
+        [
+          9,
+          5
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          6,
+          10
+        ],
+        [
+          4,
+          10
+        ],
+        [
+          4,
+          9
+        ]
+      ],
+      "to_move": "white",
+      "expected": [
+        [
+          7,
+          10
+        ]
+      ],
+      "played_before_patch": [
+        7,
+        6
+      ],
+      "note": "White to move, Black holds 2 creators. (7,10) is the dual-purpose block+counterattack (v1 rank 1); (7,6) is the pure block (v1 rank 2) that the uncapped gradient preferred (0.671 vs 0.635) and that loses. Oracle: (7,6) loses 3/3, (7,10) draws/wins."
+    },
+    {
+      "id": "fl1-g9-ply15",
+      "source": "fastloop1-v7-vs-v0.json game 9, ply 15",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "white": [
+        [
+          9,
+          5
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          9,
+          8
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          4,
+          10
+        ],
+        [
+          5,
+          10
+        ]
+      ],
+      "to_move": "white",
+      "expected": [
+        [
+          4,
+          7
+        ]
+      ],
+      "played_before_patch": [
+        8,
+        7
+      ],
+      "note": "White to move, Black holds 2 creators. (4,7) is the dual-purpose block+counterattack (v1 rank 1); (8,7) is the pure block (v1 rank 2) that the uncapped gradient preferred (0.671 vs 0.635) and that loses. Oracle: (8,7) loses 3/3, (4,7) wins/draws."
+    }
+  ]
+}

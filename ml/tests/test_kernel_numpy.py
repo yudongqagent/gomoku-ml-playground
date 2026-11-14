@@ -22,9 +22,26 @@ import numpy as np
 import pytest
 
 from gomoku_ml import baseline, game
-from gomoku_ml.kernel_numpy import score_all, score_batch
+from gomoku_ml.kernel_numpy import attack_all, attack_both, score_all, score_batch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _ref_attack(board, player):
+    """Pure-Python attack-only reference, built from baseline
+    internals: for each cell, the sum over the 4 directions of the
+    mover's weight only — no opponent part, no centre term."""
+    out = np.zeros((game.SIZE, game.SIZE), dtype=np.int64)
+    for y in range(game.SIZE):
+        for x in range(game.SIZE):
+            total = 0
+            for dy, dx in ((0, 1), (1, 0), (1, 1), (1, -1)):
+                run, ends = baseline._run_and_open_ends(
+                    board, y, x, dy, dx, player
+                )
+                total += baseline._WEIGHTS.get((min(run, 5), ends), 0)
+            out[y, x] = total
+    return out
 
 
 def load_fixtures():
@@ -107,3 +124,61 @@ def test_invalid_inputs_raise():
         score_all(np.zeros((14, 15), dtype=np.int8), game.BLACK)
     with pytest.raises(ValueError):
         score_batch(np.zeros((3, 15, 14), dtype=np.int8), game.BLACK)
+    with pytest.raises(ValueError):
+        attack_all(board, 0)
+    with pytest.raises(ValueError):
+        attack_all(np.zeros((14, 15), dtype=np.int8), game.BLACK)
+    with pytest.raises(ValueError):
+        attack_both(np.zeros((14, 15), dtype=np.int8))
+
+
+def test_attack_all_matches_python_reference_both_players():
+    """attack_all == the pure-Python attack-only reference built from
+    baseline internals, both players, all 225 cells, every fixture
+    (0 mismatches required — this is the v7 leaf's input)."""
+    for fx in load_fixtures():
+        board = _board(fx)
+        for player in (game.BLACK, game.WHITE):
+            expected = _ref_attack(board, player)
+            got = attack_all(board, player)
+            assert (got == expected).all(), (
+                f"{fx['id']} player {player}: "
+                f"{int((got != expected).sum())} mismatched cells"
+            )
+
+
+def test_attack_both_matches_attack_all():
+    """attack_both returns exactly attack_all for each colour."""
+    for fx in load_fixtures():
+        board = _board(fx)
+        black, white = attack_both(board)
+        assert (black == attack_all(board, game.BLACK)).all()
+        assert (white == attack_all(board, game.WHITE)).all()
+
+
+def test_attack_all_is_friendly_part_only():
+    """attack_all excludes the opponent part and the centre term.
+    On an empty board every interior cell's attack is exactly 40
+    (four directions of (1, 2) = 10 each); edge cells have fewer
+    open ends (13 on a non-corner edge, 3 in a corner). On real
+    boards: attack_all is bounded above by score_all minus the
+    centre term (the opponent part is >= 0), and the two colours'
+    attacks sum to at least that (the opponent part in score_all
+    is the 0.9-discounted attack, so the undiscounted sum is >= it).
+    """
+    board = game.empty_board()
+    got = attack_all(board, game.BLACK)
+    assert (got[1:-1, 1:-1] == 40).all(), "empty board interior: 4 x (1,2)=10"
+    assert (got[0, 1:-1] == 13).all() and (got[-1, 1:-1] == 13).all()
+    assert (got[1:-1, 0] == 13).all() and (got[1:-1, -1] == 13).all()
+    assert got[0, 0] == 3 and got[0, -1] == 3 and got[-1, 0] == 3 and got[-1, -1] == 3
+    ys, xs = np.mgrid[0:15, 0:15]
+    centre = 7 - (np.abs(xs - 7) + np.abs(ys - 7))
+    for fx in load_fixtures():
+        board = _board(fx)
+        for player in (game.BLACK, game.WHITE):
+            ours = attack_all(board, player)
+            theirs = attack_all(board, -player)
+            total = score_all(board, player)
+            assert (ours <= total - centre).all()
+            assert (ours + theirs >= total - centre).all()

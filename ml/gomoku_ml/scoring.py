@@ -158,6 +158,24 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # this version (the MCTS uses v1's scorer for priors).
     6: {"name": "scoring-v6", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100},
+    # v7 (iteration 7, batch 3): H1 — v6's PUCT MCTS with an ATTACK
+    # GRADIENT in quiet leaf positions (see
+    # gomoku_ml.mcts_heuristic._gradient_leaf_value and
+    # research/iterations/iter-7.md). v6's terminal-only leaf values
+    # every quiet position at 0, so the search has no gradient
+    # toward building threats and loses the open-four race (iter-6
+    # §2: 166/166 losses via open four, 0 missed blocks). v7 keeps
+    # v6's terminal values exactly and values quiet leaves by the
+    # BREADTH of each side's attack (count of high-attack moves
+    # from the kernel's attack-only scores, tanh-squashed) — a
+    # count, not a max, because iter-5 §2.2 showed the best attack
+    # misleads where threat breadth decides. The ONLY difference
+    # between v6 and v7 is the quiet-leaf value: a clean A/B of the
+    # gradient. Caveat (stated in iter-7.md): the kernel ports v0
+    # (contiguous-run scoring), NOT v1 — the gradient is blind to
+    # broken fours. Sims 100 and c_puct 1.5 unchanged.
+    7: {"name": "scoring-v7", "defence_weight": 1.0, "threat_check": False,
+        "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient"},
 }
 
 # --- weights --------------------------------------------------------------
@@ -723,6 +741,7 @@ class ScoringPlayer:
 
             self._mcts = HeuristicMCTS(
                 sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                leaf_mode=ENGINE_VERSIONS[version].get("leaf_mode", "terminal"),
                 rng=self.rng,
             )
 
