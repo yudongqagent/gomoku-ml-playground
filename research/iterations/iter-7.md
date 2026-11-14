@@ -449,8 +449,20 @@ match-play value (see §3.6-3.8). **Clause 3 PASSES** (old 20/20
 
 ### 3.6 Head-to-head vs v1 (100 games, seeds 100/200) — FINAL BATTERY
 
-(TODO — runs on the final patched engine; the §3.3 numbers are
-the pre-patch intermediate.)
+**v7 beats v1: 62W-21L-17D, win rate 0.7050, 95% CI
+[0.6094, 0.7855]**, 3598.1 s. File:
+`research/iterations/batch-v7-vs-v1.json` (seeds 100/200).
+Per colour: as Black 42W-3L-5D (0.8900), as White 20W-18L-12D
+(0.5200) — a strong colour asymmetry; 18 of v7's 21 losses
+come as White. Mean game length 71.55 plies (min 20, max 225).
+Loss classifier (`ml/scripts/classify_batch_losses.py`):
+21/21 losses via open four, **0 missed blocks**, 93 threatened
+turns in losses, **1 clean missed prevention (1.1%)** — defence
+is essentially solved; v7's losses as White are v1 out-attacking
+it in the open-four race, not defensive blunders. **Clause 1
+PASSES** (0.7050 > 0.50, CI lower bound 0.6094 > 0.50) — the
+first MCTS version in this program to beat v1 head-to-head
+(v6's h2h vs v1 was 0.535, CI lower 0.4378).
 
 ### 3.7 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
 
