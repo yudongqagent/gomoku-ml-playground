@@ -51,6 +51,43 @@ def resolve_opponent(name: str, seed: int):
     raise ValueError(f"unknown opponent: {name!r} (want v0, v1, ..., mcts)")
 
 
+def _write_result(args, name_a, name_b, games, wins, losses, draws,
+                  t0, complete):
+    """Atomically write the current batch state to ``args.out``.
+
+    Same shape as ``selfplay_batch.py`` output, plus ``games_played``
+    and ``complete``. Flushed after every game so a VM replacement
+    loses at most the in-progress game.
+    """
+    lo, hi = evaluate.wilson_ci(wins, losses, draws)
+    result = {
+        "engine_a": name_a,
+        "engine_b": name_b,
+        "games": args.games,
+        "games_played": len(games),
+        "complete": complete,
+        "swap_rule": False,
+        "placement": None,
+        "placement_seed": None,
+        "judge": None,
+        "seed_a": args.seed_a,
+        "seed_b": args.seed_b,
+        "wins": wins,
+        "losses": losses,
+        "draws": draws,
+        "win_rate": round(evaluate.win_rate(wins, losses, draws), 4),
+        "win_rate_ci_95": [round(lo, 4), round(hi, 4)],
+        "elapsed_seconds": round(time.time() - t0, 1),
+        "records": games,
+    }
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+    tmp = args.out + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2)
+        f.write("\n")
+    os.replace(tmp, args.out)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version-a", type=int, default=8,
@@ -105,32 +142,15 @@ def main() -> int:
         print(f"  game {i}: {rec['winner']} "
               f"({rec['plies']} plies, A {rec['a_colour']}) "
               f"({time.time() - t0:.0f}s)", file=sys.stderr, flush=True)
+        # Flush after EVERY game: a VM replacement must lose at most
+        # the in-progress game (see selfplay_batch.py).
+        _write_result(args, player_a.name, name_b, games, wins, losses,
+                      draws, t0, complete=(i + 1 == args.games))
     lo, hi = evaluate.wilson_ci(wins, losses, draws)
-    result = {
-        "engine_a": player_a.name,
-        "engine_b": name_b,
-        "games": args.games,
-        "swap_rule": False,
-        "placement": None,
-        "placement_seed": None,
-        "judge": None,
-        "seed_a": args.seed_a,
-        "seed_b": args.seed_b,
-        "wins": wins,
-        "losses": losses,
-        "draws": draws,
-        "win_rate": round(evaluate.win_rate(wins, losses, draws), 4),
-        "win_rate_ci_95": [round(lo, 4), round(hi, 4)],
-        "elapsed_seconds": round(time.time() - t0, 1),
-        "records": games,
-    }
-    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-    with open(args.out, "w", encoding="utf-8") as f:
-        json.dump(result, f, indent=2)
-        f.write("\n")
     print(f"  {player_a.name}: {wins}W-{losses}L-{draws}D (win rate "
-          f"{result['win_rate']:.4f}, 95% CI [{lo:.4f}, {hi:.4f}]) in "
-          f"{result['elapsed_seconds']}s", file=sys.stderr)
+          f"{evaluate.win_rate(wins, losses, draws):.4f}, "
+          f"95% CI [{lo:.4f}, {hi:.4f}]) in "
+          f"{round(time.time() - t0, 1)}s", file=sys.stderr)
     print(f"  records written to {args.out}", file=sys.stderr)
     return 0
 

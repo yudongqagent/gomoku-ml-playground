@@ -63,6 +63,49 @@ def play_recorded_game(choose_black, choose_white, board, player_to_move):
         player = -player
 
 
+def _write_result(path: str, result: dict) -> None:
+    """Atomically write ``result`` to ``path`` (temp file + rename).
+
+    Matches flush after EVERY game: this VM is replaced without
+    warning (4 replacements on 2026-11-14 alone), and a killed run
+    must lose at most the in-progress game. The file carries
+    ``complete: false`` until the batch finishes; a re-run with the
+    same seeds is deterministic, so the flushed prefix also serves
+    as a replay check.
+    """
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2)
+        f.write("\n")
+    os.replace(tmp, path)
+
+
+def _summary(args, name_a, name_b, games, wins, losses, draws, t0,
+             complete):
+    lo, hi = evaluate.wilson_ci(wins, losses, draws)
+    return {
+        "engine_a": name_a,
+        "engine_b": name_b,
+        "games": args.games,
+        "games_played": len(games),
+        "complete": complete,
+        "swap_rule": args.swap_rule,
+        "placement": args.placement if args.swap_rule else None,
+        "placement_seed": args.placement_seed if args.swap_rule else None,
+        "judge": args.judge if args.swap_rule else None,
+        "seed_a": args.seed_a,
+        "seed_b": args.seed_b,
+        "wins": wins,
+        "losses": losses,
+        "draws": draws,
+        "win_rate": round(evaluate.win_rate(wins, losses, draws), 4),
+        "win_rate_ci_95": [round(lo, 4), round(hi, 4)],
+        "elapsed_seconds": round(time.time() - t0, 1),
+        "records": games,
+    }
+
+
 def run_batch(args) -> dict:
     choose_a, name_a = resolve_engine(args.engine_a, args.seed_a)
     choose_b, name_b = resolve_engine(args.engine_b, args.seed_b)
@@ -130,28 +173,14 @@ def run_batch(args) -> dict:
         else:
             losses += 1
         games.append(rec)
-        if (i + 1) % 20 == 0 or i + 1 == args.games:
+        _write_result(args.out, _summary(
+            args, name_a, name_b, games, wins, losses, draws, t0,
+            complete=(i + 1 == args.games)))
+        if (i + 1) % 10 == 0 or i + 1 == args.games:
             print(f"  {i + 1}/{args.games} games ({time.time() - t0:.0f}s)",
                   file=sys.stderr, flush=True)
-    lo, hi = evaluate.wilson_ci(wins, losses, draws)
-    return {
-        "engine_a": name_a,
-        "engine_b": name_b,
-        "games": args.games,
-        "swap_rule": args.swap_rule,
-        "placement": args.placement if args.swap_rule else None,
-        "placement_seed": args.placement_seed if args.swap_rule else None,
-        "judge": args.judge if args.swap_rule else None,
-        "seed_a": args.seed_a,
-        "seed_b": args.seed_b,
-        "wins": wins,
-        "losses": losses,
-        "draws": draws,
-        "win_rate": round(evaluate.win_rate(wins, losses, draws), 4),
-        "win_rate_ci_95": [round(lo, 4), round(hi, 4)],
-        "elapsed_seconds": round(time.time() - t0, 1),
-        "records": games,
-    }
+    return _summary(args, name_a, name_b, games, wins, losses, draws,
+                    t0, complete=True)
 
 
 def np_random(seed: int):
@@ -182,11 +211,7 @@ def main() -> int:
           + (f", swap rule ({args.placement} placement, {args.judge} judge)"
              if args.swap_rule else ", normal rules") + " ==",
           file=sys.stderr)
-    result = run_batch(args)
-    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-    with open(args.out, "w", encoding="utf-8") as f:
-        json.dump(result, f, indent=2)
-        f.write("\n")
+    result = run_batch(args)  # flushes the output JSON after every game
     lo, hi = result["win_rate_ci_95"]
     print(f"  {args.engine_a}: {result['wins']}W-{result['losses']}L-"
           f"{result['draws']}D (win rate {result['win_rate']:.4f}, "
