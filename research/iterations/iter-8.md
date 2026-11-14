@@ -422,7 +422,32 @@ clean missed preventions with threatened-turn counts.)
 
 ### 5.1 Tactical suites
 
-(TBD.)
+**Pre-fast-loop baseline (unpatched v8, seed 0)** —
+`ml/scripts/eval_tactical_full.py --version 8 --suite both
+--seed 0` (full dispatch; 2026-11-14 ~13:10 UTC; ~2.3 min for
+49 positions, ≈2.9 s/position under contention):
+
+- **Old suite: 19/20 (95%).** v1: 20/20; v6: 20/20. The one
+  fail is `double-threat-create` (chose [7,8], expected [7,7])
+  — a quiet setup move, exactly where the net leaf replaces
+  v6's 0. **As it stands, v8 FAILS clause 3's old-suite half
+  (needs 20/20).** The fast loop (§4) must recover this.
+- **Hard suite: 21/29 (72.4%).** v1: 12/29; v6: 29/29. v8
+  clears v1's bar on the hard suite with room to spare but is
+  8 below v6. Fails: 4 setup (`setup-v1v0s-g92`,
+  `setup-v2v1s-g94`, `setup-v2v1-g2`, `setup-v3v1s-g35`), 2
+  prevention (`prev-v1bl-g2`, `prev-v1v1s-g45`),
+  `winning-quiet-setup`, `vcf-two-four-sequence-rot`. The
+  failure cluster is quiet ATTACKING moves (setting up the
+  open four) — the net leaf's confident noise misleads the
+  search where v6's neutral 0 let the priors and terminal
+  detection do the work. Defence holds: all block/take-win/
+  vcf-race positions pass, and 14/16 prevention positions
+  pass.
+
+Raw JSON: `research/iterations/batch-v8-tactical-pre.json`
+(copied from the run output; TACTICAL_JSON line). Re-run on
+the final patched v8 for the battery (TBD below).
 
 ### 5.2 Smoke (20 games vs v1, seeds 100/200)
 
