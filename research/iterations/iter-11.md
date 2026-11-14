@@ -279,6 +279,107 @@ handled by construction. Whether the net's values are any good
 is measured by the holdout accuracy (§2.2) and the α sweep
 (§1.3), not by the calibration win rate.
 
+### 2.1 Data generation and training
+
+**Data generation COMPLETE 2026-11-14 ~17:58 UTC.** 4,000 games
+(sampled v1, ε=0.1/k=5, vs pure v0), 4 workers, 1,070 s
+(13,453 games/hr). Dedup removed 967 duplicates → **3,033
+unique games / 211,542 samples** (Black 1,477 / White 1,213 /
+draws 343, mean 69.7 plies). The duplicate rate at n=4,000
+(24%) is higher than the calibration's 4% at n=200 — the pool
+is large but finite; 3,033 unique games is the yield. The 621
+pure-v1-vs-v0 pilot games are preserved (gitignored) at
+`ml/runs/b4-h3-pure/data/` and are NOT training data.
+
+**Hold-out split (pre-registered protocol, §1.1).** Every 10th
+shard by sorted name (indices 9, 19, …, 3029) moved to
+`ml/runs/b4-h3/val-data/` and NEVER used in training:
+**2,730 train games (191,194 samples), 303 val games (20,348
+samples)**; totals reconcile exactly with the generation
+manifest (3,033 / 211,542). Spot checks clean (shapes, policy
+rows sum to 1, values in {-1, 0, 1}).
+
+**Training COMPLETE 2026-11-14 18:35 UTC** (~28 min wall
+including a VM-replacement resume: interrupted by SIGTERM at
+step 5,840, epoch 2 complete — the run's interrupt handler
+saved `interrupted.pt` + `best.pt`, and the run resumed with
+the logged resume command for 3 additional epochs). Final loss
+2.0630 (policy 1.5205, value 0.5425); best val loss 2.1165 at
+epoch 5, so best.pt IS the epoch-5 checkpoint. Note the total
+loss is NOT comparable with v8's 5.1559: the policy targets
+here are one-hot (deterministic-ish heuristic moves, easy to
+predict — policy loss 1.52 vs v8's 4.54 on visit
+distributions). The comparable number is the holdout value
+accuracy (§2.2).
+
+### 2.2 Hold-out value accuracy — the net generalises in-distribution, and the mismatch is confirmed
+
+**Hold-out (game-level, 303 games, 20,348 positions, 12,923
+non-draw) — measured BEFORE any match, per §1:**
+
+| Checkpoint | Full planes | No-history planes |
+|---|---|---|
+| best.pt (epoch 5) | **0.6813** (8,805/12,923), MSE 0.543, mean\|v\| 0.2242 | **0.6321** (8,168/12,923), MSE 0.6386, mean\|v\| 0.3681 |
+| final.pt (epoch 5) | 0.6813, MSE 0.543, mean\|v\| 0.2242 | 0.6321, MSE 0.6386, mean\|v\| 0.3681 |
+
+**Checkpoint selection (pre-registered rule, §1.2): best.pt**
+— identical to final.pt on both measures (best IS the epoch-5
+checkpoint by the internal-val rule). Copied to
+`ml/runs/b4-h3/value-net.pt`.
+
+vs v8's 4,350-game net on ITS self-play holdout: full 0.7165,
+MSE 0.7422; no-history 0.6278, MSE 0.91. My net is slightly
+worse on full planes (0.6813 vs 0.7165) and slightly better on
+no-history (0.6321 vs 0.6278) — roughly comparable, and clearly
+generalising (no memorisation failure like the 500-game net's
+0.44). MSE comparison needs care: my holdout has 36% draws
+(target 0), so the constant-0 predictor's MSE here is 0.635,
+not 1.0 — my net beats it on full planes (0.543) but only ties
+it on no-history (0.6386), i.e. the no-history magnitudes are
+miscalibrated (confident but only slightly better than chance
+in MSE) even though the SIGN is right 63% of the time. The
+α sweep (§3) is the arbiter of whether the values help in
+games.
+
+**Cross-distribution checks (pre-registered, §1.1) — the
+smoking gun for iter-8 §7 finding 1:**
+
+| Net | Holdout | Full planes | No-history |
+|---|---|---|---|
+| v8's net | MY heuristic-opponent holdout | **0.5079**, MSE 1.1239, mean\|v\| 0.6309 | **0.5005**, MSE 1.0109, mean\|v\| 0.5283 |
+| MY net | v8's self-play holdout (435 games) | **0.5190**, MSE 1.024, mean\|v\| 0.1546 | **0.5189**, MSE 1.0567, mean\|v\| 0.2098 |
+
+**Each net is at CHANCE on the other's distribution.**
+v8's net — 0.72 on self-play positions — scores 0.51 on
+heuristic-opponent positions, with MSE (1.12) far above the
+constant-0 predictor (0.635) and high confidence (mean|v|
+0.63): confidently wrong, exactly as the distribution-mismatch
+hypothesis predicts. Symmetrically, my net scores 0.52 on
+self-play positions. The two distributions are essentially
+disjoint for value prediction: a value net only works in the
+distribution it trained on. This is the direct measurement of
+the mismatch iter-8 inferred from game strength — and it is
+why the α sweep (§3) is the discriminating test: if
+heuristic-opponent training fixes the mismatch, the net should
+now play well at HIGHER α than v8's 0.25.
+
+## 3. Leaf cost measurement
+
+Measured with `ml/scripts/bench_value_leaf.py --checkpoint
+ml/runs/b4-h3/value-net.pt --positions 20 --leaf-samples 200
+--sims 100` (same bench as iter-8 §3):
+
+- **Per-leaf net eval (encode + batch=1 forward pass): median
+  1.96 ms, mean 7.3 ms, p95 63.4 ms, range [1.2, 173.4] ms.**
+  Same profile as v8's (median 7.6 ms contended / ~1.5–2 ms
+  uncontended) — the same architecture, as expected.
+- **Per-move cost at 100 sims: mean 2.29 s, median 2.20 s, p95
+  3.0 s; net leaf evals per move: mean 81.3 (min 16, max 99).**
+  On random scattered mid-game positions (pricier priors than
+  real game positions). Real match timings are recorded with
+  the matches; v8's battery ran ~17 s/game, and v11 should be
+  similar.
+
 **Cross-distribution checks (pre-registered, diagnostic, cheap
 — run with `ml/scripts/eval_value_holdout.py`, no training):**
 (1) v8's net (`ml/runs/b3-h2/value-net.pt`, copied from the main
