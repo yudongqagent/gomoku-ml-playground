@@ -29,8 +29,17 @@ POSITIONS_PATH = os.path.join(
 # net's leaf values are near-neutral here, so no H3-scope leaf
 # patch fixes it; it needs the q-vs-visits root-decision fix
 # (batch-4 H1). See iter-11.md §5.1.
+# fl2-g0-ply18 / fl2-g8-ply24 / fl2-g9-ply67: the same q-vs-visits
+# gap (saving move has better q but fewer visits). fl2-g7-ply23
+# is a near-tie coin-flip (visits 10 vs 12, q 0.141 vs 0.129, net
+# neutral) that lands on the losing move with seed 0. See
+# iter-11.md §5.2.
 XFAIL = {
     "fl1-g9-ply11": "q-vs-visits gap; H1's territory, see iter-11.md §5.1",
+    "fl2-g0-ply18": "q-vs-visits gap; H1's territory, see iter-11.md §5.2",
+    "fl2-g7-ply23": "near-tie coin-flip; no systematic bias, see iter-11.md §5.2",
+    "fl2-g8-ply24": "q-vs-visits gap; H1's territory, see iter-11.md §5.2",
+    "fl2-g9-ply67": "q-vs-visits gap (mild); H1's territory, see iter-11.md §5.2",
 }
 
 

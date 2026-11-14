@@ -482,13 +482,60 @@ xfail test in `ml/tests/test_regression_v11.py` — a documented
 open weakness and a concrete test case for H1, never silently
 dropped.
 
-### 5.2 Iteration 2
+### 5.2 Iteration 2 — vs v7, 5W-5L-0D; the same class again, no H3-scope patch
 
-(TBD — vs v7, dev seeds 501/601, α=0.125. v0 is no longer a
-good weakness-exposing opponent for v11 — 8W-1L-1D with the
-single loss's mechanism in H1's territory — so iteration 2
-uses the bar opponent, which will produce more losses to learn
-from.)
+**Result: v11 5W-5L-0D (0.50, CI [0.2366, 0.7634]) vs v7, 489 s
+(~49 s/game).** `research/iterations/fast-v11-vs-v7-iter2.json`.
+Mean 46.0 plies. Per-colour: as Black 3W-2L, as White 2W-3L.
+Classifier: all 5 losses via open four, 0 missed blocks in 45
+threatened turns, 0 missed preventions.
+
+**The 5 losses, each walk-backed (corrected oracle, seeds
+0/1/2), with v11's own search probed on the losing position:**
+
+| Game | v11 | Plies | Losing move (ply) | Saving move(s) | Mechanism |
+|---|---|---|---|---|---|
+| 0 | Black | 32 | (6,8) @18 | (8,7) win 2/3, (8,6)/(10,7)/(4,6) draw | q-vs-visits: save q=-0.102 > actual q=-0.134, but 4 visits vs 9 |
+| 1 | White | 43 | (7,6) @33 | (7,8), (6,5) win 3/3 | Genuine value error: visits tied 6-6, q prefers the loser 0.101 vs 0.075 (terminal-case subtree lines, not the net) |
+| 7 | White | 33 | (9,6) @23 | (5,2) win/draw/draw (only save) | Near-tie coin-flip: save 12 visits q=0.129 vs actual 10 visits q=0.141; net neutral |
+| 8 | Black | 30 | (10,3) @24 | (10,7) draw 3/3 (only save) | q-vs-visits: save q=-0.057 > actual q=-0.088, but 4 visits vs 8 |
+| 9 | White | 73 | (6,10) @67 | (11,10) draw 3/3 | q-vs-visits (mild): save q=-0.059 > actual q=-0.082, but 5 visits vs 7; slow drift (plies 63/65 already lose 3/3 with 0 tested saves) |
+
+Game 1 deserves the detail: v11 was WINNING at ply 31
+(oracle win 3/3 on the actual move) and threw it at ply 33.
+The search's q genuinely prefers the losing (7,6) (0.101 vs
+0.075 for the winning (7,8)) with visits tied 6-6 — a
+search-depth value error (the subtree's terminal cases favour
+a line that doesn't hold), not a leaf error: the net's gap
+here is 0.028, contributing 0.125 × 0.028 ≈ 0.004 of the
+0.026 q gap.
+
+**Is there an H3-scope patch? No.** Across the 6 fast-loop
+losses (iterations 1+2): 4 are the q-vs-visits gap (the
+saving move has better q but fewer visits; most-visited picks
+the loser) — H1's territory. 1 is a search-depth value error
+(game 1). 1 is a coin-flip (game 7). The net's leaf values
+favour the losing move in 3 of the 5 iteration-2 positions
+(g0: +0.046, g1: +0.028, g8: +0.146), but at α=0.125 the net's
+leaf contribution is ≤0.018 — and in every case the move is
+decided by the visit counts, not the leaf values. Lowering α
+further would not change any of these 6 moves; it would only
+move v11 toward v6 (terminal-only), which is weaker. Raising
+α is ruled out by the sweep (§4). Retraining on v11-vs-v7
+games would target a distribution the net barely influences
+at α=0.125 — not justified.
+
+**Loop stopped after 2 iterations, per the stopping rule (no
+new patchable weakness class).** Iteration 2's dominant class
+is iteration 1's class (q-vs-visits); the two other losses
+are a search-depth error and a coin-flip, neither patchable
+within H3's scope. The 5 positions are recorded in
+`ml/gomoku_ml/regression_positions_v11.json` (expected moves
+per the table; `fl2-g1-ply33` passes with seed 0 — the 6-6
+visit tie breaks toward a saving move — the other 4 are
+xfails in `ml/tests/test_regression_v11.py`).
+
+## 6. Full battery (the verdict)
 
 **Cross-distribution checks (pre-registered, diagnostic, cheap
 — run with `ml/scripts/eval_value_holdout.py`, no training):**
