@@ -422,8 +422,11 @@ The colour-split inversion is gone and reversed: v7 scored
 LOWER against the weaker v0 (0.6650) than against v1 (0.7050)
 and lost 13 as Black; v9's as-Black losses to v0 drop to 7 and
 its as-White game is perfect. Mechanism (see §5): against v0's
-greedy play, root visit ties are frequent, and v7's RNG
-tie-break throws away half of them; v9's prior tie-break wins
+greedy play, root visit ties are frequent — measured by replaying
+games 0-2 with the search re-run at every v9 move: 22/90 searched
+v9 moves (24.4%) had a max-visit tie, with tie sizes up to 8 —
+and v7's RNG tie-break throws away half of them (worse: with
+8-way ties it usually picks a bad one); v9's prior tie-break wins
 them systematically, and each better tie-break compounds over
 the game. This is NOT the bar (clause 1 is vs v7), but it is
 the strongest evidence that the tie-prior rule is a real
