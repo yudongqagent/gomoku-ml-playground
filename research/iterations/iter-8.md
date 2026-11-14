@@ -486,8 +486,87 @@ regression position recorded, replay verified.
 
 ### 4.1 Iteration 1
 
-(TBD — opponent, games, losing moves, perfect moves +
-verification, patches, replay results, regression positions.)
+**Match: the 20-game smoke vs v1 (seeds 100/200) — 5W-13L-2D**
+(§5.2). The 13 lost games are the iteration's material (a
+loss-producing opponent, as the direction change requires).
+Aggregate first (`classify_losses.py`): 13/13 losses via open
+four, 0 missed blocks, 0 clean missed preventions in 43
+threatened turns — the same shape as v6's losses, so the
+classifier alone cannot see the weakness. Every lost game was
+then read move by move (viewer: `ml/scripts/show_game.py`;
+threat trajectories and saving-move enumeration:
+`ml/scripts/find_saving_move.py`).
+
+**Worked games (2, 5, 6 — the three distinct lines; games 8, 9,
+17 repeat 6, 5, 5):**
+
+- **Game 2** (v8 Black, 32 plies). First hypothesis: ply 28,
+  v8 played (4,9) instead of (4,5), letting White play (4,5)
+  and complete TWO fours at once (row 4 + diagonal). Checked:
+  at ply 28 White ALREADY had 1 winning move and 6 threat
+  moves (moves creating ≥2 winning moves); the (4,5)
+  "prevention" leaves White with 1 win + 2 threats — WORSE
+  than (4,9) (0 wins, 1 threat, plus 2 own threats) by
+  exhaustive enumeration, and the 400-sim deeper search (v8
+  AND v6) also plays (4,9). Threat trajectory: T=0 until ply
+  22, when White already holds 2 creators. At ply 20 v8's
+  (5,7) is the best move by every 1-ply measure (own win + 3
+  own threats) — but White's FORCED block (5,6) also builds
+  White's threats. **No single losing move.**
+- **Game 5** (v8 White, 23 plies). First hypothesis: ply 19,
+  v8 played (4,11) instead of filling the gap (5,9) in Black's
+  broken three. Checked: (5,9) leaves Black with 2 threats,
+  (4,11) leaves 1 — (4,11) is (tied) best, and 400-sim search
+  plays (8,7), also 1 threat. At ply 15 every candidate move
+  leaves Black 0/0 — the 1-ply criterion cannot distinguish
+  any move. **No single losing move.**
+- **Game 6** (v8 Black, 26 plies). First hypothesis: ply 22,
+  v8 played (10,9) instead of (8,10). Checked: (8,10) leaves
+  White 1 win + 4 threats; (10,9) leaves 0 wins + 2 threats
+  (best). 400-sim search also plays (10,9). **No single
+  losing move.**
+
+**The finding (and a correction of my first hypothesis): the
+losses have NO single losing move.** v8's moves are locally
+optimal at every checked ply (best or tied-best by exhaustive
+threat enumeration, confirmed by 400-sim search). The games
+are lost by slow accumulation: v1's 1-ply heuristic scorer
+values threat-building consistently, while v8's search cannot
+see the opponent CREATING an open four one ply ahead — the
+leaf only scores positions where a winning move already
+exists, and the tree never explores the opponent's quiet setup
+moves deeply enough for the −1 to propagate. By the time the
+opponent holds 2+ creators, no single move saves the game
+(replay: at game 2 ply 28, game 5 ply 19, game 6 plies 20/22,
+NO safe move exists — `threat_filter_used=0`, best effort).
+This is the same "no single losing move" shape iter-6 §2.2
+found for v6 — and it is exactly the gap v3's 2-ply threat
+check closes (v3, Elo 107.5, is the strongest version).
+
+**Patch (structural cause, not a position): v3's 2-ply threat
+check, ported to the MCTS root.** `ValueMCTS.choose_move`
+(`ml/gomoku_ml/mcts_value.py`, override — the parent file is
+H1-owned and untouched): after the PUCT search, if the
+opponent has creators (`scoring._opponent_creators`), the
+choice is restricted to safe moves
+(`scoring._move_is_safe`: forcing, or no creator remains
+live); if no root child is safe, the most-visited move is
+played (best effort, as in v3). With no creators the choice is
+exactly the parent's. Cost: one creators enumeration per move
+(~0.15 s). `threat_filter_used` counts restricted choices.
+
+**Verification:**
+- Tactical: old **20/20**, hard **29/29** (was 24/29 — all 5
+  prevention fails fixed, no setup/VCF regression).
+  `research/iterations/batch-v8-tactical-patched1.json`.
+- Replay: game 2 ply 22 — patched v8 plays (8,9), safe
+  (`threat_filter_used=1`); the later T≥2 positions have no
+  safe move (already lost — the patch prevents reaching them,
+  it cannot rescue them).
+- Regression: `ml/gomoku_ml/regression_positions_v8.json` (5
+  tactical prevention positions + smoke game 2 ply 22) +
+  `ml/tests/test_regression_v8.py`; filter unit tests in
+  `ml/tests/test_mcts_value.py`. Targeted suites: 65 passed.
 
 ### 4.2 Iteration 2
 

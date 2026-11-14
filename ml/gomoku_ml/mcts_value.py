@@ -1,13 +1,26 @@
 """PUCT MCTS with v1 heuristic priors and a LEARNED value leaf (v8, batch 3 H2).
 
 Subclasses :class:`gomoku_ml.mcts_heuristic.HeuristicMCTS` (v6) and
-overrides ONLY the leaf evaluation. v6's terminal-only leaf values
-quiet positions at 0, so the search has no attack gradient in quiet
-positions and move choice falls back to priors plus noise (see
-``research/iterations/iter-6.md`` §2.2(c)). v8 keeps the terminal
-cases exact and asks a trained value net for quiet positions — the
-one leaf design that can value attack-building without a hand-built
-heuristic (the hand-built leaf was explored to its limit in v4/v5/v6).
+overrides the leaf evaluation and the root move choice. v6's
+terminal-only leaf values quiet positions at 0, so the search has
+no attack gradient in quiet positions and move choice falls back to
+priors plus noise (see ``research/iterations/iter-6.md`` §2.2(c)).
+v8 keeps the terminal cases exact and asks a trained value net for
+quiet positions — the one leaf design that can value
+attack-building without a hand-built heuristic (the hand-built
+leaf was explored to its limit in v4/v5/v6).
+
+Root move choice adds v3's 2-ply threat check (fast-loop
+iteration 1 patch, ``research/iterations/iter-8.md`` §4.1): the
+MCTS leaf only scores positions where a winning move already
+exists, so the search cannot see the opponent CREATING an open
+four next move — v8 played locally-optimal moves that let v1 build
+multiple threats over several moves (13/13 smoke losses vs v1,
+no single losing move in any of them). When the opponent has
+creators (moves leaving them >= 2 winning moves), the chosen move
+must be safe against them (forcing, or no creator remains live);
+otherwise the best safe move by visit count is played. With no
+creators the choice is unchanged.
 
 Leaf value (pre-registered, ``research/iterations/iter-8.md`` §1):
 terminal check first, net value otherwise:
@@ -108,6 +121,59 @@ class ValueMCTS(HeuristicMCTS):
             pass  # parallel work already started; the default stands
         self.checkpoint_path = checkpoint_path
         self.leaf_net_evals = 0
+        # Fast-loop iteration 1 diagnostic: moves where the 2-ply
+        # threat check restricted the root pool to safe moves.
+        self.threat_filter_used = 0
+
+    def choose_move(self, board: np.ndarray, player: int) -> int:
+        """Parent's move choice plus v3's 2-ply threat check.
+
+        Win scan, block scan and the PUCT search are identical to
+        :meth:`HeuristicMCTS.choose_move` (the search loop is
+        replicated here because the parent returns only the chosen
+        move, and the safety filter needs the root children's visit
+        counts to pick the best SAFE move). After the search: if
+        the opponent has creators (moves leaving them >= 2 winning
+        moves — see :func:`gomoku_ml.scoring._opponent_creators`),
+        the choice is restricted to safe moves
+        (:func:`gomoku_ml.scoring._move_is_safe`); if no root
+        child is safe, the most-visited move is played anyway
+        (best effort, as in v3). With no creators the choice is
+        exactly the parent's.
+        """
+        wins = scoring._winning_moves(board, player)
+        if wins:
+            return wins[0]
+        opp_wins = scoring._winning_moves(board, -player)
+        if len(opp_wins) == 1:
+            return opp_wins[0]
+        cands = scoring._candidate_moves(board)
+        if not cands:
+            return -1
+        if len(cands) == 1:
+            return cands[0]
+        root = _Node(1.0)
+        for _ in range(self.sims):
+            self._run_one(root, board, player, None)
+        pool = root.children
+        creators = scoring._opponent_creators(board, player)
+        if creators:
+            safe = {
+                m: c for m, c in root.children.items()
+                if scoring._move_is_safe(board, m, player, creators)
+            }
+            if safe and len(safe) < len(root.children):
+                pool = safe
+                self.threat_filter_used += 1
+        best_visits = max(c.visit_count for c in pool.values())
+        best = [
+            m for m, c in pool.items() if c.visit_count == best_visits
+        ]
+        if len(best) == 1:
+            return best[0]
+        if self.rng is not None:
+            return int(self.rng.choice(best))
+        return best[0]
 
     def _leaf_value(
         self,

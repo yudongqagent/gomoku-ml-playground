@@ -140,6 +140,37 @@ def test_choose_move_deterministic_for_same_seed(tmp_path):
     assert a.choose_move(board, game.BLACK) == b.choose_move(board, game.BLACK)
 
 
+def test_choose_move_threat_check_picks_safe_move(tmp_path):
+    # Fast-loop iteration 1: the opponent holds an open three
+    # (White (5,5),(5,6),(5,7) with both ends open — either end
+    # creates an open four), so Black must play a safe move: a
+    # forcing move, or one leaving White with no live creator.
+    # The unpatched search plays its highest-visited (usually
+    # attacking) move; the patched choice must be safe.
+    board = _board_with(
+        [(7, 7), (8, 8), (3, 3)], [(5, 5), (5, 6), (5, 7)]
+    )
+    creators = scoring._opponent_creators(board, game.BLACK)
+    assert creators  # White can create an open four next move
+    mcts = _value_mcts(tmp_path, sims=20)
+    move = mcts.choose_move(board, game.BLACK)
+    assert scoring._move_is_safe(board, move, game.BLACK, creators), (
+        f"chose {(move % 15, move // 15)}, not safe against {creators}"
+    )
+    assert mcts.threat_filter_used == 1
+
+
+def test_choose_move_threat_check_noop_without_creators(tmp_path):
+    # No opponent creators: the filter must not engage and the
+    # choice must be the plain most-visited move.
+    board = _board_with([(7, 7), (8, 8)], [(7, 9), (9, 9)])
+    assert scoring._opponent_creators(board, game.BLACK) == []
+    mcts = _value_mcts(tmp_path, sims=20)
+    move = mcts.choose_move(board, game.BLACK)
+    assert mcts.threat_filter_used == 0
+    assert move != -1
+
+
 def test_value_mcts_needs_a_net():
     import pytest
 
