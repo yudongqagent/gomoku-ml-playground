@@ -47,9 +47,12 @@ from gomoku_ml import baseline, evaluate, game, research, scoring  # noqa: E402
 MIN_SEEDS = 2
 
 
-def _build_player(version: int, seed: int):
+def _build_player(version, seed: int):
     """A stateful player for engine version ``version`` (0 = the
-    frozen baseline heuristic)."""
+    frozen baseline heuristic; ``"mcts"`` = the heuristic-MCTS
+    ladder opponent at 100 sims)."""
+    if version == "mcts":
+        return baseline.HeuristicMCTSPlayer(sims=100, seed=seed)
     if version == 0:
         return baseline.HeuristicPlayer(seed=seed)
     return scoring.get_player(version, seed=seed)
@@ -65,9 +68,9 @@ class _PlayerCache:
     safe.)"""
 
     def __init__(self) -> None:
-        self._players: dict[tuple[int, int], object] = {}
+        self._players: dict[tuple[object, int], object] = {}
 
-    def get(self, version: int, seed: int):
+    def get(self, version, seed: int):
         key = (version, seed)
         if key not in self._players:
             self._players[key] = _build_player(version, seed)
@@ -80,7 +83,7 @@ class _PlayerCache:
         return player
 
 
-def play_out(board: np.ndarray, to_move: int, version_a: int, version_b: int,
+def play_out(board: np.ndarray, to_move: int, version_a, version_b,
              a_colour: int, seed: int, cache: _PlayerCache,
              sims_a: int = 100) -> int:
     """Play to completion from ``board`` with fresh engines.
@@ -155,7 +158,7 @@ def alternatives_for(board: np.ndarray, player: int, actual: int,
     return out
 
 
-def workup(batch_path: str, game_idx: int, version_a: int, version_b: int,
+def workup(batch_path: str, game_idx: int, version_a, version_b,
            seeds: list[int], last_turns: int, topk: int, deep_sims: int,
            verbose: bool = True) -> dict:
     """Walk back one lost game. Returns the workup dict."""
@@ -253,8 +256,8 @@ def main() -> int:
                         help="game index within the batch")
     parser.add_argument("--version-a", type=int, default=8,
                         help="loser's engine version (default 8)")
-    parser.add_argument("--version-b", type=int, required=True,
-                        help="winner's engine version")
+    parser.add_argument("--version-b", required=True,
+                        help="winner's engine version (0, 1, ..., or mcts)")
     parser.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2],
                         help="playout seeds (default 0 1 2)")
     parser.add_argument("--last-turns", type=int, default=8,
@@ -269,8 +272,11 @@ def main() -> int:
     print(f"== workup: {args.batch} game {args.game} "
           f"(v{args.version_a} vs v{args.version_b}) ==",
           file=sys.stderr, flush=True)
+    version_b = args.version_b
+    if version_b != "mcts":
+        version_b = int(version_b)
     result = workup(
-        args.batch, args.game, args.version_a, args.version_b,
+        args.batch, args.game, args.version_a, version_b,
         args.seeds, args.last_turns, args.topk, args.deep_sims,
     )
     print(f"  tested {result['last_turns_tested']} turns, "
