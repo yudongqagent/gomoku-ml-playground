@@ -511,7 +511,31 @@ intervals overlap, as they did for v7 vs v1.)
 
 ### 3.8 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
 
-[To be filled.]
+**v9 vs v7 (swap): 48W-48L-4D, win rate 0.5000, 95% CI [0.4038,
+0.5962]**, 3833.3 s. File:
+`research/iterations/batch-v9-vs-v7-swap.json` (seeds 100/200).
+Mean game length 49.11 plies. Loss classifier: 48/48 losses
+via open four, **0 missed blocks**, 162 threatened turns in
+losses, **4 clean missed preventions (2.5%)** — a slightly
+higher prevention-miss rate than the normal match (1/153,
+0.7%), but still small; defence is essentially solved, and v9
+loses the open-four race, same as every version before it.
+**No swap edge at all**: under the official rule v9 and v7 are
+exactly even, and the CI is centred on 0.50. Combined with
+§3.6's colour split (v9's normal-rules edge comes entirely as
+White), this says v9's tie-prior advantage is an opening /
+colour-dynamic effect, not a general strength gain: once the
+swap rule neutralises the opening advantage, the two engines
+are indistinguishable. (v7's swap vs v1 was 51W-37L-12D,
+0.57, CI including 0.50 — also no established edge.)
+
+[NOTE: a SECOND runtime restart killed the first swap run at
+17/100 games (8W-9L-0D, 0.4706 — partial JSON backed up to
+`~/workspace/b4h1-logs/batch-v9-vs-v7-swap-partial17.json`, not
+committed). The match re-ran IN FULL from game 0 with the same
+seeds and placement; the re-run reproduces games 0-16
+identically (verified: first 17 games' moves and winners all
+match).]
 
 ## 4. Bar check (v9 vs v7)
 
