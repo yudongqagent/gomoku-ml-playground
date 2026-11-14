@@ -1,0 +1,26 @@
+{
+  "games": 50,
+  "wins": 21,
+  "losses": 29,
+  "draws": 0,
+  "win_rate": 0.42,
+  "win_rate_ci_95": [
+    0.2937,
+    0.5577
+  ],
+  "as_black": {
+    "wins": 15,
+    "losses": 10,
+    "draws": 0
+  },
+  "as_white": {
+    "wins": 6,
+    "losses": 19,
+    "draws": 0
+  },
+  "swap_rule": false,
+  "elo_diff_vs_opponent": -56.07148126601476,
+  "elapsed_s": 358.5,
+  "engine_a": "v6 (scoring-v6, MCTS v1 priors, 100 sims)",
+  "engine_b": "HeuristicMCTSPlayer (v0 priors, 100 sims)"
+}
