@@ -474,7 +474,40 @@ iter-2 0.5000 (n=10) was the better predictor.
 
 ### 3.7 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
 
-[To be filled.]
+vs random 20W-0L-0D (1.0000, CI [0.8389, 1.0000]; as Black
+10W-0L-0D, as White 10W-0L-0D); vs heuristic **20W-0L-0D
+(1.0000, CI [0.8389, 1.0000]; as Black 10W-0L-0D, as White
+10W-0L-0D)** — a PERFECT score against the heuristic anchor
+(v7: 15W-5L, 0.7500); vs mcts **10W-10L-0D (0.5000, CI [0.2993,
+0.7007]; as Black 5W-5L-0D, as White 5W-5L-0D)** — the first
+version in this program NOT to lose the direct A/B against the
+baseline MCTS (v6: 9W-11L; v7: 8W-12L). **Ladder Elo: point
+estimate undefined (None), interval [286.6, None]** — v9 beat
+BOTH anchored opponents 20-0, so both per-opponent scores are
+1.0 and the logistic estimator has no finite point estimate
+(the rating is unbounded above); the interval's lower bound
+(286.6) comes from the heuristic matchup's Wilson CI lower
+(0.8389 → +286.6 over the 0 anchor). Run: `eval_version.py
+--version 9 --ladder-games 20 --mcts-sims 100 --seed 100`;
+EVAL_JSON saved to `research/iterations/ladder-v9.json` (full
+log: `research/iterations/ladder-v9.log`). The script's tactical
+probe line was disregarded per the brief (it bypasses the MCTS
+dispatch); tactical is §3.5's full-dispatch 20/20 + 29/29.
+
+**Clause 2 PASSES, with the caveat stated plainly:** the bar's
+letter ("ladder Elo strictly higher than v7's 190.8") assumes a
+finite point estimate, and v9 has none — its perfect scores
+make the estimate unbounded above. The verdict rests on (a) the
+interval lower bound 286.6, which is strictly above v7's 190.8
+(the entire interval [286.6, ∞) lies above v7's point estimate),
+and (b) the per-opponent results, which are strictly better
+than v7's on every matchup (heuristic 20-0 vs 15-5, mcts 10-10
+vs 8-12, random 20-0 = 20-0). By the ladder's own logic a
+version that beats the anchor 20-0 is rated above one that
+beats it 15-5; the None is an artifact of perfection, not of
+weakness. (v7's interval was [21.8, 359.9] — v9's lower bound
+exceeds v7's point estimate but not v7's upper bound; the
+intervals overlap, as they did for v7 vs v1.)
 
 ### 3.8 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
 
