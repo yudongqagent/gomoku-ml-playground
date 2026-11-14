@@ -633,13 +633,38 @@ fixed tactics 29/29; the A/B shows it is not the v0 problem).
 - Unit tests: leaf shrink bound + quiet-value test updated;
   targeted suites green (22 passed).
 
-### 4.3 Iteration 3
+### 4.3 Iteration 3 — STOP (no new weakness class)
 
-(TBD.)
+**Material: the 7 losses from the patched smoke vs v1
+(§4.2)** — 20 fresh games with the final patched v8, more
+material than a 10-game match. Aggregate: 7/7 via open four,
+0 missed blocks, 0 clean missed preventions in 41 threatened
+turns. Threat trajectories (same method as §4.1): every loss
+follows the SAME shape — T (opponent threat moves) reaches ≥2
+at ply 9–44, v8 fights on, the game ends with W=2 (opponent
+has 2 winning moves) on v8's last turn. Games 5 and 13 are
+the identical line (23 plies, T≥2 at ply 9). Game 9 is a
+121-ply grind (T≥2 at ply 13, loss at ply 119). No missed
+block, no single losing move, no new mechanism in any of the
+7 — the residual losses are the same slow race from §4.1,
+mitigated (13 losses → 7) but not eliminated. v8-as-White is
+weaker (4 of 7 losses; smoke split Black 0.75 / White 0.45),
+but that is a score split, not a distinct failing mechanism
+— no specific White weakness class was found, and the battery
+(50 games per colour) will measure the real split.
+
+**Per the stopping rule, the fast loop ends here.** Two
+patches stand: (1) the 2-ply threat check (§4.1), (2) the
+net-value shrink, VALUE_WEIGHT 0.25 (§4.2). Further ideas
+(leaf threat term, retraining on heuristic-opponent data)
+are bigger than a fast-loop iteration and go to §7. The
+final v8 is: 4,350-game value net + threat check + α=0.25.
+Validation battery (§5) runs on this exact code.
 
 ### 4.4 Iteration 4
 
-(TBD.)
+Not run — the loop stopped after iteration 3 (no new weakness
+class found; see §4.3).
 
 ### 4.5 Aggregate classification (secondary)
 
