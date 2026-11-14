@@ -5,6 +5,36 @@ yet.** Comparison target and eval seeds recorded BEFORE the first
 eval (see §1). This is the first version of batch 3 (max 3
 versions: v7, v8, v9).
 
+**METHOD CHANGE (directed mid-batch by Yudong, ~23:00 PST
+2026-11-13; see `research/batch-3-direction-change.md` in the
+main repo — cited, not copied here).** The H1 direction and the
+4-clause "better" bar are UNCHANGED. The method for finding
+weaknesses changes to a FAST HEURISTIC LOOP: play 10 games
+against an opponent that produces losses to learn from (v0 is
+the default — v6 lost to it 0.41), read EVERY move of every
+game, find THE losing move per game (verified with the solver or
+a deeper search — never guessed), patch the algorithm so that,
+replayed to that critical position, it plays the perfect move,
+and record each critical position + correct move as a regression
+test. Then play 10 more games and repeat. Max 4 fast-loop
+iterations (40 games) before validation, or stop when an
+iteration finds no new weakness class. Patches must fix the
+STRUCTURAL cause (a recurring weak point / weak strategy), not
+the single position — the regression test guards the position;
+the patch must generalise. Regression files:
+`ml/gomoku_ml/regression_positions_v7.json` +
+`ml/tests/test_regression_v7.py`. The full 4-clause validation
+battery (100-game matches + ladder) runs on the FINAL patched
+v7 only. Numbers already run on unpatched v7 (the smoke and the
+100-game v7-vs-v1 match in flight when the direction changed)
+are kept as INTERMEDIATE (pre-patch) results in §3; the bar
+verdict in §4 uses the final patched engine's battery only. The
+aggregate loss analysis (counts) becomes secondary — the
+fast-loop worked games ARE the loss analysis. Fast-loop games
+use development seeds (500/600, 501/601, ...) distinct from the
+bar battery's pre-registered seeds (100/200), so no development
+game overlaps an eval game.
+
 ## 1. Design and pre-registration
 
 **Comparison target: v1** (primary, same as v4/v5/v6 for
@@ -173,9 +203,43 @@ visible in the suite without breaking clause 4.
 
 ## 2. Loss analysis for iteration 7
 
-(TODO — filled in after the evals.)
+The fast-loop worked games (§2.1-2.4, one subsection per
+iteration) ARE the loss analysis — see the method-change note at
+the top of this log. Aggregate counts (§2.5) are secondary.
+
+### 2.1 Fast-loop iteration 1 — 10 games vs v0
+
+(TODO — after iteration 1.)
+
+### 2.2 Fast-loop iteration 2 — 10 games vs v0
+
+(TODO — after iteration 2, if run.)
+
+### 2.3 Fast-loop iteration 3 — 10 games vs v0
+
+(TODO — after iteration 3, if run.)
+
+### 2.4 Fast-loop iteration 4 — 10 games vs v0
+
+(TODO — after iteration 4, if run.)
+
+### 2.5 Aggregate counts (secondary)
+
+(TODO — filled in after the final battery: losses via open four,
+missed blocks, clean missed preventions with threatened-turn
+counts, across the three 100-game matches of the final battery,
+via `ml/scripts/classify_batch_losses.py`.)
 
 ## 3. v7 evaluation
+
+### 3.0 Intermediate (pre-patch) results
+
+The smoke (§3.1) and the 100-game v7-vs-v1 match (§3.3) ran on
+UNPATCHED v7, before the fast loop (the match was in flight when
+the direction changed, ~23:00 PST). They are intermediate
+results, NOT the bar verdict — the bar battery (§3.5-3.8) runs
+on the final patched engine. Tactical (§3.2) was also measured
+on unpatched v7 and is re-run on the final engine in §3.5.
 
 (TODO — filled in after the evals.)
 
@@ -224,13 +288,31 @@ the pre-eval iter-5 regression failure (§1). If v7 nevertheless
 wins matches, the gradient's match value comes from multi-move
 attack-building, not from tactical accuracy.
 
-### 3.3 Head-to-head vs v1 (100 games, seeds 100/200)
+### 3.3 Head-to-head vs v1 (100 games, seeds 100/200) — INTERMEDIATE (pre-patch)
 
-### 3.4 Head-to-head vs v0 (100 games, seeds 100/200)
+(TODO — match in flight when the direction changed; numbers on
+arrival, kept as intermediate results.)
 
-### 3.5 Ladder (20 games/opponent, mcts_sims=100, seed 100)
+### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
-### 3.6 Swap match vs v1 (100 games, balanced, placement_seed 11, tempo judge)
+(TODO — runs on the final patched engine.)
+
+### 3.5 Tactical suites — FINAL BATTERY (re-run on the final patched engine)
+
+(TODO — old suite + hard suite, full-dispatch driver.)
+
+### 3.6 Head-to-head vs v1 (100 games, seeds 100/200) — FINAL BATTERY
+
+(TODO — runs on the final patched engine; the §3.3 numbers are
+the pre-patch intermediate.)
+
+### 3.7 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
+
+(TODO — runs on the final patched engine.)
+
+### 3.8 Swap match vs v1 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
+
+(TODO — runs on the final patched engine.)
 
 ## 4. Bar check (v7 vs v1)
 
