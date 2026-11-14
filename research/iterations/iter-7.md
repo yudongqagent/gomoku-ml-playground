@@ -130,6 +130,47 @@ mcts_sims=100; swap 100 games vs v1, balanced placement,
 placement_seed 11, tempo judge (the harness default; recorded in
 the JSON).
 
+**Pre-eval observation (recorded BEFORE any eval, during
+implementation testing — the design stands as pre-registered;
+the evals decide).** v7 FAILS the iter-5 game-1 regression that
+v6 passes: on the move-30 position (White to move, Black holding
+exactly one creator, (4,9)), v7 plays the losing block (4,9)
+while v6 finds the oracle-verified saving moves (7,11)/(6,12).
+Mechanism, verified by direct computation on the position:
+
+- (7,11)/(6,12) are FORCING (White makes a four: White winning
+  moves after are [(6,12)] / [(7,11)]), but the gradient at the
+  resulting position is -0.555 / -0.462 for White — Black still
+  holds its creator and more breadth, so the two-sided gradient
+  scores the counterattack as bad for White.
+- (4,9) is NOT forcing but kills Black's creator (0 creators
+  after) and scores a gradient of -0.062 for White — nearly
+  neutral, far above the forcing moves. The gradient rewards
+  immediate threat-reduction (blocking) over forcing counterplay:
+  it reintroduces the 1-ply myopia v6's terminal-only leaf
+  avoided. v6's sparse leaf lets the -0.25 penalties from Black's
+  forcing sequence ((3,9) -> four -> block -> ...) differentiate
+  the moves over the search; v7's gradient swamps them at
+  shallow depth (100 sims cannot reach the 26-ply loss).
+- Second mechanism: after (4,9)+(3,9) Black holds SIX creators
+  behind a single four — but the position is not quiet (Black
+  has a winning move, (2,10)), so the leaf is -0.25 flat and the
+  gradient is NOT applied. The breadth information is discarded
+  exactly where it matters most.
+
+This is ONE diagnostic position, and the program has repeatedly
+shown diagnostics do not predict match results (v6: tactically
+perfect, loses to v0 0.41). The pre-registered design is NOT
+amended on its basis — amending after seeing v7 behave badly on
+a known-hard position would be moving the goalposts, and the
+evals are the pre-registered decision procedure. If v7 fails the
+matches, the one-sided gradient (reward only OUR breadth; let
+the search handle THEIR threats through terminal values, so
+blocking earns no direct gradient reward) is the concrete v8
+candidate — see §5. The regression is recorded as an xfail test
+(`test_v7_iter5_game1_regression_xfail`) so the behaviour is
+visible in the suite without breaking clause 4.
+
 ## 2. Loss analysis for iteration 7
 
 (TODO — filled in after the evals.)
