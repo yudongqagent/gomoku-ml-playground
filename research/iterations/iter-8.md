@@ -815,12 +815,94 @@ normal rules) — balanced openings run longer.
 
 ### 5.6 Ladder (20 games/opponent, mcts_sims=100, seed 100)
 
-(TBD.)
+`ml/scripts/eval_version.py --version 8 --ladder-games 20
+--mcts-sims 100 --seed 100` (469 s; first attempt killed by
+the ~16:17 UTC VM replacement after ~6 min with no output —
+the ladder prints only at the end, so it was re-run from
+scratch on the same seed):
+
+- vs random: 20W-0L-0D (1.00)
+- vs heuristic: 10W-10L-0D (0.50; as Black 8W-2L, as White
+  2W-8L)
+- vs mcts: 6W-14L-0D (0.30; as Black 5W-5L, as White 1W-9L)
+- **Ladder Elo: 0.0, interval [-147.8, 147.8]** (anchors
+  random=-800, heuristic=0; relative to THIS ladder only)
+
+**Clause 2 FAILS** — 0.0 is not strictly higher than v1's
+70.4. The colour split appears in the ladder too (vs
+heuristic Black 0.80 / White 0.20; vs mcts Black 0.50 /
+White 0.10): v8-as-White scores 0.10–0.45 against every
+opponent, v8-as-Black 0.50–0.80. The White weakness is
+cross-opponent, not a v1 quirk. Raw JSON: the EVAL_JSON line
+in `ml/runs/b3-h2-logs/battery-v8-ladder2.log` (gitignored
+log; numbers above are the record).
 
 ## 6. Bar check (v8 vs v1)
 
-(TBD.)
+| Clause | Requirement | v8 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v1 (100 games) | win rate > 0.50, Wilson 95% CI lower > 0.50 | 42W-46L-12D, 0.48, CI [0.38, 0.58] | **FAIL** |
+| 2. Ladder Elo | strictly > v1's 70.4 (identical counts/opponents) | 0.0 [-147.8, 147.8] | **FAIL** |
+| 3. Tactical | old 20/20 AND hard ≥ 12/29 | old 20/20, hard 29/29 | **PASS** |
+| 4. Test suites | targeted ml pytest green | 66 passed (test_mcts_value + test_regression_v8 + test_scoring + test_mcts_heuristic) | **PASS** |
+
+**Verdict: v8 REJECTED.** Clauses 1 and 2 fail; 3 and 4
+pass. v8 is roughly v1-strength (0.48 h2h, Elo 0.0 vs v1's
+70.4 — the intervals overlap) and clearly above v0 (0.545)
+and v6 (0.535 h2h vs v1, Elo -107.5; v8's Elo 0.0 is higher
+than v6's, and v8 beats v0 where v6 lost). The ordering
+v1 ≈ v8 > v0 > v6 is transitive — no bad non-transitivity.
+Master untouched (still 78c733a); nothing is pushed to
+master.
 
 ## 7. What this means
 
-(TBD.)
+**v8 is REJECTED (clauses 1 and 2 fail; 3 and 4 pass —
+see §6).**
+The learned value function, as trained here, does not beat
+v1. But the work produced three findings that change what the
+next batch should try:
+
+1. **A value net trained on weak self-play is worse than no
+   value function at all — unless shrunk hard.** The
+   4,350-game net generalizes (holdout 0.72) yet the full
+   net value loses 0-10 to v0 where v6's terminal-only leaf
+   scores 0.50. The net's values are unreliable in the
+   distribution heuristic opponents actually play
+   (distribution mismatch), and MCTS exploits the
+   overvaluations (optimizer's curse). Shrinking the net
+   value to α=0.25 — a weak attack-gradient signal on top of
+   the priors and terminal cases — recovered 0.60 vs v0 and
+   0.48 vs v1. The lesson for the next batch: **train the
+   value net on games against heuristic opponents** (or
+   mixed self-play + heuristic-opponent data), so the
+   distribution matches the opponents it will face. The B1
+   parallel path can generate those games; the cost is
+   ~2 h for a few thousand games plus retraining. Do not
+   just scale weak self-play — 8.7x more of the same data
+   fixed generalization (0.44 → 0.72) and made game strength
+   WORSE (0.30 vs v1 at α=1.0).
+2. **v8-as-White is the residual weakness.** The 0.38 colour
+   gap vs v1 (Black 0.67 / White 0.29, n=50 each) is the
+   largest single effect in the battery. White starts a
+   tempo behind in the threat race, and v8's threat-building
+   is weaker than v1's. Candidate fixes: colour-conditional
+   value training (separate White value head, or White
+   positions upweighted), or more search for White. This is
+   the most promising single target for the next version.
+3. **The 2-ply threat check is a durable, portable gain.**
+   Porting v3's check to the MCTS root fixed all 5 tactical
+   prevention fails (hard 24/29 → 29/29) at ~0.15 s/move
+   and is the reason v8's defence is airtight (0 missed
+   blocks, 0 clean missed preventions in 708 threatened
+   turns). Any future MCTS version should keep it.
+
+**What v8 does establish:** the full pipeline works —
+batched self-play data (500 games) + parallel B1 data
+(4,350 games) → value-net training → MCTS leaf integration
+→ fast-loop patching → full battery. The fast loop itself
+proved its worth twice: it found the prevention gap (fixed
+by the threat check) and the net-overvaluation gap (fixed by
+the shrink), each verified by replay and regression tests.
+The remaining gap is attack — same as v6's, now precisely
+located: White, and the slow threat race.
