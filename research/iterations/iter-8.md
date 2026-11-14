@@ -122,19 +122,90 @@ mcts_sims=100; swap 100 games vs v1, balanced placement,
 placement_seed 11, tempo judge (the harness default; recorded in
 the JSON).
 
-**Eval order (pre-registered):** (1) tactical old suite (20) +
-hard suite (29) using `player.choose_move` with FULL dispatch —
+**Eval order (pre-registered, REVISED by the direction change below
+— the full battery now runs on the FINAL patched v8, after the fast
+heuristic loop):** (1) tactical old suite (20) + hard suite (29)
+using `player.choose_move` with FULL dispatch —
 `research.run_tactical(choose_fn, suite)` with
 `evaluate.load_tactical_suite(path)` for the hard suite
 (`ml/gomoku_ml/tactical_positions_hard.json`); NOT
 `eval_version.py`'s tactical probe, which bypasses the MCTS
-dispatch. (2) 20-game smoke match vs v1. (3) Full h2h vs v1, 100
-games (`ml/scripts/selfplay_batch.py`, seeds 100/200) ->
-`research/iterations/batch-v8-vs-v1.json`. (4) 100 games vs v0 ->
-`batch-v8-vs-v0.json`. (5) 100-game swap match vs v1 (balanced,
-placement_seed 11, tempo judge) -> `batch-v8-vs-v1-swap.json`.
-(6) Ladder 20 games/opponent via `eval_version.py` (its ladder
-path uses `player.choose_move` correctly).
+dispatch. (2) 20-game smoke match vs v1. (3) FAST HEURISTIC LOOP
+(see §1.1): up to 4 iterations of 10 games vs the
+weakness-exposing opponent, each iteration finding THE losing
+move per lost game (verified, never guessed), patching the
+structural cause, and recording regression positions. (4) FULL
+VALIDATION BATTERY on the final patched v8: tactical old+hard
+(re-run), h2h vs v1 100 games (`ml/scripts/selfplay_batch.py`,
+seeds 100/200) -> `research/iterations/batch-v8-vs-v1.json`,
+100 games vs v0 -> `batch-v8-vs-v0.json`, 100-game swap match vs
+v1 (balanced, placement_seed 11, tempo judge) ->
+`batch-v8-vs-v1-swap.json`, ladder 20 games/opponent via
+`eval_version.py` (its ladder path uses `player.choose_move`
+correctly). Any battery numbers measured before the fast loop
+completes are INTERMEDIATE (pre-patch) results, labelled as such;
+only the final battery counts for the bar.
+
+### 1.1 Direction change — fast heuristic loop (directed mid-batch by Yudong, ~23:00 PST 2026-11-13)
+
+Yudong directed a method change on top of the batch-3 plan (see
+`research/batch-3-direction-change.md`, committed on
+`research/batch-3` after this branch forked — cited here, not
+present in this worktree). The H1/H2/H3 direction and the 4-clause
+"better" bar are UNCHANGED. What changed is the loss-analysis
+method: statistics-first aggregates are replaced by a FAST
+HEURISTIC LOOP — think like a human master (weak POINTS and weak
+STRATEGIES, recurring structural mishandling), not aggregate
+counts:
+
+- After v8 is integrated, play 10 games against an opponent that
+  produces losses to learn from (v0 or the MCTS ladder opponent —
+  the matchup that exposes real weaknesses; v0 is the default
+  choice: every search version in this program lost to it — v4
+  0.37, v5 0.28, v6 0.41 — and it is fast, so 10 games take
+  minutes; if an iteration produces no losses, switch opponents).
+- Read EVERY move of every game. For each lost game, find THE
+  losing move: the specific move where the game turned from
+  drawable/winning to lost, verified with the solver or a deeper
+  search — never guessed. (`ml/scripts/workup_loss.py` implements
+  the corrected playout-oracle method: the actual move's playout
+  must lose FIRST at the same seeds before an alternative counts.)
+- Patch the algorithm so that, replayed to that critical position,
+  it now plays the perfect move. Patches may be to the leaf
+  combination, the search, or the training data (e.g. adding
+  positions of the weakness class). Patches must fix the WEAKNESS
+  (the structural cause), not the single position.
+- Record each critical position + correct move as a regression
+  test the patched engine must pass:
+  `ml/gomoku_ml/regression_positions_v8.json` +
+  `ml/tests/test_regression_v8.py`.
+- Then play 10 more games and repeat. Bounds: max 4 fast-loop
+  iterations (40 games) before validation, or stop when an
+  iteration finds no new weakness class.
+- Each fast-loop iteration is reported concretely in §4 below:
+  game, losing move, perfect move + verification, patch, replay
+  result. The fast-loop worked games ARE the loss analysis; the
+  aggregate classification (via open four / missed blocks /
+  missed preventions) becomes secondary.
+
+### 1.2 Data path — B1 parallel self-play (10k dataset)
+
+A separate B1 workstream is building multiprocessing parallel
+self-play on top of B2 and will generate a 10,000-game dataset at
+50 sims (expected location:
+`/home/hatch/workspace/projects/gomoku-b3-b1/ml/runs/b3-b1-10k/` —
+exact path confirmed in B1's report). The planned 500-game
+B2-only run proceeds FIRST so v8 exists and can be validated; this
+workstream does NOT wait idle for B1. If the 10k dataset lands
+while this workstream is still running, the value net is retrained
+on it and BOTH the 500-game and 10k-data versions' numbers are
+reported (the 10k-data version counts for the bar if it is the
+final form — the validation battery is re-run on it). If it does
+not land in time, v8 is reported as-is and the 10k data carries
+to the next version. The staged program (10k -> train -> full
+eval; 50k -> eval; 100k+ -> eval, each stage gated on Elo
+improvement, quality bar = the project's "good level" bar) is the
+longer arc; v8 is its first step.
 
 **Why this change — traced to the analysed gaps (iter-6 §2).**
 v6 defends perfectly (166/166 losses via open four, 0 missed
@@ -161,16 +232,39 @@ not the search.
 
 (TBD — per-leaf net eval cost on CPU, per-move cost at 100 sims.)
 
-## 4. Loss analysis for iteration 8
+## 4. Fast heuristic loop (the loss analysis)
 
-(TBD — aggregates across the three 100-game matches plus 2–3
-worked games with the CORRECTED playout-oracle method: the actual
-move's playout must lose FIRST at the same seeds before an
-alternative counts — see iter-6 §2.2(a) for the withdrawn finding
-that resulted from comparing the alternative's playout against the
-historical game outcome.)
+Per the direction change (§1.1), the fast-loop worked games ARE
+the loss analysis; aggregate classification is secondary. Each
+iteration: 10 games vs the weakness-exposing opponent, every move
+read, THE losing move per lost game verified (solver / deeper
+search / corrected playout oracle), patch to the structural cause,
+regression position recorded, replay verified.
 
-## 5. v8 evaluation
+### 4.1 Iteration 1
+
+(TBD — opponent, games, losing moves, perfect moves +
+verification, patches, replay results, regression positions.)
+
+### 4.2 Iteration 2
+
+(TBD.)
+
+### 4.3 Iteration 3
+
+(TBD.)
+
+### 4.4 Iteration 4
+
+(TBD.)
+
+### 4.5 Aggregate classification (secondary)
+
+(TBD — `ml/scripts/classify_losses.py` aggregates across the
+validation-battery matches: losses via open four, missed blocks,
+clean missed preventions with threatened-turn counts.)
+
+## 5. v8 evaluation (FULL VALIDATION BATTERY — final patched v8 only)
 
 ### 5.1 Tactical suites
 
