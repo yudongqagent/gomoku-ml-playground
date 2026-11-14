@@ -109,6 +109,14 @@ class ValueMCTS(HeuristicMCTS):
         device: str = "cpu",
     ) -> None:
         super().__init__(sims=sims, c_puct=c_puct, rng=rng)
+        # Batch-3 merge fix: H1's HeuristicMCTS sets ``self._leaf_value``
+        # to a module-level leaf function in __init__; that instance
+        # attribute shadows this class's leaf method, so the net leaf
+        # never ran (and _run_one's 4-arg call raised TypeError).
+        # Rebind the dispatch point to the learned leaf so this class
+        # behaves exactly as it did on the H2 branch, where
+        # ``_leaf_value`` was a plain overridable method.
+        self._leaf_value = self._value_leaf_value
         if model is not None:
             self.net = model
             self.net.eval()
@@ -190,7 +198,7 @@ class ValueMCTS(HeuristicMCTS):
             return int(self.rng.choice(best))
         return best[0]
 
-    def _leaf_value(
+    def _value_leaf_value(
         self,
         board: np.ndarray,
         player: int,
@@ -200,7 +208,9 @@ class ValueMCTS(HeuristicMCTS):
         """Learned leaf value in [-1, 1] for ``player`` to move.
 
         Terminal cases first (exact, as in v6); quiet positions get
-        the net's value head on the 8-plane encoding.
+        the net's value head on the 8-plane encoding. Bound to
+        ``self._leaf_value`` in __init__ (see the merge-fix comment
+        there), so ``_run_one`` and direct callers use this method.
         """
         if scoring._winning_moves(board, player):
             return 1.0
@@ -227,7 +237,8 @@ class ValueMCTS(HeuristicMCTS):
         history: list[np.ndarray] | None = None,
     ) -> float:
         """One simulation — identical to :meth:`HeuristicMCTS._run_one`
-        except the leaf evaluation (see :meth:`_leaf_value`) and the
+        except the leaf evaluation (see :meth:`_value_leaf_value`,
+        bound to ``self._leaf_value`` in __init__) and the
         history threading (the boards before each move along the
         search path, copied, so the leaf encoding's history planes
         match the training distribution).
