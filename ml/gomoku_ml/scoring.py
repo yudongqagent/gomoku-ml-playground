@@ -337,6 +337,21 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # are the parallel batch-7 workstreams'.
     20: {"name": "scoring-v20", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1_gap"},
+    # v22 (iteration 22, batch 8): H2 — v14's v1-kernel gradient
+    # leaf with gap-three makers demoted ONLY in BLACK's breadth
+    # (see gomoku_ml.mcts_heuristic
+    # _gradient_v1_gap_black_leaf_value and research/iterations/
+    # iter-22.md). v20's GLOBAL demotion traded Black for White
+    # (vs v0: Black 0.72, White 0.45): gap-three breadth is
+    # phantom for the initiative-holder (Black moves first and
+    # holds the tempo) but signal for White's counterplay. Black's
+    # breadth uses v20's demoted breadth; White's uses v14's
+    # undemoted breadth. Tanh scale re-derived by v7's rule from
+    # the conditional distribution (iter-22 §1.1); cap ±0.2
+    # unchanged. Everything else is v14 unchanged. Version 21 is
+    # the parallel batch-8 workstream's (H1, v18+blend).
+    22: {"name": "scoring-v22", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1_gap_black"},
 }
 
 # --- weights --------------------------------------------------------------

@@ -176,8 +176,7 @@ std 2.26), v14 (7.5 from std 4.09), and v20 (5.5 from std 3.02)
 used — measured in Step 0 (§1.1) on the same 304-position sample
 as iter-14/iter-20, BEFORE any v22 eval. The scale is fixed here
 from the measured distribution, NOT tuned on any v22 eval result.
-Value: **TBD in §1.1** (filled from the Step-0 measurement; the
-rule above is the pre-registration).
+Value: **7.0** (1.8 x std 3.75 = 6.76, rounded to the nearest 0.5).
 
 **What this change is meant to fix, and the expected effect
 (stated in advance).** v20's global demotion traded Black for
@@ -208,9 +207,45 @@ from the battery's 100/200 AND from iter-20's loop seeds
 
 ### 1.1 Step 0 — cost and distribution measurement
 
-(TBD — run `ml/scripts/bench_v22_leaf.py` on the iter-20 §1.1
-sample BEFORE any v22 eval; fill in cost table, conditional
-breadth-difference distribution, and the scale value.)
+`ml/scripts/bench_v22_leaf.py` on 346 boards replayed from
+batch-v7-vs-v1.json (first 20 games, every 4th ply from ply 8;
+290 quiet) — the SAME sample as iter-20 §1.1, and the v14/v20
+distributions reproduce iter-20's numbers exactly (v14 mean
+-2.98, std 4.91; v20 mean -2.00, std 3.02), so the comparison is
+apples-to-apples. Median of 3 rounds x 50 calls.
+
+| Call | Median ms/call |
+|---|---:|
+| v22 `_attack_gradient_v1_gap_black` (full) | 8.15 (min 7.52, max 8.26) |
+| v22 `_gradient_v1_gap_black_leaf_value` (full) | 9.70 (min 8.46, max 9.88) |
+| v20 `_attack_gradient_v1_gap` (full) | 7.50 (min 6.27, max 7.85) |
+| v14 `_attack_gradient_v1` (full) | 3.85 (min 2.66, max 4.05) |
+| v7 `_attack_gradient` (full) | 2.19 (min 2.17, max 3.39) |
+| v6 `_terminal_leaf_value` | 1.92 (min 1.82, max 2.38) |
+
+The v22 gradient costs ~8.2 ms per quiet leaf vs ~7.5 ms for
+v20's on this run (absolute numbers are contention-noisy; the
+ordering is what matters: v22 ≈ v20, one extra kernel call over
+v14). At up to ~100 leaf calls per move that is at most ~+0.4
+s/move over v14, ~+15 min per 100-game match. Affordable — the
+same cost class as v20.
+
+Conditional breadth-difference distribution on the 290 quiet
+positions: mean -0.88, std 3.75, p10 -5.50, p50 -0.50, p90 +3.75;
+|diff| >= 2 in 58.6%, >= 4 in 29.7%, >= 6 in 12.1%. (v14 on the
+same sample: mean -2.98, std 4.91; v20: mean -2.00, std 3.02.)
+Scale: 1.8 x 3.75 = 6.76 -> **7.0** (pre-registered above). Mean
+gap-three makers per position: Black 2.80, White 1.50 — the
+sample's boards all have White to move (every 4th ply from ply
+8), so this reproduces iter-20's ours 1.50 / theirs 2.80 exactly:
+the side to move holds fewer gap-three makers, the opponent just
+moved and just created them. The conditional demotion changes the
+breadth difference in 55.5% of quiet positions vs v14 (mean
+|change| 2.10) and in 37.2% vs v20 (mean |change| 1.12) — a
+substantial revision of the signal in both directions, not a
+tweak at the margin. The mean shift (-2.98 → -0.88) is the
+intended direction: part of the side-to-move's deficit was
+Black's phantom breadth, now removed from the theirs term.
 
 ### 1.2 Implementation (pre-registered)
 
@@ -237,13 +272,63 @@ breadth-difference distribution, and the scale value.)
 
 ### 1.3 Direction checks (NOT evals — identity/direction only)
 
-(TBD — after implementation and before the battery, v22's search
-(100 sims, seed 0) is run on the §2 critical positions and the 9
-v20 regression positions, to check the patch has the intended
-DIRECTIONAL effect. Single-position diagnostics: they CANNOT
-validate the version, they only check the patch does what it was
-designed to do at the positions that motivated it. The battery
-(§3) is the verdict.)
+After implementation and before the battery, v22's search (100
+sims, seed 0) is run on the 9 v20 regression positions
+(`regression_positions_v20.json`) to check the patch has the
+intended DIRECTIONAL effect — whether it plays the oracle-verified
+save where v14 played the loser, and whether it keeps v20's saves.
+These are single-position diagnostics: they CANNOT validate the
+version (standing lesson), they only check the patch does what it
+was designed to do at the positions that motivated it. The battery
+(§3) is the verdict.
+
+**Results (measured, seed 0).** v22 plays the save at **2 of 9**
+positions; v20 at **3 of 9**; v14 at **0 of 9**:
+
+| Position | v22 plays | v20 plays | v14 plays | Expected (save) | Verdict |
+|---|---|---|---|---|---|
+| bl-ply8 | (7,10) | (7,10) | (7,10) | (8,5) | miss (all) |
+| bl-ply10 | (8,5) | (8,5) | (7,9) | (5,12) | miss (v22 avoids the loser, not the save) |
+| bl-ply12 | (6,11) | (5,12) | (6,11) | (5,12) | **miss (v22 REGRESSES vs v20)** |
+| bl-ply14 | (6,9) | (6,9) | (4,9) | (6,9) | **SAVE** |
+| bl-ply16 | (9,4) | (9,4) | (9,4) | (6,9) | miss (all — prior gap) |
+| fl1-g6-ply28 | (4,9) | (0,9) | (7,5) | (4,9)/(0,9) | **SAVE (winning save, not v20's drawing save)** |
+| fl1-g6-ply34 | (6,11) | (6,11) | (6,11) | (4,2) | miss (all — starvation) |
+| fl1-g5-ply27 | (11,9) | (6,10) | (8,9) | (7,6)/... | miss (all — beyond-horizon; different misses) |
+| fl2-g5-ply65 | (12,11) | (11,9) | (11,9) | (13,6)/... | miss (all — beyond-horizon; different misses) |
+
+(Coordinates are (x, y) throughout, as in the walk-back JSONs
+and the iter-20 §1.3 table — the v20/v14 columns reproduce
+iter-20 §1.3 exactly, which cross-checks the driver. (5,12) is
+the distant four-maker.)
+
+Two of v20's three saves survive: bl-ply14 (the forcing open
+three over the flashy double open three) and fl1-g6-ply28 — where
+v22 plays (4,9), the WINNING save, while v20 played (0,9), the
+drawing save. The third, bl-ply12, REGRESSES: v22 plays (6,11)
+like v14 instead of the distant four-maker (5,12). The regression
+is NOT a 1-ply gradient effect: the gradients after the save and
+after (6,11) are IDENTICAL for all three leaves (v14 -0.039, v20
+-0.053, v22 +0.042, White to move — v22 rates both positions
+better for White than v20 does, because White's 4 gap-three
+makers count fully: White breadth 17.5 vs demoted 14.5). The
+difference is a deeper-tree effect: below the save, White's
+gap-three breadth counts fully at every White-to-move leaf, so
+White's replies look better for White and the save's lines look
+worse for Black on backup. That is the theirs-term working as
+designed — and costing Black at this position, where White's
+gap-three breadth after the save turns out to be phantom in the
+engine-swap sense (the save wins). The condition is a trade, not
+a pure win: the same term that restores White's counterplay
+vocabulary can steer Black away from a forcing move when White's
+replies are gap-three-rich. Whether that cost matters in
+aggregate is what the battery measures; no single-position
+diagnostic can say. The two White positions (fl1-g5-ply27,
+fl2-g5-ply65) are missed by all three engines, but v22 plays
+different moves than v20/v14 at both — whether they are better is
+unknown (they are not the oracle-verified saves) and is not
+claimed. The 2 saves are passing tests in
+`test_regression_v22.py`; the 7 misses are xfails.
 
 ## 2. Loss analysis for iteration 22
 
