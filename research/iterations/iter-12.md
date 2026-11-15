@@ -1,9 +1,9 @@
 # Iteration 12 — v12: tie-prior default + forcing-first tie-break (batch 5, H1)
 
-**Status: IN PROGRESS — pre-registration (§1) written BEFORE any eval.
-Pre-eval observation (§1.5), fast loop (§2), and full battery (§3)
-to follow. Comparison target and eval seeds were recorded BEFORE
-the first eval (see §1).**
+**Status: COMPLETE — v12 REJECTED (3/4 clauses; clause 1 fails:
+41W-42L-17D vs v7, 0.4950, CI [0.3990, 0.5914]). v7 remains the
+reference. Clauses 2, 3 and 4 pass. Pre-registration (§1) was
+written BEFORE any eval; the battery (§3.4–3.8) is the verdict.**
 
 **METHOD (carried over from batch 3/4).** The fast 10-game loop stays
 the finding method: play 10 games, read every move, find each game's
@@ -331,11 +331,59 @@ not silently dropped. The battery runs on the as-registered v12
 
 ### 2.5 Aggregate counts (secondary)
 
-[To be filled after the battery.]
+Across the three 100-game battery matches (v12 as A): **78
+losses, 78/78 via open four (100%), 0 missed blocks**, 316
+threatened turns in losses, **1 clean missed prevention (0.3%
+of threatened turns)**. Per match: vs v0 0 losses (perfect
+100-0); vs v7 42 losses, 42/42 via open four, 0 missed blocks,
+191 threatened turns, 1 missed prevention (0.5%); vs v7 (swap)
+36 losses, 36/36 via open four, 0 missed blocks, 125 threatened
+turns, 0 missed preventions. Fast loops add 3 more losses (0 vs
+v0, 3 vs v7), all via open four, 0 missed blocks, 0 missed
+preventions, 13 threatened turns. **Grand total: 81 losses,
+81/81 via open four, 0 missed blocks, 1 missed prevention in
+329 threatened turns (0.3%).** Defence is solved for this
+engine family; every loss is losing the open-four race, same as
+v6/v7/v8/v9. The single missed prevention (normal-rules match
+vs v7) is the only concrete error the classifier finds in 300
+battery games — and the swap match's 0 (vs v9's 4) is the
+forcing tie-break's class-level effect (§2.6).
 
-### 2.6 Worked game
+### 2.6 The §2.6 class, closed (what changed because of a specific loss)
 
-[To be filled if a worked game earns it.]
+The loss that motivated v12 is v9's swap game 41 (iter-9 §2.6):
+ply 21, a three-way 5-visit tie, tie-prior picking the loser
+(7,8) over two forcing preventions because v1's 1-ply score
+undervalues forcing counter-threats (~20k) vs occupying a
+creator (~204k). What changed because of it:
+
+1. **At the position itself (§1.5):** v12 plays (3,11) — the
+   higher-prior forcing move — where v9/v7 played (7,8). The
+   rule does exactly what it was designed to do. (The honest
+   limit stands: the preventing moves don't save game 41 — the
+   position was already losing — so this is a rule-correctness
+   observation, not a saved game.)
+2. **At match scale:** v9's swap match had 4 clean missed
+   preventions in 162 threatened turns (2.5%), all three
+   distinct positions of the §2.6 class (two diagonal-adjacent
+   creators, v9 blocks one, v7 plays the other). v12's swap
+   match has **0 missed preventions in 125 threatened turns**.
+   The class is closed: whenever v12 faces a live-creator
+   threat in the swap match, it either forces or kills every
+   creator.
+3. **The swap score follows:** v9's swap vs v7 was exactly even
+   (48-48-4, 0.50); v12's is 58-36-6 (0.61, CI [0.5120,
+   0.6998]) — the first established swap edge in the program.
+   The prevention class alone doesn't explain a 10-game swing
+   (4 missed preventions ≠ 10 games), but it is the mechanism
+   the rule was built for, and it moves in the predicted
+   direction at the predicted place.
+
+No new worked game is added from v12's own losses: the three
+fast-loop losses are worked in §2.2, and the battery's losses
+are defence-perfect open-four-race losses (§2.5) with a single
+missed prevention — the same distributed-drift picture as every
+version since v6.
 
 ## 3. v12 evaluation
 
@@ -453,7 +501,8 @@ BOTH anchored opponents 20-0, so both per-opponent scores are
 (0.8389 → +286.6 over the 0 anchor). Run: `eval_version.py
 --version 12 --ladder-games 20 --mcts-sims 100 --seed 100`;
 EVAL_JSON saved to `research/iterations/ladder-v12.json` (full
-log: `research/iterations/ladder-v12.log`). The script's tactical
+log kept uncommitted in `~/workspace/b5h1-logs/ladder-v12.log`,
+as v9's was). The script's tactical
 probe line was disregarded per the brief (it bypasses the MCTS
 dispatch); tactical is §3.5's full-dispatch 20/20 + 29/29.
 **The ladder is IDENTICAL to v9's on every matchup** (random
@@ -475,12 +524,102 @@ upper bound; the intervals overlap, as they did for v7 vs v1.)
 
 ### 3.8 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
 
-[To be filled.]
+**v12 vs v7 (swap): 58W-36L-6D, win rate 0.6100, 95% CI
+[0.5120, 0.6998]**, 1499.8 s. File:
+`research/iterations/batch-v12-vs-v7-swap.json` (seeds 100/200).
+Per colour: as Black 27W-18L-5D (0.5900), as White 31W-18L-1D
+(0.6300) — v12 wins in BOTH colours under swap. By role: as
+opener 34W-14L-2D (0.7000), as second player 24W-22L-4D (0.5200)
+— the edge comes mostly from v12's opener games, though the
+opening pools are essentially shared (18 of ~20 distinct
+openings appear for both openers; mean opening_gap 77.8 for
+both), so this is play, not a placement advantage. Mean game
+length 52.93 plies. Loss classifier: 36/36 losses via open
+four, **0 missed blocks**, 125 threatened turns in losses, **0
+clean missed preventions** — v9's swap match had 4 missed
+preventions, all of the §2.6 class (iter-9 §2.6); v12's forcing
+tie-break closes that class at match scale (see §2.6).
+**A real swap edge — the first in the program with a CI that
+excludes 0.50**: v9's swap vs v7 was 48W-48L-4D (0.5000), v7's
+swap vs v1 was 51W-37L-12D (0.5700, CI including 0.50). The
+swap match is NOT part of the 4-clause bar (clause 1 is normal
+rules), so this does not change the verdict — but it is v12's
+durable contribution: the forcing tie-break's value shows up
+where the opening is neutralised and the game is a pure
+midgame fight with more forcing/prevention decisions.
 
 ## 4. Bar check (v12 vs v7)
 
-[To be filled.]
+| Clause | Requirement | v12 | Verdict |
+|---|---|---|---|
+| 1. Head-to-head | ≥100 games vs v7, win rate > 0.50 with Wilson 95% CI lower > 0.50 | 41W-42L-17D, 0.4950, CI [0.3990, 0.5914] | **FAIL** |
+| 2. Ladder Elo | Strictly > v7's 190.8, identical counts | Estimate undefined (perfect 20-0 vs both anchors), interval [286.6, None]; lower bound 286.6 > 190.8 | **PASS** (see §3.7 caveat) |
+| 3. Tactical | ≥ v7's 20/20 old + 29/29 hard | 20/20 + 29/29 | **PASS** |
+| 4. Test suites | All green | ml pytest 256 passed, 7 skipped, 7 xfailed, 0 failures; npm test 55/55; tsc clean (both verified in this worktree; no web changes in this branch) | **PASS** |
+
+**Verdict: v12 FAILS the bar — clause 1 fails.** v12 loses to v7
+by one game over 100 (0.4950) with a CI centred on 0.50, so
+there is no head-to-head edge at all — weaker than v9's 0.5500
+on the same seeds. **v12 is REJECTED as the new reference; v7
+remains the reference.** Clauses 2 and 3 pass (same ladder as
+v9, perfect tactical), and the swap edge (0.6100, CI excludes
+0.50) and the perfect 100-0 vs v0 are real — but the bar
+requires all 4 clauses, and the head-to-head is the clause that
+matters. v12 is 3/4, like v9 — a different 3/4: v9 failed
+clause 1 at 0.55 with an even swap; v12 fails it at 0.4950 with
+an established swap edge and a perfect v0 record.
 
 ## 5. What this means
 
-[To be filled.]
+1. **The forcing tie-break is real against weak opposition and
+   under swap, and neutral-to-negative against an equal
+   opponent.** The evidence splits cleanly by opponent strength:
+   vs v0, v12 goes 100-0 where v9 went 93-7 and v7 64-31-5 —
+   the first perfect 100-game score in the program, closing
+   v9's as-Black long-game weakness (7 losses, all as Black) to
+   50-0; under swap vs v7, 0.6100 with a CI excluding 0.50 —
+   the first established swap edge — with the §2.6 prevention
+   class closed (0 missed preventions vs v9's 4). But against
+   v7 under normal rules, 0.4950 vs v9's 0.5500: 8 games worse
+   on identical seeds. Mechanism: against greedy 1-ply play, a
+   forcing move in a tie is nearly always the right call (v0
+   must answer it, and the forced reply costs it the race);
+   against an MCTS opponent, the tied moves are genuinely close
+   in value, and preferring the forcing move over a
+   higher-prior quiet move sometimes picks a one-move threat v7
+   answers while the quiet move builds more. The §2.6
+   hypothesis was right about the class (forcing
+   counter-threats WERE undervalued by the prior) but the
+   match-level effect vs an equal opponent is ~zero — the
+   positions where it matters are rare against v7, and when
+   they occur the forcing move isn't always better.
+2. **The root-decision lever is exhausted.** v9 (tie-prior) was
+   +10 games vs v7 over 100; v12 (tie-prior-forcing) is −1.
+   Root-decision changes move ±10 games over 100 — within noise
+   of each other, and an order of magnitude below what the bar
+   needs (a CI lower bound above 0.50 needs roughly +20 games).
+   The tie-break is worth keeping (it is strictly better than
+   an RNG coin flip against weak opposition, costs nothing, and
+   closes a real prevention class), but it is not a step change
+   — and further tie-break refinements (the conditional
+   forcing-first variant, §1.1) would be tuning on noise.
+3. **The remaining gap is exploration, not decision.** All three
+   fast-loop losses (§2.2) share one mechanism: the saving move
+   is starved of visits by a low prior (6 vs 12, 3 vs 7, 2 vs
+   8) — the KNOWN class from iter-7/iter-9. No root-decision
+   rule fixes a move the search never visits; the fix is
+   exploration-side (higher c_puct, a prior floor), a search
+   change needing its own pre-registration as a new version.
+   The gradient's ordering is the secondary mechanism (game 5:
+   the terminal leaf plays the saver outright, 9 vs 5).
+4. **Defence remains solved; the open-four race is still the
+   whole game.** 81/81 losses via open four, 0 missed blocks, 1
+   missed prevention in 329 threatened turns. v12 loses the
+   race to v7 exactly as often as it wins it.
+5. **No bad non-transitivity.** Ordering is v12 ≈ v7 > v0
+   (v12 100-0 vs v0, 0.495 vs v7; v7 0.665 vs v0) — but note
+   the opponent-dependence: v12 beats v0 by far MORE than v7
+   does (100-0 vs 64-31-5) yet ties v7. A version's edge over
+   a weak opponent does not predict its edge over an equal one;
+   the bar's head-to-head-vs-reference clause is the right gate
+   for exactly this reason.
