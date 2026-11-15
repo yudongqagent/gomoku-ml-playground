@@ -590,3 +590,258 @@ Fast loop pooled (20 games, 7 v14 losses):
 
 Defence is solved, as in every batch: every loss is an open-four
 race lost, never a defensive error.
+
+## 3. v20 evaluation
+
+**Engine note:** the fast loop produced ONE patch — the gap-three
+demotion (§1) — so the battery runs on the pre-registered v20
+exactly as implemented in §1.2 (v14's MCTS + the gap-demoted v1
+gradient leaf, scale 5.5, cap ±0.2). Tactical was measured on this
+engine before the battery (§3.2) and is re-run in §3.5 for the
+record.
+
+### 3.1 Smoke — NOT RUN (no smoke; the fast loop is the smoke)
+
+Per the batch-5 method the 10-game fast loop (§2.1-2.2) is the
+only small-sample evidence, and small-sample smokes mislead (v8,
+v11, v15's two n=40 false positives) — the 100-game battery is
+the verdict.
+
+### 3.2 Tactical suites — pre-battery (re-run on the final engine in §3.5)
+
+Old 20-position suite, full-dispatch driver
+(`ml/scripts/eval_tactical_full.py --version 20 --suite both
+--seed 100`): **v20 20/20**. Hard suite (29 positions): **v20
+29/29** — a perfect score, matching v7's 20/20 + 29/29. The
+gap-three demotion costs nothing tactically.
+
+### 3.3 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
+
+[NOTE: the first run was killed by a runtime restart at 10/100
+games (7W-3L-0D, partial JSON backed up to
+`~/workspace/b7h3-logs/batch-v20-vs-v7-partial.json`, not
+committed). The re-run was killed by a second restart at 80/100
+games (41W-27L-12D, partial backed up to
+`~/workspace/b7h3-logs/batch-v20-vs-v7-partial2.json`, not
+committed). Each re-run started IN FULL from game 0 with the same
+seeds — matches are deterministic, so the final run reproduces
+the 80-game prefix identically (verified: 0 mismatches in moves
+and winners across all 80 games) and completes 80-99 as
+pre-registered. The 10-game prefix was likewise verified at 0
+mismatches on the first re-run.]
+
+**v20 beats v7: 51W-37L-12D, win rate 0.5700, 95% CI [0.4722,
+0.6627]**, 6326.0 s. File:
+`research/iterations/batch-v20-vs-v7.json` (seeds 100/200). Per
+colour: as Black 28W-17L-5D (0.6100), as White 23W-20L-7D
+(0.5300) — v20 scores above 0.50 in both colours, and its White
+(0.53) is above v14's (0.48), but its Black (0.61) is below
+v14's (0.72): the demotion cost Black's opening edge against the
+searching opponent while helping White. Mean game length 66.02
+plies (min 19, max 225) — longer games than v14-vs-v7 (49.72);
+wins mean 50.0 plies, losses mean 36.6 — v20 wins slow and loses
+fast, the familiar pattern. 94 distinct lines in 100 games (no
+transposition collapse). Loss classifier: 37/37 losses via open
+four, **0 missed blocks**, 160 threatened turns in losses, **0
+clean missed preventions** — defence is solved. **Clause 1
+FAILS** (0.5700 > 0.50, but the CI lower bound 0.4722 < 0.50 —
+the edge over v7 is not established). v20 scores BELOW v14
+against v7 (0.5700 vs v14's 0.6000, CI lower 0.5020): the
+demotion removed phantom breadth that was ALSO worth ~3 games
+per 100 against the searching opponent — against v7, gap-three
+breadth is not purely phantom (v7's search respects the threats
+it represents, and the positions v14's gradient preferred were
+genuinely better against a searching opponent, not just against
+greedy play). The fix trades clause-1 margin for the vs-v0
+recovery tested in §3.4 and the ladder in §3.6.
+
+### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
+
+[NOTE: the first run was killed by a runtime restart at 13/100
+games (7W-4L-2D, partial JSON backed up to
+`~/workspace/b7h3-logs/batch-v20-vs-v0-partial.json`, not
+committed). The re-run started IN FULL from game 0 with the same
+seeds and reproduces the 13-game prefix identically (verified: 0
+mismatches in moves and winners across all 13 games).]
+
+**v20 beats v0: 53W-36L-11D, win rate 0.5850, 95% CI [0.4870,
+0.6767]**, 3239.4 s. File:
+`research/iterations/batch-v20-vs-v0.json` (seeds 100/200). Per
+colour: as Black **31W-9L-10D (0.7200)**; as White 22W-27L-1D
+(0.4500). **The fix worked exactly as designed for Black — and
+broke White.** Black's losses to v0 fall from v14's 20 to **9**
+(v7's Black lost 13), and Black's win rate (0.72) is nearly back
+to v7's (0.74): the gap-three demotion recovers Black's race
+against greedy play, the colour the mechanism was diagnosed on
+(§2.0's battery line was a Black loss). But White's losses RISE
+from v14's 20 to **27** (v7's White lost 18), and White's win
+rate falls to 0.45: the demotion blinds White's search to the
+counterplay it needs as the second player. The net (0.5850 vs
+v14's 0.6000) is a wash — the CIs overlap substantially — but the
+colour asymmetry has INVERTED: v14 was symmetric (0.60/0.60),
+v20 is split (0.72/0.45). Mean game length 70.23 plies (min 16,
+max 225) — much longer than v14-vs-v0 (50.86); wins mean 61.9
+plies, losses mean 35.2 — v20 wins slow grinds and loses fast
+races. 11 draws (v14 had 0, v7 had 5), 10 of them as Black:
+v20-as-Black draws the games v14-as-Black lost outright. 88
+distinct lines. Loss classifier: 36/36 losses via open four, **0
+missed blocks**, 202 threatened turns in losses, **0 clean
+missed preventions** — defence is still solved.
+
+The non-transitivity persists and sharpens by colour: v20 beats
+v7 as Black (0.61) and loses to v0 as White (0.45), while v7
+beats v0 in both colours (0.74/0.59). The ladder (§3.6) measures
+the consequence directly, since its heuristic anchor IS v0.
+
+### 3.5 Tactical suites — FINAL BATTERY (re-run on the final engine)
+
+**v20: 20/20 old + 29/29 hard** (full-dispatch driver,
+`ml/scripts/eval_tactical_full.py`, `--seed 100`, run on the
+final engine after the battery). Identical to the pre-battery
+run (§3.2) and to v7's scores. The demotion costs no tactical
+accuracy: every forced win, block, prevention, setup, and VCF
+sequence is still found. **Clause 3 PASSES.**
+
+### 3.6 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
+
+**Ladder Elo: 88.7, interval [-63.6, 241.1]** (anchors:
+random=-800, heuristic=0; relative to this ladder only).
+Per-opponent (20 games each, seed 100):
+- vs random: 20W-0L-0D (1.0000; as Black 10W-0L-0D, as White
+  10W-0L-0D).
+- vs heuristic (= v0): 12W-7L-1D (0.6250, CI [0.4095, 0.8002];
+  as Black 7W-2L-1D, as White 5W-5L-0D).
+- vs mcts: 13W-7L-0D (0.6500, CI [0.4329, 0.8188]; as Black
+  9W-1L-0D, as White 4W-6L-0D).
+Log: `~/workspace/b7h3-logs/ladder-v20.log` (not committed).
+**Clause 2 FAILS** (88.7 < v7's 190.8; the interval includes
+190.8, so the shortfall is not statistically established, but the
+clause requires the estimate to be strictly higher and it is
+not). v20's Elo is well above v14's (-34.9) — the Black recovery
+shows here too (vs heuristic 0.625 vs v14's 0.45, vs mcts 0.65 vs
+v14's 0.55) — but the White weakness caps it: v20 loses or draws
+White in every ladder pairing (5W-5L vs heuristic, 4W-6L vs
+mcts). The ladder is the direct consequence of §3.4's colour
+split: the heuristic anchor IS v0, and v20's White against v0 is
+0.45.
+
+### 3.7 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
+
+**v20 vs v7 under the swap rule: 47W-49L-4D, win rate 0.4900,
+95% CI [0.3942, 0.5865]**, 3079.6 s. File:
+`research/iterations/batch-v20-vs-v7-swap.json` (balanced
+placement, placement seed 11, tempo judge, seeds 100/200). Per
+colour: as Black 28W-19L-3D (0.5900), as White 19W-30L-1D
+(0.3900) — the White weakness shows under swap too. The tempo
+judge picked Black for the second player in 76/100 games (White
+24/100); winners overall: Black 58, White 38, draws 4. Mean game
+length 45.78 plies (min 16, max 225); wins mean 42.8, losses
+mean 34.0. 99 distinct lines. Loss classifier: 49/49 losses via
+open four, **0 missed blocks**, 196 threatened turns in losses,
+**0 clean missed preventions** — defence is solved. **No swap
+edge** (0.49, CI includes 0.50). v14's swap edge against v7 was
+0.64 (established) and v17's 0.74 — the demotion cost the swap
+edge along with the normal-rules margin: under swap, where the
+empty-board opening advantage is removed, the midgame leaf is
+measured directly, and the demoted leaf is simply weaker against
+the searching opponent. The swap result is the cleanest
+statement of the trade: the gap-three breadth v20 removes was
+worth ~15 games per 100 against v7 under swap, and the recovery
+it buys is visible only against greedy play as Black.
+
+## 4. Bar check (v20 vs v7)
+
+| Clause | Requirement | v20 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v7 | ≥100 games, win rate > 0.50 with Wilson 95% CI lower > 0.50 | 51W-37L-12D, 0.5700, CI [0.4722, 0.6627] | **FAIL** |
+| 2. Ladder Elo | strictly higher than v7's 190.8 | 88.7, interval [-63.6, 241.1] | **FAIL** |
+| 3. Tactical | ≥ v7's 20/20 old + 29/29 hard | 20/20 + 29/29 | PASS |
+| 4. Test suites | ml pytest + npm test + tsc green | 332 passed / 7 skipped / 31 xfailed; npm 55/55; tsc clean | PASS |
+
+**v20 is REJECTED (2/4).** v7 remains the reference; master is
+untouched. v20's vs-v0 record (53W-36L-11D, 0.5850) is below
+v14's 0.6000 overall but with an inverted colour split: Black
+0.72 (losses 20→9 vs v14) and White 0.45 (losses 20→27). Swap vs
+v7: 0.4900, no edge (v14: 0.64, v17: 0.74).
+
+## 5. What this means
+
+**The mechanism was real; the fix was colour-asymmetric.** The
+gap-three phantom-breadth diagnosis (§2.0) held up causally at
+every level of evidence: the ply-10 decomposition (the v1
+gradient's +4.0 preference for the losing cluster move came
+entirely from gap-three makers), the 6/6 engine-swap flips, the
+fast-loop confirmation at fl1-g6-ply28 (v14 plays the loser with
+gap3=8, v7 plays the save with gap3=2, the v1 gradient prefers
+the loser +0.193 vs +0.171), and the 3/9 direction checks where
+v20 plays the save and v14 plays the loser. And the battery
+confirms it for the colour the mechanism was diagnosed on:
+v20-as-Black loses to v0 only 9 times, down from v14's 20, and
+Black's win rate (0.72) is nearly back to v7's (0.74). The
+fix did exactly what it was designed to do — for Black.
+
+But it cost White exactly as much as it bought Black (White's
+losses to v0 rise 20→27, White's win rate falls to 0.45), and it
+cost the edge against the searching opponent in both rules
+(vs v7: 0.57 vs v14's 0.60; swap: 0.49 vs v14's 0.64). The
+lesson is that **gap-three breadth is not purely phantom — it
+is colour- and opponent-dependent.** Against greedy play as
+Black (the player with the initiative), gap-three breadth is
+phantom: the opponent kills the gap threes for free, and the
+leaf's preference for them loses races. Against a searching
+opponent, and for White (the player who must find counterplay
+from a tempo down), the same breadth is signal: v7's search
+respects the threats gap threes represent, and White's
+counterplay needs the developing-threat vocabulary the demotion
+removes. A global demotion cannot separate the two — it helps
+the attacker and blinds the defender.
+
+**What changed because of a specific loss:** the shared 28-ply
+Black loss line (batch-v14-vs-v0 game 2 / batch-v17-vs-v0
+games, §2.0) is the position that produced this iteration's
+entire mechanism: the divergence scan showed v7 tenuki-ing
+while v14 consolidated, the engine-swap continuations proved
+v7's moves win the game, and the ply-10 decomposition showed
+the v1 gradient's +4.0 preference for the cluster move came
+entirely from four gap-three makers. The demotion is the direct
+patch for that move. At the battery line's ply 12, ply 14, and
+the fast-loop's fl1-g6-ply28, v20 now plays the verified save
+where v14 played the loser. The regression test
+(`test_regression_v20.py`) pins those three saves. But the
+battery shows the patch's cost is paid elsewhere — in White's
+counterplay and in the swap midgame — which no single-position
+diagnostic could have shown. That is the iteration's second
+lesson, and the reason the 100-game battery is the verdict:
+**a leaf change that is right at three verified positions can
+still be wrong in aggregate, because the leaf's value depends on
+whose turn it is to attack.**
+
+**What is closed / what is open.** The gap-three demotion as a
+global rule is CLOSED: it trades Black for White and v7-margin
+for v0-margin, and no re-weighting of the same demotion (0.25
+vs 0.5 vs 0.0) would change the colour asymmetry, since the
+asymmetry comes from who holds the initiative, not from the
+weight. Open: a COLOUR- OR INITIATIVE-CONDITIONAL demotion —
+demote gap-three makers only for the player with the initiative
+(e.g. only when the leaf's own attack exceeds the opponent's, or
+only as Black) — which would keep Black's recovery while
+restoring White's counterplay vocabulary. That is a different
+mechanism from v20's global rule and needs its own
+pre-registration; it is the natural H3 follow-up for batch 8.
+Also open: whether the White weakness is specifically a
+counterplay-breadth problem (testable by re-running the fast
+loop against v0-as-White with the demotion disabled for White
+only). The v1 kernel itself remains exact and reusable; the
+leaf's defect was never in the kernel's arithmetic but in what
+the breadth formula counts as a threat.
+
+**Non-transitivity (prominent, as required):** v20 > v7 as
+Black (0.61) and v20 < v0 as White (0.45), while v7 > v0 in both
+colours (0.74/0.59). v20 > v7 overall (0.57) but v20 < v14 vs
+v7 (0.60) and v20 ≈ v14 vs v0 (0.585 vs 0.60). The ordering
+v7 > v20 > v14 > v7 does not hold in any single matchup; every
+pairwise comparison depends on colour and opponent type. Ladder
+Elo ordering: v7 (190.8) > v20 (88.7) > v17 (-17.4) > v14
+(-34.9). The ladder and the h2h orderings disagree (v17 has the
+best h2h vs v7 at 0.665 but a negative ladder Elo), which is the
+program's standing non-transitivity, now extended to v20.
