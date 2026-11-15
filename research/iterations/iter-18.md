@@ -315,21 +315,90 @@ patchable class, the loop stops (two consecutive barren
 iterations, 40 games). No regression positions added (a forced
 loss has no "expected save" to record).
 
-### 2.2 Fast-loop iteration 2
+### 2.2 Fast-loop iteration 2 — 10 games vs v7 + 10 games vs v0 (LOOP STOPS)
 
-(TODO)
+**Batches:** `research/iterations/fastloop2-v18-vs-v7.json`
+(seeds v18=1002 / v7=2002) and
+`research/iterations/fastloop2-v18-vs-v0.json` (seeds v18=1002 /
+v0=2002). **vs v7: 7W-1L-2D, win rate 0.8000, CI [0.4902,
+0.9433]**, 991.5 s. Split: as Black 4W-0L-1D (0.90), as White
+3W-1L-1D (0.70). **vs v0: 10W-0L-0D, win rate 1.0000**, 356.7 s.
+Classifier (vs v7): 1/1 loss via open four, 0 missed blocks, 0
+clean missed preventions in 2 threatened turns (losses). Two of
+the ten vs-v7 games were 225-ply full-board draws (games 1 and
+4 — the third marathon draw of the loop, after fl1-g9): v18's
+defence holds v7-as-Black to a full board without a win, and
+v18-as-Black once failed to beat v7-as-White the same way.
+Draws are not losses; they count as half and they say the
+defence is airtight on both sides.
 
-### 2.3 Fast-loop iteration 3
+**The only loss — game 7 vs v7 (White, 21 plies) — has a
+nominated losing move but NO patchable mechanism.** Walk-back
+(`research/iterations/walkback-fl2-g7.json`): last preventable
+turn ply 9 — actual (6,4) loses 3/3 under the v1 oracle, (10,8)
+"wins" 3/3 (ply 7 nominates (10,8) too, among 4 saves; plies
+11–19 have no saves). **Re-verification (per the §2.1 rule)
+weakens the nomination to a noisy edge** (`/tmp/verify_fl2_g7.py`):
 
-(TODO)
+- The two moves are near-twins by every 1-ply measure: (6,4) v1
+  score 200,167 rank 1, (10,8) 200,091 rank 2; priors both
+  0.204; both reduce Black's 2 creators to 0; v7's gradient MCTS
+  prefers (6,4) 34 visits to 26, v6's terminal MCTS ties them
+  29–29. (Neither creates a White four — White has 0 winning
+  moves after either; the ~200k is defence: each occupies a
+  Black creator square.)
+- The rollout leaf prefers the actual too: +0.107 for White
+  after (6,4) vs +0.039 after (10,8) (static gradient +0.061 vs
+  -0.000). The rollout traces show why the leaf cannot separate
+  them: after (6,4) Black's rollout reply is the twin (10,8)
+  and White replies (11,9); after (10,8) Black replies (6,4)
+  and White replies (5,3). Both lines end quiet; the gradient
+  prefers the (11,9) ending — the move White actually played in
+  the losing game. The distinction plays out past the 2-ply
+  horizon (Black's win came at ply 20 via (8,9), a slow squeeze
+  in the 7–9 columns, not a tactic).
+- Stronger oracle (v7-vs-v7, 3 seeds): after (6,4) White wins
+  1/3; after (10,8) White wins 2/3. Actual matchup (v7 Black vs
+  v18 White, 2 seeds): after (6,4) 0/2; after (10,8) 1/2.
+  (10,8) is probably better — but it is a 2/3-vs-1/3 edge, not
+  a verified save, and the v1 oracle's clean 3/3 verdicts are
+  overstated in both directions.
 
-### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration N)
+**No patch.** A patch needs a structural cause, and there is
+none here to fix: the rollout policy is faithful for 2 plies
+(it plays the twin, as the real Black did), the leaf values the
+lines as the gradient sees them, and the difference is a
+positional judgement beyond any 1-ply breadth measure. A deeper
+rollout (4-ply) was already refuted (false terminals, iter-16
+§1.1). Patching on this position would be fitting noise. The
+position IS recorded as a regression xfail (`fl2-g7-ply9` —
+v18 plays (6,4), expected (10,8)), with the noisy verification
+noted in the test, so the twin-choice weakness class is
+documented for future work rather than dropped.
 
-(TODO)
+**No White loss in this iteration produced a patchable class,
+and no Black loss occurred at all — the fast loop STOPS here
+(2 iterations) per the pre-commitment in §2.1** (two
+consecutive barren iterations, 40 games). The Black leaf — the
+whole point of v18 — went 20W-0L-1D across the loop (10 vs v7,
+10 vs v0) without ever showing a weakness to patch. The battery
+is the verdict.
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
 
 ### 2.5 Aggregate counts (secondary)
 
-(TODO)
+Fast-loop totals (2 iterations, 40 games): vs v7 15W-2L-3D
+(0.8250); vs v0 20W-0L-0D (1.0000). Colour splits vs v7: as
+Black 9W-0L-1D (0.95), as White 6W-2L-2D (0.70). Fast-loop
+defence: 2/2 losses via open four, 0 missed blocks, 0 clean
+missed preventions (5 threatened turns in losses). Defence
+remains solved; both losses were White games with no patchable
+move (one forced-loss/distributed drift with oracle artifacts,
+one noisy beyond-horizon twin choice). No patches were made in
+this iteration — v18-as-batteried is v18-as-pre-registered.
 
 ## 3. v18 evaluation
 

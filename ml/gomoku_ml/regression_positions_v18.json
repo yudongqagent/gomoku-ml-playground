@@ -961,6 +961,61 @@
         14
       ],
       "note": "Black to move (v16-as-Black IS v7 \u2014 out of scope for the White-leaf patch; documented xfail). Oracle: (9,14) loses 3/3; 4 saves. See iter-16.md \u00a72.1."
+    },
+    {
+      "id": "fl2-g7-ply9",
+      "source": "fastloop2-v18-vs-v7.json game 7, ply 9",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          9,
+          7
+        ]
+      ],
+      "white": [
+        [
+          6,
+          6
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          4,
+          10
+        ],
+        [
+          7,
+          4
+        ]
+      ],
+      "to_move": "white",
+      "expected": [
+        [
+          10,
+          8
+        ]
+      ],
+      "played_before_patch": [
+        6,
+        4
+      ]
     }
   ]
 }
