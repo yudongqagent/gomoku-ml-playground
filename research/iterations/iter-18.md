@@ -402,11 +402,86 @@ this iteration — v18-as-batteried is v18-as-pre-registered.
 
 ## 3. v18 evaluation
 
-(TODO — battery on the FINAL version only.)
+Battery on the FINAL version (commit `5e9beb6`, after the fast
+loop stopped — no patches were made, so this is v18 as
+pre-registered). Pre-registered seeds 100/200 throughout (§1.3).
 
-### 3.1 Tactical suites
+### 3.1 Tactical suites — 20/20 old, 25/29 hard (CLAUSE 3 FAILS)
 
-(TODO)
+`ml/scripts/eval_tactical_full.py --version 18 --suite both
+--seed 100` (identical protocol to v7's measurement): old 20/20,
+hard **25/29**. Controls re-run on this tree: v16 28/29 (fails
+only g12, as in iter-16), v7 29/29. Clause 3 requires >= v7's
+29/29, so **clause 3 FAILS**. The four failures:
+
+| Position | To move | v18 chose | Expected |
+|---|---|---|---|
+| prev-v1v0s-g26 | Black | (12,3) | (8,4)/(9,4) |
+| prev-v1v1s-g79 | Black | (5,1) | (6,7)/(8,7)/(7,8)/(7,9) |
+| prev-v1bl-g2 | Black | (7,9) | (6,5)/(7,5) |
+| winning-quiet-setup-2 | Black | (9,7) | (7,7)/(8,7)/(8,9)/(10,10) |
+
+**All four failures are Black-to-move — the pre-registered
+downside case (§1), confirmed.** v18-as-White IS v16, and the
+White positions behave accordingly: `prev-v2v1s-g12` (the
+position v16 failed) PASSED for v18 (chose (12,2)) — by RNG
+tie-break luck, exactly as §1 predicted (the tactical driver
+runs one player across the suite, so v18's Black leaf changes
+RNG consumption at earlier Black-to-move positions and the g12
+tie-break falls the other way). The Black leaf, not the White
+leaf, is what costs tactical positions.
+
+**Three of the four failures are the q-compression mechanism
+(iter-16 §3.1), now on Black's side** (root dumps, fresh seed 0,
+`/tmp/dump_v18_tactical_fails.py`):
+
+- g26: v18 ties FOUR moves at 3 visits — (10,2) and (12,3) at
+  our-q -1.000, the expected (8,4)/(9,4) at our-q -0.583 — and
+  the RNG picks (12,3). v7's expected moves win 5/4 visits at
+  our-q -0.091/-0.129 vs the losers' -0.61.
+- g79: v18 ties SEVEN moves at 3 visits, the expected four at
+  our-q -0.583, the losers at -1.000; the RNG picks (5,1). v7's
+  expected moves take 6/6/6/4 visits at our-q ≈ -0.10 to -0.15.
+- v1bl-g2: v18 ties the expected (7,5) and the loser (7,9) at 8
+  visits (our-q -0.594 vs -0.724); the RNG picks (7,9). v7's
+  (6,5) wins outright at 6 visits, our-q -0.153.
+
+In all three, **the leaf KNOWS**: the rollout leaf values the
+chosen move at -1.000 for Black (loses by force) and every
+expected move at +0.250 (the opponent faces a must-block). But
+the search cannot convert that leaf signal into visits: the
+rollout leaf compresses ALL q values downward (expected moves
+-0.09 → -0.58, losers -0.61 → -1.00), shrinking the q gap from
+v7's ~0.52 to ~0.42, and with ~84 candidates splitting 100 sims
+the losers' ~3x prior advantage (0.12–0.14 vs 0.04) equalises
+the visits. The expected move holds the better q in all three
+failures — but visits tie, and the RNG tie-break picks wrong.
+This is the same failure mode as v16's g12, with the same
+blocked fixes: a root tie-break rule preferring higher our-q
+among equal-visit children is CLOSED (root-decision rules are
+exhausted), and deliberately degrading the leaf's accuracy to
+share v7's blindness is absurd. The genuine fix is H2's (v19):
+a leaf value that keeps terminal correctness while restoring a
+smooth ordering among losing lines.
+
+**The fourth failure is benign.** On winning-quiet-setup-2 v18
+concentrates 79 visits on (9,7) (our-q +0.959) vs 16 on the
+expected (8,7) (our-q +1.000) — not a tie, a search-dynamics
+preference for a near-winning move over the listed winner. But
+(9,7) WINS 3/3 under v7-vs-v7 playouts, exactly like the
+expected (8,7) and (10,10): the suite's expectation list is too
+narrow, and v18's move is a winner the suite does not credit.
+Counting it as a pass, v18 would be 26/29 — still short of
+29/29, so clause 3 fails either way. It is recorded here so the
+next iteration does not chase a non-defect.
+
+**No patch.** The fast loop is closed (§2.2), and the only
+available fixes are a CLOSED root rule or H2's blend. The
+battery continues: the fast loop showed the Black leaf winning
+9W-0L-1D vs v7 in real games, so game strength and tactical
+score diverge for v18 — the h2h numbers below decide whether
+the Black rollout leaf is a net gain despite costing 3 tactical
+positions.
 
 ### 3.2 Head-to-head vs v7
 
