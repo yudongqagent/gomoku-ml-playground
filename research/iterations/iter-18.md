@@ -239,7 +239,81 @@ and untouched.
 
 ### 2.1 Fast-loop iteration 1 — 10 games vs v7 + 10 games vs v0 (pre-patch engine)
 
-(TODO)
+**Batches:** `research/iterations/fastloop1-v18-vs-v7.json`
+(seeds v18=1001 / v7=2001) and
+`research/iterations/fastloop1-v18-vs-v0.json` (seeds v18=1001 /
+v0=2001) — development seeds, distinct from the bar battery's
+100/200. **vs v7: 8W-1L-1D, win rate 0.8500, CI [0.5411, 0.9646]**,
+690.5 s. Split: as Black **5W-0L (1.00)**, as White 3W-1L-1D
+(0.70). **vs v0: 10W-0L-0D, win rate 1.0000**, 408.7 s (as Black
+5W-0L, as White 5W-0L). Classifier (both batches): 1/1 loss via
+open four, 0 missed blocks, 0 clean missed preventions in 3
+threatened turns (losses). Defence is still perfect; the Black
+leaf produced no loss in 10 Black games. (n=10 per opponent —
+development signal, not the bar; the fast loop's job is finding
+weaknesses, not measuring strength.)
+
+**The only loss — game 1 vs v7 (White, 21 plies) — has NO
+patchable losing move.** Walk-back
+(`research/iterations/walkback-fl1-g1.json`, corrected oracle
+method, seeds 0,1,2) nominates ply 17: actual (6,4) loses 3/3,
+(9,4) "saves" (draws 3/3); ply 13 nominates two "saves" ((7,4),
+(9,8)). **Both nominations are v1-oracle artifacts, refuted by
+exact computation and a stronger oracle** (`/tmp/diag_fl1_g1.py`,
+`/tmp/verify_fl1_g1.py`, `/tmp/trace_fl1_g1_ply13.py`):
+
+- Ply 17: after White (9,4), Black (6,5) leaves Black TWO winning
+  moves — (4,3) and (9,8) — with White having none. (9,4) loses
+  by force; the rollout leaf's -1.000 for (9,4), (6,4) and (6,5)
+  alike is CORRECT, not q-compression error. The v1 oracle calls
+  (9,4) a draw because v1-as-Black plays (9,6) instead of (6,5)
+  — even though (6,5)'s v1 attack score is 200,091, an open-four
+  creation. v7-as-Black plays (6,5) after (9,4); the real
+  opponent finds the killer. After the actual (6,4), (6,5)
+  leaves the same two winning moves: at ply 17 EVERY White move
+  loses by force, and v18's root (6,4)/(6,5) tied at 6 visits,
+  (9,4) at 5, all our-q ≈ -1.0) is a tie among losing moves.
+  (Fresh-seed v18, v16 and v7 all play (6,5) here; the game
+  played (6,4) on RNG state. The choice does not matter.)
+- Ply 13: after White (9,8) — the oracle's "wins 3/3" save —
+  Black plays (7,8) and has TWO winning moves, (7,4) and (7,9),
+  with White having none: a forced loss, exact. v7-vs-v7
+  confirms (Black wins in 3 plies at all 3 seeds). The other
+  "save", (7,4), loses 3/3 under v7-vs-v7 (17/23/21 plies). The
+  actual (7,8) is the BEST tested move at ply 13 under the
+  stronger oracle (loses 2/3, wins 1/3 in 72 plies).
+- Ply 11: after the actual (9,7), v7-vs-v7 loses 2/3 (both in 9
+  plies) — the game was already going bad under the strong
+  oracle while the v1 oracle called it a draw.
+
+So the loss is distributed drift (the iter-6 result): no single
+verified losing move, at every White turn from ply 11 on the
+tested alternatives fare no better than the actual under the
+stronger oracle. **No patch.** Game 9 vs v7 (White, 225 plies)
+was a draw — no losing move by definition.
+
+**Method finding — the v1 oracle shares the argmax-of-sum flaw.**
+v1's 1-ply argmax picks a defensive block over a forced-win
+open-four creation in this game twice ((9,6) over (6,5) after
+(9,4); missing (7,8) after (9,8)) — the same flaw iter-16 §2.2
+found in the rollout policy and patched there with open-four
+priority, now found in the walk-back oracle itself. The rollout
+leaf, which has the patch, sees these forced wins exactly; the
+v1 oracle does not. **Rule for the rest of this iteration (and
+future rollout-leaf work): a walk-back save must be re-verified
+with v7-vs-v7 playouts — or exact computation — whenever the
+rollout leaf disagrees with the v1 oracle. The v1 oracle alone is
+no longer sufficient verification for a rollout-leaf engine.**
+This iteration's walk-backs apply that rule throughout.
+
+**Iteration 1 verdict: no new patchable weakness class — but the
+loop does NOT stop here.** The loop has patched nothing yet, and
+the Black leaf — the whole point of v18 — produced no loss in
+10 Black games, so it has had no chance to show a weakness.
+Iteration 2 runs on fresh seeds (1002/2002); if it also finds no
+patchable class, the loop stops (two consecutive barren
+iterations, 40 games). No regression positions added (a forced
+loss has no "expected save" to record).
 
 ### 2.2 Fast-loop iteration 2
 
