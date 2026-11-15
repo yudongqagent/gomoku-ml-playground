@@ -1,4 +1,5 @@
-"""Tests for the heuristic-prior MCTS (v6, batch 2 H2; v7, batch 3 H1)."""
+"""Tests for the heuristic-prior MCTS (v6, batch 2 H2; v7, batch 3 H1;
+v16, batch 6 H2)."""
 
 import math
 
@@ -9,8 +10,11 @@ from gomoku_ml import game, scoring
 from gomoku_ml.mcts_heuristic import (
     HeuristicMCTS,
     _attack_gradient,
+    _attack_gradient_v1,
     _gradient_leaf_value,
     _priors,
+    _rollout_leaf_value,
+    _rollout_move,
     _terminal_leaf_value,
 )
 
@@ -281,3 +285,147 @@ def test_v7_iter5_game1_regression_xfail():
     v7 = scoring.get_player(7, seed=0)
     move = v7.choose_move(board, game.WHITE)
     assert (move % 15, move // 15) in [(7, 11), (6, 12)]
+
+
+# --- v16 (batch 6, H2): 2-ply rollout leaf --------------------------------
+
+def test_rollout_leaf_matches_terminal_leaf_on_terminal_positions():
+    # The rollout leaf is IDENTICAL to the terminal leaf on every
+    # terminal position — the rollout runs only from quiet ones.
+    board = _board_with([(7, 7), (7, 8), (7, 9), (7, 10)], [(3, 3)])
+    assert _rollout_leaf_value(board, game.BLACK) == 1.0
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 7), (5, 8)])
+    assert _rollout_leaf_value(board, game.BLACK) == -1.0
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 8), (5, 9)])
+    assert _rollout_leaf_value(board, game.BLACK) == -0.25
+
+
+def test_rollout_leaf_bounded_and_deterministic():
+    rng = np.random.default_rng(2)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    v1 = _rollout_leaf_value(board, game.BLACK)
+    v2 = _rollout_leaf_value(board, game.BLACK)
+    assert -1.0 <= v1 <= 1.0
+    assert v1 == v2  # deterministic: no RNG in the leaf
+
+
+def test_rollout_leaf_does_not_mutate_board():
+    rng = np.random.default_rng(3)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    before = board.copy()
+    _rollout_leaf_value(board, game.WHITE)
+    assert np.array_equal(board, before)
+
+
+def test_rollout_move_wins_blocks_and_loses():
+    # Winning move: taken, terminal +1.
+    board = _board_with([(7, 7), (7, 8), (7, 9), (7, 10)], [(3, 3)])
+    move, term = _rollout_move(board, game.BLACK)
+    assert (move % 15, move // 15) in [(7, 6), (7, 11)]
+    assert term == 1.0
+    # Single opponent winning move: blocked (game continues).
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 8), (5, 9)])
+    move, term = _rollout_move(board, game.BLACK)
+    assert (move % 15, move // 15) == (5, 7)
+    assert term is None
+    # Two opponent winning moves: terminal -1.
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 7), (5, 8)])
+    move, term = _rollout_move(board, game.BLACK)
+    assert term == -1.0
+
+
+def test_attack_gradient_v1_antisymmetric_and_bounded():
+    rng = np.random.default_rng(4)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    gb = _attack_gradient_v1(board, game.BLACK)
+    gw = _attack_gradient_v1(board, game.WHITE)
+    assert gb == pytest.approx(-gw)
+    assert -0.2 < gb < 0.2
+    assert -0.2 < gw < 0.2
+
+
+def test_v16_registered_and_dispatches_to_rollout_mcts():
+    v16 = scoring.get_player(16, seed=0)
+    assert v16.name == "scoring-v16"
+    assert v16.mcts is True
+    assert v16._mcts is not None
+    assert v16._mcts.sims == 100
+    assert v16._mcts.leaf_mode == "rollout2_v1"
+    # v7 is unchanged (gradient leaf).
+    v7 = scoring.get_player(7, seed=0)
+    assert v7._mcts.leaf_mode == "gradient"
+
+
+def test_v16_as_black_matches_v7():
+    # v16-as-Black IS v7 exactly (same leaf, same priors, same
+    # search) — the Black games are a built-in control. Same seed,
+    # same positions, same moves.
+    rng = np.random.default_rng(5)
+    for trial in range(3):
+        board = game.empty_board()
+        cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+        rng.shuffle(cells)
+        for i, (x, y) in enumerate(cells[:20]):
+            board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+        v7 = scoring.get_player(7, seed=0)
+        v16 = scoring.get_player(16, seed=0)
+        assert v16.choose_move(board, game.BLACK) == v7.choose_move(
+            board, game.BLACK
+        ), f"trial {trial}: v16-as-Black differs from v7"
+
+
+def test_v16_leaf_value_matches_v7_when_root_is_black():
+    # Leaf-level version of the Black-control claim: with the root
+    # player Black, the v16 leaf equals v7's gradient leaf on every
+    # sampled board (terminal and quiet alike).
+    rng = np.random.default_rng(6)
+    mcts = HeuristicMCTS(sims=10, leaf_mode="rollout2_v1")
+    mcts._root_player = game.BLACK
+    for _ in range(5):
+        board = game.empty_board()
+        cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+        rng.shuffle(cells)
+        for i, (x, y) in enumerate(cells[:20]):
+            board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+        for player in (game.BLACK, game.WHITE):
+            assert mcts._leaf_value(board, player) == _gradient_leaf_value(
+                board, player
+            )
+
+
+def test_v16_choose_move_deterministic_for_same_seed():
+    rng = np.random.default_rng(1)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:20]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    a = scoring.get_player(16, seed=0)
+    b = scoring.get_player(16, seed=0)
+    assert a.choose_move(board, game.WHITE) == b.choose_move(board, game.WHITE)
+
+
+def test_v16_choose_move_does_not_mutate_board():
+    rng = np.random.default_rng(0)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    before = board.copy()
+    mcts = HeuristicMCTS(sims=20, leaf_mode="rollout2_v1",
+                         rng=np.random.default_rng(0))
+    mcts.choose_move(board, game.WHITE)
+    assert np.array_equal(board, before)

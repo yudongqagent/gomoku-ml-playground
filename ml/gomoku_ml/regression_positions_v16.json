@@ -1,0 +1,158 @@
+{
+  "version": 16,
+  "description": "Mechanism-check positions for v16 (batch 6, H2): the two hard White critical positions the 2-ply rollout leaf flips at the search level (see research/iterations/iter-16.md \u00a71.1). Stone lists copied from the v13/v14 regression files on research/batch-5 (original sources noted per position). Fast-loop positions found in this iteration are appended below as they are found.",
+  "positions": [
+    {
+      "id": "mech-v13-g9-ply15",
+      "source": "fastloop1-v13-vs-v7.json game 9, ply 15",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          9,
+          11
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          7,
+          8
+        ]
+      ],
+      "white": [
+        [
+          7,
+          5
+        ],
+        [
+          3,
+          7
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          8,
+          10
+        ],
+        [
+          5,
+          6
+        ]
+      ],
+      "to_move": "white",
+      "expected": [
+        [
+          7,
+          6
+        ]
+      ],
+      "played_before_patch": [
+        7,
+        10
+      ],
+      "note": "Mechanism check (NOT a v16 fast-loop find): v13 fast-loop iteration 1, game 9, ply 15 (White to move). v7/v13 play the losing block (7,10); the oracle-verified save is (7,6) \u2014 the 2-ply rollout leaf finds a forced win from it within 2 plies. Copied from regression_positions_v13.json (research/batch-5)."
+    },
+    {
+      "id": "mech-v14-g3-ply13",
+      "source": "fastloop1-v14-vs-v0.json game 3, ply 13",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "white": [
+        [
+          5,
+          7
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          9,
+          6
+        ],
+        [
+          5,
+          9
+        ]
+      ],
+      "to_move": "white",
+      "expected": [
+        [
+          6,
+          5
+        ]
+      ],
+      "played_before_patch": [
+        6,
+        9
+      ],
+      "note": "Mechanism check (NOT a v16 fast-loop find): v14 fast-loop iteration 1, game 3, ply 13 (White to move). Black holds exactly 2 creators; v7/v14 play the losing block (6,9); the oracle-verified save is (6,5). Copied from regression_positions_v14.json (research/batch-5)."
+    }
+  ]
+}
