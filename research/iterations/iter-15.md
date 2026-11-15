@@ -419,9 +419,77 @@ near-tie band, so no fallback applies). Registered as version
 v7). The floor value is FIXED from here (§1.3): the fast loop
 may not re-tune it.
 
-### 2.2 Fast-loop iteration 1 — 10 games vs v0 (sweep-chosen v15)
+### 2.2 Fast-loop iteration 1 — 10 games vs v0 (v15)
 
-[To be filled in.]
+**Batch:** `research/iterations/fast-v15-vs-v0-iter1.json`
+(seeds v15=1001 / v0=2001 — development seeds, distinct from the
+bar battery's 100/200 and the sweep's 300/400). **9W-1L-0D, win
+rate 0.9000, CI [0.5958, 0.9821]**, 195.1 s. Per colour: as Black
+5W-0L-0D, as White 4W-1L-0D. Classifier: the single loss is via
+open four, 0 missed blocks, 0 clean missed preventions in 4
+threatened turns (losses). Defence is still perfect.
+
+**The single loss (game 1, v15 as White, 41 plies).** Walk-back
+(corrected oracle method, seeds 0,1,2 — see
+`research/iterations/walkback-fl1-g1.json`):
+
+| Turn | v15 played (loses 3/3) | Perfect move (oracle) |
+|---|---|---|
+| ply 29 (first losing turn) | (12,5) | (6,4) wins 3/3; (4,3), (11,6) win 3/3; (11,9), (7,5) draw 3/3 |
+| ply 35 (last preventable turn) | (11,5) | (7,5) wins 3/3; (6,4), (6,3), (7,3) draw 3/3 |
+
+At ply 27 and earlier the actual move does not lose at all
+seeds, so the game turns at ply 29.
+
+**Ply 29 — beyond-horizon value error, not exploration
+starvation** (`analyse_critical.py`, 100 sims; q below is
+our-perspective q = -raw child.q). Quiet position (0 creators
+either side, 98 candidates). The saving move (6,4) is v1's
+TOP-RANKED move (score 24093, rank 1) with the HIGHEST prior
+(0.044) — yet it gets only 4 visits vs the loser's 8, because
+the search's correctly-signed q prefers the LOSER (+0.021 vs
+−0.087) and the gradient prefers the loser too (0.000 vs
+−0.025 for White after the save). The losing move (12,5) is
+FORCING (creates a four, 2 creators after); the save is a
+quiet positional move whose value only shows in deep 1-ply
+playouts. v15's root stats are IDENTICAL to v7's here — the
+floor changes nothing (both moves sit far above the floor, and
+the tail redistribution does not touch this position's top).
+This is the iter-13 class: the search genuinely does not see
+the save, at any exploration setting — a value problem, not an
+exploration problem. Note also the match detail: (12,5) tied
+(11,9) at 8 visits and the match RNG broke the tie toward the
+loser; (11,9) itself draws 3/3 by oracle, and a fresh seed-0
+replay plays it. Ply 29 is therefore NOT a regression test (an
+RNG-fragile tie, documented here instead).
+
+**Ply 35 — the q-vs-visits gap, at 4 vs 3 visits.** Quiet
+position (0 creators, 107 candidates). The loser (11,5) is v1
+rank 1 (24406, prior 0.051), 4 visits; the save (7,5) is v1
+rank 3 (24012, prior 0.050), 3 visits. Correctly-signed q
+prefers the SAVE (−0.142 vs −0.316) but visits decide — the
+iter-7 §2.6 pattern, now at a 4-vs-3 margin where the visit
+distribution is nearly flat (top-5 visits: 4, 4, 3, 3, 3 across
+107 candidates). The gradient prefers the loser (−0.012 vs
+−0.082 for White). v15 plays (11,5) outright (the floor breaks
+v7's 4-visit tie with (10,6) the same way). Recorded as the
+regression xfail (`regression_positions_v15.json`:
+fl1-g1-ply35).
+
+**No patch from iteration 1.** The loss is a beyond-horizon
+value error (ply 29: q, gradient and visits all prefer the
+loser) plus a q-vs-visits coin flip at 4 vs 3 (ply 35) — the
+known iter-13 / iter-7 classes, not a new patchable class, and
+not an exploration failure the floor can address: the floor
+changes nothing on either critical position (identical stats
+to v7 at ply 29; same move at ply 35). The patchable levers
+that would touch these positions are all closed or out of
+scope: q-based root decisions (CLOSED — pure q 0.20), the leaf
+(the leaf is not the binding constraint; H3's work), sims
+changes (need their own sweep; not the H1 brief), and
+re-tuning the floor (§1.3 forbids it). Per §1.3, iteration 2
+runs against v7 — losses against the bar opponent are the ones
+that matter, and v0's single loss may not represent them.
 
 ### 2.3 Fast-loop iteration 2 — 10 games vs v7
 
