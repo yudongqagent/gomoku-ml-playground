@@ -469,8 +469,25 @@ fast-loop patches). The temporary diagnostic version 97
 
 ### 2.5 Aggregate counts (secondary)
 
-[PENDING — filled after the battery, from the classifier on the
-three 100-game matches.]
+Pooled across the three 100-game battery matches (vs v7,
+vs v0, swap vs v7; 300 games, 101 v17 losses):
+
+- Losses via open four: **101/101** (29 + 48 + 24)
+- Missed blocks: **0** in all games
+- Clean missed preventions: **0** in 475 threatened turns
+  in losses (1,391 threatened turns across all games)
+- Threatened turns in losses: 141 (vs v7) + 251 (vs v0) +
+  83 (swap)
+
+Defence is solved in the strongest sense this program has
+measured: zero missed blocks and zero missed preventions
+across 300 games and 1,391 threatened turns. Every v17
+loss is an open-four race lost, never a defensive error —
+the gap is attack creation and race timing, exactly as in
+batches 4 and 5. The vs-v0 match is the one place the
+race is lost to a weaker opponent: v17's Black loses the
+race to greedy 1-ply play (0.37 as Black vs v0) while its
+White wins it (0.66).
 
 ## 3. v17 evaluation
 
@@ -613,12 +630,122 @@ the per-opponent numbers above are the record).
 
 ### 3.7 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
 
-[PENDING]
+**v17 beats v7 under swap: 72W-24L-4D, win rate 0.7400,
+95% CI [0.6463, 0.8160]**, 3486.8 s. File:
+`research/iterations/batch-v17-vs-v7-swap.json` (seeds
+100/200, balanced placement, placement_seed 11, tempo
+judge). Per colour: as Black 40W-9L-1D (0.8100), as White
+32W-15L-3D (0.6700). v17's edge is STRONGER under swap
+than under normal rules (0.7400 vs 0.6650) — the opposite
+of v7's pattern (0.57 swap vs 0.7050 normal vs v1), and
+the strongest swap result of any version yet (v12 0.61,
+v14 0.64, v9 0.50). The combination's advantage is NOT an
+empty-board opening artefact: it grows when the opening is
+balanced by the swap rule. Mean game length 44.71 plies
+(min 17, max 225). Loss classifier: 24/24 losses via open
+four, **0 missed blocks**, 83 threatened turns in losses,
+**0 clean missed preventions**.
 
 ## 4. Bar check (v17 vs v7)
 
-[PENDING]
+| Clause | Requirement | v17 result | Verdict |
+|--------|-------------|------------|---------|
+| 1. h2h vs v7 | ≥100 games, WR > 0.50, Wilson 95% CI lower > 0.50 | 62W-29L-9D, 0.6650, CI [0.5679, 0.7499] | **PASS** |
+| 2. Ladder Elo | strictly > 190.8 at identical counts/opponents | Elo -17.4, interval [-165.3, 130.6] (random 20-0, heuristic 9-10-1, mcts 13-7) | **FAIL** |
+| 3. Tactical | ≥ v7's 20/20 old + 29/29 hard | 20/20 old + 29/29 hard | **PASS** |
+| 4. Test suites | ml pytest, npm test, tsc all green | [PENDING — final re-run on the final tree] | [PENDING] |
+
+**v17: 3/4 (clause 4 pending). REJECTED** — clause 2
+fails decisively (the whole interval is below 190.8), so
+v17 does not pass the bar whatever clause 4 shows. v7
+remains the reference and stays on master; no kernel
+re-sync, no merge. The combination hypothesis is answered:
+the components do NOT add — v17 inherits v14's clause-2
+failure mode wholesale (v1 leaf vs greedy play) while
+improving clause 1 beyond any single component (0.6650 vs
+v14's 0.6000, v13's 0.5250, v12's 0.4950). The lesson for
+batch 6's remaining work: the v1-kernel leaf is the
+binding constraint on the ladder, and no root-rule or
+threat-check addition rescues it — the leaf itself (or the
+opponent model it implies) has to change.
 
 ## 5. What this means
 
-[PENDING]
+**The combination hypothesis is answered: components do
+not add.** v17 beats v7 by more than any of its components
+did (0.6650 normal, 0.7400 swap — the best h2h and swap
+numbers in the program against the reference), fixes the
+White gap (0.69 as White vs v7, the first version to score
+higher as White than as Black), and holds tactical 20/20 +
+29/29. But it inherits v14's clause-2 failure mode
+wholesale: it barely ties the 1-ply baseline (0.5150 over
+100 games, 0.4750 on the ladder) and loses as Black to it
+(0.37), so its ladder Elo (-17.4, interval entirely below
+190.8) fails clause 2 decisively. v17 is 3/4 and
+REJECTED; v7 remains the reference.
+
+Three findings are durable for the program:
+
+1. **The v1-kernel leaf is the binding constraint on the
+   ladder, and no root rule or threat check rescues it.**
+   v12's forcing-first tie-break was worth 100-0 against
+   v0 under the v0 leaf; under the v1 leaf it is worth
+   51-48. v13's threat check was part of a 240.8 ladder
+   under the v0 leaf; under the v1 leaf it contributes
+   nothing against greedy play (0 missed preventions is
+   safety, not strength). The leaf's denser threat signal
+   helps against searching opponents (v17's 13-7 vs the
+   ladder mcts, 0.665 vs v7) and hurts against greedy
+   1-ply play — the same defect v14 showed, now with a
+   second, sharper data point. Any future version built on
+   the v1 leaf must fix the leaf's behaviour against greedy
+   play (or the opponent model it implies) before the
+   ladder can pass; adding root rules on top does not.
+2. **The White gap is fixable — and v17 fixed it the wrong
+   way round.** v17 is the first version to play White
+   better than Black against both opponents (vs v7: White
+   0.69 / Black 0.64; vs v0: White 0.66 / Black 0.37).
+   Whatever the combination changed in White's attack
+   creation worked; the same change broke Black's game
+   against greedy play. The asymmetry is now inverted, not
+   removed — the next version needs Black's greedy-play
+   race back without losing White's new attack.
+3. **Non-transitivity is now the program's central
+   measurement problem.** v17 > v7 > v0 ≈ v17, with v17's
+   ladder Elo (-17.4) below v7's (190.8) while its h2h
+   against v7 is 0.6650. A single Elo number cannot order
+   these engines: the ladder measures strength against
+   greedy play, the h2h measures strength against search,
+   and the v1 leaf trades one for the other. The bar's
+   clause 2 exists precisely to catch this, and it did —
+   but the program should be explicit that "beats v7" and
+   "passes the bar" are now different claims, and that the
+   ladder's heuristic anchor is doing most of the work in
+   clause 2.
+
+**What changed because of a specific loss:** nothing in
+the engine — the fast loop made NO patch. Iteration 1's
+0-10 was a transposition artefact (2 distinct lines), and
+its one verified losing move (fl1-g1-ply13) is a class
+every version misses (two creator-blocks indistinguishable
+to every signal). Iteration 2's four losing moves were all
+visit-tie knife-edges or beyond-horizon value errors, with
+0 creators and no forcing moves involved — the
+combination's new components were not implicated in any
+worked loss. The honest finding is that the fast loop
+found no patchable class in v17's losses against v7; the
+version's real weakness (Black vs greedy play) only showed
+at battery scale, against v0, where the fast loop never
+looked. The five losing positions are recorded as xfail
+regressions for the next version that does have a patch.
+
+**Methodological note for future batches:** for a
+near-deterministic engine, a 10-game fast loop against a
+deterministic opponent measures ~2 lines, not 10 games
+(§2.1). The fast loop still found real losing moves
+against a searching opponent (iteration 2: 5 distinct
+losses, 4 verified losing moves), but against v0 it is
+nearly uninformative — and v0 is where v17's decisive
+weakness lived. Future fast loops should include v0 games
+at varied seeds, or accept that the v0 weakness only
+appears at battery scale.
