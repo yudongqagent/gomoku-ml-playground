@@ -176,7 +176,40 @@ placement_seed 11, tempo judge (the harness default; recorded in
 the JSON). Fast-loop dev seeds 1001/2001, 1002/2002, ...
 (iteration k uses 1000+k / 2000+k, per iter-8 §4's policy).
 
-### 1.1 Battery (the verdict — pre-registered seeds and commands)
+### 1.2 Mechanism check (post-implementation, pre-fast-loop)
+
+After implementation and before any fast-loop game, v18 was run
+once on the 5 v16 regression positions (seed 0, full 100-sim
+search). This is an implementation check, not pre-registration
+evidence and not an eval — it verifies the dispatch does what §1
+says it does, on the only Black diagnostic positions available
+(the two v16 fast-loop Black xfails):
+
+| Position | To move | v18 played | Expected | Result |
+|---|---|---|---|---|
+| mech-v13-g9-ply15 | White | (7,6) | (7,6) | PASS |
+| mech-v14-g3-ply13 | White | (6,5) | (6,5) | PASS |
+| fl1-g7-ply89 | White | (12,0) | (12,0)/(12,1)/(11,12)/(1,9) | PASS |
+| fl1-g0-ply12 | Black | (7,10) | (9,7)/(5,5)/(7,8) | FAIL (xfail) |
+| fl1-g6-ply78 | Black | (5,7) | (5,7)/(9,13)/(1,9)/(6,6) | PASS |
+
+The three White positions pass, as they must — v18-as-White IS
+v16 (the dispatch preserves White behaviour exactly). On the two
+Black positions v16 could not fix, the Black rollout leaf flips
+ONE: fl1-g6-ply78, where v18 plays the oracle save (5,7) that
+v16/v7 missed (played (9,14)). On fl1-g0-ply12 v18 changes the
+move ((11,9) → (7,10)) but still does not find a save — whether
+(7,10) also loses 3/3 under the oracle was not tested here, so
+no claim is made about it; the position stays an xfail. The
+signal is thin (n=2 Black positions) and diagnostics do not
+predict match strength (iter-13's lesson) — but it is positive:
+the rollout leaf is not White-specific at the mechanism level,
+and the fast loop now has a Black diagnostic that passes. These
+5 positions are v18's regression file
+(`regression_positions_v18.json`, copied unchanged from v16's),
+with fl1-g0-ply12 as the single xfail.
+
+### 1.3 Battery (the verdict — pre-registered seeds and commands)
 
 On the FINAL v18 only (after the fast loop):
 

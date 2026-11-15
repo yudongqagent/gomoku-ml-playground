@@ -1,5 +1,5 @@
 """Tests for the heuristic-prior MCTS (v6, batch 2 H2; v7, batch 3 H1;
-v16, batch 6 H2)."""
+v16, batch 6 H2; v18, batch 7 H1)."""
 
 import math
 
@@ -455,3 +455,89 @@ def test_v16_choose_move_does_not_mutate_board():
                          rng=np.random.default_rng(0))
     mcts.choose_move(board, game.WHITE)
     assert np.array_equal(board, before)
+
+
+# --- v18 (batch 7, H1): rollout leaf for both colours -----------------------
+
+def test_v18_registered_and_dispatches_to_rollout_mcts():
+    v18 = scoring.get_player(18, seed=0)
+    assert v18.name == "scoring-v18"
+    assert v18.mcts is True
+    assert v18._mcts is not None
+    assert v18._mcts.sims == 100
+    assert v18._mcts.leaf_mode == "rollout2_v1_both"
+    # v16 and v7 are unchanged.
+    v16 = scoring.get_player(16, seed=0)
+    assert v16._mcts.leaf_mode == "rollout2_v1"
+    v7 = scoring.get_player(7, seed=0)
+    assert v7._mcts.leaf_mode == "gradient"
+
+
+def test_v18_as_white_matches_v16():
+    # v18-as-White IS v16 exactly (same leaf, same priors, same
+    # search) — the White games are a built-in control. Same seed,
+    # same positions, same moves.
+    rng = np.random.default_rng(5)
+    for trial in range(3):
+        board = game.empty_board()
+        cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+        rng.shuffle(cells)
+        for i, (x, y) in enumerate(cells[:20]):
+            board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+        v16 = scoring.get_player(16, seed=0)
+        v18 = scoring.get_player(18, seed=0)
+        assert v18.choose_move(board, game.WHITE) == v16.choose_move(
+            board, game.WHITE
+        ), f"trial {trial}: v18-as-White differs from v16"
+
+
+def test_v18_leaf_value_is_rollout_for_both_colours():
+    # Leaf-level version of the dispatch claim: with the root
+    # player Black OR White (or None — leaf called outside a
+    # search), the v18 leaf equals the rollout leaf on every
+    # sampled board (terminal and quiet alike). No colour gate.
+    rng = np.random.default_rng(6)
+    mcts = HeuristicMCTS(sims=10, leaf_mode="rollout2_v1_both")
+    for root in (game.BLACK, game.WHITE, None):
+        mcts._root_player = root
+        for _ in range(5):
+            board = game.empty_board()
+            cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+            rng.shuffle(cells)
+            for i, (x, y) in enumerate(cells[:20]):
+                board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+            for player in (game.BLACK, game.WHITE):
+                assert mcts._leaf_value(board, player) == _rollout_leaf_value(
+                    board, player
+                )
+
+
+def test_v18_as_black_uses_rollout_leaf_not_gradient():
+    # The v18 Black leaf is the rollout leaf, not v7's gradient:
+    # on sampled boards the two leaf functions disagree on most
+    # quiet positions (8/10 with this seed — verified when the
+    # test was written), so a v18 instance with a Black root must
+    # differ from the gradient leaf somewhere in the sample.
+    rng = np.random.default_rng(7)
+    mcts = HeuristicMCTS(sims=10, leaf_mode="rollout2_v1_both")
+    mcts._root_player = game.BLACK
+    diffs = 0
+    for _ in range(5):
+        board = game.empty_board()
+        cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+        rng.shuffle(cells)
+        for i, (x, y) in enumerate(cells[:20]):
+            board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+        for player in (game.BLACK, game.WHITE):
+            if mcts._leaf_value(board, player) != _gradient_leaf_value(
+                board, player
+            ):
+                diffs += 1
+    assert diffs > 0
+
+
+def test_rollout_both_leaf_mode_rejects_unknown_mode():
+    # The conditional dispatch must still reject unknown modes
+    # (and the error message lists both rollout modes).
+    with pytest.raises(ValueError, match="rollout2_v1_both"):
+        HeuristicMCTS(sims=10, leaf_mode="rollout3_v1")
