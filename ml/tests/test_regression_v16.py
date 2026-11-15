@@ -25,7 +25,15 @@ POSITIONS_PATH = os.path.join(
 )
 
 # Positions the current engine does not fix (open weaknesses).
-XFAIL = {}
+# fl1-g0-ply12, fl1-g6-ply78: Black-to-move positions — v16-as-Black
+# IS v7, so v16 plays v7's losing move there; fixing them would mean
+# changing the Black leaf, which is out of scope for the White-leaf
+# workstream (the Black games are the built-in control). Documented
+# xfails, not dropped.
+XFAIL = {
+    "fl1-g0-ply12": "Black position (v16-as-Black is v7); see iter-16.md §2.1",
+    "fl1-g6-ply78": "Black position (v16-as-Black is v7); see iter-16.md §2.1",
+}
 
 
 def _load_positions():

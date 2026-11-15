@@ -274,8 +274,17 @@ def _breadth_v1(attack: np.ndarray, empty_mask: np.ndarray) -> float:
 # * rollout policy per ply (player P to move): a winning move wins
 #   (terminal +1); >= 2 opponent winning moves loses (terminal -1);
 #   exactly 1 opponent winning move is blocked (forced); else the
-#   argmax of P's v0-kernel attack scores (cheap; the policy only
-#   needs to be sane, the v1 gradient does the evaluating).
+#   argmax over empty cells of P's v1 total score (own v1 attack +
+#   opponent's v1 attack at the square — v1's full-value defence,
+#   broken-four aware — from one ``attack_v1_both`` call, up to the
+#   double-threat bonus, which v1's defence term omits). FAST-LOOP
+#   PATCH (iter-16 §2.1): the pre-registered policy used the v0
+#   kernel's attack-only argmax, whose opponent never prevents
+#   broken-four creations (v0 is blind to them) — in fast-loop game
+#   7 it replied (13,4) (v1 score 81) where v1's best is the
+#   prevention (12,0) (20004), letting the quiet move borrow the
+#   forcing move's value. The v1 policy is v1's 1-ply best move for
+#   both sides: a real engine's reply, not a greedy attacker.
 # * 2 plies, not 1: a 1-ply (opponent-reply-only) leaf measures
 #   robustness to the opponent's best attack, which favours the
 #   block — the save's value comes from OUR next move, so the
@@ -329,8 +338,14 @@ def _rollout_move(board: np.ndarray, player: int) -> tuple[int, float | None]:
     the opponent has >= 2 winning moves; 0.0: the board is full)
     and None when the game continues after ``move``. Policy: win if
     possible, block a single opponent winning move (forced), else
-    the argmax of ``player``'s v0-kernel attack scores (ties by
-    lowest flat index — deterministic)."""
+    the argmax over empty cells of ``player``'s v1 total score (own
+    v1 attack + opponent's v1 attack at the square — v1's
+    full-value defence, broken-four aware — from one
+    ``attack_v1_both`` call, up to the double-threat bonus, which
+    v1's defence term omits; ties by lowest flat index —
+    deterministic). FAST-LOOP PATCH (iter-16 §2.1): the
+    pre-registered policy used the v0 kernel's attack-only argmax,
+    whose opponent never prevents broken-four creations."""
     wins = scoring._winning_moves(board, player)
     if wins:
         return wins[0], 1.0
@@ -339,23 +354,39 @@ def _rollout_move(board: np.ndarray, player: int) -> tuple[int, float | None]:
         return -1, -1.0
     if len(opp_wins) == 1:
         return opp_wins[0], None
-    attack = kernel_numpy.attack_all(board, player)
+    black, white = kernel_v1.attack_v1_both(board)
+    if player == game.BLACK:
+        own, opp = black, white
+    else:
+        own, opp = white, black
+    total = own + opp
     empty = board == game.EMPTY
     if not empty.any():
         return -1, 0.0
-    attack[~empty] = -1
-    return int(np.argmax(attack)), None
+    total[~empty] = -1
+    return int(np.argmax(total)), None
 
 
 def _rollout_leaf_value(board: np.ndarray, player: int) -> float:
     """v16 White leaf value: v7's terminal-aware values for terminal
     positions; for quiet positions, roll out exactly 2 plies
     (opponent reply + our reply, :func:`_rollout_move`) and evaluate
-    the symmetric v1 gradient at the resulting position. A terminal
+    the symmetric v1 gradient at the resulting position. A win/loss
     reached inside the rollout returns the exact terminal value
     (sign-adjusted to ``player``'s perspective: after an even number
-    of plies the player to move is ``player`` again). The board is
-    not mutated (the rollout plays on a copy)."""
+    of plies the player to move is ``player`` again). At the
+    rollout's END, only wins/losses (+/-1) are terminal: a must-block
+    (-0.25 — the opponent holds exactly one winning move) is a
+    position to evaluate with the gradient, not a game end.
+    FAST-LOOP PATCH (iter-16 §2.1): treating a rollout-found
+    must-block as an exact -0.25 lets a quiet move borrow a forcing
+    move's value (in fast-loop game 7, (11,9) scored +0.25 because
+    the rollout plays White's forcing (12,0) on ply 2, tying the
+    real forcing move (12,0) whose +0.25 is a FACT about the
+    position, not a prediction under the 1-ply rollout policy). The
+    must-block at the START (the real position) keeps v7's exact
+    -0.25 — only the rollout's end is gradient-evaluated. The board
+    is not mutated (the rollout plays on a copy)."""
     value = _terminal_leaf_value(board, player)
     if value != 0.0:
         return value
@@ -367,9 +398,12 @@ def _rollout_leaf_value(board: np.ndarray, player: int) -> float:
             return term if i % 2 == 0 else -term
         cur = game.apply_move(cur, move, p)
         p = -p
-    term = _terminal_leaf_value(cur, p)
-    if term != 0.0:
-        return term  # 2 plies: p == player again
+    # 2 plies: p == player again. Only a win/loss ends the rollout
+    # game; a must-block here is gradient-evaluated (see above).
+    if scoring._winning_moves(cur, p):
+        return 1.0
+    if len(scoring._winning_moves(cur, -p)) >= 2:
+        return -1.0
     return _attack_gradient_v1(cur, p)
 
 
