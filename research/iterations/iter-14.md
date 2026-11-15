@@ -1,10 +1,13 @@
 # Iteration 14 — v14: v1-kernel attack gradient (batch 5, H3)
 
-**Status: IN PROGRESS — pre-registration (§1) and Step 0 done; kernel
-cross-checked (0 mismatches); fast loop not yet run.** This is the
-third version of batch 5 (max 3 versions: v12, v13, v14).
-Comparison target and eval seeds were recorded BEFORE the first
-eval (see §1).
+**Status: COMPLETE — v14 REJECTED, 3 of 4 clauses pass (clause 2
+fails: ladder Elo -34.9 vs v7's 190.8).** Final battery done on
+the pre-registered engine (the fast loop made no patch):
+vs v7 58W-38L-4D (0.6000, CI lower 0.5020 — clause 1 passes by
+0.002), vs v0 60W-40L-0D, swap vs v7 63W-35L-2D (0.6400),
+tactical 20/20 + 29/29, ml pytest 248 passed / 7 skipped /
+5 xfailed, npm 55/55, tsc clean. See §4 for the bar check and
+§5 for what it means.
 
 **Method (carried over from batch 3/4):** the fast 10-game loop —
 play 10 games against an opponent that produces losses to learn
@@ -296,7 +299,46 @@ way, even when the search cannot follow it at 100 sims.
 
 ### 2.5 Aggregate counts (secondary)
 
-(To be filled from the final battery's classifier runs.)
+Across the final battery's three 100-game matches (classifier:
+`ml/scripts/classify_batch_losses.py`):
+
+| match | losses | via open four | missed blocks | threatened turns (losses) | clean missed preventions (losses) |
+|---|---|---|---|---|---|
+| vs v7 | 38 | 38 | 0 | 163 | 2 (1.2%) |
+| vs v0 | 40 | 40 | 0 | 172 | 0 (0.0%) |
+| vs v7 swap | 35 | 35 | 0 | 128 | 0 (0.0%) |
+
+Defence is solved: 113 losses across the three 100-game
+matches, 113 via open four, 0 missed blocks, 2 clean missed
+preventions in 463 threatened turns (0.4%). Every loss is the
+opponent winning the open-four race, not a defensive error.
+
+### 2.6 Worked games from the final battery — no blunder class
+
+Four battery losses were walked back with the corrected oracle
+method (seeds 0,1,2): the three shortest v14-as-Black losses
+to v0 (games 40, 72, 0 — 26/26/28 plies) and the shortest
+v14-as-White loss to v7 (game 49, 15 plies). **None has a
+losing move.** In each, the actual move loses 3/3 from some
+late turn on, but NO tested alternative saves (top-6+forcing),
+and at earlier turns the actual move does not lose at all
+seeds. This is the iter-6 result: distributed drift, not a
+blunder. Two consequences. First, v14's Black deficit against
+v0 (20 losses vs v7's 13, §3.4) is spread across games with
+no single mechanism behind it — consistent with the CIs
+overlapping (v14 0.6000 [0.5020, 0.6906] vs v7 0.6650
+[0.5679, 0.7499]); the v1 gradient did not introduce a new
+blunder class against greedy play, it just did not help
+there. Second, the 15-ply White loss to v7 (game 49) shows
+the White gap in its purest form: v14 as White falls behind
+early against v7's Black and never recovers, with no turn
+where a different move saves the game — White cannot CREATE
+the attack to overcome Black's tempo, the same weakness every
+version has shown. No patch target emerges from the battery
+losses: the fast loop (§2.1) and the battery agree that v14's
+remaining weaknesses are the shared ones (White attack
+creation, exploration of low-prior saving moves), not
+leaf-value defects the v1 kernel could address.
 
 ## 3. v14 evaluation
 
@@ -428,15 +470,130 @@ VM/runtime restart at 58/100 games (33W-23L-2D at the kill,
 flushed JSON preserved at `/tmp` for a replay check — the
 harness has no resume, so the match was re-run from game 0
 with the same seeds; the re-run is deterministic, and the
-first 58 games' move lists are verified against the flushed
-partial file before the numbers below are used).
+first 58 games' move lists were verified identical to the
+flushed partial file before the numbers below were used).
 
-(To be filled.)
+**63W-35L-2D, win rate 0.6400, CI [0.5424, 0.7273]**, 3024.7 s
+(secondary metric, not the bar). File:
+`research/iterations/batch-v14-vs-v7-swap.json` (seeds
+100/200). As Black 37W-12L-1D (0.7500); as White 26W-23L-1D
+(0.5300) — White is above 0.50 here, unlike the normal-rules
+match (0.48). second_colour Black 76 / White 24 — both
+engines chose identically (38 Black / 12 White each), since
+the tempo judge is deterministic on the same balanced
+placements. Winners Black 60, White 38, draws 2
+(Black-favouring — the reverse of v7's swap, where White won
+49 vs Black 39). Plies mean 44.12 (min 17, max 225). Loss
+classifier: 35/35 losses via open four, **0 missed blocks**,
+128 threatened turns in losses, **0 clean missed preventions**.
+
+Note the contrast with v7-vs-v1's swap pattern: v7's edge
+over v1 SHRANK under swap (0.7050 normal -> 0.5700 swap, CI
+including 0.50), because much of v7's advantage lived in the
+empty-board opening. v14's edge over v7 does the OPPOSITE: it
+is STRONGER under swap (0.6400, CI lower 0.5424) than under
+normal rules (0.6000, CI lower 0.5020). v14's advantage over
+v7 does not live in the opening — it holds, and grows, from
+balanced 3-stone starts. When v14 opens (v7 chooses) v14
+scores 0.55; when v7 opens (v14 chooses) v14 scores 0.73 —
+but the choices are identical (38/12), so this gap is fully
+explained by the colour asymmetry (v14 is Black 38/50 times
+when it chooses, 12/50 when v7 chooses), not by a choice
+effect.
 
 ## 4. Bar check (v14 vs v7)
 
-(To be filled.)
+| Clause | Requirement | v14 result | Verdict |
+|---|---|---|---|
+| 1. Head-to-head vs v7 | >= 100 games, win rate > 0.50, Wilson 95% CI lower bound > 0.50 | 100 games: 58W-38L-4D, 0.6000, CI [0.5020, 0.6906] | **PASS** (by 0.002 — one game the other way fails it) |
+| 2. Ladder Elo | strictly higher than v7's 190.8, identical games/opponents | -34.9 (interval [-183.3, 113.6]), vs v7's 190.8 | **FAIL** |
+| 3. Tactical | pass rate >= v7's | old 20/20 = v7's 20/20; hard 29/29 = v7's 29/29 | **PASS** |
+| 4. Test suites | ml pytest + npm test + tsc green | ml pytest 248 passed, 7 skipped, 5 xfailed, 0 failures (5 xfailed = 2 known v7/v8 xfails + 3 v14 regression xfails, the documented open weaknesses; 7 skips are missing gitignored checkpoints); npm test 55/55; tsc clean | **PASS** |
+
+**Verdict: v14 is REJECTED — 3 of 4 clauses pass, clause 2
+fails.** The ladder Elo (-34.9) is far below v7's 190.8, driven
+by a 9-11 ladder sample against the heuristic anchor where v7
+went 15-5. Nothing has been pushed to master from this
+workstream, and no kernel re-sync to WebGPU/Metal is done
+(the plan reserves that for a passing version).
 
 ## 5. What this means
 
-(To be filled.)
+**The v1-kernel gradient hypothesis is REFUTED as a
+strength gain — with one real, durable win underneath it.**
+The defect was real and measurable: the v0 kernel scores a
+broken-four creation at ~130 where v1 scores it at 20,006,
+and on real game positions the v1 breadth differs from the v0
+breadth in 97.4% of quiet positions (mean strong moves 8.51
+vs 4.61). The port is exact (0 mismatches on every
+cross-check layer). And the leaf-level evidence is positive:
+in the one fast-loop position where the gradients disagree
+(game 9), the v1 gradient points at the saving move and the
+v0 gradient points at the losing move; under swap rules v14
+beats v7 more decisively (0.64, CI lower 0.5424) than under
+normal rules (0.60, CI lower 0.5020), showing the edge is
+not an opening artefact. But at match scale the gain is
+marginal (clause 1 passes by 0.002) and it does not survive
+the ladder: v14 loses the 20-game heuristic sample 9-11 and
+lands at Elo -34.9 against v7's 190.8. The program's lesson
+from v11 — the leaf is not the binding constraint — holds
+again: fixing a real, specific, measurable defect in the
+leaf's input scores buys a small head-to-head edge and
+nothing on the ladder. The binding constraints are elsewhere:
+White's inability to create an attack (0.48 vs v7 as White,
+0.53 under swap), and the search's failure to explore
+low-prior saving moves at 100 sims (game 9: the leaf was
+right, the move got 3 visits).
+
+**The non-transitivity is the sharpest result of this
+iteration.** v14 beats v7 (0.60), v7 beats the heuristic
+(15-5), yet v14 loses to the heuristic (9-11): v14 > v7 >
+heuristic > v14. The ladder's heuristic opponent IS v0, and
+v14's 100-game record against the same opponent is 60-40 —
+so the 9-11 is within noise of the 100-game number (its CI
+includes 0.60), and a 0.60 ladder score would still only give
+roughly +70 Elo, below v7's 190.8. But the pattern is
+consistent across samples: v14 scores LOWER against the
+weaker v0 (0.60) than against v7 (0.60 — equal here, but v7
+scored 0.665 vs v0 against 0.705 vs v1), and its Black game
+against greedy play is worse than v7's (20 Black losses to
+v0 vs v7's 13). The v1 gradient's denser threat signal seems
+to help against a searching opponent (v14 ties the baseline
+MCTS 10-10 where v7 lost 8-12) and hurt, or at least not
+help, against greedy 1-ply play — the gradient rewards
+building threats, and against an opponent that takes every
+immediate threat at face value, the extra threat-building
+does not convert. This is a hypothesis, not a verified
+mechanism: the three worked Black losses to v0 (§2.6) show
+distributed drift, no blunder, so there is no single
+mechanism to point at.
+
+**What survives.** The v1 kernel itself (`kernel_v1.py`, 0
+mismatches, 5.6 ms/call) is a durable, exact, reusable
+component: any future leaf, prior, or analysis that needs
+v1 attack scores for all 225 cells at once now has a
+verified vectorized path, 3.8x faster than its first version
+after the slice-max rewrite. The fast loop's three
+regression positions (all xfail) document the two open
+weakness classes precisely: indistinguishable creator-blocks
+(games 1/3) and the exploration starvation of low-prior
+saving moves (game 9). And the swap result (0.64, CI
+excluding 0.50) is the strongest swap number any version has
+posted against its reference — worth remembering when the
+next batch weighs the swap metric.
+
+**What the next batch should try.** In priority order: (a)
+White attack creation — the persistent weakness across all
+versions, now the binding constraint on the head-to-head
+(v14 wins as Black 0.72 and loses as White 0.48); (b)
+exploration of low-prior forcing/saving moves — the leaf
+already points the right way in game 9 and the search does
+not follow it; (c) understanding the greedy-opponent gap —
+why a denser attack gradient helps against search and not
+against 1-ply play. NOT to retry: another leaf-input fix —
+two leaf workstreams (v11's distribution fix, v14's kernel
+fix) have now shown the leaf is not the binding constraint,
+and the next gain has to come from the search or the
+decision rule, not the leaf values. The v1 kernel stays
+available for those; a WebGPU/Metal re-sync is still gated
+on a version passing the bar.
