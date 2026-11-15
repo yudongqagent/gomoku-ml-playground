@@ -393,7 +393,16 @@ gone: v12 scores the same (1.0000) in both colours against v0.
 
 ### 3.5 Tactical suites — FINAL BATTERY
 
-[To be filled.]
+Old 20-position suite, full-dispatch driver
+(`ml/scripts/eval_tactical_full.py --version 12 --suite both
+--seed 0`): **v12 20/20**. Hard suite (29 positions): **v12
+29/29** (prevention 16/16, setup 7/7, winning 2/2, vcf 4/4) —
+identical to the §1.5 pre-eval numbers (the engine is unchanged
+since, no fast-loop patches). **Clause 3 PASSES** (old 20/20 =
+v7's 20/20; hard 29/29 = v7's 29/29). The forcing-first
+tie-break changes nothing on tactical positions: none of the 49
+positions is decided by an exact visit tie in a way the forcing
+filter changes, so v12's tactical play is v7's tactical play.
 
 ### 3.6 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
 
@@ -429,7 +438,40 @@ opposition and slightly hurts against an equal one (see §5).
 
 ### 3.7 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
 
-[To be filled.]
+vs random 20W-0L-0D (1.0000, CI [0.8389, 1.0000]; as Black
+10W-0L-0D, as White 10W-0L-0D); vs heuristic **20W-0L-0D
+(1.0000, CI [0.8389, 1.0000]; as Black 10W-0L-0D, as White
+10W-0L-0D)** — a PERFECT score against the heuristic anchor
+(v7: 15W-5L, 0.7500); vs mcts **10W-10L-0D (0.5000, CI [0.2993,
+0.7007]; as Black 5W-5L-0D, as White 5W-5L-0D)** — ties the
+baseline MCTS, as v9 did (v7: 8W-12L). **Ladder Elo: point
+estimate undefined (None), interval [286.6, None]** — v12 beat
+BOTH anchored opponents 20-0, so both per-opponent scores are
+1.0 and the logistic estimator has no finite point estimate
+(the rating is unbounded above); the interval's lower bound
+(286.6) comes from the heuristic matchup's Wilson CI lower
+(0.8389 → +286.6 over the 0 anchor). Run: `eval_version.py
+--version 12 --ladder-games 20 --mcts-sims 100 --seed 100`;
+EVAL_JSON saved to `research/iterations/ladder-v12.json` (full
+log: `research/iterations/ladder-v12.log`). The script's tactical
+probe line was disregarded per the brief (it bypasses the MCTS
+dispatch); tactical is §3.5's full-dispatch 20/20 + 29/29.
+**The ladder is IDENTICAL to v9's on every matchup** (random
+20-0, heuristic 20-0, mcts 10-10, interval [286.6, None]) — the
+forcing tie-break changes nothing against the ladder opponents,
+whose games are decided before root ties matter.
+
+**Clause 2 PASSES, with the same caveat as v9's:** the bar's
+letter ("ladder Elo strictly higher than v7's 190.8") assumes a
+finite point estimate, and v12 has none — its perfect scores
+make the estimate unbounded above. The verdict rests on (a) the
+interval lower bound 286.6, which is strictly above v7's 190.8
+(the entire interval [286.6, ∞) lies above v7's point estimate),
+and (b) the per-opponent results, which are strictly better
+than v7's on every matchup (heuristic 20-0 vs 15-5, mcts 10-10
+vs 8-12, random 20-0 = 20-0). (v7's interval was [21.8, 359.9]
+— v12's lower bound exceeds v7's point estimate but not v7's
+upper bound; the intervals overlap, as they did for v7 vs v1.)
 
 ### 3.8 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
 
