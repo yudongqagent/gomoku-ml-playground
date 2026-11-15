@@ -301,11 +301,15 @@ step 2 (priors/book) alone.
 |---|---|---|---|---|
 | 50 | 18W-19L-3D, 0.4875 | 13W-5L-2D, 0.7000 | 5W-14L-1D, 0.2750 | 1907 s |
 | **100** | 23W-14L-3D, 0.6125 | 11W-8L-1D, 0.5750 | **12W-6L-2D, 0.6500** | 1739 s |
-| 150 | — running — | | | |
-| 200 | — pending — | | | |
+| 150 | 21W-17L-2D, 0.5500 | 9W-10L-1D, 0.4750 | 12W-7L-1D, 0.6250 | 1422 s |
+| 200 | 17W-21L-2D, 0.4500 | 11W-8L-1D, 0.5750 | 6W-13L-1D, 0.3250 | 1281 s |
 
-The inverted-U shape transfers to v7: White 0.275 at 50
-sims, 0.65 at 100. (The s100-vs-v7 cell was interrupted by
+The inverted-U shape transfers to v7, flatter against the
+stronger opponent: White 0.275 -> 0.65 -> 0.625 -> 0.325.
+The 200-sim collapse vs v7 (0.325) is partial, not total —
+matching v10's 0.34 as White vs v7 at 200 sims — while vs
+v0 it is total (0.00). 100 sims is the White peak against
+both opponents.
 a runtime restart at 7 games; the re-run with the same seeds
 reproduced the 7-game prefix exactly — determinism
 verified.) Note the s100 cell (v7 + threat check, symmetric
@@ -441,15 +445,78 @@ NOT amended on one diagnostic position; the sweep + battery
 decide. If the sweep shows no temperature beating the
 control, v13 ships with T=2.0 (the base).
 
-### 2.4 White prior-temperature sweep (§1b step 2) — RUNNING
+### 2.4 White prior-temperature sweep (§1b step 2) — COMPLETE
 
-### 2.5 Fast-loop iteration 2 — TO BE RUN
+**The temperature hypothesis is REFUTED decisively at match
+level.** Cells: T=3.0 and T=4.0 vs v0, 40 games each, seeds
+300/400 (`research/iterations/sweep-t{3.0,4.0}-vs-v0.json`).
+The T=2.0 control cell is the §2.1 s100-vs-v0 cell (the
+identical engine — V13MCTS at T=2.0 reproduces it exactly,
+verified by the 2-game prefix + the unit test), so it was
+not re-run.
 
-### 2.6 Fast-loop iteration 3 — TO BE RUN
+| T_w | Overall vs v0 | As Black (n=20) | As White (n=20) | Time |
+|---|---|---|---|---|
+| 2.0 (control) | 27W-11L-2D, 0.7000 | 12W-7L-1D, 0.6250 | 15W-4L-1D, **0.7750** | 1302 s |
+| 3.0 | 15W-24L-1D, 0.3875 | 14W-5L-1D, 0.7250 | 1W-19L-0D, **0.0500** | 358 s |
+| 4.0 | 16W-24L-0D, 0.4000 | 16W-4L-0D, 0.8000 | 0W-20L-0D, **0.0000** | 245 s |
 
-### 2.7 Fast-loop iteration 4 — TO BE RUN
+Flattening White's prior is catastrophic: White falls from
+0.775 to 0.05 to 0.00, losing in 23-31 plies (the same fast
+overrun shape as v10's collapse). Black is fine at every
+temperature (0.625-0.80) — the damage is exactly the White
+change, as in v10. **The sharp prior is load-bearing:** with
+100 sims the search NEEDS the v1 prior's concentration to
+focus; flattening spreads visits so thin that White plays
+without direction and is overrun. The position probe (§2.3)
+did NOT predict match strength — it passed thinly (1/7 at
+T=3.0) while the sweep refuted the design overwhelmingly.
+Single-position diagnostics do not transfer to match play
+when the intervention changes the search's exploration
+globally (the same lesson as v11's sweep/fast-loop vs
+100-game gap and v8's smoke fluke).
 
-### 2.8 Aggregate counts (secondary)
+**Per the §1b decision rule, v13 ships with T_w = 2.0
+(i.e. the base).** The temperature is refuted; the
+temperature knob stays in the code (V13MCTS, tested) but
+v13's registered configuration uses 2.0.
+
+### 2.5 White opening-book probe (§1b contingency) — PRE-REGISTERED
+
+**Hypothesis (pre-registered BEFORE running the probe):**
+forcing White's reply to (6,8) after Black's centre opening
+(7,7) beats the engine's mixed replies. Motivating evidence
+(post-hoc, weak, stated as such): in v7's 50 White games vs
+v0 (batch-v7-vs-v0.json, seeds 100/200), the diagonal reply
+(6,8) went 9W-3L-1D (n=13) and (8,6) 9W-3L (n=12), while the
+orthogonal replies (7,5) went 3W-4L (n=7) and (7,8) 3W-3L
+(n=6). (6,8) is the single candidate tested — the best of
+the mined replies — so this probe is a confirmation test of
+one specific hypothesis, not a search over replies.
+
+**Probe design:** 40 games vs v0, seeds 300/400 (fresh games,
+out-of-sample relative to the mining data's seeds 100/200).
+White's ply-1 reply is forced to (6,8) whenever Black opens
+(7,7) (both v0 and v7 always open (7,7); if Black opened
+elsewhere the engine would play normally — not expected).
+Every other move is the v13 base (V13MCTS, T=2.0, 100 sims).
+Control: the §2.1 s100-vs-v0 cell's White rate, 0.775
+(n=20, same seeds, same opponent, engine's mixed replies).
+
+**Decision rule (pre-registered, mechanical):** book (6,8)
+ONLY if the forced arm's as-White win rate is >= 0.875
+(control + 0.10 — a high bar against overfitting a noisy
+n=20 comparison, and against the post-hoc selection of the
+candidate). Otherwise NO book: v13 = the base, and the book
+direction is closed with evidence rather than assertion.
+
+### 2.6 Fast-loop iteration 2 — TO BE RUN
+
+### 2.7 Fast-loop iteration 3 — TO BE RUN
+
+### 2.8 Fast-loop iteration 4 — TO BE RUN
+
+### 2.9 Aggregate counts (secondary)
 
 ## 3. v13 evaluation (FULL VALIDATION BATTERY — final v13)
 
