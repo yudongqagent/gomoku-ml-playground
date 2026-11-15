@@ -332,23 +332,167 @@ claimed. The 2 saves are passing tests in
 
 ## 2. Loss analysis for iteration 22
 
-(TBD — fast-loop iterations vs v0 and v7 on v22.)
+The fast loop runs on v22 itself (the pre-registered engine),
+against v0 AND v7. Its purpose is finding patchable weakness
+classes the conditional demotion introduces or leaves open — not
+validating v22 (the battery does that).
 
 ### 2.1 Fast-loop iteration 1 — 10 games vs v0
 
-(TBD.)
+**Batch:** `research/iterations/fastloop1-v22-vs-v0.json` (seeds
+v22=1013 / v0=2013 — development seeds, distinct from the bar
+battery's 100/200 AND from iter-20's loop seeds 1011/2011 and
+1012/2012, so these are fresh games). **10W-0L-0D, win rate
+1.0000, CI [0.7225, 1.0000]**, 433.3 s. Per colour: as Black 5W-0L
+(51, 63, 79, 69, 69 plies), as White 5W-0L (68, 66, 138, 162, 84
+plies). Mean game length 84.9 plies — much longer than v14's
+loop-1 games: v22 wins slow grinds in both colours, including
+two very long White wins (138 and 162 plies), the games v20-as-
+White lost outright. No losses, so there is no losing move to
+find in this iteration — the loop's finding method has nothing to
+work on against v0 at these seeds. That is itself the directional
+signal the design predicted (v20-as-Black's recovery kept, White
+restored), but 10 games is a smoke, not a verdict: v14's loop 1
+was 5W-5L at its seeds, and the 100-game battery (§3.4) decides
+whether the sweep holds. No patch from iteration 1; the loop
+continues to iteration 2 vs v7 (per the method: loops run
+against v0 AND v7) before the stopping rule is applied.
 
 ### 2.2 Fast-loop iteration 2 — 10 games vs v7
 
-(TBD.)
+**Batch:** `research/iterations/fastloop2-v22-vs-v7.json` (seeds
+v22=1014 / v7=2014 — development seeds, distinct from the bar
+battery's 100/200). **4W-6L-0D, win rate 0.4000, CI [0.1682,
+0.6873]**, 465.9 s. Per colour: as Black 2W-3L (games 0, 2, 6
+lost; 4, 8 won), as White 2W-3L (games 1, 7, 9 lost; 3, 5 won).
+Classifier: 6/6 losses via open four, 0 missed blocks, 0 clean
+missed preventions in 25 threatened turns (losses). Defence is
+still perfect; the losses are lost races, as in every batch.
 
-### 2.3 Fast-loop iteration 3 — NOT RUN unless a new patchable class appears
+**The losing move in each game** (walk-back, corrected oracle
+method, seeds 0,1,2 — then ENGINE-SWAP VERIFIED with fresh v22
+vs fresh v7, the iter-20 §2.0 instrument; the oracle alone is
+not trusted for MCTS-vs-MCTS games, and this iteration shows
+why):
 
-### 2.4 Fast-loop iteration 4 — NOT RUN unless a new patchable class appears
+| Game | Last preventable turn | v22 played (loses 3/3) | Perfect move (oracle) | Engine-swap verdict |
+|---|---|---|---|---|
+| 0 (56 plies, Black) | none | — (actual draws at plies 40–48) | — | — (drift) |
+| 1 (39 plies, White) | ply 29 | (6,6) | (4,8) wins 3/3; (9,3) draws 3/3 | **WITHDRAWN** — save loses +19, control WINS +46 |
+| 2 (78 plies, Black) | ply 70 | (3,2) | (3,5)/(8,11) draw 3/3 | **WITHDRAWN** — save loses +7, control loses +7 |
+| 6 (24 plies, Black) | ply 14 | (11,8) | (7,8) wins 1 / draws 2 | **WITHDRAWN** — save loses +7, control loses +9 |
+| 7 (31 plies, White) | ply 17 | (6,10) | (5,9)/(3,11)/(4,5) win 3/3 | **CONFIRMED** — save wins +18, control loses +29 |
+| 9 (29 plies, White) | ply 19 | (8,5) | (8,9) wins 3/3 | **CONFIRMED** — save wins +64, control loses +11 |
+
+**Three of the five oracle verdicts are WITHDRAWN.** Game 1 is
+the sharpest case: the oracle's save (4,8) LOSES in +19 plies
+with the real engines, while the control (the actual move (6,6))
+WINS in +46 — the oracle's verdict is exactly reversed, and the
+position was not lost at ply 29 at all under v22-vs-v7 dynamics.
+Games 2 and 6: the oracle's saves lose as fast as the controls
+(+7 plies both) — the positions were already lost by the
+walk-back window, and the v1-vs-v1 oracle's "draw" reflects
+1-ply dynamics, not MCTS-vs-MCTS play. This is the iter-18
+caveat in both directions: the v1 walk-back oracle diverges from
+real-engine dynamics, and for MCTS-vs-MCTS games every nominated
+save needs engine-swap confirmation. (iter-20 §2.0 found the
+oracle missing real losing moves; this iteration finds it
+inventing false ones.) Only games 7 and 9 survive as verified
+losing moves.
+
+**Game 7 ply 17 — the clean v22-specific case.** (x, y) from
+here. Actual (6,10): v22-fresh plays it; v20-fresh and v14-fresh
+play the save (5,9); v7-fresh plays (4,5), also a save. v22 is
+the ONLY engine that misses it. Breadth after the actual: White
+(ours) four=0, true3=5, gap3=**18**, dev=47; after the save:
+four=0, true3=6, gap3=14, dev=52. The actual leaves White with
+EIGHTEEN gap-three makers — the maximum of the Step-0 sample
+distribution (mean 2.64, p90 7, p99 14, max 18; P(>=18) = 0.003).
+v22 counts White's gap-three breadth fully, so its gradient
+prefers the actual (-0.198 vs -0.195 for the next player);
+v20's gradient (White's gap threes demoted) prefers the save
+(-0.135 vs -0.144). v22-root: actual 24 visits, our-q +0.151;
+save 4 visits, our-q -0.027 — priors nearly equal (0.0559 vs
+0.0558), so this is a VALUE error, not starvation: the tree
+strongly prefers the gap-saturated actual. The mechanism is the
+gap-three phantom, now for White: at a saturated position,
+White's gap-three breadth does not convert (Black wins the race),
+but v22's leaf counts all 18 makers at full weight at every
+White-to-move leaf below the actual.
+
+**Game 9 ply 19 — the same mechanism, closer.** Actual (8,5):
+v22-fresh and v14-fresh play it; v20-fresh and v7-fresh play the
+save (8,9). Breadth after the actual: White (ours) four=1,
+true3=5, gap3=**13**, dev=51; after the save: four=0, true3=4,
+gap3=10, dev=64. Thirteen gap-three makers is p98.5 of the
+distribution (P(>=13) = 0.015). v22's gradient prefers the
+actual (-0.193 vs -0.189); v20's prefers the save (-0.130 vs
+-0.144). v22-root: actual 35 visits, our-q +0.089; save 32
+visits, our-q +0.073 — nearly tied (priors 0.1496 vs 0.1495);
+the search just barely prefers the gap-rich loser. The save's
+advantage is developing breadth (64 vs 51), which the gap-three
+count outweighs in v22's leaf.
+
+**Games 1, 2, 6 — known classes, all engines miss.** Game 1 ply
+29 (oracle verdict withdrawn, but the position is still
+instructive): all four engines play the actual; the save (4,8)
+leaves SIX four-makers yet has prior 0.049 vs the actual's 0.152
+and equal our-q (+0.025 vs +0.024) — prior-dominated. Game 2 ply
+70: all four play the actual; the save's our-q is HIGHER (-0.161
+vs -0.338) but its prior is 0.046 vs 0.145 — prior-dominated +
+beyond-horizon (ply 70 of 78, both q's very negative). Game 6
+ply 14: a FLAT root (top-3 all 4 visits; actual 4 visits, save 3
+visits, priors 0.0376 vs 0.0383) — the choice among ~equal early
+moves is a coin flip, and v7 playing the save is luck as much as
+skill. None is a v22-specific patch target.
+
+**No patch from iteration 2; loop stops here (stopping rule).**
+Games 7 and 9 document a REAL cost of the pre-registered design:
+White's gap-three breadth is NOT purely signal — at saturated
+positions (13–18 makers, the top 1.5% of the distribution) it is
+phantom, and v22 falls for it where v20 does not. But the class
+is the KNOWN gap-three phantom, now documented for White; the
+design's premise (White's gap-three breadth is signal ON
+AVERAGE) comes from v20's 100-game battery, and 2 positions
+cannot overturn an aggregate claim. Any patch distinguishing
+"phantom White gap threes" from "signal White gap threes" needs
+a position-level feature — a saturation threshold (a free
+parameter fitted to 2 positions) or kill-square dedup (count
+distinct gap squares instead of makers — principled IF the
+makers share kill-squares, but unverified here, and a substantial
+new leaf feature requiring its own Step-0, tests, and
+re-validation). Patching now would decide the aggregate question
+on 2 positions — exactly the overfitting the method forbids
+(v15's two n=40 false positives; v8's first-20 fluke). The
+battery (§3) measures the aggregate cost directly: if v22's
+White holds up vs v0 (iteration 1: 10-0) while the vs-v7 cost
+stays small, the condition is right; if not, the saturation
+hypothesis (with kill-square dedup as the candidate mechanism)
+is the batch-9 follow-up. The two confirmed positions are
+recorded as regression tests (`regression_positions_v22.json`,
+both xfails — v22 misses both saves).
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
 
 ### 2.5 Aggregate counts (secondary)
 
-(TBD.)
+Fast loop pooled (20 games, 6 v22 losses):
+
+- Losses via open four: **6/6** (0 vs v0 + 6 vs v7)
+- Missed blocks: **0** in all games
+- Clean missed preventions: **0** in 25 threatened turns (losses)
+- Losses with a verified losing move (oracle + engine-swap):
+  2 of 6 (fl2-g7, fl2-g9); 3 of 6 oracle verdicts WITHDRAWN by
+  engine-swap (fl2-g1, fl2-g2, fl2-g6); 1 of 6 is distributed
+  drift (fl2-g0)
+- Losses where White gap-three saturation is the driver: 2
+  (fl2-g7, fl2-g9) — the conditional demotion's cost side,
+  documented, not patched (see §2.2)
+
+Defence is solved, as in every batch: every loss is an open-four
+race lost, never a defensive error.
 
 ## 3. v22 evaluation
 

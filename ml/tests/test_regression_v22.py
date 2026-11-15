@@ -48,6 +48,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 POSITIONS_PATH = os.path.join(
     HERE, "..", "gomoku_ml", "regression_positions_v20.json"
 )
+POSITIONS_V22_PATH = os.path.join(
+    HERE, "..", "gomoku_ml", "regression_positions_v22.json"
+)
 
 # Positions v22 (seed 0) does NOT play the save at — measured in
 # iter-22.md §1.3, not assumed.
@@ -59,6 +62,14 @@ XFAIL = {
     "fl1-g6-ply34": "save (4,2) starved by low prior + beyond-horizon value error; see iter-22.md §1.3",
     "fl1-g5-ply27": "beyond-horizon value error; all engines miss the save; see iter-22.md §1.3",
     "fl2-g5-ply65": "beyond-horizon value error; all engines miss the save; see iter-22.md §1.3",
+}
+
+# v22's own fast-loop positions (iter-22 §2.2): both are
+# engine-swap-verified saves v22 misses — White gap-three
+# saturation. Both are xfails (documented open weaknesses).
+XFAIL_V22 = {
+    "fl2-g7-ply17": "v22 plays (6,10); White holds 18 gap-three makers after it (p99.7) vs 14 after the save (5,9); see iter-22.md §2.2",
+    "fl2-g9-ply19": "v22 plays (8,5) 35 visits vs save (8,9) 32; White holds 13 gap-three makers after it (p98.5) vs 10 after the save; see iter-22.md §2.2",
 }
 
 
@@ -80,6 +91,25 @@ def _board(pos):
 def test_v22_regression_position(pos):
     if pos["id"] in XFAIL:
         pytest.xfail(XFAIL[pos["id"]])
+    board = _board(pos)
+    player = game.BLACK if pos["to_move"] == "black" else game.WHITE
+    v22 = scoring.get_player(22, seed=0)
+    move = v22.choose_move(board, player)
+    assert (move % 15, move // 15) in [tuple(e) for e in pos["expected"]], (
+        f"{pos['id']}: v22 played {(move % 15, move // 15)}, "
+        f"expected one of {pos['expected']}"
+    )
+
+
+def _load_v22_positions():
+    with open(POSITIONS_V22_PATH, encoding="utf-8") as f:
+        return json.load(f)["positions"]
+
+
+@pytest.mark.parametrize("pos", _load_v22_positions(), ids=lambda p: p["id"])
+def test_v22_fast_loop_regression_position(pos):
+    if pos["id"] in XFAIL_V22:
+        pytest.xfail(XFAIL_V22[pos["id"]])
     board = _board(pos)
     player = game.BLACK if pos["to_move"] == "black" else game.WHITE
     v22 = scoring.get_player(22, seed=0)
