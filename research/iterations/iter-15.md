@@ -573,34 +573,208 @@ narrow for the starvation class as documented (priors
 
 ### 2.6 Aggregate counts (secondary)
 
-[To be filled in.]
+Games played in this iteration: sweep 280 (5 × 40 vs v0, 2 ×
+40 vs v7), fast loop 20, battery 300, ladder 60 — **660
+games total**. Battery loss classification across all three
+100-game matches: **136/136 losses via open four, 0 missed
+blocks, 3 clean missed preventions in 547 threatened turns
+(0.55%)** — defence is solved for v15 exactly as it was for
+v7. The battery's 136 losses add to the program's pooled
+count; v15 contributes no new defensive failure class.
 
 ## 3. v15 evaluation (FULL VALIDATION BATTERY — final v15)
 
-### 3.1 Head-to-head vs v0 (100 games, seeds 100/200)
+### 3.1 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
-[To be filled in.]
+**v15 beats v0: 67W-33L-0D, win rate 0.6700, 95% CI
+[0.5731, 0.7544]**, 1556.2 s. File:
+`research/iterations/batch-v15-vs-v0.json` (seeds 100/200).
+Per colour: as Black 37W-13L-0D (0.7400), as White 30W-20L-0D
+(0.6000). Mean game length 44.55 plies (min 16, max 116).
+Loss classifier: 33/33 losses via open four, **0 missed
+blocks**, 167 threatened turns in losses, **0 clean missed
+preventions** — defence solved.
 
-### 3.2 Tactical suites
+Compare on the SAME seeds: v7 64W-31L-5D (0.6650; as Black
+0.71, as White 0.62), v12 100W-0L-0D (1.0000), v9 93W-7L-0D
+(0.9300), v14 60W-40L-0D (0.6000), v13 64W-36L-0D (0.6400).
+v15 is essentially v7 against v0 (+3 games, well within
+noise) — the sweep's F0.005 signal vs v0 (0.7125 vs the
+control's 0.5625 at seeds 300/400, n=40) does not hold at
+100 games at the battery seeds. The small-sample lesson
+again, in the other direction from §2.1's transfer result:
+neither the v0 sweep edge nor the v7 transfer edge survives
+the battery. No colour-split inversion (v15 scores higher as
+Black than as White, like v7).
 
-[To be filled in.]
+### 3.2 Tactical suites — FINAL BATTERY
 
-### 3.3 Head-to-head vs v7 (100 games, seeds 100/200)
+Old 20-position suite, full-dispatch driver
+(`ml/scripts/eval_tactical_full.py --version 15 --suite both
+--seed 0`), re-run at battery end on the final engine:
+**v15 20/20**. Hard suite (29 positions): **v15
+29/29** (prevention 16/16, setup 7/7, winning 2/2, vcf 4/4) —
+identical to the pre-battery numbers (the engine is unchanged
+since, no fast-loop patches). **Clause 3 PASSES** (old 20/20 =
+v7's 20/20; hard 29/29 = v7's 29/29). The 0.005 floor costs
+nothing tactically: no tactical position is decided by a
+below-floor prior.
 
-[To be filled in.]
+### 3.3 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
+
+**v15 vs v7: 47W-49L-4D, win rate 0.4900, 95% CI [0.3942,
+0.5865]**, 3383.5 s. File:
+`research/iterations/batch-v15-vs-v7.json` (seeds 100/200).
+Per colour: as Black 25W-22L-3D (0.5300), as White 22W-27L-1D
+(0.4500) — the usual White gap, slightly worse than v7's own
+White split vs v1 (0.52) but against an equal opponent. Mean
+game length 47.18 plies (min 15, max 225). Loss classifier:
+49/49 losses via open four, **0 missed blocks**, 182
+threatened turns in losses, **2 clean missed preventions
+(1.1%)** — defence essentially solved (the same rate v7
+showed in its own battery: 1 in 93 vs v1). **Clause 1 FAILS**
+(0.4900 < 0.50, and the CI [0.3942, 0.5865] includes 0.50) —
+v15 and v7 are indistinguishable head-to-head; v15 loses by
+two games over 100. The sweep's transfer signal (F0.005 0.5875
+vs v7 at n=40, seeds 300/400) regressed to 0.49 at 100 games:
+the 40-game cell was noise around a zero effect, not a real
+gain. The floor buys nothing against the reference at match
+scale — consistent with the fast loop's finding (§2.3) that
+the floor changes nothing on any worked loss position.
 
 ### 3.4 Ladder (20 games/opponent, mcts_sims=100, seed 100)
 
-[To be filled in.]
+**v15 ladder Elo −17.4, interval [−165.3, 130.6]** (file:
+`research/iterations/ladder-v15.json`; log:
+`research/iterations/ladder-v15.log`). Per opponent: vs
+random 20W-0L-0D (1.0000, CI [0.8389, 1.0000]); vs heuristic
+9W-10L-1D (0.4750, CI [0.2785, 0.6795]; as Black 6W-3L-1D, as
+White 3W-7L-0D); vs mcts (100 sims) 8W-12L-0D (0.4000, CI
+[0.2188, 0.6134]; 4-6 as both colours). **Clause 2 FAILS**:
+−17.4 < v7's 190.8, and even the interval's upper bound
+(130.6) sits below 190.8 — v15 is strictly below v7 on the
+ladder, not merely within noise of it. The gap is the
+heuristic opponent: v7 beat it 15W-5L (0.7500), v15 loses it
+9W-10L-1D (0.4750); the mcts result is identical to v7's
+(8W-12L-0D). Whether the heuristic drop is a real floor
+effect or n=20 noise cannot be separated at this count, but
+the bar is mechanical and v15 fails it outright: the floor
+did not merely fail to help on the ladder, it is associated
+with a ~200-point Elo regression against v7's 190.8.
 
 ### 3.5 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge)
 
-[To be filled in.]
+**v15 vs v7 under swap: 43W-54L-3D, win rate 0.4450, 95% CI
+[0.3514, 0.5426]**, 3359.5 s. File:
+`research/iterations/batch-v15-vs-v7-swap.json` (seeds
+100/200; the first run was killed at 42/100 by a runtime
+restart — partial JSON backed up at
+`~/workspace/b6h1-logs/batch-v15-vs-v7-swap-partial42.json` —
+and re-run IN FULL from game 0; the re-run reproduced the
+42-game prefix EXACTLY, 0 mismatches in moves/winners).
+Per colour: as Black 28W-21L-1D (0.5700), as White 15W-33L-2D
+(0.3200) — the White gap is much wider under swap than under
+normal rules (0.45), and worse than v7's own White split vs
+v1 under swap. Colour-choice split (tempo judge, deterministic
+on the same balanced placements): second player picks Black
+76/100, White 24/100 — identical to every prior swap match.
+Winners: Black 61, White 36, draw 3. Mean game length 48.02
+plies (min 15, max 225). Loss classifier: 54/54 losses via
+open four, **0 missed blocks**, 198 threatened turns in
+losses, **1 clean missed prevention (0.5%)**. v15 loses the
+swap match outright (0.4450, CI upper bound 0.5426 includes
+0.50 but the point estimate is 11 games down) — unlike v12
+(0.61, CI lower 0.512) and v14 (0.64), which both held swap
+edges over v7, and v9 (exactly even, 48-48-4). There is no
+swap edge to point to as a consolation: v15 is worse than v7
+under both rule sets at 100 games.
 
 ## 4. Bar check (v15 vs v7)
 
-[To be filled in.]
+| Clause | Requirement | v15 | Verdict |
+|---|---|---|---|
+| 1. Head-to-head vs v7 | ≥100 games, win rate > 0.50, Wilson 95% CI lower > 0.50 | 47W-49L-4D, 0.4900, CI [0.3942, 0.5865] | **FAIL** |
+| 2. Ladder Elo | strictly > v7's 190.8, identical counts/opponents | −17.4, interval [−165.3, 130.6] (upper bound below 190.8) | **FAIL** |
+| 3. Tactical | ≥ v7's 20/20 old + 29/29 hard | 20/20 old + 29/29 hard | **PASS** |
+| 4. Test suites | ml pytest, npm test, tsc green | pytest 243 passed / 7 skipped / 5 xfailed / 0 failures; npm 55/55; tsc clean | **PASS** |
+
+**VERDICT: v15 REJECTED — 2/4 clauses pass.** v7 remains the
+reference and master is untouched. Supporting numbers: vs v0
+0.6700 (≈ v7's 0.6650); swap vs v7 0.4450 (no swap edge).
+No non-transitivity: v15 ≈ v7 (0.49), v15 vs v0 0.67 ≈ v7
+vs v0 0.665 — v15 is v7 with noise, slightly worse on every
+100-game comparison. No kernel re-sync (the version did not
+pass); no Space or web-app changes.
 
 ## 5. What this means
 
-[To be filled in.]
+**The exploration hypothesis is refuted at match scale.**
+v15 was built on a real, documented class — saving moves
+starved at 2–6 visits while the loser holds 7–12 — and the
+mechanism was chosen by a pre-registered sweep with a
+mechanical decision rule. Every stage of the work pointed
+the same way, and the battery confirmed it:
+
+1. **The floor cannot reach the class it was built for.**
+   The documented starved saves hold priors 0.027–0.045
+   (§1 Step 0: p90–p95); the sweep-bounded floor (0.005,
+   ≈p45) lifts only priors below 0.005. On all four worked
+   loss positions (§2.2, §2.3) v15's root statistics were
+   IDENTICAL to v7's — the floor changed nothing where the
+   losses are decided. The diagnostic (§1.5) showed why the
+   mechanism is weak even in principle: an unvisited move
+   has q=0, higher than the save's negative q, so broadened
+   exploration feeds the ~90 unvisited tail moves before the
+   visited-but-negative save. The starvation is partly a
+   VALUE problem, not purely an exploration problem — which
+   is H2/v16's territory, not H1's.
+2. **The sweep produced two false positives in one
+   iteration.** F0.005 beat the control vs v0 (0.7125 vs
+   0.5625) and beat v7 in the transfer cell (0.5875) — both
+   at n=40. At 100 games both regressed (0.6700 vs v0, ≈
+   v7's 0.6650; 0.4900 vs v7). The transfer cell exists to
+   catch exactly this and it caught C2.0 (0.7750 vs v0,
+   0.4500 vs v7 — the v12 pattern), but F0.005's own
+   transfer cell was itself a false positive at n=40. The
+   100-game battery is the verdict, again.
+3. **Exploration levers at this strength are now measured
+   and exhausted.** Prior floor 0.005: inert (v15 ≈ v7
+   everywhere, slightly worse). Prior floor 0.01: flat vs
+   v0 (0.6875), untested vs v7 — but the diagnostic showed
+   it moves the loser's visits, not the save's, and its
+   reach (p70) is still below the documented saves'
+   priors. c_puct 2.0: wins vs v0 (0.7750), loses to v7
+   (0.4500). c_puct 3.0: colour-split explosion (Black
+   0.90 / White 0.35 vs v0). No exploration setting in the
+   swept brackets improves on v7; the brackets were bounded
+   by the gradient-cap principle, and going beyond them
+   (floor 0.02, c_puct 4.0) was excluded pre-registration
+   for the same reason temperature flattening was
+   catastrophic — the sharp prior is load-bearing at 100
+   sims. **Do not reopen exploration tuning in batch 7
+   without a new mechanism, not a new constant.**
+4. **The fast loop found no patchable class.** Two
+   iterations, 20 games, 4 losses worked to the ply: one
+   beyond-horizon value error (§2.2), one unlucky 1-in-3
+   tie-break (§2.3 g3), one classic starvation the floor
+   cannot touch (§2.3 g5), one close call with no
+   structural cause (§2.3 g8). Three are regression xfails;
+   none produced a patch, and the loop stopped per its
+   stopping rule. The honest record is that this
+   workstream's mechanism came from the sweep, not from a
+   specific loss — and the specific losses, when worked,
+   showed the mechanism cannot reach them.
+
+**What survives:** the unnormalized-floor implementation
+(`prior_floor` in `HeuristicMCTS`/`ScoringPlayer`, dispatch
+version 15) is clean, tested, and reusable — H3/v17 may
+combine it with other mechanisms, and the Step 0 prior
+distribution (median 93 candidates, p50 0.0058, p95 0.0372)
+is now measured for any future exploration work. The
+renormalization refutation (§1.1) is a durable negative
+result: a renormalized floor shrinks the saves it should
+lift. The v15 regression positions (3 xfails) join the
+suite as permanent witnesses to the starvation class.
+And the sweep's inverted-U c_puct curve (1.5 → 0.5625,
+2.0 → 0.7750, 3.0 → 0.6250 vs v0) is a measured fact for
+any future sims/exploration work.
