@@ -487,6 +487,113 @@ real in both seats. Classifier: 26/26 losses via open four, 0
 missed blocks, 0 clean missed preventions in 103 threatened
 turns (losses). Defence still solved.
 
+### 3.5 Ladder — Elo 381.7 [146.3, 617.1] (CLAUSE 2 PASSES)
+
+`research/iterations/ladder-v19.json` (`eval_version.py
+--version 19 --ladder-games 20 --mcts-sims 100 --seed 100`,
+60 games, 773.7 s): vs random 20W-0L-0D (1.0000), vs
+heuristic 18W-2L-0D (0.9000; Black 8W-2L, White 10W-0L), vs
+mcts 9W-11L-0D (0.4500; Black 4W-6L, White 5W-5L). **Ladder
+Elo 381.7, interval [146.3, 617.1]** — strictly above v7's
+190.8 [21.8, 359.9] at identical counts/opponents, so **clause
+2 PASSES**. The estimate and interval are IDENTICAL to v16's
+(381.7 [146.3, 617.1]) — the per-opponent counts are the same
+too (random 20-0, heuristic 18-2, mcts 9-11). The blend buys
+nothing on the ladder: v19 still loses to the baseline MCTS
+anchor (9-11, vs v7's 8-12), and the ladder Elo is driven
+entirely by the heuristic matchup, where v19 matches v16
+exactly. The ladder cannot distinguish v19 from v16; the
+differences live only in the v7 h2h colour splits (§3.2) and
+the swap match (§3.4).
+
+### 3.6 Test suites (CLAUSE 4 PASSES)
+
+Final tree, all green: ml pytest **269 passed, 7 skipped, 11
+xfailed, 0 failures** (279 s). Delta vs the v16 port baseline
+(256 passed, 7 skipped, 4 xfailed) is exactly +13 passed
+(12 new tests in `test_mcts_heuristic.py` + the regression
+smoke test) and +7 xfailed (the 7 v19 regression positions,
+all expected-fail). `npm test`: **55/55 passed** (after `npm
+ci`; fresh worktrees have no `node_modules`). `tsc --noEmit`:
+clean, exit 0. `baseline.py` diff vs master is empty — the
+frozen file was never touched. **Clause 4 PASSES.**
+
 ## 4. Bar check (v19 vs v7)
 
+| Clause | Requirement | v19 | Verdict |
+|---|---|---|---|
+| 1 | h2h vs v7, win rate > 0.50, Wilson 95% CI lower > 0.50 | 52W-37L-11D, 0.5750, CI [0.4771, 0.6673] | **FAIL** |
+| 2 | Ladder Elo > v7's 190.8, identical counts/opponents | 381.7 [146.3, 617.1] | **PASS** |
+| 3 | Tactical >= v7's 20/20 + 29/29 | 20/20 + 27/29 | **FAIL** |
+| 4 | All test suites green | pytest 269/0 fail, npm 55/55, tsc clean | **PASS** |
+
+**v19 is REJECTED (2/4).** It passes the same two clauses as
+v16 (ladder, tests) and fails the same two (h2h, tactical) —
+but it fails tactical WORSE than v16 (27/29 vs 28/29) because
+the blend itself regresses g45, while improving the White h2h
+split (0.74 vs 0.64) and the swap match (0.73 vs 0.615). The
+headline h2h, v0, and ladder numbers are identical to v16's;
+the blend's effects are real but confined to the White seat
+and the swap format, and they come with a tactical cost.
+
 ## 5. What this means
+
+**The blend is refuted as a general mechanism.** It does
+exactly what §1 predicted it would do in real games — it
+restores discrimination among losing lines, and White wins
+more games for it (0.74 vs v7, the best White split in the
+program; swap 0.73, second-best). But the same discrimination
+is what breaks g45: the blend cannot distinguish "counterplay
+that saves the game" from "counterplay that loses more
+slowly", and on g45 it rewards the losing move's counterplay
+until the tie-break picks it. A mechanism that trades a
+tactical regression for a White-split gain is not a step
+forward — and the combined h2h does not move at all, because
+the Black mirror games (v7-vs-v7, seed-decided) swallow the
+White gain whole. The blend's failure mode is now precise:
+it is a good tie-breaker among lines that all lose, and a bad
+judge of which lines lose.
+
+**What changed because of a specific loss: nothing was
+patched.** The fast loop (2 iterations, 40 games) found no
+patchable weakness class: the one concrete White losing move
+(fl1-g9 ply 19, (11,6)) is shared byte-identically by v16,
+so the blend is exonerated; the candidate patch (leaf-start
+gradient blend) was measured and refuted on the position
+itself (50/50 blend still ranks the loser first); the other
+White losses have no losing move (the oracle draws, then a
+single Black move makes the position unwinnable with no
+saving reply — the same OPEN class as iter-16 §2.2); all
+remaining losses are Black games, i.e. v7's moves. The
+battery version is the pre-registered design exactly. The
+regression file records all 7 positions as xfails for the
+next iteration.
+
+**The White-side story is now the program's clearest
+pattern.** v16's rollout leaf fixed White against v0 (50W-0L)
+and improved White vs v7 (0.64); v19's blend pushes White
+vs v7 to 0.74 and the swap to 0.73. White is no longer the
+weakness in the v7 matchup — Black is, and Black is v7
+itself. Any further gain in the combined h2h must come from
+the Black seat, which is exactly batch 7's H1 (v18: rollout
+leaf for both colours). H2's job was to fix the leaf's
+q-compression for White; it did, and the price was one
+tactical position. The next lever is not another leaf tweak
+— it is H1's Black-side rollout, or a value function that
+sees quiet setups (the fl1-g9 killer was a quiet setup 5
+plies out, invisible to a 1-ply policy and to any gradient).
+
+**Defence remains solved.** Across the battery (v7, v0,
+swap: 79 losses), 79/79 losses are via open four, with 0
+missed blocks and 0 clean missed preventions in 288
+threatened turns. The blend did not touch defence — it
+reorders losing lines, and every loss is still an open-four
+race lost on attack, not on defence.
+
+**Methodological note.** Three runtime restarts interrupted
+this battery (v7 match at 10/100 and 82/100, v0 match at
+19/100). Each re-run with identical seeds reproduced the
+saved partial EXACTLY, record for record — determinism
+verified three times. The per-game JSON flush is what makes
+this recoverable; without it, ~5 hours of compute would
+have been lost. The restarts cost only wall-clock time.
