@@ -465,6 +465,28 @@ no non-transitivity**, unlike v4 (v4>v1>v0>v4) and v14
 strength gain that extends down the ladder, not a matchup
 artefact — the same conclusion as v16's.
 
+### 3.4 Swap match vs v7 — 72W-26L-2D, 0.7300 (edge ESTABLISHED)
+
+`research/iterations/batch-v19-vs-v7-swap.json` (100 games,
+swap rule, balanced placement, placement_seed 11, tempo judge,
+seeds 100/200, 3142.5 s): **v19 72W-26L-2D, win rate 0.7300,
+95% CI [0.6357, 0.8073]** — aggregates recomputed from the raw
+records. Split: as Black 37W-12L-1D (0.75), as White
+35W-14L-1D (0.71). The CI lower bound 0.6357 > 0.50, so the
+swap edge is ESTABLISHED — the second-strongest swap result in
+the program (v17 0.74), well above v16's 0.615 (CI lower
+0.5171) and v7's own unestablished 0.57. Notably, the swap edge
+(0.73) is much larger than the normal-rules h2h (0.5750):
+v19's advantage is NOT an opening artefact — it survives the
+swap, which neutralizes the empty-board first-move advantage
+where much of v7's edge lived (v7 was 0.89 as Black under
+normal rules vs 0.52 under swap). Under swap the blend is
+active in roughly half the games (White) and v19 wins as both
+colours (0.75 Black / 0.71 White), so the midgame strength is
+real in both seats. Classifier: 26/26 losses via open four, 0
+missed blocks, 0 clean missed preventions in 103 threatened
+turns (losses). Defence still solved.
+
 ## 4. Bar check (v19 vs v7)
 
 ## 5. What this means
