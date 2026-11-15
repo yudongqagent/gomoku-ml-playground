@@ -370,11 +370,99 @@ xfail (`regression_positions_v17.json`, `fl1-g1-ply13`).
 
 ### 2.2 Fast-loop iteration 2 — 10 games vs v7
 
-[PENDING]
+**Batch:** `research/iterations/fastloop2-v17-vs-v7.json`
+(seeds v17=1002 / v7=2002 — development seeds, distinct from
+the bar battery's 100/200). **3W-5L-2D, win rate 0.4000, CI
+[0.1682, 0.6873]**, 650.7 s. Per colour: as Black 1W-3L-1D,
+as White 2W-2L-1D. (For scale: v12's iter 2 on the same
+seeds was 7W-3L, v9's 4W-4L-2D — n=10 with wide CIs, not a
+comparison; the loop's job is finding weaknesses, and the
+100-game battery decides.) Classifier: 5/5 losses via open
+four, 0 missed blocks, 0 clean missed preventions in 25
+threatened turns (losses). Defence is still perfect.
 
-### 2.3 Fast-loop iteration 3 — NOT RUN
+**The losing move in each game** (walk-back, corrected
+oracle method, seeds 0,1,2; JSONs:
+`~/workspace/b6h3-logs/walkback-fl2-g{1,2,3,4,8}.json`):
 
-### 2.4 Fast-loop iteration 4 — NOT RUN
+| Game | Last preventable turn | v17 played (loses 3/3) | Perfect move (oracle) |
+|---|---|---|---|
+| 1 (67 plies, White) | ply 51 | (6,5) | (9,4)/(7,5)/(8,3) — draw 3/3 |
+| 2 (104 plies, Black) | none | — (no alternative saves; oracle draws at every turn from ply 88 on) | — |
+| 3 (23 plies, White) | ply 9 | (8,6) | (9,6) — wins 3/3; (4,6) — draws 3/3 |
+| 4 (48 plies, Black) | ply 42 | (6,3) | (13,8) — draws 3/3 |
+| 8 (36 plies, Black) | ply 30 | (10,7) | (5,10)/(4,11) — draw 3/3 |
+
+**Critical-position analysis** (`analyse_v17_critical.py`,
+100 sims, gradient_v1 leaf; q is OUR-perspective q =
+-child.q; gradients are the mover's perspective after the
+move):
+
+| Position | Actual (v1 rank / prior) | Actual visits / our-q | Save visits / our-q | Creators? | Forcing? |
+|---|---|---|---|---|---|
+| g1 ply 51 | (6,5) rank 1, p=0.0731 | 4 / -0.207 | (9,4): 4 / -0.197 | 0 | neither |
+| g3 ply 9 | (8,6) rank 5, p=0.0576 | 6 / -0.013 | (9,6): 5 / -0.021 | 0 | neither |
+| g4 ply 42 | (6,3) rank 1, p=0.0363 | 2 / -0.177 | (13,8): 2 / -0.195 | 0 | neither |
+| g8 ply 30 | (10,7) rank 4, p=0.0286 | 5 / -0.052 | (5,10): 4 / -0.084 | 0 | neither |
+
+**The combination's new components are not implicated in
+any loss.** All four critical positions are QUIET (0
+opponent creators), so the threat check is disengaged in
+every one — it cannot have caused any of these moves. And
+no forcing move is involved in any actual/save pair (all
+forcing=False), so the forcing-first tie-break never fires
+either. What the four losses share is the KNOWN classes:
+
+1. **Visit-tie knife-edges (g1, g4).** g1 ties 4-4 visits
+   and the prior picks the loser by 0.0004 (0.0731 vs
+   0.0727); g4 ties 2-2 and the prior picks the loser by
+   0.0002 (0.0363 vs 0.0361). In g1 the q and both gradients
+   marginally prefer the save (-0.197 vs -0.207; v1 -0.172
+   vs -0.176) — noise-level gaps no tie-break signal in the
+   pre-registered set separates. This is iter-12 game 5's
+   1-point knife-edge again. The root-decision lever is
+   exhausted; no rule change fixes a 0.0002 prior gap.
+2. **Beyond-horizon value error (g3, g8).** The search's
+   correctly-signed q prefers the LOSING move (g3: -0.013
+   vs -0.021; g8: -0.052 vs -0.084) and the saving move is
+   starved of visits (5 vs 6, 4 vs 5) — the iter-13
+   diagnosis. In g3 the v1 gradient DOES prefer the save
+   (+0.087 vs +0.020, where the v0 gradient prefers the
+   loser +0.037 vs +0.025) but the search does not follow
+   it; in g8 the v1 gradient points the WRONG way (-0.103
+   for the save vs -0.052 for the loser, where the v0
+   gradient points right, 0.000 vs -0.012) — and v7/v12/v13
+   (v0 leaf) play the save (5,10) while v14/v17 (v1 leaf)
+   miss it. One position each way: the v1 gradient is right
+   in g3 and wrong in g8, so there is no leaf patch here —
+   changing the gradient on one position would be
+   overfitting, and the leaf is v14's ported component.
+   (g3's save (9,6) WINS 3/3 by oracle — the biggest single
+   miss of the loop — yet no engine signal prefers it:
+   visits 5 vs 6, q -0.021 vs -0.013, prior tied at 0.0576,
+   v1 score 4092 vs 4091, a 1-point gap.)
+3. **Game 2 (104 plies) has no losing move** — the oracle
+   draws at every turn from ply 88 on. Distributed drift in
+   a long game, the iter-6 result.
+
+**No patch from iteration 2; loop stops here (stopping
+rule).** Iteration 2 found no new patchable weakness class:
+the losses are the known exploration/value-error classes
+(and two knife-edge ties), the threat check and the
+forcing tie-break are disengaged in every worked loss, and
+the one leaf-level observation (g8) cuts both ways across
+the positions. All four critical positions are recorded as
+xfail regression tests (`regression_positions_v17.json`:
+fl2-g1-ply51, fl2-g3-ply9, fl2-g4-ply42, fl2-g8-ply30) —
+documented open weaknesses for the next batch, not silently
+dropped. The battery runs on the as-registered v17 (no
+fast-loop patches). The temporary diagnostic version 97
+(used only for the §2.1 isolation) is removed from
+`ENGINE_VERSIONS` before the battery.
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
 
 ### 2.5 Aggregate counts (secondary)
 

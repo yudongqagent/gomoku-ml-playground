@@ -266,14 +266,6 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # Versions 15-16 are the parallel batch-6 workstreams'.
     17: {"name": "scoring-v17", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100, "v17": True},
-    # TEMPORARY diagnostic (iter-17 §2.1): v17 minus the threat
-    # check — the v14 leaf + the v12 root rule, plain
-    # HeuristicMCTS. Used ONLY to isolate the fast-loop 0-10
-    # collapse (threat check vs leaf+root interaction); removed
-    # before the final battery. NOT a real version.
-    97: {"name": "scoring-v97-diag", "defence_weight": 1.0,
-         "threat_check": False, "mcts": True, "mcts_sims": 100,
-         "leaf_mode": "gradient_v1", "root_decision": "tie-prior-forcing"},
 }
 
 # --- weights --------------------------------------------------------------

@@ -15,6 +15,21 @@ the next batch, never silently dropped:
   v1 scores nearly tied. No signal in the engine separates them,
   and v7/v12/v13/v14 ALL play the losing move too (the iter-14
   games 1/3 class).
+
+Iteration 2 (vs v7) found no new patchable class either — all four
+worked losses are quiet positions (0 creators, so the threat check
+is disengaged) with no forcing move involved (so the forcing
+tie-break is not implicated). The classes are the known ones:
+
+* fl2-g1-ply51 / fl2-g4-ply42: visit-tie knife-edges (4-4 and 2-2
+  visits, priors separated by 0.0004 and 0.0002) — no tie-break
+  signal in the pre-registered set separates the moves.
+* fl2-g3-ply9 / fl2-g8-ply30: beyond-horizon value error —
+  correctly-signed q prefers the losing move, and the saving move
+  is starved of visits (5 vs 6, 4 vs 5). In fl2-g8-ply30 the v1
+  gradient points the wrong way where the v0 gradient points
+  right (v7/v12/v13 play the save; v14/v17 miss it) — one
+  position, not a patch target.
 """
 
 import json
@@ -29,10 +44,14 @@ POSITIONS_PATH = os.path.join(
     HERE, "..", "gomoku_ml", "regression_positions_v17.json"
 )
 
-# The position is an open weakness (no patch was made in
-# iteration 1 — see iter-17.md §2.1).
+# The positions are open weaknesses (no patch was made in either
+# fast-loop iteration — see iter-17.md §2.1/§2.2).
 XFAIL = {
     "fl1-g1-ply13": "two creator-blocks indistinguishable to every engine signal; v7/v12/v13/v14 all play the loser too; see iter-17.md §2.1",
+    "fl2-g1-ply51": "visit-tie knife-edge (4-4, prior gap 0.0004); see iter-17.md §2.2",
+    "fl2-g3-ply9": "beyond-horizon value error (q prefers the loser, save starved 5 vs 6 visits); see iter-17.md §2.2",
+    "fl2-g4-ply42": "visit-tie knife-edge (2-2, prior gap 0.0002); see iter-17.md §2.2",
+    "fl2-g8-ply30": "beyond-horizon value error; v1 gradient points the wrong way where the v0 gradient points right; see iter-17.md §2.2",
 }
 
 
