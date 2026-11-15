@@ -35,7 +35,7 @@ common.ensure_ml_on_path()
 import numpy as np  # noqa: E402
 
 from gomoku_ml import evaluate, game  # noqa: E402
-from gomoku_ml.mcts_white import WhiteMCTS  # noqa: E402
+from gomoku_ml.mcts_v13 import V13MCTS  # noqa: E402
 from selfplay_batch import (  # noqa: E402
     _write_result,
     play_recorded_game,
@@ -65,9 +65,16 @@ def _splits(games: list[dict]) -> dict:
 
 def run_sweep(args) -> dict:
     rng_a = np.random.default_rng(args.seed_a)
-    sweep = WhiteMCTS(sims=100, white_sims=args.white_sims, rng=rng_a)
+    # V13MCTS at white_temp=2.0 is exactly WhiteMCTS (verified by
+    # test_v13_matches_white_mcts_at_default_temperature), so the
+    # sims sweep (§1.2) and the temperature sweep (§1b step 2)
+    # share this driver; the T=2.0 temperature cell re-runs the
+    # s100 cell and must reproduce it exactly.
+    sweep = V13MCTS(sims=100, white_sims=args.white_sims,
+                    white_temp=args.white_temp, rng=rng_a)
     choose_a = sweep.choose_move
-    name_a = f"sweep-ws{args.white_sims}"
+    name_a = (f"sweep-ws{args.white_sims}-t{args.white_temp}"
+              if args.white_temp != 2.0 else f"sweep-ws{args.white_sims}")
     choose_b, name_b = resolve_engine(args.opponent, args.seed_b)
     games: list[dict] = []
     wins = losses = draws = 0
@@ -108,6 +115,7 @@ def run_sweep(args) -> dict:
             "engine_a": name_a,
             "engine_b": name_b,
             "white_sims": args.white_sims,
+            "white_temp": args.white_temp,
             "black_sims": 100,
             "games": args.games,
             "games_played": len(games),
@@ -138,6 +146,9 @@ def run_sweep(args) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--white-sims", type=int, required=True)
+    parser.add_argument("--white-temp", type=float, default=2.0,
+                        help="White prior temperature (iter-13 §1b; "
+                        "2.0 = v7 default, i.e. WhiteMCTS)")
     parser.add_argument("--opponent", default="v0", choices=["v0", "v7"])
     parser.add_argument("--games", type=int, default=40)
     parser.add_argument("--seed-a", type=int, default=300)
@@ -145,15 +156,16 @@ def main() -> int:
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
-    print(f"== sweep: WhiteMCTS white_sims={args.white_sims} "
-          f"(Black 100) vs {args.opponent}, {args.games} games "
+    print(f"== sweep: V13MCTS white_sims={args.white_sims} "
+          f"white_temp={args.white_temp} "
+          f"(Black 100, temp 2.0) vs {args.opponent}, {args.games} games "
           f"(seeds {args.seed_a}/{args.seed_b}) ==",
           file=sys.stderr)
     result = run_sweep(args)
     lo, hi = result["win_rate_ci_95"]
     w = result["as_white"]
     b = result["as_black"]
-    print(f"  sweep-ws{args.white_sims}: {result['wins']}W-"
+    print(f"  {result['engine_a']}: {result['wins']}W-"
           f"{result['losses']}L-{result['draws']}D (win rate "
           f"{result['win_rate']:.4f}, 95% CI [{lo:.4f}, {hi:.4f}]) "
           f"in {result['elapsed_seconds']}s", file=sys.stderr)
