@@ -511,9 +511,30 @@ v1-kernel leaf's weakness against greedy play (v17-as-Black
 the gradient AFTER the opponent's best reply, so greedy play
 is handled inside the rollout rather than by the static leaf.
 
-### 3.4 Swap-rule head-to-head vs v7
+### 3.4 Swap-rule head-to-head vs v7 — 61W-35L-4D, 0.6300
 
-(TODO)
+`research/iterations/batch-v18-vs-v7-swap.json` (100 games, swap
+rule, balanced placement, placement_seed 11, tempo judge — the
+harness default — seeds 100/200, 5602.2 s): **v18 61W-35L-4D, win
+rate 0.6300, 95% CI [0.5322, 0.7182]** — aggregates recomputed
+from the raw records. Split: as Black 35W-13L-2D (0.72), as White
+26W-22L-2D (0.54). The swap edge over v7 IS established (CI lower
+bound 0.5322 > 0.50) — v18 beats v7 more clearly under the
+official rules than v16 did (0.6150, CI lower 0.5171), and the
+pattern flipped: v16's swap edge came from White (0.625 vs
+Black 0.58); v18's comes from Black (0.72 vs White 0.54). The
+White split dip (0.625 → 0.54) is within noise for n=50 and
+v18-as-White IS v16 — the RNG stream diverges across the match
+because the Black games differ. The gain is NOT an opening
+artefact: removing the empty-board opening strengthens v18's edge
+rather than erasing it — the same pattern v14 (swap 0.64 vs
+normal 0.60) and v16 showed. (This match was interrupted by a
+runtime restart at 39/100 games; the re-run with the same seeds
+reproduced the saved 39-game partial EXACTLY — all records
+identical — and the final 61 games are new. Determinism
+verified, no data integrity issue.) Classifier: 35/35 losses
+via open four, 0 missed blocks, 2 clean missed preventions in
+158 threatened turns (losses). Defence solved.
 
 ### 3.5 Ladder
 
