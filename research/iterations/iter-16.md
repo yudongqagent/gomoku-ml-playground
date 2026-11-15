@@ -552,6 +552,130 @@ only wall-clock time.) Classifier: 37/37 losses via open four, 0
 missed blocks, 0 clean missed preventions in 149 threatened turns
 (losses). Defence still solved.
 
+### 3.3 Head-to-head vs v0 — 84W-16L-0D, 0.8400
+
+`research/iterations/batch-v16-vs-v0.json` (100 games, normal
+rules, seeds 100/200, 1835.4 s): **v16 84W-16L-0D, win rate
+0.8400, 95% CI [0.7558, 0.8990]** — aggregates recomputed from the
+raw records. Split: as Black 34W-16L-0D (0.68), as White
+**50W-0L-0D (1.000)** — v16-as-White beats the frozen baseline in
+all fifty White games. (The first run was killed by a runtime
+restart at 42/100; the re-run reproduced the saved 42-game partial
+exactly.) This is far above v7's 0.6650 vs v0 (64W-31L-5D), and
+the entire gain is White-side: v7 lost 18 games as White to v0,
+v16 lost 0. All 16 v16 losses are as Black — v16-as-Black IS v7,
+so these are v7-as-Black's mirror games (v7 lost 13 as Black to
+v0 in its own battery; 16 here is seed/RNG-state noise — the RNG
+stream diverges because v16's White games tie-break differently).
+Classifier: 16/16 losses via open four, 0 missed blocks, 0 clean
+missed preventions in 70 threatened turns (losses). **Ordering is
+transitive: v16 > v7 (0.5750) > v0 (v7 0.6650, v16 0.8400) — no
+non-transitivity**, unlike v4 (v4>v1>v0>v4) and v14 (v14>v7>
+heuristic>v14). The v16 gain over v7 is a genuine strength gain
+that extends down the ladder, not a matchup artefact.
+
+### 3.4 Swap-rule head-to-head vs v7 — 59W-36L-5D, 0.6150
+
+`research/iterations/batch-v16-vs-v7-swap.json` (100 games, swap
+rule, balanced placement, placement_seed 11, tempo judge — the
+harness default — seeds 100/200, 3684.2 s): **v16 59W-36L-5D, win
+rate 0.6150, 95% CI [0.5171, 0.7044]** — aggregates recomputed
+from the raw records. Split: as Black 28W-20L-2D (0.58), as White
+31W-16L-3D (0.625). The swap edge over v7 IS established (CI
+lower bound 0.5171 > 0.50) — unlike v7's own swap edge over v1
+(0.5700, CI includes 0.50) and unlike v16's normal-rules edge
+(0.5750, CI lower 0.4771). v16 beats v7 more clearly under swap
+rules than normal rules, so the gain is NOT an opening artefact:
+removing the empty-board opening (where much of v7's own advantage
+lived) strengthens v16's edge rather than erasing it — the same
+pattern v14 showed (swap 0.64 vs normal 0.60). Classifier: 36/36
+losses via open four, 0 missed blocks, 0 clean missed preventions
+in 150 threatened turns (losses). Defence solved.
+
+### 3.5 Ladder — Elo 381.7 (CLAUSE 2 PASSES)
+
+`ml/scripts/eval_version.py --version 16 --ladder-games 20
+--mcts-sims 100 --seed 100` (identical counts/opponents to v7's
+ladder): vs random 20W-0L-0D (1.0000), vs heuristic 18W-2L-0D
+(0.9000; as Black 8W-2L, as White 10W-0L), vs mcts 9W-11L-0D
+(0.4500; as Black 3W-7L, as White 6W-4L). **Ladder Elo 381.7,
+interval [146.3, 617.1]** — strictly higher than v7's 190.8
+[21.8, 359.9], so **clause 2 PASSES**. (The intervals overlap, as
+they did for v3/v13; the bar as applied in every batch is the
+point estimate at identical counts/opponents.) 381.7 is the
+highest ladder Elo in the program so far (v7 190.8, v13 240.8, v9
+lower bound 286.6), driven by the heuristic matchup: 18W-2L is
+the strongest heuristic result since v9/v12's 20-0, and again
+White is perfect (10W-0L). The mcts matchup still loses (9W-11L
+vs v7's 8W-12L — one game better, same story: the ladder MCTS at
+100 sims remains the binding opponent). Note the eval script's
+own tactical probe reports 20/20 (old suite only, via
+`_choose_move`, bypassing MCTS dispatch); the clause-3
+measurement is the full-dispatch result in §3.1 (28/29 hard).
+
+### 3.6 Test suites (clause 4)
+
+On the final tree: **ml pytest 256 passed, 7 skipped, 4 xfailed,
+0 failures** (142.32 s; the 4 xfails are the known v7 iter-5
+xfail, the pre-existing v7 `fl1-g3-ply23` xfail (forcing move
+starved by low prior), and the two v16 Black regression xfails
+fl1-g0-ply12/fl1-g6-ply78 — all documented, none new failures);
+**npm test 55/55**; **tsc clean**. Clause 4 PASSES.
+
 ## 4. Bar check (v16 vs v7)
+
+| Clause | Requirement | v16 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v7 | ≥100 games, win rate > 0.50, Wilson 95% CI lower > 0.50 | 52W-37L-11D, 0.5750, CI [0.4771, 0.6673] | **FAIL** |
+| 2. Ladder Elo | strictly > 190.8 at identical counts/opponents | 381.7 [146.3, 617.1] | **PASS** |
+| 3. Tactical | ≥ v7's 20/20 old + 29/29 hard | 20/20 old, 28/29 hard | **FAIL** |
+| 4. Test suites | ml pytest, npm test, tsc all green | ml pytest 256 passed / 7 skipped / 4 xfailed / 0 failures; npm 55/55; tsc clean | **PASS** |
+
+**v16 is REJECTED (2/4).** It is the strongest White-side
+improvement in the program — White 0.64 vs v7 (v7-as-White was
+0.52 vs v1), White 50W-0L vs v0, White 10W-0L vs the ladder
+heuristic, swap edge established (0.6150, CI lower 0.5171), the
+highest ladder Elo ever (381.7) — but the bar is the bar: the
+normal-rules h2h falls 2.5 points short of an established margin
+(0.5750, CI lower 0.4771), and the hard tactical suite drops one
+position (28/29) on a forced-loss position where v16's evaluation
+is more accurate than the suite's. The two failures share a root:
+the rollout leaf's deeper vision helps in real games (White
+0.64/1.00/1.00 across the three matchups) but (a) the Black mirror
+games cap the combined h2h at ~0.58, and (b) terminal-heavy leaf
+values flatten the search signal in creator-rich positions,
+costing one tactical position to an RNG tie-break. v7 remains the
+reference. No kernel re-sync (v16 did not pass); the v1 kernel
+files stay on this branch only.
+
+## 5. What this means
+
+v16 answers the H2 question — can the v1-kernel gradient, used as
+a value signal, fix White's beyond-horizon value errors? — with a
+qualified yes. The 2-ply rollout leaf is the first value-side
+change that moves White materially: White goes from v7's 0.52 vs
+v1 / 18 losses to v0, to 0.64 vs v7 / 0 losses to v0 / 10W-0L vs
+the ladder heuristic, and the ladder Elo nearly doubles (190.8 →
+381.7). The fast loop's two patches were both real bugs with
+verified mechanisms (the rollout borrowing a forcing move's value;
+the argmax-of-sum picking a defensive block over an open-four
+creation), and both are durable: the v1 rollout policy and the
+open-four priority belong in any future rollout leaf. The two
+open weaknesses are the game-5 double-creator class (a 2-ply
+rollout cannot see a threat that resolves in 3–4 plies; the
+rollout policy also cannot choose among multiple creators) and
+the q-compression failure mode (§3.1: in creator-rich positions
+the rollout returns -1.0 from nearly every quiet leaf, so the
+search loses the discrimination that v7's smooth gradient
+preserves). For v17's combination: v16's leaf is the strongest
+single White-side component available, but the combination
+inherits the 28/29 tactical regression unless it also addresses
+q-compression — the most promising direction is a leaf value that
+keeps terminal correctness while restoring a smooth ordering
+among losing lines (e.g. blending the rollout terminal with the
+end gradient), which needs its own fast-loop validation, not a
+tactical-suite fit. The swap result (0.6150, established) also
+says the v16 gain is real under the official rules, which is what
+the shipped game now uses.
 
 ## 5. What this means
