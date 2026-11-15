@@ -1,4 +1,5 @@
-"""Tests for the heuristic-prior MCTS (v6, batch 2 H2; v7, batch 3 H1)."""
+"""Tests for the heuristic-prior MCTS (v6, batch 2 H2; v7, batch 3 H1;
+v14, batch 5 H3)."""
 
 import math
 
@@ -9,7 +10,9 @@ from gomoku_ml import game, scoring
 from gomoku_ml.mcts_heuristic import (
     HeuristicMCTS,
     _attack_gradient,
+    _attack_gradient_v1,
     _gradient_leaf_value,
+    _gradient_v1_leaf_value,
     _priors,
     _terminal_leaf_value,
 )
@@ -281,3 +284,106 @@ def test_v7_iter5_game1_regression_xfail():
     v7 = scoring.get_player(7, seed=0)
     move = v7.choose_move(board, game.WHITE)
     assert (move % 15, move // 15) in [(7, 11), (6, 12)]
+
+
+# --- v14 (batch 5, H3): v1-kernel attack-gradient leaf ---------------------
+
+
+def test_gradient_v1_leaf_matches_terminal_leaf_on_terminal_positions():
+    # The v14 leaf is IDENTICAL to the terminal leaf on every
+    # non-quiet position, by construction — same as v7.
+    board = _board_with([(7, 7), (7, 8), (7, 9), (7, 10)], [(3, 3)])
+    assert _gradient_v1_leaf_value(board, game.BLACK) == 1.0
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 7), (5, 8)])
+    assert _gradient_v1_leaf_value(board, game.BLACK) == -1.0
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 8), (5, 9)])
+    assert _gradient_v1_leaf_value(board, game.BLACK) == -0.25
+
+
+def test_attack_gradient_v1_zero_on_empty_board():
+    board = game.empty_board()
+    assert _attack_gradient_v1(board, game.BLACK) == 0.0
+    assert _attack_gradient_v1(board, game.WHITE) == 0.0
+    assert _gradient_v1_leaf_value(board, game.BLACK) == 0.0
+
+
+def test_attack_gradient_v1_antisymmetric_and_bounded():
+    # Same mid-game board as the v7 test: antisymmetric under
+    # colour swap, strictly inside (-0.2, 0.2) — the cap is
+    # unchanged from v7.
+    rng = np.random.default_rng(0)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    gb = _attack_gradient_v1(board, game.BLACK)
+    gw = _attack_gradient_v1(board, game.WHITE)
+    assert gb == -gw
+    assert -0.2 < gb < 0.2
+
+
+def test_attack_gradient_v1_sees_broken_four_creation():
+    # The point of v14: Black holds XX_X (a broken-four setup);
+    # the v1 gradient counts the broken-four creation as a strong
+    # move, the v0 gradient does not. On this board the v1
+    # gradient for Black is strictly larger than the v0 gradient.
+    board = _board_with([(7, 7), (8, 7), (10, 7)], [(3, 3)])
+    assert scoring._winning_moves(board, game.BLACK) == []
+    assert scoring._winning_moves(board, game.WHITE) == []
+    g_v1 = _attack_gradient_v1(board, game.BLACK)
+    g_v0 = _attack_gradient(board, game.BLACK)
+    assert g_v1 > g_v0
+    assert g_v1 > 0.0
+    # And the value is the capped tanh of the v1 breadth
+    # difference at the pre-registered scale 7.5.
+    from gomoku_ml import kernel_v1
+    from gomoku_ml.mcts_heuristic import (
+        _GRADIENT_CAP,
+        _GRADIENT_V1_SCALE,
+        _breadth_v1,
+    )
+
+    black, white = kernel_v1.attack_v1_both(board)
+    mask = board == game.EMPTY
+    expected = _GRADIENT_CAP * math.tanh(
+        (_breadth_v1(black, mask) - _breadth_v1(white, mask))
+        / _GRADIENT_V1_SCALE
+    )
+    assert g_v1 == expected
+    assert _GRADIENT_V1_SCALE == 7.5
+
+
+def test_attack_gradient_v1_counts_breadth_not_best():
+    # Two open threes beat one, as in v7's test.
+    one = _board_with([(7, 7), (8, 7), (9, 7)], [(3, 3)])
+    two = _board_with([(7, 7), (8, 7), (9, 7), (11, 11), (12, 11), (13, 11)],
+                      [(3, 3)])
+    assert scoring._winning_moves(two, game.BLACK) == []
+    assert _attack_gradient_v1(two, game.BLACK) > _attack_gradient_v1(one, game.BLACK)
+
+
+def test_v14_registered_and_dispatches_to_gradient_v1_mcts():
+    v14 = scoring.get_player(14, seed=0)
+    assert v14.name == "scoring-v14"
+    assert v14.mcts is True
+    assert v14._mcts is not None
+    assert v14._mcts.sims == 100
+    assert v14._mcts.leaf_mode == "gradient_v1"
+    # v7 is unchanged (v0-kernel gradient leaf).
+    v7 = scoring.get_player(7, seed=0)
+    assert v7._mcts.leaf_mode == "gradient"
+
+
+def test_v14_choose_move_does_not_mutate_board():
+    rng = np.random.default_rng(0)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    before = board.copy()
+    mcts = HeuristicMCTS(sims=20, leaf_mode="gradient_v1",
+                         rng=np.random.default_rng(0))
+    mcts.choose_move(board, game.BLACK)
+    assert np.array_equal(board, before)

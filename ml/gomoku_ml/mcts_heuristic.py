@@ -56,6 +56,7 @@ import numpy as np
 
 from . import game
 from . import kernel_numpy
+from . import kernel_v1
 from . import scoring
 
 # Temperature for the prior softmax over log1p(v1 scores). A
@@ -104,6 +105,26 @@ _GRADIENT_DEVELOPING = 100
 _GRADIENT_DEVELOPING_WEIGHT = 0.25
 _GRADIENT_SCALE = 4.0
 _GRADIENT_CAP = 0.2
+
+# --- v14 attack-gradient leaf (batch 5, H3) -------------------------------
+# Same gradient FORM as v7 (breadth count, tanh squash, +/-0.2 cap),
+# but the breadth counts come from the v1 kernel's attack scores
+# (5-window, broken-four-aware) instead of the v0 kernel's
+# (contiguous-run, blind to broken fours). Thresholds are the v1
+# analogues of v7's, derived from the v1 pattern classes (see
+# iter-14.md §1): strong = a move creating a four or an open three
+# (v1 attack >= 4000 — no combination of sub-4000 per-direction
+# values reaches 4000); developing = a move creating a half-open
+# three (400) or an open two (80) (80 <= attack < 4000 — the
+# strongest sub-open-two combination is 4 x two = 40). The tanh
+# scale (7.5) is re-derived from the measured v1 breadth-difference
+# distribution (std 4.09 on batch-3 game positions) by v7's rule
+# (scale ~= 1.8 x std); the cap (0.2) is UNCHANGED — a static
+# heuristic must never outweigh an exact terminal signal, and the
+# cap is what made v7 pass.
+_GRADIENT_V1_STRONG = 4000
+_GRADIENT_V1_DEVELOPING = 80
+_GRADIENT_V1_SCALE = 7.5
 
 
 class _Node:
@@ -177,6 +198,21 @@ def _breadth(attack: np.ndarray, empty_mask: np.ndarray) -> float:
     return strong + _GRADIENT_DEVELOPING_WEIGHT * developing
 
 
+def _breadth_v1(attack: np.ndarray, empty_mask: np.ndarray) -> float:
+    """Attack breadth of one side from v1 attack scores: the count
+    of its strong moves (v1 attack >= 4000: four/open-three makers)
+    plus 0.25 per developing move (v1 attack in [80, 4000):
+    half-open-three / open-two makers), over empty cells only.
+    Same form as :func:`_breadth`, with the v1 pattern-class
+    thresholds (see ``_GRADIENT_V1_STRONG``)."""
+    s = attack[empty_mask]
+    strong = int(np.count_nonzero(s >= _GRADIENT_V1_STRONG))
+    developing = int(
+        np.count_nonzero((s >= _GRADIENT_V1_DEVELOPING) & (s < _GRADIENT_V1_STRONG))
+    )
+    return strong + _GRADIENT_DEVELOPING_WEIGHT * developing
+
+
 def _attack_gradient(board: np.ndarray, player: int) -> float:
     """Breadth-gradient leaf value in (-0.2, 0.2) for ``player`` to
     move in a quiet position: ``0.2 * tanh((breadth(ours) -
@@ -208,9 +244,42 @@ def _gradient_leaf_value(board: np.ndarray, player: int) -> float:
     return _attack_gradient(board, player)
 
 
+def _attack_gradient_v1(board: np.ndarray, player: int) -> float:
+    """Breadth-gradient leaf value in (-0.2, 0.2) for ``player`` to
+    move in a quiet position, from the v1 kernel's attack-only
+    scores for both colours (one ``attack_v1_both`` call):
+    ``0.2 * tanh((breadth_v1(ours) - breadth_v1(theirs)) / 7.5)``.
+    Antisymmetric under colour swap. Same form as
+    :func:`_attack_gradient`, with the v1 thresholds and the
+    re-derived scale (7.5); the 0.2 cap is unchanged (see
+    ``_GRADIENT_CAP``)."""
+    black, white = kernel_v1.attack_v1_both(board)
+    mask = board == game.EMPTY
+    if player == game.BLACK:
+        ours, theirs = black, white
+    else:
+        ours, theirs = white, black
+    diff = _breadth_v1(ours, mask) - _breadth_v1(theirs, mask)
+    return _GRADIENT_CAP * math.tanh(diff / _GRADIENT_V1_SCALE)
+
+
+def _gradient_v1_leaf_value(board: np.ndarray, player: int) -> float:
+    """v14 leaf value: v7's terminal-aware values for terminal
+    positions, the v1-kernel attack gradient for quiet ones. The
+    terminal cases are identical to :func:`_terminal_leaf_value`
+    BY CONSTRUCTION (it returns 0.0 exactly for quiet positions),
+    so the ONLY difference between v7 and v14 is the quiet-leaf
+    gradient's input scores — a clean A/B of the v1 kernel."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    return _attack_gradient_v1(board, player)
+
+
 _LEAF_FUNCTIONS = {
     "terminal": _terminal_leaf_value,
     "gradient": _gradient_leaf_value,
+    "gradient_v1": _gradient_v1_leaf_value,
 }
 
 
@@ -221,6 +290,11 @@ class HeuristicMCTS:
     ``leaf_mode="gradient"`` is v7: quiet leaves get the attack
     breadth gradient (:func:`_gradient_leaf_value`); terminal
     values are identical in both modes.
+    ``leaf_mode="gradient_v1"`` is v14: quiet leaves get the attack
+    breadth gradient from the v1 kernel's scores
+    (:func:`_gradient_v1_leaf_value`); terminal values are
+    identical to v7's, so the only difference between v7 and v14
+    is the gradient's input scores.
     """
 
     def __init__(
