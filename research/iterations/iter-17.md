@@ -566,11 +566,50 @@ anchor IS v0.
 
 ### 3.5 Tactical suites — FINAL BATTERY (re-run on the final engine)
 
-[PENDING]
+**20/20 old + 29/29 hard — clause 3 PASSES.** Full-dispatch
+re-run on the final tree (`eval_tactical_full.py --version
+17 --suite both --seed 0`): the old suite 20/20 (100%),
+the hard suite 29/29 (100%), matching v7's bar exactly.
+[The eval_version.py ladder run's own tactical probe also
+shows 20/20, but that probe bypasses the MCTS dispatch and
+is disregarded per the batch-5 method — the full-dispatch
+numbers above are the clause-3 evidence.]
 
 ### 3.6 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
 
-[PENDING]
+[NOTE: the first ladder run was killed by a runtime restart
+before completing; no output survived (the script writes its
+JSON only at completion). Re-run in full with identical
+flags — the ladder is deterministic.]
+
+- vs random: **20W-0L-0D** (1.0000, CI [0.8389, 1.0000];
+  as Black 10-0, as White 10-0)
+- vs heuristic (v0): **9W-10L-1D** (0.4750, CI [0.2785,
+  0.6795]; as Black 5W-4L-1D, as White 4W-6L-0D) — v17
+  LOSES the heuristic anchor, the first MCTS version since
+  v5/v6 to do so
+- vs mcts (100 sims): **13W-7L-0D** (0.6500, CI [0.4329,
+  0.8188]; as Black 6-4, as White 7-3)
+
+**Ladder Elo: estimate -17.4, interval [-165.3, 130.6]**
+(anchors random=-800, heuristic=0; relative to this ladder
+only). **Clause 2 FAILS** — the estimate (-17.4) is below
+v7's 190.8, and the interval's UPPER bound (130.6) is below
+190.8 too, so this is not a borderline miss: no reading of
+the ladder puts v17 above v7. The failure is the heuristic
+anchor: v17's 0.4750 against v0 (consistent with the
+100-game 0.5150 in §3.4) caps the Elo near zero, exactly
+v14's failure mode (v14: heuristic 9-11, Elo -34.9). The
+threat check, included partly to shore up the ladder
+(v13's 240.8), did not do so — its ladder contribution in
+v13 came from the v0 leaf + threat check combination, and
+under the v1 leaf it contributes nothing against greedy
+play. The mcts win (13-7) is v17's best ladder result
+against a searching opponent, but the ladder's Elo is
+anchored on the heuristic, so it cannot rescue the score.
+Full EVAL_JSON in the run log
+(`~/workspace/b6h3-logs/ladder-v17.log`, not committed;
+the per-opponent numbers above are the record).
 
 ### 3.7 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
 
