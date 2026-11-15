@@ -188,6 +188,40 @@ ENGINE_VERSIONS: dict[int, dict] = {
     8: {"name": "scoring-v8", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100,
         "value_checkpoint": "ml/runs/b3-h2/value-net.pt"},
+    # v9 (iteration 9, batch 4): H1 — v7's PUCT MCTS with the ROOT
+    # DECISION changed: most-visited, with ties broken by the v1
+    # PRIOR instead of the seeded RNG ("tie-prior"; see
+    # gomoku_ml.mcts_heuristic._choose_root_child and
+    # research/iterations/iter-9.md). Everything else is v7
+    # unchanged (gradient leaf, 100 sims, c_puct 1.5). Four
+    # variants were pre-registered and smoked 20 games vs v7
+    # (seeds 300/400): pure q 0.20 (tactical 22/29), tie-q 0.45,
+    # blend 0.30 (tactical 26/29), tie-prior 0.675 — the winner.
+    # The q variants failed because iter-7 §2.6's "q prefers the
+    # saving move" was SIGN-INVERTED (raw child q is the
+    # opponent's value; correctly signed, q prefers the LOSING
+    # move — see iter-9.md §1.0). The prior is the only signal
+    # that preferred the saving moves in §2.6, and it wins the
+    # smoke while keeping tactical 29/29.
+    9: {"name": "scoring-v9", "defence_weight": 1.0, "threat_check": False,
+        "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+        "root_decision": "tie-prior"},
+    # v12 (iteration 12, batch 5): H1 — v7's PUCT MCTS with the
+    # ROOT DECISION changed to "tie-prior-forcing": most-visited,
+    # ties broken by forcing-ness first (moves creating a four),
+    # then the v1 prior (see gomoku_ml.mcts_heuristic.
+    # _choose_root_child and research/iterations/iter-12.md).
+    # Targets iter-9 §2.6's failure mode: v1's 1-ply score
+    # undervalues forcing counter-threats (~20k) against
+    # occupying a creator (~204k), so tie-prior prefers blocking
+    # one of two creators over forcing. Honest limit (iter-12
+    # §1.0): the §2.6 position does NOT verify as a single losing
+    # move — the rule is a hypothesis to test at match scale, not
+    # a verified fix. Everything else is v7 unchanged (gradient
+    # leaf, 100 sims, c_puct 1.5).
+    12: {"name": "scoring-v12", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+         "root_decision": "tie-prior-forcing"},
     # v14 (iteration 14, batch 5): H3 — v7's PUCT MCTS with the
     # gradient leaf's input scores ported from the v0 kernel to
     # the v1 5-window scorer (see gomoku_ml.kernel_v1 and
@@ -785,6 +819,9 @@ class ScoringPlayer:
                 self._mcts = HeuristicMCTS(
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
                     leaf_mode=ENGINE_VERSIONS[version].get("leaf_mode", "terminal"),
+                    root_decision=ENGINE_VERSIONS[version].get(
+                        "root_decision", "visits"
+                    ),
                     rng=self.rng,
                 )
 
