@@ -325,7 +325,28 @@ Old 20-position suite, full-dispatch driver
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
-(To be filled.)
+**v14 beats v0: 60W-40L-0D, win rate 0.6000, 95% CI
+[0.5020, 0.6906]**, 2715.0 s. File:
+`research/iterations/batch-v14-vs-v0.json` (seeds 100/200).
+Per colour: as Black 30W-20L-0D (0.6000), as White 30W-20L-0D
+(0.6000) — exactly symmetric. Mean game length 50.86 plies
+(min 16, max 123); wins slow (mean 62.2 plies), losses fast
+(mean 33.9) — the familiar pattern. Loss classifier
+(`ml/scripts/classify_batch_losses.py`): 40/40 losses via open
+four, **0 missed blocks**, 172 threatened turns in losses, **0
+clean missed preventions** — defence is still solved.
+
+Note the comparison with v7 vs v0 (64W-31L-5D, 0.6650, CI
+[0.5679, 0.7499]): v14 scores LOWER against v0 than v7 does,
+and the deficit is entirely on the Black side (v14 loses 20
+as Black vs v7's 13; as White both lose 18-20). The CIs
+overlap substantially, so this is not a decisive reversal —
+but the direction is the wrong one for a version whose
+gradient is supposed to attack better, and it is recorded
+here prominently per the brief. If v14 nevertheless beats v7
+head-to-head (§3.3), the ordering v14 > v7 > v0 with v14 < v7
+vs v0 is a mild non-transitivity of the same kind v7 showed
+vs v1/v0 (v7 scored lower against v0 than against v1).
 
 ### 3.5 Tactical suites — FINAL BATTERY (re-run on the final engine)
 
