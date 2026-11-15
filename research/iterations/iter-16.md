@@ -432,7 +432,36 @@ than v1 (v7-vs-v7 playouts) since the v1 oracle calls (7,3)
 winning. Recorded as the open weakness class to watch in
 iteration 3; if it recurs, it is the next patch candidate.
 
-### 2.3 Fast-loop iteration 3 — NOT RUN YET
+### 2.3 Fast-loop iteration 3 — 10 games vs v7 (LOOP STOPS)
+
+**Batch:** `research/iterations/fastloop3-v16-vs-v7.json`
+(seeds v16=1003 / v7=2003). **6W-4L-0D, win rate 0.6000, CI
+[0.3127, 0.8318]**, 342.6 s. Split: as Black 1W-4L (0.20), as
+White **5W-0L (1.00)** — the patched v16-as-White won all five
+White games. Classifier: 4/4 losses via open four, 0 missed
+blocks, 0 missed preventions in 14 threatened turns (losses).
+
+**Walk-backs** (`research/iterations/walkback-fl3-g{0,4,6,8}.json`)
+— all four losses are Black games, i.e. v7's moves (v16-as-Black
+IS v7), recorded only:
+
+| Game | Last preventable turn | v16 played (loses 3/3) | Saves |
+|---|---|---|---|
+| 0 (Black, 34 plies) | ply 20 | (4,7) | 1 |
+| 4 (Black, 32 plies) | ply 20 | (9,7) | 1 (ply 18: 1, ply 16: 5) |
+| 6 (Black, 34 plies) | ply 24 | (2,11) | 3 |
+| 8 (Black, 60 plies) | ply 50 | (8,3) | 5 |
+
+**No White loss in this iteration, hence no new patchable White
+weakness class — the fast loop STOPS here (3 iterations) per its
+stopping rule.** The game-5 double-creator class from iteration 2
+did not recur as a White loss. Fast-loop totals over 30 games:
+v16 17W-12L-1D (0.5833); as White 12W-3L (0.80), as Black 5W-9L-1D
+(0.367). The White/Black asymmetry is the story of the loop: the
+rollout leaf is a large White-side gain, while the Black games
+(which are v7-vs-v7 mirrors decided by seed) run below 0.50. The
+100-game battery is the verdict — the fast loop's 30 games are
+development signal, not the bar.
 
 ### 2.4 Fast-loop iteration 4 — NOT RUN YET
 
