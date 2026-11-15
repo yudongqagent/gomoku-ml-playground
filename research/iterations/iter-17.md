@@ -497,7 +497,36 @@ Old 20-position suite, full-dispatch driver
 
 ### 3.3 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
 
-[PENDING — running.]
+[NOTE: a runtime restart killed the first run at 77/100 games
+(47W-23L-7D, partial JSON backed up to
+`~/workspace/b6h3-logs/batch-v17-vs-v7-partial77.json`, not
+committed). The match re-ran IN FULL from game 0 with the same
+seeds — matches are deterministic, so the re-run reproduces
+games 0-76 identically (verified: 0 mismatches in moves and
+winners across all 77 games) and completes 77-99 as
+pre-registered.]
+
+**v17 beats v7: 62W-29L-9D, win rate 0.6650, 95% CI
+[0.5679, 0.7499]**, 5048.0 s. File:
+`research/iterations/batch-v17-vs-v7.json` (seeds 100/200).
+Per colour: as Black 29W-15L-6D (0.6400), as White
+33W-14L-3D (0.6900) — **v17 scores HIGHER as White than as
+Black, the first version in the program to do so against its
+reference** (v14: Black 0.72, White 0.48; v7 vs v1: Black
+0.89, White 0.52; v12: Black 0.40, White 0.59). The White
+gap — the single biggest remaining weakness in every version
+since v6 — is gone in this match: v17 as White wins the
+open-four race against v7's Black more often than it loses
+it. Mean game length 62.64 plies (min 19, max 225); wins
+mean 44.4 plies, losses mean 51.2 — v17 wins faster than it
+loses. Loss classifier: 29/29 losses via open four, **0
+missed blocks**, 141 threatened turns in losses, **0 clean
+missed preventions** — defence is solved. **Clause 1
+PASSES** (0.6650 > 0.50, CI lower bound 0.5679 > 0.50) —
+decisively, not marginally: the lower bound clears 0.50 by
+0.068, where v14's passed by 0.002. The combination beats
+v7 by more than any of its components did (v14 0.6000, v13
+0.5250, v12 0.4950).
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
