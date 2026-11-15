@@ -1,6 +1,7 @@
 """PUCT MCTS with the v1 heuristic as prior and leaf value (v6, batch 2 H2;
 v7, batch 3 H1, adds an attack gradient to the leaf; v16, batch 6 H2,
-adds a White-only 2-ply rollout leaf — see below).
+adds a White-only 2-ply rollout leaf — see below; v18, batch 7 H1,
+applies the same rollout leaf as Black too).
 
 Standalone module: it does NOT import :mod:`gomoku_ml.mcts` (the
 neural AlphaZero MCTS, owned by the B2 batched-leaf workstream).
@@ -45,6 +46,11 @@ Design (see ``research/iterations/iter-6.md`` for v6 and
   ``_rollout_leaf_value`` and ``research/iterations/iter-16.md``.
   When the engine plays Black, v16 IS v7 exactly, so the Black
   games are a built-in control.
+* v18 (``leaf_mode="rollout2_v1_both"``, batch 7 H1): the SAME
+  2-ply rollout leaf as v16, applied as Black too — the dispatch
+  returns ``_rollout_leaf_value`` for both colours. When the
+  engine plays White, v18 IS v16 exactly, so the White games are
+  a built-in control; see ``research/iterations/iter-18.md``.
 
 Backup accounting follows the AlphaZero convention: every node
 on the simulated path — including the newly expanded leaf — has
@@ -437,6 +443,9 @@ class HeuristicMCTS:
     v7's exactly. The mode is instance-bound (the leaf needs the
     root player's colour, recorded by :meth:`_run_one` on the root
     call).
+    ``leaf_mode="rollout2_v1_both"`` is v18: quiet leaves get the
+    2-ply rollout leaf for BOTH colours — the same function v16
+    uses as White, with no colour gate. v18-as-White IS v16.
     """
 
     def __init__(
@@ -447,18 +456,25 @@ class HeuristicMCTS:
         leaf_mode: str = "terminal",
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
-            leaf_mode != "rollout2_v1"
+            leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
         ):
             raise ValueError(
                 f"unknown leaf_mode: {leaf_mode!r} "
-                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1']})"
+                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both']})"
             )
         self.sims = sims
         self.c_puct = c_puct
         self.rng = rng
         self.leaf_mode = leaf_mode
+        # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
+        # instance-bound methods): the dispatch MUST use this
+        # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
+        # raises KeyError on "rollout2_v1" / "rollout2_v1_both"
+        # (batch 6 caught this as a silent merge breakage).
         if leaf_mode == "rollout2_v1":
             self._leaf_value = self._rollout_v1_leaf_value
+        elif leaf_mode == "rollout2_v1_both":
+            self._leaf_value = self._rollout_v1_both_leaf_value
         else:
             self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
         # Colour to move at the root of the current search (the
@@ -481,6 +497,17 @@ class HeuristicMCTS:
         a search) falls back to the White branch."""
         if self._root_player == game.BLACK:
             return _gradient_leaf_value(board, player)
+        return _rollout_leaf_value(board, player)
+
+    def _rollout_v1_both_leaf_value(
+        self, board: np.ndarray, player: int
+    ) -> float:
+        """v18 leaf value: the 2-ply rollout leaf
+        (:func:`_rollout_leaf_value`) for BOTH colours — no colour
+        gate. The rollout function, policy, gradient and both
+        fast-loop patches are v16's, byte-identical; only the
+        dispatch changed (v16 gates on ``_root_player``, v18 does
+        not). v18-as-White IS v16 exactly."""
         return _rollout_leaf_value(board, player)
 
     def choose_move(self, board: np.ndarray, player: int) -> int:

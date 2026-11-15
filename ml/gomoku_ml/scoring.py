@@ -215,6 +215,19 @@ ENGINE_VERSIONS: dict[int, dict] = {
     16: {"name": "scoring-v16", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1"},
+    # v18 (iteration 18, batch 7): H1 — v16's 2-PLY ROLLOUT leaf
+    # applied as Black too (see gomoku_ml.mcts_heuristic and
+    # research/iterations/iter-18.md). The rollout function, the v1
+    # rollout policy (with open-four priority), the gradient-
+    # evaluated rollout end and the v1 gradient are v16's,
+    # byte-identical; only the dispatch changed (no colour gate).
+    # As White, v18 IS v16 exactly, so the White games are a
+    # built-in control. Sims (100), c_puct (1.5), priors and root
+    # decision are v7 unchanged. No threat check (minimal, isolable
+    # change). Version 17 is the parallel batch-6 H3 workstream's.
+    18: {"name": "scoring-v18", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both"},
 }
 
 # --- weights --------------------------------------------------------------
