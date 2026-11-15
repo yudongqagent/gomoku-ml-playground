@@ -196,7 +196,107 @@ position 8.51 (v1) vs 4.61 (v0).
 
 ## 2. Loss analysis for iteration 14
 
-(To be filled by the fast loop.)
+The fast-loop worked games (§2.1) ARE the loss analysis — see the
+method note at the top of this log. Aggregate counts (§2.5) are
+secondary.
+
+### 2.1 Fast-loop iteration 1 — 10 games vs v0
+
+**Batch:** `research/iterations/fastloop1-v14-vs-v0.json`
+(seeds v14=1001 / v0=2001 — development seeds, distinct from the
+bar battery's 100/200). **6W-4L-0D, win rate 0.6000, CI
+[0.3127, 0.8318]**, 266.3 s. As Black 4W-1L, as White 2W-3L —
+White is the gap again, as in every version. (For scale: v7's
+patched fast loop was 9W-1L, but n=10 with a CI this wide is
+not a comparison — the loop's job is finding weaknesses, and
+the 100-game battery decides.) Classifier
+(`ml/scripts/classify_batch_losses.py`): 4/4 losses via open
+four, 0 missed blocks, 0 clean missed preventions in 21
+threatened turns (in losses). Defence is still perfect; the
+losses are lost races, as in every batch before.
+
+**The losing move in each game** (walk-back,
+`ml/scripts/walkback_loss.py`, corrected oracle method — the
+actual move's v1-vs-v1 playout must lose at all 3 seeds before
+an alternative counts; seeds 0,1,2):
+
+| Game | Last preventable turn | v14 played (loses 3/3) | Perfect move (oracle) |
+|---|---|---|---|
+| 0 (26 plies, Black) | none | — (no alternative saves at any turn) | — |
+| 1 (21 plies, White) | ply 9 | (9,6), v1 rank 1 (200169) | (5,6) — draws 3/3, v1 rank 2 (200107) |
+| 3 (25 plies, White) | ply 13 | (6,9), v1 rank 1 (204087) | (6,5) — draws 3/3, v1 rank 2 (200167) |
+| 9 (25 plies, White) | ply 15 | (5,10), v1 rank 1 (58010) | (4,6) — wins 3/3, v1 rank 6 (20175) |
+
+**Games 1 and 3 — the two blocks are indistinguishable to
+every signal in the engine (NOT a v14 defect).** In both
+positions Black holds exactly 2 creators, and the losing move
+and the saving move ARE the two creator squares: both moves
+kill all Black creators (0 after), both are non-forcing, and
+their v1 scores are nearly tied (200169 vs 200107 in game 1;
+204087 vs 200167 in game 3). The gradient prefers the losing
+move in both cases — the v1 gradient AND the v0 gradient
+(game 1: v1 +0.121 vs +0.046, v0 +0.061 vs +0.025; game 3: v1
++0.174 vs +0.146, v0 +0.119 vs +0.072, mover's perspective
+after the move). And v7 makes the SAME mistake: replayed at
+100 sims, v7's root picks the losing move in both positions
+(game 1: 25 visits vs 18; game 3: 22 vs 14), with the same
+q-ordering as v14. The difference between the two blocks is
+purely positional — which square leaves White better placed
+10 plies later — and no signal in the engine (v1 score,
+creator counts, either gradient, q at 100 sims) separates
+them. There is no leaf patch for this: the v1 kernel neither
+caused it nor can fix it within the pre-registered design.
+
+**Game 9 — the v1 gradient is RIGHT; the search starves the
+saving move (exploration weakness, a KNOWN class).** A quiet
+position (Black holds 0 creators). The saving move (4,6) is
+v1 rank 6 (prior 0.044) and wins 3/3 by oracle; the played
+(5,10) is v1 rank 1 (prior 0.074) and loses 3/3. The v1
+gradient PREFERS the save (+0.064 vs +0.046) — the leaf points
+the right way, where the v0 gradient points the wrong way
+(+0.025 vs +0.049). But at 100 sims the save gets only 3
+visits (vs 15 for the played move) and its q is noisy
+(-0.060 vs +0.033, our-perspective q = -child.q), so
+most-visited picks the loser. This is the same exploration
+weakness class as v7's iter-1 game-3 xfail (saving move ranked
+8th, prior 0.04, starved of visits) — a KNOWN open item, not a
+new class, and not a leaf-value weakness: the leaf is doing
+its job and the search budget is the constraint. No patch
+within the pre-registered design addresses it (more sims is
+not a leaf patch, and v10 showed more sims is not
+monotonically better; raising the cap would violate iter-7's
+lesson and the pre-registration).
+
+**Game 0 — no losing move.** Walk-back over the last 8 turns:
+from ply 18 on the actual move loses 3/3 but NO tested
+alternative saves (top-6+forcing); at ply 16 and earlier the
+actual move does not lose at all seeds. Distributed drift, not
+a blunder (the iter-6 result).
+
+**Loop stops here (stopping rule).** Iteration 1 found no new
+patchable weakness class: games 1/3 fail identically for v7
+and v14 (no leaf signal separates the moves); game 9 is the
+known exploration-weakness class; game 0 has no losing move.
+So the fast loop ends after 1 iteration (10 games) per the
+direction change's stopping rule, with NO PATCH. The three
+verified critical positions are recorded as regression xfails
+(`ml/gomoku_ml/regression_positions_v14.json` +
+`ml/tests/test_regression_v14.py`, 3 xfailed) — documented open
+weaknesses for the next batch. The fast loop's positive
+finding: in the one worked position where the gradients
+disagree (game 9), the v1 gradient is right and the v0
+gradient is wrong — the kernel fix points the leaf the right
+way, even when the search cannot follow it at 100 sims.
+
+### 2.2 Fast-loop iteration 2 — NOT RUN (loop stopped after iteration 1)
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 1)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 1)
+
+### 2.5 Aggregate counts (secondary)
+
+(To be filled from the final battery's classifier runs.)
 
 ## 3. v14 evaluation
 
