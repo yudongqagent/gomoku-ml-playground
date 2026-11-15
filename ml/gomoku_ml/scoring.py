@@ -222,6 +222,23 @@ ENGINE_VERSIONS: dict[int, dict] = {
     12: {"name": "scoring-v12", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
          "root_decision": "tie-prior-forcing"},
+    # v13 (iteration 13, batch 5): H2 — White focus (see
+    # gomoku_ml.mcts_white / mcts_v13 and
+    # research/iterations/iter-13.md). Base is v7's PUCT MCTS
+    # (capped attack-gradient leaf) + v3's 2-ply threat check at
+    # the root, with the White sims count chosen by the §1.2
+    # sweep (100: White 0.775 vs v0, the peak; 50 -> 0.525,
+    # 150 -> 0.55, 200 -> 0.00). The "white_temp" key makes
+    # ScoringPlayer dispatch to V13MCTS (the White prior
+    # temperature lives there): 2.0 is v7's default — the §1b
+    # temperature sweep REFUTED flattening (White 0.775 at 2.0,
+    # 0.05 at 3.0, 0.00 at 4.0 vs v0), so v13 ships at 2.0,
+    # and the (6,8) opening book was refuted too (0.55 vs the
+    # 0.775 control). Versions 9-12 are the parallel
+    # batch-4/batch-5 workstreams'.
+    13: {"name": "scoring-v13", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+         "white_sims": 100, "white_temp": 2.0},
     # v14 (iteration 14, batch 5): H3 — v7's PUCT MCTS with the
     # gradient leaf's input scores ported from the v0 kernel to
     # the v1 5-window scorer (see gomoku_ml.kernel_v1 and
@@ -794,7 +811,31 @@ class ScoringPlayer:
         self._mcts = None
         if self.mcts:
             value_ckpt = ENGINE_VERSIONS[version].get("value_checkpoint")
-            if value_ckpt is not None:
+            white_sims = ENGINE_VERSIONS[version].get("white_sims")
+            white_temp = ENGINE_VERSIONS[version].get("white_temp")
+            if white_temp is not None:
+                # v13: WhiteMCTS + White prior temperature (lazy
+                # import, mcts_v13 imports this module via
+                # mcts_white/mcts_heuristic).
+                from .mcts_v13 import V13MCTS
+
+                self._mcts = V13MCTS(
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    white_sims=white_sims,
+                    white_temp=white_temp,
+                    rng=self.rng,
+                )
+            elif white_sims is not None:
+                # Colour-asymmetric MCTS (v10 port, v13): lazy import,
+                # mcts_white imports this module (via mcts_heuristic).
+                from .mcts_white import WhiteMCTS
+
+                self._mcts = WhiteMCTS(
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    white_sims=white_sims,
+                    rng=self.rng,
+                )
+            elif value_ckpt is not None:
                 # Learned-value MCTS (v8): lazy import, mcts_value
                 # imports this module (via mcts_heuristic). The path
                 # is relative to the repo root unless absolute; the
