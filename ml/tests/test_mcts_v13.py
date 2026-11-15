@@ -34,13 +34,17 @@ def _scattered_board(seed=0, stones=24):
     return board
 
 
-def test_v13_registered_and_dispatches_to_white_mcts():
+def test_v13_registered_and_dispatches_to_v13_mcts():
     v13 = scoring.get_player(13, seed=0)
     assert v13.name == "scoring-v13"
     assert v13.mcts is True
-    assert isinstance(v13._mcts, WhiteMCTS)
+    assert isinstance(v13._mcts, V13MCTS)
+    assert isinstance(v13._mcts, WhiteMCTS)  # V13MCTS subclasses it
     assert v13._mcts.sims == 100
     assert v13._mcts.white_sims == 100  # the sweep winner (iter-13 §2.1)
+    # The §1b temperature sweep REFUTED flattening (White 0.775
+    # at 2.0, 0.05 at 3.0, 0.00 at 4.0 vs v0): v13 ships at 2.0.
+    assert v13._mcts.white_temp == 2.0
     assert v13._mcts.leaf_mode == "gradient"
 
 

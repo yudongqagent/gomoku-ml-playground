@@ -503,18 +503,44 @@ Every other move is the v13 base (V13MCTS, T=2.0, 100 sims).
 Control: the §2.1 s100-vs-v0 cell's White rate, 0.775
 (n=20, same seeds, same opponent, engine's mixed replies).
 
-**Decision rule (pre-registered, mechanical):** book (6,8)
-ONLY if the forced arm's as-White win rate is >= 0.875
-(control + 0.10 — a high bar against overfitting a noisy
-n=20 comparison, and against the post-hoc selection of the
-candidate). Otherwise NO book: v13 = the base, and the book
-direction is closed with evidence rather than assertion.
+**Probe result: NO BOOK.** Forced (6,8): 27W-11L-2D overall
+(0.7000 — identical to the control's overall rate), as White
+10W-8L-2D (**0.5500**) vs the control's 0.7750. The book was
+used in 20/20 White games. The forced diagonal reply is
+WORSE than the engine's mixed replies — the mining signal
+((6,8) 9W-3L-1D) was post-hoc noise that did not hold
+out-of-sample. Per the pre-registered rule (book iff >=
+0.875), **v13 has no opening book**. File:
+`research/iterations/probe-book-68-vs-v0.json` (420 s).
+Both step-2 hypotheses are now refuted with evidence:
+temperature flattening (catastrophic) and the (6,8) book
+(worse than the engine's choice). **v13 = the base** (v7 +
+threat check, 100 sims, T=2.0).
 
-### 2.6 Fast-loop iteration 2 — TO BE RUN
+### 2.6 Fast-loop iteration 2 — NOT RUN (loop stopped)
 
-### 2.7 Fast-loop iteration 3 — TO BE RUN
+**Loop stops here (stopping rule).** Iteration 1 found no
+new patchable weakness class with a verified fix: the
+dominant class is beyond-horizon value error (the search's
+correctly-signed q prefers the losing move in 3 of 4
+positions), and the two candidate patches built from
+iteration 1's findings were both refuted by their own
+pre-registered sweeps — the White prior temperature
+(catastrophic: White 0.775 -> 0.05/0.00, §2.4) and the
+(6,8) opening book (worse than the engine's choice, 0.55
+vs 0.775, §2.5). A second iteration on the unchanged base
+would only re-confirm the same class (and the v0 fallback
+does not trigger — iteration 1 DID produce losses against
+v7). v13 goes to the full battery as the base (§1b): v7 +
+threat check, 100 sims, T=2.0. The honest expectation from
+the fast loop (6W-4L vs v7 in 10 games) and the s100 sweep
+cell (0.6125 vs v7 in 40 games) is that the threat check
+may be worth a small edge over v7 — the 100-game battery
+measures it precisely.
 
-### 2.8 Fast-loop iteration 4 — TO BE RUN
+### 2.7 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 1)
+
+### 2.8 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 1)
 
 ### 2.9 Aggregate counts (secondary)
 
