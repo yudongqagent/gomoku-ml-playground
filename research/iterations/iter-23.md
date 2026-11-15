@@ -261,9 +261,80 @@ untouched.
 
 (TODO — the fast-loop worked games ARE the loss analysis.)
 
-### 2.1 Fast-loop iteration 1 — 10 games vs v7 + 10 games vs v0
+### 2.1 Fast-loop iteration 1 — 10 games vs v7 + 10 games vs v0 (pre-patch engine)
 
-(TODO)
+**Batches:** `research/iterations/fastloop1-v23-vs-v7.json`
+(seeds v23=1001 / v7=2001) and
+`research/iterations/fastloop1-v23-vs-v0.json` (seeds v23=1001 /
+v0=2001) — development seeds, distinct from the bar battery's
+100/200. **vs v7: 8W-0L-2D, win rate 0.9000, CI [0.5958,
+0.9821]**, 1149.9 s. Split: as Black 3W-0L-2D (0.80), as White
+5W-0L (1.00). **vs v0: 9W-1L-0D, win rate 0.9000, CI [0.5958,
+0.9821]**, 296.2 s. Split: as Black 4W-1L (0.80), as White
+5W-0L (1.00). Classifier (both batches): 1/1 loss via open
+four, 0 missed blocks, 0 clean missed preventions in 6
+threatened turns (losses). Defence is still perfect. (n=10 per
+opponent — development signal, not the bar; the fast loop's job
+is finding weaknesses, not measuring strength.)
+
+**The only loss — game 4 vs v0 (Black, 36 plies) — has NO
+patchable losing move.** White won with the vertical five at
+x=5 ((5,4) completing (5,4)–(5,8)) after Black faced an open
+four at move 35. Walk-back
+(`research/iterations/walkback-fl1-g4.json`, v1 oracle, seeds
+0,1,2) nominates nothing: at every Black turn from move 27 on,
+the actual loses 3/3 with 0 saving alternatives, and at moves
+21–25 the actual "wins" under the oracle. **The oracle's
+move-25 verdict is an artifact** — re-verification with the
+stronger oracles (`/tmp/verify_fl1_g4.py`,
+`/tmp/verify_fl1_g4b.py`, per the iter-18 §2.1 rule) reverses
+it:
+
+- Move 21, actual (8,4): wins 3/3 under v7-vs-v7.
+- Move 23, actual (3,5): wins 3/3 under v7-vs-v7 — and every
+  top 1-ply alternative LOSES 3/3. (3,5) was the best move.
+- Move 25, actual (3,6): loses 3/3 under v7-vs-v7 AND 3/3
+  under the actual matchup (v23-vs-v0). The v1 oracle's "wins
+  2/3" is wrong because v1-as-White never plays the killer
+  (5,8). Alternatives (5,8), (5,5), (4,8) all lose 3/3 under
+  both oracles. (7,6) wins 2/3 under v7-vs-v7 but loses 3/3
+  under v23-vs-v0 — a split, oracle-dependent edge, not a
+  verified save: the position after (7,6) still loses when
+  v23 itself plays it out.
+- Move 27, actual (11,11): loses 3/3 under both oracles.
+  (5,5) wins 3/3 under v23-vs-v0 but loses 3/3 under
+  v7-vs-v7 — again a split: a save against the weak opponent
+  only (v0-as-White misses the follow-up; v7-as-White finds
+  it). Patching toward it would be fitting the weak opponent.
+
+So the game went from winning at move 23 to lost by move 25,
+with White's (5,6) creating a double structure (the row-6
+three plus the x=5 column) that no single Black reply handles
+under both oracles. Distributed drift (the iter-6 pattern), no
+single verified losing move. **No patch.** The (7,6)
+nomination is too weak to record even as a regression xfail
+(it loses under the actual matchup); it is documented here,
+not in the regression file.
+
+**The tie-break is exonerated in this loss** (root dumps,
+`/tmp/verify_fl1_g4.py`): at move 25 the root has a UNIQUE
+visit leader — (3,6) at 15 visits — so the tie-break never
+fired, and v18's root is identical. At move 27 there IS a
+4-way visit tie at 2 visits — but all four children share the
+same our-q EXACTLY (−0.375), so rule 4 falls back to RNG and
+v23 picks (11,11); v18's RNG picks (11,11) too at seed 0.
+This is q-compression in its purest form (every candidate
+loses equally under the leaf), and the tie-break cannot
+discriminate where the leaf itself cannot. The loss is a
+value/horizon failure, not a tie-break failure — and no
+tie-break variant could have saved it, since the q-tied set
+contains no saving move under either oracle.
+
+**Iteration 1 verdict: no new patchable weakness class — but
+the loop does NOT stop here** (same pre-commitment as iter-18
+§2.1: two consecutive barren iterations, 40 games). Iteration
+2 runs on fresh seeds (1002/2002); if it also finds no
+patchable class, the loop stops. No regression positions added.
 
 ### 2.2 Fast-loop iteration 2
 
