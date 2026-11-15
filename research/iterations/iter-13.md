@@ -1,15 +1,17 @@
 # Iteration 13 — v13: White focus (batch 5, H2)
 
-**Status: PRE-REGISTERED — sweep grid, opponents, game counts, seeds
-and the decision rule recorded BEFORE any eval (see §1).** Comparison
-target is v7 (the batch-5 reference). This is the H2 workstream of
-batch 5 (H1 is v12, the tie-prior default + forcing-first tie-break,
-a separate workstream on `research/batch-5-h1`; H3 is v14, the
-v1-kernel attack gradient, on `research/batch-5-h3`); work happens
-on branch `research/batch-5-h2` in the `gomoku-b5-h2` worktree.
-v13 does NOT change the root decision rule (H1's work) and does NOT
-touch the leaf (the leaf is not the binding constraint — iter-11;
-H3 owns the gradient).
+**Status: COMPLETE — v13 REJECTED, 3 of 4 clauses pass
+(clause 1 fails: 0.5250 vs v7, CI [0.4280, 0.6201]).
+Final battery done on the final engine (§3).** Comparison
+target is v7 (the batch-5 reference). This is the H2
+workstream of batch 5 (H1 is v12, the tie-prior default +
+forcing-first tie-break, a separate workstream on
+`research/batch-5-h1`; H3 is v14, the v1-kernel attack
+gradient, on `research/batch-5-h3`); work happens on branch
+`research/batch-5-h2` in the `gomoku-b5-h2` worktree. v13
+does NOT change the root decision rule (H1's work) and does
+NOT touch the leaf (the leaf is not the binding constraint
+— iter-11; H3 owns the gradient).
 
 ## 1. Design and pre-registration
 
@@ -544,6 +546,24 @@ measures it precisely.
 
 ### 2.9 Aggregate counts (secondary)
 
+Across the final battery's matches (classifier:
+`ml/scripts/classify_batch_losses.py`):
+
+| match | losses | via open four | missed blocks | threatened turns (losses) | clean missed preventions (losses) |
+|---|---|---|---|---|---|
+| vs v7 | 46 | 46 | 0 | 172 | 0 (0.0%) |
+| vs v0 | 36 | 36 | 0 | 188 | 0 (0.0%) |
+| vs v7 swap | 49 | 49 | 0 | 160 | 0 (0.0%) |
+| **Pooled** | **131** | **131** | **0** | **520** | **0 (0.0%)** |
+
+Defence is solved: 131/131 pooled losses via open four, 0
+missed blocks, 0 clean missed preventions in 520 threatened
+turns. Every loss is the opponent winning the open-four
+race, not a defensive error — the same shape as every
+version since v6. v13's draws against v7 are lost races
+that end in mutual exhaustion (3 draws, all 225-ply
+full-board games), not defensive saves.
+
 ## 3. v13 evaluation (FULL VALIDATION BATTERY — final v13)
 
 ### 3.1 Tactical suites
@@ -558,14 +578,191 @@ TACTICAL_JSON line is in `research/iterations/battery.log`).
 v7's 29/29). The threat check costs nothing tactically — as
 in v10 (20/20 + 29/29).
 
-### 3.2 Head-to-head vs v7 (100 games, seeds 100/200) — TO BE RUN
+### 3.2 Head-to-head vs v7 (100 games, seeds 100/200)
 
-### 3.3 Head-to-head vs v0 (100 games, seeds 100/200) — TO BE RUN
+**v13 ties v7: 51W-46L-3D, win rate 0.5250, 95% CI
+[0.4280, 0.6201]**, 1520.9 s. File:
+`research/iterations/batch-v13-vs-v7.json` (seeds 100/200).
+Per colour: as Black 26W-23L-1D (0.5300), as White
+25W-23L-2D (0.5200) — balanced; no White gap against v7
+(the White split 0.52 matches v7-as-White vs v1's 0.52,
+against a stronger opponent). Mean game length 46.6 plies
+(min 15, max 225). Loss classifier: 46/46 losses via open
+four, **0 missed blocks**, 172 threatened turns in losses,
+**0 clean missed preventions** — defence solved; v13 loses
+the open-four race to v7 in both colours, narrowly.
+**Clause 1 FAILS** (0.5250 > 0.50, but the CI lower bound
+0.4280 is below 0.50 — no edge established). The threat
+check's apparent edge in the 40-game s100 sweep cell
+(0.6125) regressed to 0.525 at 100 games: the sweep cell
+was noise around a small-or-zero effect, not a real gain.
 
-### 3.4 Ladder (20 games/opponent, mcts_sims=100, seed 100) — TO BE RUN
+(First run of this match was killed by a runtime restart at
+27 games (15W-11L-1D, partial JSON flushed); the re-run
+with the same seeds reproduced the 27-game prefix EXACTLY
+(all 27 records byte-identical — determinism verified), so
+the completed match is the pre-registered one, not a
+different sample.)
 
-### 3.5 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — TO BE RUN
+### 3.3 Head-to-head vs v0 (100 games, seeds 100/200)
 
-## 4. Bar check (v13 vs v7) — TO BE RUN
+**v13 beats v0: 64W-36L-0D, win rate 0.6400, 95% CI
+[0.5424, 0.7273]**, 714.5 s. File:
+`research/iterations/batch-v13-vs-v0.json` (seeds 100/200).
+Per colour: as Black 35W-15L-0D (0.7000), as White
+29W-21L-0D (0.5800). Slightly BELOW v7's 0.6650 vs v0 on
+both splits (v7: Black 0.71, White 0.62) — the threat check
+does not help against the crude 1-ply baseline, and may
+cost a little (its safe moves are sometimes passive
+blocks). Mean game length 43.2 plies (min 16, max 124).
+Loss classifier: 36/36 losses via open four, **0 missed
+blocks**, 188 threatened turns in losses, **0 clean missed
+preventions**. Non-transitivity note: v13 ties v7 (0.525)
+and beats v0 (0.64), while v7 beats v0 (0.665) — the
+ordering v7 >= v13 > v0 is transitive, no bad
+non-transitivity; v13 is simply a slightly weaker v7
+against v0 and an equal v7 against v7.
 
-## 5. What this means — TO BE WRITTEN
+### 3.4 Ladder (20 games/opponent, mcts_sims=100, seed 100)
+
+**Ladder Elo 240.8, 95% CI [58.9, 422.7]** (anchors:
+random = -800, heuristic = 0; relative to THIS ladder
+only). File: `research/iterations/ladder-v13.json`
+(EVAL_JSON from `ml/scripts/eval_version.py --version 13
+--ladder-games 20 --mcts-sims 100 --seed 100`).
+
+| Opponent | W-L-D | Win rate | 95% CI | as Black | as White |
+|---|---|---|---|---|---|
+| random | 20W-0L-0D | 1.0000 | [0.8389, 1.0000] | 10W-0L | 10W-0L |
+| heuristic | 15W-3L-2D | 0.8000 | [0.5840, 0.9193] | 9W-1L-0D | 6W-2L-2D |
+| mcts (100 sims) | 8W-12L-0D | 0.4000 | [0.2188, 0.6134] | 4W-6L | 4W-6L |
+
+(The ladder's built-in tactical probe line is disregarded —
+it bypasses the MCTS dispatch; see §3.1 for the
+full-dispatch tactical result.)
+
+**Clause 2 PASSES**: 240.8 vs v7's 190.8, strictly higher
+at identical game counts/opponents. The gain comes
+entirely from the heuristic matchup (0.80 vs v7's 0.75 —
+two of v7's losses become draws under the threat check);
+vs mcts is identical to v7's (8W-12L, 0.40), vs random
+identical (20-0). Caveat, recorded honestly: the intervals
+overlap ([58.9, 422.7] vs v7's [21.8, 359.9]) — the bar
+requires the point estimate strictly higher, which holds
+(the same standard under which v7 passed vs v1), but the
+50-point gap is one matchup's worth of noise as much as
+signal: v13's heuristic edge is 2 draws, not 2 wins.
+
+### 3.5 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge)
+
+**v13 ties v7 under swap: 48W-49L-3D, win rate 0.4950,
+95% CI [0.3990, 0.5914]**, 1477.6 s. File:
+`research/iterations/batch-v13-vs-v7-swap.json`
+(`ml/scripts/selfplay_batch.py --engine-a v13 --engine-b
+v7 --games 100 --swap-rule --placement balanced
+--placement-seed 11 --judge tempo --seed-a 100
+--seed-b 200`). Per colour: as Black 23W-26L-1D (0.4700),
+as White 25W-23L-2D (0.5200). second_colour Black 76 /
+White 24 — both engines chose identically, since the tempo
+judge is deterministic on the same balanced placements.
+Winners Black 46, White 51, draws 3. Mean game length 44.6
+plies (min 15, max 225). Loss classifier: 49/49 losses via
+open four, 0 missed blocks, 160 threatened turns in
+losses, 0 clean missed preventions. Under swap rules v13
+is exactly even with v7 (CI includes 0.50, no edge
+established) — consistent with §3.2: the threat check adds
+no measurable edge over v7 from balanced starts either.
+
+## 4. Bar check (v13 vs v7)
+
+| Clause | Requirement | v13 result | Verdict |
+|---|---|---|---|
+| 1. H2H vs v7 (100 games) | Win rate > 0.50, Wilson 95% CI lower > 0.50 | 51W-46L-3D, 0.5250, CI [0.4280, 0.6201] | **FAIL** |
+| 2. Ladder Elo (20/opponent) | Strictly > v7's 190.8 | 240.8, CI [58.9, 422.7] | **PASS** |
+| 3. Tactical (old + hard) | ≥ v7's 20/20 + 29/29 | 20/20 + 29/29 | **PASS** |
+| 4. Test suites | All green | ml pytest 252 passed, 7 skipped, 7 xfailed, 0 failures; npm + tsc: this workstream touches NO TypeScript files (29 files changed vs base, all under `ml/` or `research/`), so npm/tsc cannot be affected — coordinator-verified at merge per the iter-7 precedent | **PASS (ml)** / PENDING coordinator (npm/tsc) |
+
+**v13 REJECTED: 3 of 4 clauses pass.** Clause 1 fails —
+v13 ties v7 (0.5250) without establishing an edge, so the
+bar is not met however the other clauses fall. Clauses 2
+and 3 pass cleanly; clause 4 is green on the ml suite.
+v7 remains the reference version; v13 is NOT merged to
+master. The swap match (§3.5) is a battery item, not a bar
+clause.
+
+## 5. What this means
+
+**The sweep is the durable result.** The White sims sweep
+(§2.1) maps the non-monotonicity v10 found, completely and
+at two opponents: White vs v0 goes 0.525 -> 0.775 -> 0.55
+-> 0.00 across 50/100/150/200 sims, and vs v7 0.275 ->
+0.65 -> 0.625 -> 0.325. 100 sims is the White optimum
+against both opponents; 200 sims collapses White totally
+vs v0 and partially vs v7, reproducing v10's finding at new
+seeds. The mechanism (iter-10 §3.3) stands: with a
+misleading prior and a weak leaf signal, deeper search
+concentrates visits on the prior's favourite — more sims
+means more consistent wrongness in White's quiet positions.
+The sims lever is now mapped, not just suspected: no future
+version should change White's sims count without citing
+this sweep, and 100 is the number unless a new leaf or
+prior changes the shape.
+
+**The sharp prior is load-bearing.** The §1b temperature
+experiment is the workstream's sharpest negative result:
+flattening White's prior — the direct intervention on the
+fast loop's diagnosed mechanism (saves starved by low
+priors) — takes White from 0.775 to 0.05 (T=3.0) to 0.00
+(T=4.0) vs v0. With 100 sims the search NEEDS the v1
+prior's concentration; spreading visits destroys all
+direction. The position probe that motivated the sweep
+(1/7 saves at T=3.0) did not predict match strength at
+all. Two lessons: (1) single-position diagnostics cannot
+validate a global search change — only matches can; (2)
+the White problem is NOT prior concentration. The prior
+is doing its job; the value signal is what's wrong.
+
+**The White problem is a value problem, and it has no fix
+in this workstream's scope.** The fast loop's diagnosis
+(§2.2) is consistent across all five critical positions:
+in 4 of 5, the search's correctly-signed q prefers the
+LOSING move — the search genuinely does not see the save,
+at any sims count or temperature. The saves win by the
+v1-vs-v1 oracle (deep 1-ply playouts), which is exactly
+the signal a static leaf cannot provide. Fixing White
+needs a better VALUE function (a leaf that sees
+counterplay) or deeper effective search — the leaf is
+H3's workstream (v14, the v1-kernel gradient), and the
+net-value road is closed by v8/v11's lessons (distribution
+mismatch, optimizer's curse). The (6,8) opening book
+(§2.5) was the last White-specific idea with any evidence
+behind it, and it failed out-of-sample (0.55 vs the 0.775
+control) — the mining signal was post-hoc noise.
+
+**The threat check is worth ~nothing against v7 and a
+little against the heuristic.** v13's only difference from
+v7 is the threat check, and the battery measures it
+precisely: vs v7 0.525 (CI includes 0.50), vs v0 0.64
+(below v7's 0.665), swap vs v7 0.495, ladder 240.8 (above
+v7's 190.8, entirely from 2 draws instead of 2 losses vs
+the heuristic anchor). The 40-game sweep cell's 0.6125 vs
+v7 was noise around a small-or-zero effect. The threat
+check keeps its durable-gain status for defence (0 missed
+preventions in 520 threatened turns across the battery,
+and it fixed v8's tactical gap in iter-8), but as an
+attack-neutral safety filter it cannot beat the reference
+it is bolted onto. It belongs in future versions as
+infrastructure, not as the improvement.
+
+**What to try next (for a future batch, not this one):**
+(1) H3's v1-kernel gradient (v14) — if the gradient sees
+broken fours, the leaf's value signal improves exactly
+where White's counterplay lives. (2) A value function
+trained on STRONG-opponent games with a hard α sweep —
+v11 showed distribution-fixing alone doesn't work, but the
+fast loop keeps pointing at the value signal as the binding
+constraint. (3) Nothing in the sims/prior/book space:
+this batch mapped sims (100 optimal), refuted prior
+flattening (catastrophic), and refuted the book (worse
+than the engine). Those three levers are closed for White
+until the value signal changes.
