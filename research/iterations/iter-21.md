@@ -321,6 +321,89 @@ all tie/RNG or suite-list cases, and a root rule is CLOSED.
 
 (TODO — the fast-loop worked games ARE the loss analysis.)
 
+### 2.1 Fast-loop iteration 1 — 10 games vs v7 + 10 games vs v0 (pre-patch engine)
+
+**Batches:** `research/iterations/fastloop1-v21-vs-v7.json`
+(seeds v21=1001 / v7=2001) and
+`research/iterations/fastloop1-v21-vs-v0.json` (seeds v21=1001 /
+v0=2001) — development seeds, distinct from the bar battery's
+100/200. **vs v7: 6W-2L-2D, win rate 0.7000, CI [0.3968,
+0.8922]**, 1042.8 s. Split: as Black **5W-0L (1.00)**, as White
+1W-2L-2D (0.40). **vs v0: 10W-0L-0D, win rate 1.0000**, 253.1 s
+(as Black 5W-0L, as White 5W-0L). Classifier (both batches): 2/2
+losses via open four, 0 missed blocks, 0 clean missed preventions
+in 5 threatened turns (losses). Defence is still perfect; the
+blended Black leaf produced no loss in 10 Black games. (n=10 per
+opponent — development signal, not the bar; the fast loop's job
+is finding weaknesses, not measuring strength.) Two of the ten
+vs-v7 games were 225-ply full-board draws (games 3 and 5, both
+v21-as-White): v21's defence holds v7-as-Black to a full board
+without a win.
+
+**Game 1 vs v7 (White, 21 plies) — byte-identical to v18's
+fast-loop-1 game 1, and its nominations are refuted the same
+way.** The move list is identical to v18's fl1-g1 (verified:
+`research/batch-7-h1:research/iterations/fastloop1-v18-vs-v7.json`
+game 1) — the blend changed nothing in this game; v21-as-White
+plays v18-as-White's moves throughout. Walk-back
+(`research/iterations/walkback-fl1-g1.json`, corrected oracle
+method, seeds 0,1,2) nominates ply 17: actual (6,4) loses 3/3,
+(9,4) "saves" (draws 3/3); ply 13 nominates two "saves" ((7,4),
+(9,8)). **Both nominations are v1-oracle artifacts, refuted by
+exact computation on v21's own game record**
+(`/tmp/verify_fl1_g1.py` — the iter-18 §2.1 refutation,
+re-verified, not merely cited):
+
+- Ply 17: after White (9,4), Black (6,5) leaves Black TWO winning
+  moves — (4,3) and (9,8) — with White having none. (9,4) loses
+  by force; the rollout leaf's −1.000 for (9,4), (6,4) and (6,5)
+  alike is CORRECT, not q-compression error. The v1 oracle calls
+  (9,4) a draw because v1-as-Black plays (9,6) instead of (6,5)
+  — even though (6,5)'s v1 attack score is 200,091, an open-four
+  creation. v7-as-Black plays (6,5) after (9,4); the real
+  opponent finds the killer. After the actual (6,4), (6,5)
+  leaves the same two winning moves: at ply 17 EVERY White move
+  loses by force.
+- Ply 13: after White (9,8) — the oracle's "wins 3/3" save —
+  Black plays (7,8) and has TWO winning moves, (7,4) and (7,9),
+  with White having none: a forced loss, exact. The other "save",
+  (7,4), leaves only one winning move after (7,8) — but iter-18
+  verified it loses 3/3 under v7-vs-v7, and the actual (7,8) is
+  the BEST tested move at ply 13 under the stronger oracle.
+
+So the loss is distributed drift (the iter-6 result): no single
+verified losing move. **No patch.**
+
+**Game 9 vs v7 (White, 29 plies) — no nominated losing move at
+all.** Walk-back (`research/iterations/walkback-fl1-g9.json`):
+at every White turn from ply 13 on, the actual move's oracle
+playout does not lose at all 3 seeds (draws or wins at some
+seeds), and the last two turns (ply 25, 27) have no saving
+alternative. The loss is distributed drift with no single losing
+move. **No patch.**
+
+**Iteration 1 verdict: no new patchable weakness class — but the
+loop does NOT stop here.** The loop has patched nothing yet, and
+the blended Black leaf — the whole point of v21 — produced no
+loss in 10 Black games, so it has had no chance to show a
+weakness; the specific risk (a loss where v21 plays a loser v18
+does NOT play — a blend-caused regression) has not been tested by
+a loss at all. Iteration 2 runs on fresh seeds (1002/2002); if it
+also finds no patchable class, the loop stops (two consecutive
+barren iterations, 40 games). No regression positions added (a
+forced loss / distributed drift has no "expected save" to
+record).
+
+### 2.2 Fast-loop iteration 2 — TODO
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (pending)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (pending)
+
+### 2.5 Aggregate counts (secondary)
+
+(TODO)
+
 ## 3. v21 evaluation
 
 (TODO — battery on the FINAL version, pre-registered seeds
