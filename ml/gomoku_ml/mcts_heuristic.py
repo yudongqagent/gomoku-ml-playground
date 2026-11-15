@@ -327,10 +327,125 @@ def _gradient_v1_leaf_value(board: np.ndarray, player: int) -> float:
     return _attack_gradient_v1(board, player)
 
 
+# --- v20 gap-three demotion (batch 7, H3) ---------------------------------
+# The v1 breadth counts gap-three makers as STRONG (a gap three
+# XX_X scores 4006 in v1 — see scoring._score_from_counts, which
+# awards OPEN_THREE whenever a window holds 3 friendly stones with
+# both outside cells empty, contiguous or gapped). But a gap three
+# is killable by a single opponent move occupying the gap (XXOX is
+# dead), while a true open three (_XXX_) cannot be killed in one
+# move — and greedy 1-ply play finds the gap block automatically
+# (its defence term scores the gap-fill as blocking a 4-run). Gap-
+# three breadth is therefore PHANTOM against greedy play: it
+# evaporates on contact while the opponent builds its own race.
+# Iter-20 §2.0 verified the mechanism causally (6/6 engine-swap
+# continuations flip a v14 Black loss to v0 into a win when v7's
+# move replaces v14's; the ply-10 decomposition shows the v1
+# gradient's +4.0 preference for the cluster four comes entirely
+# from the three tier, 4 of whose 6 makers are gap-three makers)
+# and §2.1 confirmed it at a fresh seed (game 6 ply 28: v14 plays
+# the gap-heavy loser, v7 plays the save).
+#
+# The fix: a three-tier move (v1 attack in [4000, 20000)) counts
+# as STRONG only if it is a TRUE open-three maker — detected with
+# the v0 kernel as the filter (a true open three scores >= 1000 in
+# v0's contiguous-run scoring; a gap-three maker scores ~40-200,
+# because v0 cannot see the gap pattern at all). A three-tier move
+# with v0 attack < 1000 is a GAP-three maker and counts as
+# DEVELOPING (weight 0.25, the existing developing weight — no new
+# constant). Four-tier moves (v1 >= 20000, INCLUDING broken-four
+# makers) are unaffected: a broken four has exactly one winning
+# square, the same as a straight four, so both force a block
+# identically. The developing tier [80, 4000) is unaffected. The
+# tanh scale is re-derived from the demoted breadth distribution
+# by v7's rule (scale ~= 1.8 x std) in iter-20 §1.1; the cap
+# (+/-0.2) is UNCHANGED.
+_GRADIENT_V1_GAP_SCALE = 5.5  # Step-0 value (iter-20 §1.1): 1.8 x
+# the demoted breadth-difference std (3.02), rounded to the nearest
+# 0.5 by v7's rule — the same rule v7 (4.0) and v14 (7.5) used.
+
+
+def _breadth_v1_gap(
+    attack_v1: np.ndarray, attack_v0: np.ndarray, empty_mask: np.ndarray
+) -> float:
+    """Attack breadth of one side from v1 attack scores with
+    gap-three makers DEMOTED to the developing tier (v20, batch 7
+    H3): strong moves are four-makers (v1 attack >= 20000,
+    including broken fours) plus TRUE open-three makers (v1 attack
+    in [4000, 20000) AND v0 attack >= 1000); developing moves
+    (weight 0.25) are the [80, 4000) tier plus GAP-three makers
+    (v1 attack in [4000, 20000) AND v0 attack < 1000). Over empty
+    cells only. The v0 attack array is the filter: it is 0-mismatch
+    verified (kernel_numpy) and distinguishes the two three kinds
+    exactly where the v1 score cannot (gap-three 4006 vs
+    open-three 4000+)."""
+    s1 = attack_v1[empty_mask]
+    s0 = attack_v0[empty_mask]
+    four = int(np.count_nonzero(s1 >= scoring.FOUR))
+    three = (s1 >= _GRADIENT_V1_STRONG) & (s1 < scoring.FOUR)
+    true_three = int(
+        np.count_nonzero(three & (s0 >= _GRADIENT_STRONG))
+    )
+    gap_three = int(
+        np.count_nonzero(three & (s0 < _GRADIENT_STRONG))
+    )
+    developing = int(
+        np.count_nonzero(
+            (s1 >= _GRADIENT_V1_DEVELOPING) & (s1 < _GRADIENT_V1_STRONG)
+        )
+    )
+    return (
+        four
+        + true_three
+        + _GRADIENT_DEVELOPING_WEIGHT * (developing + gap_three)
+    )
+
+
+def _attack_gradient_v1_gap(board: np.ndarray, player: int) -> float:
+    """Breadth-gradient leaf value in (-0.2, 0.2) for ``player`` to
+    move in a quiet position, from the v1 kernel's attack scores
+    with gap-three makers demoted (see :func:`_breadth_v1_gap`),
+    using the v0 kernel's attack scores as the true/gap filter (one
+    ``attack_v1_both`` call plus one ``attack_both`` call):
+    ``0.2 * tanh((breadth_gap(ours) - breadth_gap(theirs)) /
+    scale)``. Antisymmetric under colour swap. Same form as
+    :func:`_attack_gradient_v1`, with the demoted breadth and the
+    re-derived scale; the 0.2 cap is unchanged (see
+    ``_GRADIENT_CAP``)."""
+    black1, white1 = kernel_v1.attack_v1_both(board)
+    black0, white0 = kernel_numpy.attack_both(board)
+    mask = board == game.EMPTY
+    if player == game.BLACK:
+        ours1, theirs1 = black1, white1
+        ours0, theirs0 = black0, white0
+    else:
+        ours1, theirs1 = white1, black1
+        ours0, theirs0 = white0, black0
+    diff = _breadth_v1_gap(ours1, ours0, mask) - _breadth_v1_gap(
+        theirs1, theirs0, mask
+    )
+    return _GRADIENT_CAP * math.tanh(diff / _GRADIENT_V1_GAP_SCALE)
+
+
+def _gradient_v1_gap_leaf_value(board: np.ndarray, player: int) -> float:
+    """v20 leaf value: v7's terminal-aware values for terminal
+    positions, the gap-demoted v1-kernel attack gradient for quiet
+    ones. The terminal cases are identical to
+    :func:`_terminal_leaf_value` BY CONSTRUCTION (it returns 0.0
+    exactly for quiet positions), so the ONLY difference between
+    v14 and v20 is the quiet-leaf gradient's three-tier weighting
+    — a clean A/B of the gap-three demotion."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    return _attack_gradient_v1_gap(board, player)
+
+
 _LEAF_FUNCTIONS = {
     "terminal": _terminal_leaf_value,
     "gradient": _gradient_leaf_value,
     "gradient_v1": _gradient_v1_leaf_value,
+    "gradient_v1_gap": _gradient_v1_gap_leaf_value,
 }
 
 # --- v1-kernel breadth (ported from v14, batch 5 H3) -----------------------
@@ -561,6 +676,11 @@ class HeuristicMCTS:
     (:func:`_gradient_v1_leaf_value`); terminal values are
     identical to v7's, so the only difference between v7 and v14
     is the gradient's input scores.
+    ``leaf_mode="gradient_v1_gap"`` is v20: v14's leaf with
+    gap-three makers demoted from the strong tier to the developing
+    tier (:func:`_gradient_v1_gap_leaf_value`); terminal values
+    identical, so the only difference between v14 and v20 is the
+    three-tier weighting.
 
     ``root_decision`` (v9, batch 4 H1; v12, batch 5 H1) selects the
     root move choice: ``"visits"`` (default, v6/v7 behaviour —

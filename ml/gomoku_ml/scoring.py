@@ -315,6 +315,28 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # Versions 15-16 are the parallel batch-6 workstreams'.
     17: {"name": "scoring-v17", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100, "v17": True},
+    # v20 (iteration 20, batch 7): H3 — v14's v1-kernel gradient
+    # leaf with GAP-THREE makers demoted from the strong tier to
+    # the developing tier (see gomoku_ml.mcts_heuristic
+    # _gradient_v1_gap_leaf_value and research/iterations/
+    # iter-20.md). The v1 scorer counts a gap three (XX_X) as an
+    # open three (4006), but a gap three is killable by a single
+    # opponent move occupying the gap while a true open three
+    # cannot be killed in one move — and greedy 1-ply play finds
+    # the gap block automatically. Gap-three breadth is phantom
+    # against greedy play: it steers v14 into cluster play and
+    # away from forcing moves (verified causally in iter-20 §2.0:
+    # 6/6 engine-swap continuations flip a v14 Black loss to v0).
+    # The v0 kernel filters true open-three makers (v0 >= 1000)
+    # from gap-three makers (v0 < 1000); broken-four makers stay
+    # strong (a broken four forces a block exactly like a straight
+    # four). Tanh scale 5.5 (re-derived by v7's rule from the
+    # demoted distribution, iter-20 §1.1); cap ±0.2 unchanged.
+    # Everything else is v14 unchanged (100 sims, c_puct 1.5,
+    # sharp v1 priors, plain most-visited root). Versions 18-19
+    # are the parallel batch-7 workstreams'.
+    20: {"name": "scoring-v20", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1_gap"},
 }
 
 # --- weights --------------------------------------------------------------
