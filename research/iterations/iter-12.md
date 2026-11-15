@@ -366,7 +366,30 @@ wide CIs — the 100-game battery is the verdict.
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
-[To be filled.]
+**v12 beats v0 in all 100 games: 100W-0L-0D, win rate 1.0000,
+95% CI [0.9630, 1.0000]**, 1957.1 s. File:
+`research/iterations/batch-v12-vs-v0.json` (seeds 100/200).
+Per colour: as Black **50W-0L-0D (1.0000)**, as White
+**50W-0L-0D (1.0000)**. Mean game length 41.64 plies. Loss
+classifier: no losses to classify — defence is perfect by
+construction (0 losses).
+
+Compare on the SAME seeds: v9 93W-7L-0D (0.9300; as Black
+43W-7L-0D, as White 50W-0L-0D), v7 64W-31L-5D (0.6650; as Black
+34W-13L-3D, as White 30W-18L-2D). v12 gains 7 games over v9 and
+36 over v7 against v0 — and the gain is exactly where v9's
+weakness was: v9's 7 losses were ALL as Black (long endgames,
+iter-9 §2.1); v12 as Black is 50-0. The as-Black long-game
+weakness class that v9's fast loop could not patch (distributed
+drift, no verified single losing move) is closed at 100-game
+scale by the forcing-first tie-break — the same signal the
+fast-loop iter 1 gave on 10 games (v12 10-0 where v9 was 8-2).
+This is NOT the bar (clause 1 is vs v7), but it is the
+strongest evidence that the forcing tie-break is a real
+improvement, not noise: a perfect 100-0 on identical seeds,
+against the opponent that exposed v7's and v9's Black-game
+weakness, cannot be a coin flip. The colour-split inversion is
+gone: v12 scores the same (1.0000) in both colours against v0.
 
 ### 3.5 Tactical suites — FINAL BATTERY
 
