@@ -210,6 +210,33 @@ ENGINE_VERSIONS: dict[int, dict] = {
     15: {"name": "scoring-v15", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
          "prior_floor": 0.005},
+    # v16 (iteration 16, batch 6): H2 — v7's PUCT MCTS with a
+    # WHITE-ONLY 2-PLY ROLLOUT leaf (see
+    # gomoku_ml.mcts_heuristic._rollout_leaf_value and
+    # research/iterations/iter-16.md). When the engine plays White,
+    # quiet leaves are valued by rolling out exactly 2 plies
+    # (opponent reply + our reply, win/block/attack-argmax policy)
+    # and evaluating the symmetric v1-kernel gradient at the
+    # resulting position — the leaf horizon extends past the forcing
+    # exchange, where White's counterplay value lives (iter-13 §2.2:
+    # correctly-signed q prefers the losing block over the quiet
+    # counterplay save in 4/5 White critical positions, because the
+    # save's value materialises several plies out). Terminal values
+    # are exact throughout the rollout. When the engine plays Black,
+    # v16 IS v7 exactly, so the Black games are a built-in control.
+    # Sims (100), c_puct (1.5), priors and root decision are v7
+    # unchanged. The v1 kernel is v14's exact port (0 mismatches).
+    # Two earlier v16 candidates were measured and refuted before
+    # pre-registration (iter-16 §1.1): a White asymmetric gradient
+    # (0/5 v13/v14 saves at the search level, saturates) and a
+    # symmetric must-block gradient term (regressed v7 from 4/5 to
+    # 1/5 saves on its own regression positions). No threat check
+    # (minimal, isolable change; iter-13 measured it as worth
+    # ~nothing vs v7). Versions 9-15 are the parallel batch-4/5/6
+    # workstreams'.
+    16: {"name": "scoring-v16", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1"},
 }
 
 # --- weights --------------------------------------------------------------
