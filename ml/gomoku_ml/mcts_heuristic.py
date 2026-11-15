@@ -441,11 +441,85 @@ def _gradient_v1_gap_leaf_value(board: np.ndarray, player: int) -> float:
     return _attack_gradient_v1_gap(board, player)
 
 
+# --- v22 colour-conditional gap-three demotion (batch 8, H2) ---------------
+# v20's GLOBAL demotion traded Black for White: against greedy v0
+# it recovered Black (losses 20 -> 9, win rate 0.72) but broke
+# White (losses 20 -> 27, win rate 0.45) — iter-20 §3.4. The
+# lesson (iter-20 §5): gap-three breadth is phantom for the
+# initiative-holder (Black moves first and holds the tempo; Black
+# builds clusters with a free hand and the defender kills the gap
+# threes for free) but signal for White's counterplay (White
+# creates threats in reply, and Black — who must answer them —
+# cannot spend the move killing the gap). v22 therefore demotes
+# gap-three makers ONLY in BLACK's breadth, in both terms of the
+# gradient difference: at Black-to-move leaves Black's OWN breadth
+# is demoted (the ply-10 fix — the v1 gradient's +4.0 preference
+# for the losing cluster move came entirely from Black's gap-three
+# makers); at White-to-move leaves Black's THEIRS breadth is
+# demoted (White does not over-fear Black's phantom threats — the
+# term that made v20's White BETTER against v7, 0.48 -> 0.53).
+# White's breadth is never demoted. The leaf stays antisymmetric
+# under PLAYER swap (value(board, WHITE) == -value(board, BLACK),
+# the property MCTS needs) but is deliberately NOT antisymmetric
+# under colour swap. Alternatives considered and rejected are in
+# research/iterations/iter-22.md §1 (position-based initiative,
+# per-game switch, ours-only, theirs-only). The tanh scale is
+# re-derived from the conditional breadth-difference distribution
+# by v7's rule (scale ~= 1.8 x std) in iter-22 §1.1; the cap
+# (+/-0.2) is UNCHANGED.
+_GRADIENT_V1_GAP_BLACK_SCALE = 7.0  # Step-0 value (iter-22 §1.1):
+# 1.8 x the conditional breadth-difference std (3.75), rounded to
+# the nearest 0.5 by v7's rule — the same rule v7 (4.0), v14 (7.5),
+# and v20 (5.5) used.
+
+
+def _attack_gradient_v1_gap_black(board: np.ndarray, player: int) -> float:
+    """Breadth-gradient leaf value in (-0.2, 0.2) for ``player`` to
+    move in a quiet position, from the v1 kernel's attack scores
+    with gap-three makers demoted ONLY in BLACK's breadth (see the
+    v22 comment block above): Black's breadth via
+    :func:`_breadth_v1_gap`, White's via :func:`_breadth_v1`, one
+    ``attack_v1_both`` call plus one ``attack_both`` call (the v0
+    scores are the true/gap filter for Black's breadth):
+    ``0.2 * tanh((breadth(ours) - breadth(theirs)) / scale)``.
+    Antisymmetric under PLAYER swap (``player`` BLACK vs WHITE),
+    NOT under colour swap — by design. Same form as
+    :func:`_attack_gradient_v1_gap`, with the conditional breadth
+    and the re-derived scale; the 0.2 cap is unchanged (see
+    ``_GRADIENT_CAP``)."""
+    black1, white1 = kernel_v1.attack_v1_both(board)
+    black0, _white0 = kernel_numpy.attack_both(board)
+    mask = board == game.EMPTY
+    black_breadth = _breadth_v1_gap(black1, black0, mask)
+    white_breadth = _breadth_v1(white1, mask)
+    if player == game.BLACK:
+        diff = black_breadth - white_breadth
+    else:
+        diff = white_breadth - black_breadth
+    return _GRADIENT_CAP * math.tanh(diff / _GRADIENT_V1_GAP_BLACK_SCALE)
+
+
+def _gradient_v1_gap_black_leaf_value(board: np.ndarray, player: int) -> float:
+    """v22 leaf value: v7's terminal-aware values for terminal
+    positions, the Black-only gap-demoted v1-kernel attack gradient
+    for quiet ones. The terminal cases are identical to
+    :func:`_terminal_leaf_value` BY CONSTRUCTION (it returns 0.0
+    exactly for quiet positions), so the ONLY difference between
+    v14 and v22 is the quiet-leaf gradient's three-tier weighting
+    for Black's breadth — a clean A/B of the colour-conditional
+    gap-three demotion."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    return _attack_gradient_v1_gap_black(board, player)
+
+
 _LEAF_FUNCTIONS = {
     "terminal": _terminal_leaf_value,
     "gradient": _gradient_leaf_value,
     "gradient_v1": _gradient_v1_leaf_value,
     "gradient_v1_gap": _gradient_v1_gap_leaf_value,
+    "gradient_v1_gap_black": _gradient_v1_gap_black_leaf_value,
 }
 
 # --- v1-kernel breadth (ported from v14, batch 5 H3) -----------------------
@@ -681,6 +755,11 @@ class HeuristicMCTS:
     tier (:func:`_gradient_v1_gap_leaf_value`); terminal values
     identical, so the only difference between v14 and v20 is the
     three-tier weighting.
+    ``leaf_mode="gradient_v1_gap_black"`` is v22: v14's leaf with
+    gap-three makers demoted ONLY in Black's breadth
+    (:func:`_gradient_v1_gap_black_leaf_value`); terminal values
+    identical, so the only difference between v14 and v22 is the
+    three-tier weighting of Black's breadth.
 
     ``root_decision`` (v9, batch 4 H1; v12, batch 5 H1) selects the
     root move choice: ``"visits"`` (default, v6/v7 behaviour —
