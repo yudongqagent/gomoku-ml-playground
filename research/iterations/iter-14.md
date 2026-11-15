@@ -371,13 +371,65 @@ vs v1/v0 (v7 scored lower against v0 than against v1).
 
 ### 3.5 Tactical suites — FINAL BATTERY (re-run on the final engine)
 
-(To be filled.)
+Old 20-position suite, full-dispatch driver: **v14 20/20** (=
+v7's 20/20). Hard suite (29 positions): **v14 29/29 — a
+perfect score** (prevention 16/16, setup 7/7, winning 2/2,
+vcf 4/4), matching v7's 29/29. The engine is unchanged since
+the pre-battery tactical run (§3.2) — the fast loop made no
+patch — so this re-run confirms rather than re-measures, and
+it confirms exactly: the v1-kernel gradient costs nothing
+tactically. **Clause 3 PASSES** (old 20/20 = v7's 20/20; hard
+29/29 = v7's 29/29).
 
 ### 3.6 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
 
-(To be filled.)
+vs random 20W-0L-0D (1.0000, CI [0.8389, 1.0000]; as Black
+10W-0L-0D, as White 10W-0L-0D); vs heuristic 9W-11L-0D (0.4500,
+CI [0.2582, 0.6579]; as Black 6W-4L-0D, as White 3W-7L-0D); vs
+mcts 10W-10L-0D (0.5000, CI [0.2993, 0.7007]; as Black 5W-5L-0D,
+as White 5W-5L-0D). **Elo -34.9, interval [-183.3, 113.6]** —
+strictly BELOW v7's 190.8 (interval [21.8, 359.9]) at identical
+game counts and opponents. **Clause 2 FAILS.** Run time 843.2
+s; EVAL_JSON saved to `research/iterations/ladder-v14.json`
+(full log: `research/iterations/ladder-v14.log`). The script's
+tactical probe line was disregarded per the brief (it bypasses
+the MCTS dispatch); tactical is §3.5's full-dispatch 20/20 +
+29/29. (First ladder attempt was killed by the same
+VM/runtime restart that interrupted the swap match, ~6 min in
+with no ladder games completed; the re-run above is the
+complete measurement.)
+
+The failure is driven entirely by the vs-heuristic matchup
+(elo_diff -34.9): v14 lost the 20-game ladder sample 9-11 to
+the heuristic anchor where v7 won it 15-5. Two honest
+qualifications, neither of which changes the verdict. First,
+the ladder's heuristic opponent IS v0, and v14's 100-game
+record against the same opponent is 60W-40L (0.60, §3.4) —
+the 9-11 ladder sample's CI [0.2582, 0.6579] includes 0.60, so
+the ladder sample is within noise of the 100-game number; a
+0.60 score would have given an Elo of roughly +70, still below
+v7's 190.8. Second, the Elo intervals overlap v7's only at
+the edge (v14's upper bound 113.6 < v7's point estimate
+190.8). The bar is the pre-registered point estimate at
+identical counts, and on it v14 fails clearly. The
+non-transitivity is stark and is recorded prominently: v14
+beats v7 head-to-head (0.60, §3.3) and v7 beats the heuristic
+(15-5), yet v14 loses to the heuristic (9-11) — v14 > v7 >
+heuristic > v14 over these samples. Against the searching
+ladder opponent v14 IMPROVED on v7 (10-10 vs 8-12, the first
+tie against the baseline MCTS since v5's 11-9 win), but the
+Elo estimate is driven by the heuristic matchup, so the
+improvement does not show in the number.
 
 ### 3.7 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
+
+**Restart note:** the first run of this match was killed by a
+VM/runtime restart at 58/100 games (33W-23L-2D at the kill,
+flushed JSON preserved at `/tmp` for a replay check — the
+harness has no resume, so the match was re-run from game 0
+with the same seeds; the re-run is deterministic, and the
+first 58 games' move lists are verified against the flushed
+partial file before the numbers below are used).
 
 (To be filled.)
 
