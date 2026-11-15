@@ -256,7 +256,104 @@ tests and fixtures) is checked out unchanged from
 The fast-loop worked games (§2.1-2.4) ARE the loss analysis.
 Aggregate counts (§2.5) are secondary.
 
-### 2.1 Fast-loop iteration 1 — NOT RUN YET
+### 2.1 Fast-loop iteration 1 — 10 games vs v7 (pre-patch engine)
+
+**Batch:** `research/iterations/fastloop1-v16-vs-v7.json`
+(seeds v16=1001 / v7=2001 — development seeds, distinct from the bar
+battery's 100/200). **5W-4L-1D, win rate 0.5500, CI [0.2737,
+0.7986]**, 580.5 s. Split: as Black 1W-3L-1D (0.30), as White
+4W-1L-0D (0.80) — v16-as-White beats v7-as-Black 4/5 in the first
+live test of the rollout leaf, while v16-as-Black (which IS v7)
+loses the mirror match 1W-3L-1D on seed differences. (The first run
+of this batch was killed by a runtime restart at 4/10 games with a
+flushed partial JSON; the re-run with the same seeds reproduced the
+4-game prefix EXACTLY — determinism verified.) Classifier
+(`ml/scripts/classify_batch_losses.py`): 4/4 losses via open four,
+0 missed blocks, 0 clean missed preventions in 14 threatened turns
+(in losses). Defence is still perfect; the losses are lost races.
+
+**The losing move in each game** (walk-back,
+`ml/scripts/walkback_loss.py`, corrected oracle method — the actual
+move's v1-vs-v1 playout must lose at all 3 seeds before an
+alternative counts; seeds 0,1,2; JSONs:
+`research/iterations/walkback-fl1-g{0,2,6,7}.json`):
+
+| Game | Last preventable turn | v16 played (loses 3/3) | Perfect move (oracle) |
+|---|---|---|---|
+| 0 (Black, 18 plies) | ply 12 | (11,9) | (9,7) / (5,5) / (7,8) |
+| 2 (Black, 78 plies) | none | — (no alternative saves at any turn) | — |
+| 6 (Black, 90 plies) | ply 78 | (9,14) | (5,7) / (9,13) / (1,9) / (6,6) |
+| 7 (White, 105 plies) | ply 89 | (8,9) | (12,0) / (12,1) / (11,12) / (1,9) |
+
+Games 0 and 6 are Black losses — v16-as-Black IS v7, so these are
+v7's losing moves, not v16's; fixing them would mean changing the
+Black leaf, which is out of scope (the Black games are the built-in
+control). They are recorded as regression xfails (§2.1, below), not
+patched. Game 2 has no losing move (distributed drift, the iter-6
+result). **Game 7 is the iteration's patchable finding — the only
+White loss, and the rollout leaf's first live failure.**
+
+**Game 7, ply 89 (White to move, quiet, 0 creators) — the rollout
+leaf reverses v7's correct choice.** The saving move (12,0) is v1
+rank 1 (score 20004, FORCING — creates a four), prior 0.073; the
+played (8,9) is v1 rank 5 (score 4091), prior 0.033, non-forcing.
+Critical analysis (`analyse_critical.py` + the rollout leaf mode):
+v7's gradient MCTS plays the save (7 visits vs 2 for the loser);
+v6's terminal MCTS also plays it (13 vs 5); v16's rollout MCTS
+plays the loser (20 visits vs 5), and v16's correctly-signed q
+prefers the loser too (our-q +0.111 vs -0.095). Mechanism, verified
+by direct computation: the rollout leaf values ALL THREE of (8,9),
+(12,0) and (1,9) at +0.25 for White — after the quiet (8,9), the
+rollout plays Black (13,4) then White (12,1) (the forcing move) and
+returns +0.25, as if White had played it immediately. **The quiet
+move borrows the forcing move's value**, because the rollout's
+opponent (v0 attack-argmax) never prevents White's forcing sequence.
+v7's static leaf, by contrast, scores (8,9) at -0.181 vs (12,0) at
++0.25 — the gap the rollout erases.
+
+**Patch part 1 — v1 rollout policy (structural).** Black's v1-best
+reply after (8,9) is the prevention (12,0) (v1 score 20004) or
+(12,1) (20000); the rollout's (13,4) scores 81 in v1 terms. v0's
+contiguous-run scoring is blind to the broken four, so BOTH v0
+policies (attack-argmax, and score_all — measured, same sequence)
+miss the prevention. The rollout policy is now v1's 1-ply best move
+for both sides: argmax over empty cells of (own v1 attack +
+opponent's v1 attack) from one `attack_v1_both` call (v1's total
+score up to the double-threat bonus, which the defence term omits).
+Verified: after (8,9), Black's rollout reply is now the prevention
+(12,0) and the leaf drops from +0.25 to -0.16. But the patch alone
+did NOT fix the position: patched v16 played (11,9) — oracle-tested
+at losing 3/3, like (8,9).
+
+**Patch part 2 — gradient-evaluated rollout end (structural).**
+After (11,9), the rollout plays Black (11,11) then White (12,0)
+(the forcing move) and returns +0.25 — again borrowing the forcing
+move's value, this time via a rollout-found four 2 plies out. The
+flaw: a rollout-found must-block (-0.25) was treated as an exact
+terminal value, but it is a PREDICTION under the 1-ply rollout
+policy, not a fact about the position — while (12,0)'s +0.25 is a
+fact (White HAS a four on the board). The fix: at the rollout's
+end, only wins/losses (+/-1, game over) are terminal; a must-block
+is a position to evaluate with the gradient. The must-block at the
+START (the real position) keeps v7's exact -0.25. Verified: patched
+v16 plays **(12,0)** on g7-ply89 — the save — and the mechanism
+checks hold (search-level: v7 positions 3/5, v13/v14 positions 2/5,
+unchanged from the unpatched rollout; the two hard flips,
+v13-g9-ply15 and v14-g3-ply13, still flip).
+
+**Cost of the patch** (bench re-run): rollout leaf 14.01 ms/call
+(was 10.13 — the v1 policy adds ~4 ms: three v1-kernel calls per
+leaf). White moves ~1.9 s; a 100-game match ~90-100 min. Affordable.
+Rollout-leaf values on quiet positions: mean -0.067, std 0.191
+(was -0.150 / 0.305 — the gradient-evaluated end compresses the
+rollout-terminal mass, as designed).
+
+**Regression tests:** `ml/gomoku_ml/regression_positions_v16.json`
+gains 3 positions (5 total): fl1-g7-ply89 (PASSING — the patch
+plays (12,0)) and fl1-g0-ply12 / fl1-g6-ply78 (documented xfails —
+Black positions, v16-as-Black is v7). Targeted suites after the
+patch: test_regression_v16 + test_mcts_heuristic 35 passed, 3
+xfailed (2 new Black xfails + the known v7 iter-5 xfail).
 
 ### 2.2 Fast-loop iteration 2 — NOT RUN YET
 
