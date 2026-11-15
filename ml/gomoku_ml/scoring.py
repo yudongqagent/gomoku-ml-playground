@@ -228,6 +228,28 @@ ENGINE_VERSIONS: dict[int, dict] = {
     18: {"name": "scoring-v18", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both"},
+    # v23 (iteration 23, batch 8): H3 — v18 + a Q-AWARE VISIT-TIE
+    # BREAK at the root (see gomoku_ml.mcts_heuristic.HeuristicMCTS
+    # ``tie_break_q`` and research/iterations/iter-23.md). When two
+    # or more root children share the maximum visit count, break
+    # the tie by correctly-signed q (our-q = -child.q); if q also
+    # ties exactly, fall back to v18's RNG/first choice on the
+    # q-tied subset. A unique visit leader is untouched. The leaf
+    # (v18's rollout leaf, both colours), priors, sims (100),
+    # c_puct (1.5) and win/block scans are v18 unchanged — the
+    # tie-break is the ONLY change. Narrow, mechanism-specific
+    # clause-3 recovery for rollout-leaf engines: v18's three hard
+    # tactical failures are q-compression visit-ties where the leaf
+    # KNOWS the answer (chosen -1.000 vs expected +0.250) but
+    # cannot convert it into visits. This does NOT reopen the
+    # CLOSED q-based root-decisions lever (pure q was catastrophic
+    # at 0.20; v9's tie-by-q smoked 0.45 on the v0/v1 leaf) — on
+    # the rollout leaf, q-compression makes ties far more frequent
+    # and the failure mode is documented. Versions 19-22 are the
+    # parallel batch-7/8 workstreams'.
+    23: {"name": "scoring-v23", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True},
 }
 
 # --- weights --------------------------------------------------------------
@@ -815,6 +837,7 @@ class ScoringPlayer:
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
                     leaf_mode=ENGINE_VERSIONS[version].get("leaf_mode", "terminal"),
                     rng=self.rng,
+                    tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                 )
 
     def score_move(self, board: np.ndarray, move: int, player: int) -> int:

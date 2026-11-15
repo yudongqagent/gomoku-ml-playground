@@ -446,6 +446,18 @@ class HeuristicMCTS:
     ``leaf_mode="rollout2_v1_both"`` is v18: quiet leaves get the
     2-ply rollout leaf for BOTH colours — the same function v16
     uses as White, with no colour gate. v18-as-White IS v16.
+
+    ``tie_break_q=True`` is v23 (batch 8, H3): when two or more
+    root children share the maximum visit count (an exact tie at
+    the top), break the tie by correctly-signed q (our-q =
+    ``-child.q`` — ``child.q`` is the OPPONENT's perspective, see
+    :meth:`_run_one`'s backup and :meth:`_select_child`). If q
+    also ties exactly, fall back to the RNG/first choice on the
+    q-tied subset. A unique visit leader is untouched. Default
+    False: v18 and all earlier versions are unaffected. See
+    ``research/iterations/iter-23.md`` §1.1 for the
+    pre-registered rule and why this narrow retest does not reopen
+    the CLOSED q-based root-decisions lever.
     """
 
     def __init__(
@@ -454,6 +466,7 @@ class HeuristicMCTS:
         c_puct: float = 1.5,
         rng: np.random.Generator | None = None,
         leaf_mode: str = "terminal",
+        tie_break_q: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
             leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
@@ -466,6 +479,7 @@ class HeuristicMCTS:
         self.c_puct = c_puct
         self.rng = rng
         self.leaf_mode = leaf_mode
+        self.tie_break_q = tie_break_q
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -528,12 +542,30 @@ class HeuristicMCTS:
         root = _Node(1.0)
         for _ in range(self.sims):
             self._run_one(root, board, player, None)
+        return self._pick_root_move(root)
+
+    def _pick_root_move(self, root: _Node) -> int:
+        """Final root selection: the most-visited child. On an exact
+        top-visit tie, v23 (``tie_break_q=True``) breaks it by
+        correctly-signed q (our-q = ``-child.q`` — ``child.q`` is
+        the OPPONENT's perspective; see :meth:`_run_one`'s backup
+        and :meth:`_select_child`); if q also ties exactly, fall
+        back to v18's behaviour (RNG choice, else first) restricted
+        to the q-tied subset. With ``tie_break_q=False`` (v18 and
+        earlier) a tie is broken by RNG choice among ALL tied
+        children, else first. A unique visit leader is untouched
+        either way. Pre-registered rule: iter-23.md §1.1."""
         best_visits = max(c.visit_count for c in root.children.values())
         best = [
             m for m, c in root.children.items() if c.visit_count == best_visits
         ]
         if len(best) == 1:
             return best[0]
+        if self.tie_break_q:
+            best_q = max(-root.children[m].q for m in best)
+            best = [m for m in best if -root.children[m].q == best_q]
+            if len(best) == 1:
+                return best[0]
         if self.rng is not None:
             return int(self.rng.choice(best))
         return best[0]
