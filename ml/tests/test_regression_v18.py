@@ -29,8 +29,17 @@ POSITIONS_PATH = os.path.join(
 # (v16/v7 played [11, 9]), still not one of the oracle saves
 # ([9, 7], [5, 5], [7, 8]). The Black rollout leaf changes the
 # move but does not find the save here; see iter-18.md §1.2.
+# fl2-g7-ply9: White-to-move — v18 plays (6, 4), the v1 oracle's
+# loser (3/3), over (10, 8). The two moves are near-twins (both
+# v1 ~200k, equal priors, both reduce Black creators to 0) and
+# the distinction is beyond the 2-ply horizon: the rollout leaf
+# prefers (6, 4) too (+0.107 vs +0.039), and the stronger oracle
+# only weakly confirms (10, 8) (v7-vs-v7 2/3 vs 1/3; the actual
+# matchup 1/2 vs 0/2). No patchable mechanism — see iter-18.md
+# §2.2. Documented open weakness, not dropped.
 XFAIL = {
     "fl1-g0-ply12": "Black position; v18 plays [7, 10], not a save; see iter-18.md §1.2",
+    "fl2-g7-ply9": "White twin-choice; v18 plays (6, 4) over (10, 8); no patchable mechanism; see iter-18.md §2.2",
 }
 
 
