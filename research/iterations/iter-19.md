@@ -406,6 +406,41 @@ the blend as a general mechanism, at the tactical level: it
 reorders among losing lines, and the reordering is not always
 right.
 
+### 3.2 Head-to-head vs v7 — 52W-37L-11D, 0.5750 (CLAUSE 1 FAILS)
+
+`research/iterations/batch-v19-vs-v7.json` (100 games, normal
+rules, seeds 100/200, 6540.8 s): **v19 52W-37L-11D, win rate
+0.5750, 95% CI [0.4771, 0.6673]** — aggregates recomputed from
+the raw records (match the script's printed summary exactly).
+Split: as Black 17W-26L-7D (0.410), as White 35W-11L-4D (0.740).
+Clause 1 requires the CI lower bound > 0.50; 0.4771 < 0.50, so
+**clause 1 FAILS** — the same verdict as v16, with IDENTICAL
+headline aggregates (v16: 52W-37L-11D, 0.5750, CI [0.4771,
+0.6673]). The identity is a coincidence of the totals, not of
+the games: the colour splits moved sharply in opposite
+directions. White improved substantially (0.740 vs v16's 0.640,
++5 wins — the strongest White split vs v7 in the program, above
+v16's 0.64 and v13's best), which is the blend working as
+designed in real games: among losing lines, preferring the one
+that keeps counterplay wins more White games. But the Black
+mirror games ran 5 games worse (0.410 vs v16's 0.510) — and the
+Black games are v7-vs-v7 mirrors decided by seed (v19-as-Black
+IS v7; the games differ from v16's only because the RNG stream
+diverges after v19's White games consume different tie-breaks),
+so the -5 is seed noise, not a blend effect. The net is the
+same 0.5750: the White gain was exactly cancelled by Black
+mirror noise. This is the starkest demonstration yet that the
+Black mirror games cap the combined h2h — the White split would
+need to reach ~0.80 for the combined number to clear the bar
+while Black runs at 0.41. (Two runtime restarts interrupted this
+match, at 10/100 and at 82/100 games; each re-run with the same
+seeds reproduced the saved partial EXACTLY — all records
+identical — and the final games are new. Determinism verified
+twice; the restarts cost only wall-clock time.) Classifier:
+37/37 losses via open four, 0 missed blocks, 0 clean missed
+preventions in 115 threatened turns (losses). Defence still
+solved.
+
 ## 4. Bar check (v19 vs v7)
 
 ## 5. What this means
