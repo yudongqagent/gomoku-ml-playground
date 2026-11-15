@@ -189,6 +189,117 @@ gains ONLY the `ENGINE_VERSIONS[19]` registry entry.
 The fast-loop worked games (§2.1-2.4) ARE the loss analysis.
 Aggregate counts (§2.5) are secondary.
 
+### 2.1 Fast-loop iteration 1 — 10 games vs v7 + 10 games vs v0
+
+**Batch vs v7:** `research/iterations/fastloop1-v19-vs-v7.json`
+(seeds v19=1001 / v7=2001 — development seeds, distinct from the
+bar battery's 100/200). **3W-7L-0D, win rate 0.3000, CI [0.1078,
+0.6032]**, 445.0 s. Split: as Black 1W-4L (0.20), as White 2W-3L
+(0.40) — below v16's first loop (5W-4L-1D; White 4W-1L) on the
+same seeds, but n=5 per colour is noise, and the Black games are
+v7-vs-v7 mirrors decided by seed (the RNG stream diverges because
+v19's White games tie-break differently). Classifier
+(`ml/scripts/classify_batch_losses.py`): 7/7 losses via open four,
+0 missed blocks, 0 clean missed preventions in 28 threatened turns
+(in losses). Defence is still perfect; the losses are lost races.
+
+**Batch vs v0:** `research/iterations/fastloop1-v19-vs-v0.json`
+(seeds v19=1001 / v0=2001). **9W-1L-0D, win rate 0.9000, CI
+[0.5958, 0.9821]**, 196.7 s. Split: as Black 4W-1L (0.80), as
+White 5W-0L (1.00) — White perfect against the frozen baseline,
+as v16 was. Classifier: the single loss (game 2, Black — v7's
+move) via open four, 0 missed blocks, 0 missed preventions.
+No White weakness shows against v0 in this iteration.
+
+**The losing move in each White loss vs v7** (walk-back,
+`ml/scripts/walkback_loss.py`, corrected oracle method — the
+actual move's v1-vs-v1 playout must lose at all 3 seeds before an
+alternative counts; seeds 0,1,2; JSONs:
+`research/iterations/walkback-fl1-g{5,7,9}.json`):
+
+| Game | Last preventable turn | v19 played (loses 3/3) | Perfect move (oracle) |
+|---|---|---|---|
+| 5 (White, 89 plies) | none | — (ply 81 draws 3/3; ply 83+ lose 3/3, no save) | — |
+| 7 (White, 65 plies) | none | — (ply 55 draws 3/3; ply 53 loses 3/3, no save) | — |
+| 9 (White, 31 plies) | ply 19 | (11,6) | (9,6) / (10,5) / (10,7) / (4,4) / (3,4) |
+
+**Games 5 and 7 — no losing move (beyond the oracle's horizon).**
+In both, White was fine (oracle draws 3/3) as late as 2 plies
+before the end, then Black's single move made it unwinnable with
+no saving reply: game 5, Black's (5,4) at ply 82 starts a forcing
+sequence (four at (5,5), then (4,5), (3,4), (2,3) wins — a
+diagonal four built over 3 Black moves, each forcing White's
+block); game 7, Black's quiet (7,2) at ply 54 sets up the
+(10,9)-(10,12) kill 5 plies later. The v1 oracle is too weak to
+see Black's killer move — the same pattern as v16's iteration-2
+games 5/9, and the same conclusion: verifying a save here needs a
+stronger oracle than v1 (v7-vs-v7 playouts), and the weakness
+class (forcing sequences / quiet setups resolving in 3–6 plies,
+beyond the 2-ply rollout horizon) is the OPEN class from iter-16
+§2.2, not a new one. Not patched.
+
+**Game 9, ply 19 (White to move) — the iteration's finding, and
+the blend is EXONERATED as its cause.** v19 played (11,6), which
+loses 3/3; five alternatives save ((9,6) and (10,7) win 3/3,
+(10,5) draws 3/3, (4,4) wins 3/3). Critical analysis (root dumps,
+fresh player, seed 0): **v16 plays (11,6) too, with byte-identical
+root stats** (20 visits, our-q +0.109; the saves at 4–6 visits,
+q ≈ -0.05 to 0.00) — the blend changed NOTHING on this position,
+so this loss is v16's weakness inherited, not a blend regression.
+v7 plays the save (10,5) (12 visits, q +0.066 vs -0.049 for
+(11,6)). Mechanism, verified by direct computation: Black holds
+FOUR creators ((9,6), (11,6), (10,5), (10,7)); (11,6) blocks the
+wrong one. The real kill is Black's QUIET setup (11,5) at ply 20
+— it builds the diagonal (8,2),(9,3),(10,4),(11,5),(12,6) that
+wins at ply 30 — a move the 1-ply rollout policy never plays
+(it plays the argmax creator (10,5) instead) and a kill that
+resolves 5 plies out, beyond the 2-ply horizon. Worse, the
+rollout leaf actively misranks the position: after (11,6), the
+rollout exchange (Black (10,5), White blocks (10,7)) ends in a
+position where White's gradient is +0.198 (nearly maxed — White's
+four-makers (4,4)/(3,4) are still live), while after the save
+(9,6) the rollout exchange ends at +0.143. The rollout leaf
+rewards the move that leaves White's threats on the board over
+the move that spends a block on the real killer — its value is
+dominated by the noise of the 1-ply policy's arbitrary replies.
+
+**Candidate patch measured and REFUTED — leaf-start gradient
+blend.** The natural fix (blend the rollout-end gradient with the
+gradient at the LEAF-START position, where Black's creator count
+is visible before the exchange erases it) does not fix this
+position: the leaf-start gradients are (11,6) +0.1822 for White
+vs (9,6) +0.1907, (10,5) +0.1941 — a 0.008–0.012 edge for the
+saves, far smaller than the rollout's 0.054 edge for the loser,
+so even a 50/50 blend still ranks (11,6) first (0.190 vs 0.167
+for (9,6)). v7's advantage here comes from its SEARCH compounding
+the static signal over depth, not from the leaf level — and
+weighting the static leaf more heavily would just be v7 with
+extra steps, destroying the rollout's White gains. The other
+candidate fixes are out of scope for a fast-loop patch: a deeper
+rollout is REFUTED (4-ply false terminals, iter-16 §1.1), a
+3-ply rollout is a new mechanism needing its own pre-registration,
+and a VCF/VCT solver at the root is a different architecture.
+**No patch in iteration 1.** The position is recorded as a
+regression xfail (`fl1-g9-ply19`), not dropped.
+
+**Black losses (games 0, 2, 4, 6) — v7's moves, recorded only.**
+Walk-backs (`research/iterations/walkback-fl1-g{0,2,4,6}.json`):
+game 0 ply 12 played (11,9), 3 saves; game 2 ply 40 played
+(5,11), 4 saves; game 4 ply 20 played (9,7), 1 save; game 6 ply
+20 played (10,8), 1 save. v19-as-Black IS v7, so these are out of
+scope for patching; recorded as regression xfails.
+
+**Regression tests:** `ml/gomoku_ml/regression_positions_v19.json`
+gains 5 positions (all xfail: fl1-g9-ply19, the open White
+weakness, plus the 4 Black positions). Targeted suites:
+test_regression_v19 + test_regression_v16 5 passed, 7 xfailed.
+
+**Iteration 1 verdict: no new patchable weakness class.** But the
+blend is a new mechanism and one iteration is thin validation —
+the specific risk is a loss where v19 plays a loser v16 does NOT
+play (a blend-caused regression), which iteration 1 did not
+produce. Iteration 2 runs to check for exactly that.
+
 ## 3. v19 evaluation
 
 Battery on the FINAL version (after the fast loop stopped).
