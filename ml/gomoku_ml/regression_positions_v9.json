@@ -1,0 +1,302 @@
+{
+  "version": 9,
+  "description": "Batch 4 H1 regression positions: the iter-7 \u00a72.6 critical position (v7-as-Black loss to v0, ply 14) plus fast-loop critical positions found for v9. The engine must play an expected move on every position.",
+  "positions": [
+    {
+      "id": "b4h1-sec26-ply14",
+      "source": "batch-v7-vs-v0.json game 16, ply 14 (iter-7.md \u00a72.6)",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          10,
+          4
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          10,
+          6
+        ],
+        [
+          9,
+          4
+        ],
+        [
+          11,
+          4
+        ]
+      ],
+      "white": [
+        [
+          8,
+          7
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          9,
+          7
+        ],
+        [
+          9,
+          6
+        ],
+        [
+          10,
+          5
+        ],
+        [
+          12,
+          4
+        ]
+      ],
+      "to_move": "black",
+      "expected": [
+        [
+          7,
+          4
+        ],
+        [
+          9,
+          8
+        ],
+        [
+          6,
+          9
+        ]
+      ],
+      "played_before_patch": [
+        8,
+        4
+      ],
+      "note": "Oracle-verified saving moves (walk-back seeds 0,1,2): (7,4)/(9,8)/(6,9). v7 played the losing (8,4) after an RNG visit-tie break. Variant D (tie-prior) plays (7,4); B/C play (8,4); A plays (11,3)."
+    },
+    {
+      "id": "fl2-g2-ply22",
+      "source": "fast-v9-vs-v7-iter2.json game 2, ply 22",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          9,
+          7
+        ],
+        [
+          11,
+          7
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          3,
+          9
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          9,
+          6
+        ]
+      ],
+      "white": [
+        [
+          8,
+          6
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          4,
+          7
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          10,
+          7
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          10,
+          5
+        ]
+      ],
+      "to_move": "black",
+      "expected": [
+        [
+          8,
+          5
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "played_before_patch": [
+        5,
+        10
+      ],
+      "note": "Oracle: (8,5) wins 3/3, (5,8) draws/wins; v9 played (5,10) (loses 3/3). Exploration starvation: (8,5) has higher our-q (+0.057 vs +0.045) and higher gradient (+0.119 vs +0.072) but only 4 visits vs 9 \u2014 its low prior (v1 rank 6, 0.031 vs 0.065) starves it. Same class as iter-7 fl1-g3 xfail. No root-decision rule fixes it (not a tie)."
+    },
+    {
+      "id": "fl2-g6-ply20",
+      "source": "fast-v9-vs-v7-iter2.json game 6, ply 20",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          6,
+          2
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          6,
+          3
+        ]
+      ],
+      "white": [
+        [
+          6,
+          6
+        ],
+        [
+          7,
+          3
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          4,
+          10
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          4,
+          7
+        ]
+      ],
+      "to_move": "black",
+      "expected": [
+        [
+          3,
+          8
+        ]
+      ],
+      "played_before_patch": [
+        7,
+        4
+      ],
+      "note": "Oracle: (3,8) wins 3/3; v9 played (7,4) (loses 3/3). Knife-edge: gradient leaf gives (7,4) 18 visits vs (3,8) 17; every signal except v1 raw score (200167 vs 200163) prefers the loser. Terminal leaf (v6) plays (3,8) 16-11 \u2014 the gradient ordering breaks it (iter-7 \u00a71 pre-eval mechanism). Not a tie, so no root-decision rule fixes it."
+    }
+  ]
+}

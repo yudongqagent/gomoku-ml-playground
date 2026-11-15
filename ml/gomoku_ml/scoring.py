@@ -188,6 +188,155 @@ ENGINE_VERSIONS: dict[int, dict] = {
     8: {"name": "scoring-v8", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100,
         "value_checkpoint": "ml/runs/b3-h2/value-net.pt"},
+    # v9 (iteration 9, batch 4): H1 — v7's PUCT MCTS with the ROOT
+    # DECISION changed: most-visited, with ties broken by the v1
+    # PRIOR instead of the seeded RNG ("tie-prior"; see
+    # gomoku_ml.mcts_heuristic._choose_root_child and
+    # research/iterations/iter-9.md). Everything else is v7
+    # unchanged (gradient leaf, 100 sims, c_puct 1.5). Four
+    # variants were pre-registered and smoked 20 games vs v7
+    # (seeds 300/400): pure q 0.20 (tactical 22/29), tie-q 0.45,
+    # blend 0.30 (tactical 26/29), tie-prior 0.675 — the winner.
+    # The q variants failed because iter-7 §2.6's "q prefers the
+    # saving move" was SIGN-INVERTED (raw child q is the
+    # opponent's value; correctly signed, q prefers the LOSING
+    # move — see iter-9.md §1.0). The prior is the only signal
+    # that preferred the saving moves in §2.6, and it wins the
+    # smoke while keeping tactical 29/29.
+    9: {"name": "scoring-v9", "defence_weight": 1.0, "threat_check": False,
+        "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+        "root_decision": "tie-prior"},
+    # v12 (iteration 12, batch 5): H1 — v7's PUCT MCTS with the
+    # ROOT DECISION changed to "tie-prior-forcing": most-visited,
+    # ties broken by forcing-ness first (moves creating a four),
+    # then the v1 prior (see gomoku_ml.mcts_heuristic.
+    # _choose_root_child and research/iterations/iter-12.md).
+    # Targets iter-9 §2.6's failure mode: v1's 1-ply score
+    # undervalues forcing counter-threats (~20k) against
+    # occupying a creator (~204k), so tie-prior prefers blocking
+    # one of two creators over forcing. Honest limit (iter-12
+    # §1.0): the §2.6 position does NOT verify as a single losing
+    # move — the rule is a hypothesis to test at match scale, not
+    # a verified fix. Everything else is v7 unchanged (gradient
+    # leaf, 100 sims, c_puct 1.5).
+    12: {"name": "scoring-v12", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+         "root_decision": "tie-prior-forcing"},
+    # v13 (iteration 13, batch 5): H2 — White focus (see
+    # gomoku_ml.mcts_white / mcts_v13 and
+    # research/iterations/iter-13.md). Base is v7's PUCT MCTS
+    # (capped attack-gradient leaf) + v3's 2-ply threat check at
+    # the root, with the White sims count chosen by the §1.2
+    # sweep (100: White 0.775 vs v0, the peak; 50 -> 0.525,
+    # 150 -> 0.55, 200 -> 0.00). The "white_temp" key makes
+    # ScoringPlayer dispatch to V13MCTS (the White prior
+    # temperature lives there): 2.0 is v7's default — the §1b
+    # temperature sweep REFUTED flattening (White 0.775 at 2.0,
+    # 0.05 at 3.0, 0.00 at 4.0 vs v0), so v13 ships at 2.0,
+    # and the (6,8) opening book was refuted too (0.55 vs the
+    # 0.775 control). Versions 9-12 are the parallel
+    # batch-4/batch-5 workstreams'.
+    13: {"name": "scoring-v13", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+         "white_sims": 100, "white_temp": 2.0},
+    # v14 (iteration 14, batch 5): H3 — v7's PUCT MCTS with the
+    # gradient leaf's input scores ported from the v0 kernel to
+    # the v1 5-window scorer (see gomoku_ml.kernel_v1 and
+    # research/iterations/iter-14.md). The ONLY difference from
+    # v7 is the quiet-leaf gradient: same breadth form, same
+    # +/-0.2 cap, but the breadth counts come from v1 attack
+    # scores (broken-four-aware) with the v1 thresholds
+    # (strong >= 4000, developing [80, 4000)) and the re-derived
+    # tanh scale 7.5. Terminal values are identical to v7's.
+    14: {"name": "scoring-v14", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1"},
+    # v15 (iteration 15, batch 6): H1 — v7's PUCT MCTS with an
+    # UNNORMALIZED prior floor of 0.005 (see
+    # gomoku_ml.mcts_heuristic._priors and
+    # research/iterations/iter-15.md). Batch 5's recurring failure
+    # was saving moves starved at 2-6 visits while the loser held
+    # 7-12; no root-decision rule fixes a move the search never
+    # visits. The floor (chosen by the pre-registered sweep in
+    # iter-15 §1.2/§2.1: F0.005 beat C2.0 on the vs-v7 transfer
+    # cells, 0.5875 vs 0.4500) raises below-floor priors to 0.005
+    # WITHOUT renormalization — Step 0 measured that
+    # renormalization shrinks the very moves the floor is meant to
+    # lift (a 0.027 save becomes 0.020 at floor 0.01), because the
+    # tail's added mass dominates with ~93 candidates. Above-floor
+    # moves keep their exact v7 priors, so the sharp prior is
+    # preserved where it matters; a floor is not flattening (v13's
+    # temperature probe: flattening is catastrophic). Everything
+    # else is v7 unchanged: 100 sims, c_puct 1.5, capped +/-0.2
+    # attack-gradient leaf, win/block scans, most-visited root
+    # child.
+    15: {"name": "scoring-v15", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+         "prior_floor": 0.005},
+    # v16 (iteration 16, batch 6): H2 — v7's PUCT MCTS with a
+    # WHITE-ONLY 2-PLY ROLLOUT leaf (see
+    # gomoku_ml.mcts_heuristic._rollout_leaf_value and
+    # research/iterations/iter-16.md). When the engine plays White,
+    # quiet leaves are valued by rolling out exactly 2 plies
+    # (opponent reply + our reply, win/block/attack-argmax policy)
+    # and evaluating the symmetric v1-kernel gradient at the
+    # resulting position — the leaf horizon extends past the forcing
+    # exchange, where White's counterplay value lives (iter-13 §2.2:
+    # correctly-signed q prefers the losing block over the quiet
+    # counterplay save in 4/5 White critical positions, because the
+    # save's value materialises several plies out). Terminal values
+    # are exact throughout the rollout. When the engine plays Black,
+    # v16 IS v7 exactly, so the Black games are a built-in control.
+    # Sims (100), c_puct (1.5), priors and root decision are v7
+    # unchanged. The v1 kernel is v14's exact port (0 mismatches).
+    # Two earlier v16 candidates were measured and refuted before
+    # pre-registration (iter-16 §1.1): a White asymmetric gradient
+    # (0/5 v13/v14 saves at the search level, saturates) and a
+    # symmetric must-block gradient term (regressed v7 from 4/5 to
+    # 1/5 saves on its own regression positions). No threat check
+    # (minimal, isolable change; iter-13 measured it as worth
+    # ~nothing vs v7). Versions 9-15 are the parallel batch-4/5/6
+    # workstreams'.
+    16: {"name": "scoring-v16", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1"},
+    # v17 (iteration 17, batch 6): H3 — THE COMBINATION (see
+    # gomoku_ml.mcts_v17 and research/iterations/iter-17.md).
+    # v7's PUCT MCTS + v12's tie-prior-forcing root rule +
+    # v14's v1-kernel gradient leaf (gradient_v1) + v13's 2-ply
+    # threat check at the root. Each component passed 3/4 in
+    # batch 5 and failed a different clause (v12: clause 1,
+    # 0.4950; v13: clause 1, 0.5250; v14: clause 2, Elo -34.9);
+    # v17 tests whether they combine to 4/4. 100 sims in both
+    # colours (the sims optimum, iter-13 §2.1), c_puct 1.5,
+    # sharp v1 priors. The "v17" key makes ScoringPlayer
+    # dispatch to V17MCTS (a HeuristicMCTS subclass — WhiteMCTS
+    # cannot carry the combination: it hard-codes
+    # leaf_mode="gradient" and bypasses _choose_root_child).
+    # Versions 15-16 are the parallel batch-6 workstreams'.
+    17: {"name": "scoring-v17", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "v17": True},
+    # v20 (iteration 20, batch 7): H3 — v14's v1-kernel gradient
+    # leaf with GAP-THREE makers demoted from the strong tier to
+    # the developing tier (see gomoku_ml.mcts_heuristic
+    # _gradient_v1_gap_leaf_value and research/iterations/
+    # iter-20.md). The v1 scorer counts a gap three (XX_X) as an
+    # open three (4006), but a gap three is killable by a single
+    # opponent move occupying the gap while a true open three
+    # cannot be killed in one move — and greedy 1-ply play finds
+    # the gap block automatically. Gap-three breadth is phantom
+    # against greedy play: it steers v14 into cluster play and
+    # away from forcing moves (verified causally in iter-20 §2.0:
+    # 6/6 engine-swap continuations flip a v14 Black loss to v0).
+    # The v0 kernel filters true open-three makers (v0 >= 1000)
+    # from gap-three makers (v0 < 1000); broken-four makers stay
+    # strong (a broken four forces a block exactly like a straight
+    # four). Tanh scale 5.5 (re-derived by v7's rule from the
+    # demoted distribution, iter-20 §1.1); cap ±0.2 unchanged.
+    # Everything else is v14 unchanged (100 sims, c_puct 1.5,
+    # sharp v1 priors, plain most-visited root). Versions 18-19
+    # are the parallel batch-7 workstreams'.
+    20: {"name": "scoring-v20", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1_gap"},
 }
 
 # --- weights --------------------------------------------------------------
@@ -749,7 +898,40 @@ class ScoringPlayer:
         self._mcts = None
         if self.mcts:
             value_ckpt = ENGINE_VERSIONS[version].get("value_checkpoint")
-            if value_ckpt is not None:
+            white_sims = ENGINE_VERSIONS[version].get("white_sims")
+            white_temp = ENGINE_VERSIONS[version].get("white_temp")
+            if ENGINE_VERSIONS[version].get("v17"):
+                # v17: the combination (lazy import, mcts_v17
+                # imports this module via mcts_heuristic).
+                from .mcts_v17 import V17MCTS
+
+                self._mcts = V17MCTS(
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    rng=self.rng,
+                )
+            elif white_temp is not None:
+                # v13: WhiteMCTS + White prior temperature (lazy
+                # import, mcts_v13 imports this module via
+                # mcts_white/mcts_heuristic).
+                from .mcts_v13 import V13MCTS
+
+                self._mcts = V13MCTS(
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    white_sims=white_sims,
+                    white_temp=white_temp,
+                    rng=self.rng,
+                )
+            elif white_sims is not None:
+                # Colour-asymmetric MCTS (v10 port, v13): lazy import,
+                # mcts_white imports this module (via mcts_heuristic).
+                from .mcts_white import WhiteMCTS
+
+                self._mcts = WhiteMCTS(
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    white_sims=white_sims,
+                    rng=self.rng,
+                )
+            elif value_ckpt is not None:
                 # Learned-value MCTS (v8): lazy import, mcts_value
                 # imports this module (via mcts_heuristic). The path
                 # is relative to the repo root unless absolute; the
@@ -773,7 +955,12 @@ class ScoringPlayer:
 
                 self._mcts = HeuristicMCTS(
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    c_puct=ENGINE_VERSIONS[version].get("c_puct", 1.5),
+                    prior_floor=ENGINE_VERSIONS[version].get("prior_floor", 0.0),
                     leaf_mode=ENGINE_VERSIONS[version].get("leaf_mode", "terminal"),
+                    root_decision=ENGINE_VERSIONS[version].get(
+                        "root_decision", "visits"
+                    ),
                     rng=self.rng,
                 )
 
