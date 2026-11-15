@@ -537,6 +537,177 @@ xfails in `ml/tests/test_regression_v11.py`).
 
 ## 6. Full battery (the verdict)
 
+Final engine: v11 = ValueMCTS (v6's PUCT MCTS, 100 sims,
+c_puct 1.5, v1 priors) + heuristic-opponent value net leaf at
+α=0.125 + v3's 2-ply threat check at the root. Battery run
+2026-11-14 20:13–23:43 UTC (two VM replacements mid-battery;
+the chain script `ml/runs/b4-h3-battery.sh` is idempotent on
+`"complete": true`, so the killed partial matches re-ran from
+scratch — the partial 2-game vs-v7 and 15-game swap runs were
+discarded, not merged).
+
+### 6.1 Tactical — 20/20 old + 29/29 hard (clause 3: PASS)
+
+`research/iterations/batch-v11-tactical.json` (final α=0.125;
+the pre-sweep run at α=0.25 was identical). Matches v7's
+tactical exactly.
+
+### 6.2 Head-to-head vs v7 — 36W-63L-1D, 0.3650, CI [0.2773, 0.4627] (clause 1: FAIL)
+
+`research/iterations/batch-v11-vs-v7.json` (100 games, seeds
+100/200, 3,641 s). The CI is entirely below 0.50 — v11 is
+decisively weaker than v7. Per-colour: as Black 23W-27L-0D
+(0.46), as White 13W-36L-1D (0.27). White is the gap again,
+worse than v7's own 0.52 as White vs v1 and v8's 0.29 as White
+vs v1. Mean 43.6 plies.
+
+### 6.3 Head-to-head vs v0 — 42W-55L-3D, 0.4350, CI [0.3420, 0.5328]
+
+`research/iterations/batch-v11-vs-v0.json` (100 games, seeds
+100/200, 3,072 s). v11 LOSES to the 1-ply heuristic v0 — worse
+than v8's 0.545 vs v0 and v6's 0.50. The sweep's 0.575 (n=20)
+and the fast loop's 0.85 (n=10) were small-sample flukes; the
+100-game rate 0.435 sits inside the sweep's CI [0.3641,
+0.7617]. Per-colour: as Black 28W-21L-1D (0.57), as White
+14W-34L-2D (0.30). Mean 47.8 plies.
+
+### 6.4 Swap match vs v7 — 42W-54L-4D, 0.44, CI [0.3467, 0.5377]
+
+`research/iterations/batch-v11-vs-v7-swap.json` (100 games,
+balanced placement, placement_seed 11, tempo judge, 4,087 s).
+Per-colour: as Black 24W-23L-3D (0.51), as White 18W-31L-1D
+(0.37). Both choosers picked Black 38/50 times (same tempo
+judge both sides). When v11 chooses: 26W-22L-2D (0.54 from the
+chooser's perspective); when v7 chooses: 32W-16L-2D (0.66 for
+v7) — v7 exploits the choice better. Swap (0.44) is better
+than normal rules (0.365) for v11, as it was for v7 vs v1
+(0.57 vs 0.705 the other way) — the swap rule compresses the
+Black edge, which is where much of the stronger engine's
+advantage lives.
+
+### 6.5 Ladder — Elo 0.0, interval [-147.8, 147.8] (clause 2: FAIL)
+
+`research/iterations/batch-v11-ladder.json` (20 games/opponent,
+mcts_sims=100, seed 100): vs random 20W-0L-0D; vs heuristic
+10W-10L-0D (0.50, as Black 7-3, as White 3-7); vs mcts 13W-7L-0D
+(0.65, elo_diff +107.5, as Black 8-2, as White 5-5). The Elo
+estimate (0.0) comes from the heuristic anchor (0.50 → 0.0);
+the interval [-147.8, 147.8] is entirely below v7's 190.8.
+v11 is the second version ever to beat the MCTS ladder
+opponent outright (after v5's 11W-9L) — but it only draws the
+heuristic, so the ladder Elo is 0.0, the same as v8's.
+
+### 6.6 Loss analysis — defence solved, attack lost; same mechanism as the fast loop
+
+All three battery matches classified
+(`classify_batch_losses.py`): **172 losses, ALL via open
+four, 0 missed blocks, 0 missed preventions in 822 threatened
+turns in losses.** Defence is solved, as for every version
+since v6. The gap is the attack race — and as White most of
+all (White win rates 0.27 / 0.30 / 0.37 across the three
+matches vs Black 0.46 / 0.57 / 0.51).
+
+**Worked game 1 — vs v0, game 49 (v11 White, 15 plies).**
+Moves (r,c): (7,7) (7,6) (6,7) (8,7) (9,8) (5,7) (6,6) (6,4)
+(8,8) (5,5) (6,8) (6,9) (7,8) (10,8) (5,8). THE losing move:
+**ply 7, (4,6)** — walkback: actual loses 3/3; 5 of 6
+alternatives save ((8,8) win/draw/win; (8,6), (9,6), (5,5),
+(9,9) draw 3/3); ply 5 does not lose. v11's own search:
+(4,6) 12 visits q=-0.027; saving (8,6) 9 visits q=-0.004,
+(9,6) 9 visits q=-0.008. The q-vs-visits gap again — both
+saves have better q but fewer visits; most-visited picks the
+worst-q move. The net's own leaf value for (4,6) is -0.028
+(mover view): the net AGREES the move is bad. The leaf is not
+the problem; the visit rule is.
+
+**Worked game 2 — vs v7, game 13 (v11 White, 17 plies).** No
+single losing move: plies 11/13/15 lose 3/3 with 0 saving
+alternatives, while plies 1–9 do not lose at all seeds (ply 1:
+win/win/draw). The game drifts from winning to lost between
+ply 9 and ply 11 with no pinpointable move — slow race loss
+as White against v7's attack gradient.
+
+### 6.7 Ordering — transitive, v11 last
+
+v7 > v0 (v7's 0.665) > v11 (v11's 0.435 vs v0) > … and v7 >
+v11 (0.635 for v7). No bad non-transitivity: the ordering
+v7 > v0 > v11 is consistent across all three pairings.
+
+## 7. Bar check — v11 REJECTED, 2/4
+
+| Clause | Requirement | v11 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v7 (100 games) | win rate > 0.50, Wilson 95% CI lower > 0.50 | 36W-63L-1D, 0.3650, CI [0.2773, 0.4627] | **FAIL** |
+| 2. Ladder Elo | strictly > v7's 190.8 | 0.0, interval [-147.8, 147.8] | **FAIL** |
+| 3. Tactical | ≥ v7's 20/20 + 29/29 | 20/20 + 29/29 | PASS |
+| 4. Test suites | ml pytest, npm test, tsc green | ml pytest 256 passed / 1 skipped / 7 xfailed / 0 failures (npm + tsc: coordinator) | PASS (ml) |
+
+**v11 is REJECTED, 2/4 — the same score as v8.** It is not
+close on either failing clause: the h2h CI is entirely below
+0.50 and the Elo interval is entirely below 190.8. v11 does
+not replace v7. The verdict is recorded in
+`research/VERSIONS.md`.
+
+## 8. Findings
+
+1. **The distribution-mismatch hypothesis is CONFIRMED — and
+   fixing it did not fix game strength.** The cross-distribution
+   holdout (§2.2) is the direct measurement iter-8 only
+   inferred: v8's net scores 0.51 (chance) on heuristic-opponent
+   positions, and my net scores 0.52 (chance) on self-play
+   positions. Each net only works in its own distribution. But
+   the in-distribution net did NOT produce a stronger engine:
+   v11 (0.365 vs v7, 0.435 vs v0, Elo 0.0) is no better than v8
+   (0.48 vs v1, 0.545 vs v0, Elo 0.0) and worse than v8 against
+   v0. The distribution was A problem, not THE problem.
+2. **The optimizer's curse persists in-distribution.** The α
+   sweep (§4) has the same shape as v8's (lower α better);
+   heuristic-opponent training shifted every α up (α=1.0:
+   0.00 → 0.175; α=0.5: 0.20 → 0.45) but the peak did not move
+   (0.575 at α=0.125 vs v8's 0.60 at α=0.25). At α=0.125 the
+   net's leaf contribution is ≤0.018 — nearly negligible — yet
+   higher α is still worse. The net's values are not trustworthy
+   enough for MCTS to use at weight, even when trained on the
+   right distribution.
+3. **The binding constraint is the root decision rule, not the
+   leaf.** 5 of the 8 oracle-verified losing moves (fast loop +
+   battery worked games) are the q-vs-visits gap: the search's
+   q ranks the saving move higher, but most-visited picks the
+   loser. In the battery's worked game 1, even the NET agrees
+   the played move is bad (-0.028) — the leaf is not the
+   problem. This is H1's territory (decide the root move by q
+   or break visit-ties by q); H3's evidence strengthens the case
+   that H1 is the highest-value next step.
+4. **White is the gap, again and worse.** v11 as White: 0.27
+   vs v7, 0.30 vs v0, 0.37 swap — worse than v7's 0.52 and v8's
+   0.29 as White. The value net was trained on v1-vs-v0 games
+   with alternating colours, so the training data is
+   colour-balanced; the White weakness is a search/race
+   property (White must prevent Black's attack while building
+   its own — the race v11 keeps losing), not a data imbalance.
+   Colour-conditional value training (batch-4 candidate 2)
+   remains open but the evidence here suggests the cause is
+   upstream of the leaf.
+5. **Small-sample smokes mislead.** The α sweep (n=20, 0.575)
+   and fast loop iteration 1 (n=10, 0.85) both overstated v11
+   vs v0; the 100-game rate is 0.435. The sweep's CI contained
+   the truth, but the point estimate was off by 0.14. Any future
+   α selection should use larger smokes (40+ games) or accept
+   that the sweep picks within noise.
+6. **Process notes.** (a) Two VM replacements during this
+   workstream (training, battery) — the interrupt-resumable
+   training and the idempotent battery chain (keyed on
+   `"complete": true`, NOT file existence — a partial match
+   JSON exists but is incomplete) saved both. (b) A
+   module-level `torch.set_num_interop_threads(1)` in a new
+   test file broke full-suite collection (interop threads can
+   only be set once per process); fixed with the try/except
+   guard already used in `mcts_value.py`, applied to both
+   test files that pin threads. (c) Pure deterministic
+   heuristic-vs-heuristic games dedup to ~15% unique — ε-greedy
+   sampling over top-k (ε=0.1, k=5) is the fix, at a ~0.22
+   win-rate cost to the sampling player.
+
 **Cross-distribution checks (pre-registered, diagnostic, cheap
 — run with `ml/scripts/eval_value_holdout.py`, no training):**
 (1) v8's net (`ml/runs/b3-h2/value-net.pt`, copied from the main

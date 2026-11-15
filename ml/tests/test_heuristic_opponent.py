@@ -29,9 +29,16 @@ from gomoku_ml.model import GomokuNet
 
 # Same 1-thread pinning as test_parallel_selfplay.py (see its
 # comment: the default 4 threads slowed a batched forward pass
-# ~290x under contention on this VM).
+# ~290x under contention on this VM). Interop threads can only be
+# set once per process — guard the call, since whichever of the
+# two modules is collected second would otherwise raise at
+# collection time and break the full suite (mcts_value.py uses
+# the same guard).
 torch.set_num_threads(1)
-torch.set_num_interop_threads(1)
+try:
+    torch.set_num_interop_threads(1)
+except RuntimeError:
+    pass  # already set by an earlier-collected module
 
 
 def _tiny_net():
