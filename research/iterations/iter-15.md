@@ -493,11 +493,83 @@ that matter, and v0's single loss may not represent them.
 
 ### 2.3 Fast-loop iteration 2 — 10 games vs v7
 
-[To be filled in.]
+**Batch:** `research/iterations/fast-v15-vs-v7-iter2.json`
+(seeds v15=1002 / v7=2002). **5W-3L-2D, win rate 0.6000, CI
+[0.3127, 0.8318]**, 495.7 s. Per colour: as Black 3W-1L-0D, as
+White 2W-2L-2D. (For scale, v12's iter 2 on the same seeds was
+7W-3L-0D and v9's was 4W-4L-2D — n=10 with wide CIs is not a
+comparison.) Classifier: 3/3 losses via open four, 0 missed
+blocks, 0 clean missed preventions in 10 threatened turns
+(losses). Defence is still perfect. All three losses have a
+verified losing move (walk-back, corrected oracle method,
+seeds 0,1,2 — see `research/iterations/walkback-fl2-g{3,5,8}.json`).
+None yields a patch — see the end of this subsection. q below
+is our-perspective q = -raw child.q.
 
-### 2.4 Fast-loop iteration 3 — NOT RUN unless iterations 1–2 find a patchable class
+**Game 3, ply 33 (White to move; v15 played (1,7), loses 3/3;
+(3,6)/(8,1) win 3/3, (7,2)/(5,3) draw 3/3).** Quiet position
+(102 candidates). The top-5 visits are nearly flat (4, 4, 4,
+3, 3): the loser (1,7) ties (5,3) and (2,7) at 4 visits, and
+the match RNG picks the loser. Both other tied moves save —
+(5,3) draws 3/3 (walk-back) and (2,7) draws 3/3 (verified by a
+direct oracle check) — so this is a 1-in-3 unlucky tie-break,
+not a systematic failure; correctly-signed q prefers the loser
+(−0.052 vs −0.111 for (3,6)), and the gradient prefers the
+loser slightly too. NOT a regression test (a fresh seed-0
+replay plays (2,7), a save — RNG-fragile, like fl1-g1-ply29).
 
-### 2.5 Fast-loop iteration 4 — NOT RUN unless iterations 1–3 find a patchable class
+**Game 5, ply 19 (White to move; v15 played (3,9), loses 3/3;
+(5,10) draws/wins, (5,11)/(9,9) save).** Quiet position (79
+candidates). THIS is the classic starvation pattern: the save
+(5,10) holds 2 visits vs the loser's 17 (unique max), prior
+0.032 vs 0.072 — a visit ratio of 0.12 against a prior ratio
+of 0.44. But the floor cannot touch it: the save's prior
+(0.032) is more than 6x above the 0.005 floor, and v15's root
+stats are IDENTICAL to v7's (17 vs 2 in both). Worse, the
+search's correctly-signed q prefers the loser (+0.032 vs
+−0.089) and the gradient prefers the loser slightly (+0.082
+vs +0.072 for White) — even a floor high enough to reach this
+save would fight the value signal, not just the prior. The
+loser is v1's rank-1 move (24008); the save is rank 3 (4821).
+Recorded as a regression xfail (fl2-g5-ply19).
+
+**Game 8, ply 18 (Black to move; v15 played (6,6), loses 3/3;
+(10,5) draws 3/3, (5,6)/(11,6) save).** Quiet position (80
+candidates). The save (10,5) holds 6 visits vs the loser's 11
+— roughly prior-proportional (prior ratio 0.046/0.072 = 0.64,
+visit ratio 0.55), so this is NOT starvation: the loser is a
+FORCING move (creates a four) with the higher prior, and the
+search visits it more for both reasons. Correctly-signed q
+prefers the loser slightly (−0.018 vs −0.030); the gradient
+prefers the save slightly (−0.012 vs −0.025 for Black). A
+close call with no structural cause — every signal is within
+noise of the other. Recorded as a regression xfail
+(fl2-g8-ply18).
+
+**No patch from iteration 2; loop stops here (stopping rule).**
+The three worked losses share one fact: **v15's root stats are
+IDENTICAL to v7's on all three critical positions** — the 0.005
+floor changes nothing where the losses are decided, because
+every save and loser in these positions holds a prior of
+0.032–0.072, far above the floor. The floor's only effect is on
+the deep tail (prior < 0.005), and no loss in this loop turns
+on a deep-tail move. The loss classes are all known: an RNG
+tie-break (g3, 1-in-3 unlucky), the starvation class at priors
+the floor cannot reach (g5 — and q is against the save there),
+and a close call (g8). No new patchable weakness class, so the
+fast loop ends after 2 iterations (20 games) per the stopping
+rule. The battery runs on the as-registered v15 (floor 0.005,
+no fast-loop patches). The honest implication, recorded here:
+if v15 beats v7 in the battery, the gain comes from the floor's
+tail redistribution across many positions (the sweep's
+mechanism), not from fixing any single worked loss — and if it
+does not, the floor's reach (prior < 0.005) is simply too
+narrow for the starvation class as documented (priors
+0.027–0.045).
+
+### 2.4 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.5 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
 
 ### 2.6 Aggregate counts (secondary)
 

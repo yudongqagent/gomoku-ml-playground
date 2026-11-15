@@ -26,8 +26,18 @@ POSITIONS_PATH = os.path.join(
 # prefers the save but visits decide, and the gradient prefers the
 # loser. Beyond-horizon value error (iter-13 class), not an
 # exploration failure the floor can address; see iter-15.md §2.2.
+# fl2-g5-ply19: the classic starvation pattern (save 2 visits vs
+# loser 17) — but the save's prior (0.032) is 6x above the floor,
+# so the floor cannot reach it, and the search's q prefers the
+# loser; see iter-15.md §2.3.
+# fl2-g8-ply18: save 6 visits vs loser 11 (roughly
+# prior-proportional); q slightly prefers the loser, gradient
+# slightly prefers the save — a close call with no structural
+# cause; see iter-15.md §2.3.
 XFAIL = {
     "fl1-g1-ply35": "beyond-horizon value error; see iter-15.md §2.2",
+    "fl2-g5-ply19": "starved save above the floor, q prefers loser; see iter-15.md §2.3",
+    "fl2-g8-ply18": "close call, no structural cause; see iter-15.md §2.3",
 }
 
 
