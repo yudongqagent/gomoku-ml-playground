@@ -241,11 +241,93 @@ up first.
 
 ### 2.2 Fast-loop iteration 2 — 10 games vs v7
 
-[To be filled.]
+**Batch:** `research/iterations/fast-v12-vs-v7-iter2.json`
+(seeds v12=1002 / v7=2002). **7W-3L-0D, win rate 0.7000, CI
+[0.3968, 0.8922]**, 461.5 s. Per colour: as Black 4W-1L-0D, as
+White 3W-2L-0D. (v9's iter 2 on the same seeds: 4W-4L-2D, 0.50.)
+Classifier: 3/3 losses via open four, 0 missed blocks, 0 clean
+missed preventions in 13 threatened turns (losses). Defence is
+still perfect. All three losses have a verified losing move
+(v1-vs-v1 oracle walk-back, seeds 0,1,2 — see
+`~/workspace/b5h1-logs/diag_v12_positions.py` for the
+full-precision root stats behind this section). None yields a
+patch — see the end of this subsection.
 
-### 2.3 Fast-loop iteration 3 — NOT RUN (unless iterations 1–2 find a patchable class)
+**Game 2, ply 20 (Black to move; v12 played (8,10), loses 3/3;
+(5,6)/(3,6) draw 3/3, (7,9) saves at 1 seed).** Quiet position
+(no creators either side). `analyse_critical.py`: (8,10) is v1
+rank 2 (20098), FORCING, gradient 0.000, **12 visits (the unique
+max)**, our-q +0.020. (5,6) is v1 rank 4 (8102), not forcing,
+creates 1 creator, gradient +0.049 for Black, 6 visits, our-q
+−0.001. (7,9) is v1 rank 1 (20105), forcing, 9 visits, our-q
+−0.012. **There is no tie — the actual move wins visits
+outright (12 vs 9/6)** — so no root-decision rule in the
+pre-registered set fixes it. The saving moves are starved of
+visits by their lower priors (0.045 vs 0.072) despite the
+gradient preferring (5,6). This is the SAME exploration class as
+iter-9 §2.2 game 2 and iter-7's fl1-g3 xfail — a known open
+weakness class, not a new one. Note the inversion vs §1.0: here
+the LOSING move is forcing and the saving moves are quiet, so
+the forcing-first tie-break is not even the wrong signal — it
+simply does not apply (no tie).
 
-### 2.4 Fast-loop iteration 4 — NOT RUN (unless iterations 1–3 find a patchable class)
+**Game 1, ply 53 (White to move; v12 played (5,11), loses 3/3;
+(1,6) draws 3/3, (1,10) saves at 2 seeds).** Quiet position.
+(5,11) is v1 rank 1 (20163), FORCING, gradient +0.025, 7 visits
+(tied max with (6,12)), our-q +0.004. (1,6) is v1 rank 6 (4015),
+not forcing, gradient +0.072 for White, **3 visits**, our-q
+−0.016. The tie at 7 visits is between (5,11) and (6,12) —
+BOTH forcing, BOTH losing (walk-back: (6,12) loses 3/3) — so the
+forcing filter cannot discriminate and the prior picks (5,11)
+(0.0672 vs 0.0670). The saving moves sit at 3 visits vs 7: the
+same exploration starvation as game 2. Again the gradient
+prefers the save (+0.072 vs +0.025) but visits decide.
+
+**Game 5, ply 37 (White to move; v12 played (12,6), loses 3/3;
+all 5 alternatives save).** Quiet position. (12,6) is v1 rank 1
+(24016), not forcing, gradient +0.127, **8 visits (tied max
+with (12,4))**, our-q +0.013. (12,4) is v1 rank 2 (24015), not
+forcing, gradient untested, 8 visits, our-q +0.015 — **a
+saving move (draws 3/3) tied at max visits with the loser, and
+the two are separated by ONE v1 point (24016 vs 24015)**. The
+priors are equal to 4 decimals (0.0633); at full precision the
+prior is a monotone transform of log1p(score), so (12,6)'s
+prior is microscopically higher and tie-prior (and
+tie-prior-forcing — neither move is forcing) picks the loser.
+`visits` with no RNG plays (12,4) by dict order — a coin flip
+that happened to land right. Correctly-signed our-q prefers the
+saver (+0.015 vs +0.013) but the 0.002 gap is noise-level, and
+re-introducing q on one position contradicts batch 4's
+match-level verdict (tie-q smoke 0.45; q-based root decisions
+are closed). Under the TERMINAL leaf, (12,4) wins outright (9
+visits vs 5) — v6 plays the saving move — so this is also a
+gradient-ordering knife-edge, the same mechanism as iter-9 §2.2
+game 6. The strongest save, (10,8) (W/D/W), sits at 2 visits
+(prior 0.027 vs 0.063) — exploration starvation again.
+
+**No patch from iteration 2; loop stops here (stopping rule).**
+The three worked losses share one mechanism — the saving move is
+starved of visits by a low prior (game 2: 6 vs 12; game 1: 3 vs
+7; game 5: 2 vs 8 for the strongest save) — which is the KNOWN
+exploration class from iter-7/iter-9, not a new patchable class,
+and not a root-decision fix: a fix would be exploration-side
+(higher c_puct, a prior floor), a search change beyond the H1
+root-decision brief needing its own pre-registration as a new
+version. Game 5's tie is the only root-decision-relevant loss,
+and it is a 1-point knife-edge no tie-break signal in the
+pre-registered set separates. **The forcing-first rule itself is
+not implicated in any loss**: in games 2 and 1 the losing moves
+are forcing and win on visits (the tie-break never applies); in
+game 5 neither tied move is forcing. All three critical
+positions are recorded as xfail regression tests
+(`regression_positions_v12.json`: fl2-g2-ply20, fl2-g1-ply53,
+fl2-g5-ply37) — documented open weaknesses for the next batch,
+not silently dropped. The battery runs on the as-registered v12
+(tie-prior-forcing, no fast-loop patches).
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
 
 ### 2.5 Aggregate counts (secondary)
 
