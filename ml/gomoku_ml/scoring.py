@@ -188,6 +188,17 @@ ENGINE_VERSIONS: dict[int, dict] = {
     8: {"name": "scoring-v8", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100,
         "value_checkpoint": "ml/runs/b3-h2/value-net.pt"},
+    # v14 (iteration 14, batch 5): H3 — v7's PUCT MCTS with the
+    # gradient leaf's input scores ported from the v0 kernel to
+    # the v1 5-window scorer (see gomoku_ml.kernel_v1 and
+    # research/iterations/iter-14.md). The ONLY difference from
+    # v7 is the quiet-leaf gradient: same breadth form, same
+    # +/-0.2 cap, but the breadth counts come from v1 attack
+    # scores (broken-four-aware) with the v1 thresholds
+    # (strong >= 4000, developing [80, 4000)) and the re-derived
+    # tanh scale 7.5. Terminal values are identical to v7's.
+    14: {"name": "scoring-v14", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1"},
 }
 
 # --- weights --------------------------------------------------------------
