@@ -336,17 +336,116 @@ the loop does NOT stop here** (same pre-commitment as iter-18
 2 runs on fresh seeds (1002/2002); if it also finds no
 patchable class, the loop stops. No regression positions added.
 
-### 2.2 Fast-loop iteration 2
+### 2.2 Fast-loop iteration 2 — 10 games vs v7 + 10 games vs v0 (LOOP STOPS)
 
-(TODO)
+**Batches:** `research/iterations/fastloop2-v23-vs-v7.json`
+(seeds v23=1002 / v7=2002) and
+`research/iterations/fastloop2-v23-vs-v0.json` (seeds v23=1002 /
+v0=2002). **vs v7: 7W-2L-1D, win rate 0.7500, CI [0.4422,
+0.9191]**, 759.1 s. Split: as Black 3W-2L (0.60), as White
+4W-0L-1D (0.90). **vs v0: 10W-0L-0D, win rate 1.0000**,
+623.4 s. Classifier (both batches): 2/2 losses via open four,
+0 missed blocks, 0 clean missed preventions in 10 threatened
+turns (losses). Defence still solved.
 
-### 2.3 Fast-loop iteration 3 — NOT RUN unless iterations 1–2 find a patchable class
+**Both losses — games 6 and 8 vs v7 (Black, 30 plies each) —
+have VERIFIED losing moves, and both are tie-break misfires.**
+Walk-back (`research/iterations/walkback-fl2-g6.json`,
+`walkback-fl2-g8.json`, v1 oracle, seeds 0,1,2) nominates move
+23 in both games (actual loses 3/3, 4 saving alternatives
+each) — and this time the stronger oracles CONFIRM the
+nominations outright (`/tmp/verify_fl2_g6g8.py`,
+`/tmp/verify_fl2_g6g8b.py`):
 
-### 2.4 Fast-loop iteration 4 — NOT RUN unless iterations 1–3 find a patchable class
+| Game | Move 23 | v7-vs-v7 | v23-vs-v7 |
+|---|---|---|---|
+| g6 actual (9,5) | loses | [−1,−1,−1] | [−1,−1,−1] |
+| g6 save (4,7) | wins | [1,1,1] | [1,1,1] |
+| g6 save (8,10) — the other tied move | wins | [1,1,1] | [0,1,1] |
+| g6 saves (9,7)/(9,10)/(11,7) | save | [1,1,0]/[0,1,1]/[1,1,1] | — |
+| g8 actual (5,5) | loses | [−1,−1,−1] | — |
+| g8 save (10,7) | wins | [1,1,1] | [1,1,1] |
+| g8 save (6,10) — the other tied move | saves | [−1,1,1] | [1,1,1] |
+| g8 saves (5,7)/(3,7)/(5,10) | save | [1,1,1]/[1,1,1]/[−1,1,1] | — |
+
+In both games White won with a five on row 10 (g6: (10,10)
+completing (6–10,10); g8: (4,10) completing (4–8,10)), and
+Black's move 23 played elsewhere while the row-10 build was
+already underway. The two positions are near-mirror images of
+each other — same root shape, IDENTICAL q values — so this is
+really ONE structural observation, seen twice.
+
+**The tie-break misfire.** At move 23 in both games the root
+has a 2-way visit tie at 8 visits, and the tie-break picks the
+LOSING tied move over the SAVING tied move on a q gap of
+0.016: g6 (9,5) our-q +0.076 over (8,10) +0.060; g8 (5,5)
++0.076 over (6,10) +0.060. v18's RNG picks the saving move at
+seed 0 in both — but that is 50/50 luck, not a fix. The q gap
+here is gradient noise, not terminal signal: both q values are
+small positives from the rollout leaf's capped gradient (the
+threat materialises beyond the 2-ply horizon, so the leaf
+cannot see it), whereas the tactical fixes' gaps (0.13–0.42)
+reflect exact terminal values (loser −1.000 vs saver +0.250 at
+the leaf). The tie-break trusts q where q is exact and
+misleads where q is noise — the mechanism's boundary, found in
+real games.
+
+**No patch — and why.** The fast-loop method demands a patch
+that reproduces the perfect move, and no available patch does:
+
+- The best saves, (4,7) and (10,7), hold ≤6 visits and LOWER
+  q than the played moves at the root. No root rule can
+  promote them — promoting a 5-visit move over an 8-visit
+  leader is the CLOSED q-based root-decisions lever (pure q
+  was catastrophic), and the leaf/prior/exploration levers
+  that could are CLOSED. Their value materialises beyond the
+  2-ply horizon (White's row-10 five takes 4+ plies to build)
+  — the same beyond-horizon class as iter-13's White saves.
+- The tied moves (8,10)/(6,10) cannot be distinguished from
+  the losers by any root signal: visits tied, priors equal
+  (0.031), q wrong by 0.016. A q-gap THRESHOLD (apply the
+  tie-break only when the gap exceeds, say, 0.05–0.1 — which
+  would preserve all three tactical fixes, gaps ≥0.130) does
+  NOT fix these positions: it converts a deterministic-wrong
+  choice into a 50/50 RNG coin flip. It only helps if q is
+  SYSTEMATICALLY misleading in quiet ties, and the evidence
+  for that is n=1 (one structural position, mirrored). The
+  threshold value would be fit to that n=1 (0.016 vs 0.130)
+  and risks the v1bl-g2 fix (gap 0.130, margin 0.03 at a 0.1
+  threshold). It is recorded here as the next iteration's
+  candidate hypothesis — to be tested with battery-scale
+  evidence if the battery shows a game-strength cost — not
+  patched in on two mirrored games.
+
+The two positions ARE recorded as regression xfails
+(`fl2-g6-ply23`, `fl2-g8-ply23` — v23 plays the losing moves),
+so the tie-break's boundary case is documented for future work
+rather than dropped.
+
+**No patchable weakness class in this iteration either — the
+fast loop STOPS here (2 iterations)** per the pre-commitment
+in §2.1 (two consecutive barren iterations, 40 games). The
+Black leaf's only losses in the loop are these two tie-break
+misfires plus iteration 1's distributed-drift loss; the
+battery is the verdict on whether the tie-break costs games
+at scale.
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
 
 ### 2.5 Aggregate counts (secondary)
 
-(TODO)
+Fast-loop totals (2 iterations, 40 games): vs v7 15W-2L-3D
+(0.8250); vs v0 19W-1L-0D (0.9500). Colour splits vs v7: as
+Black 6W-2L-2D (0.70), as White 9W-0L-1D (0.95). Fast-loop
+defence: 3/3 losses via open four, 0 missed blocks, 0 clean
+missed preventions (16 threatened turns in losses). Defence
+remains solved. Two of the three losses are the tie-break
+misfire class (one structural position, mirrored); the third
+is distributed drift with no patchable move. No patches were
+made in this iteration — v23-as-batteried is v23-as-
+pre-registered.
 
 ## 3. v23 evaluation
 
