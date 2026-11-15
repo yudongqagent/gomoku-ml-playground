@@ -82,12 +82,27 @@ def main() -> int:
                         "into its own shard dir, then the shards are merged "
                         "into the run dir — see "
                         "research/iterations/b1-parallel-selfplay.md)")
+    parser.add_argument("--opponent", default=None,
+                        choices=[None, "heuristic"],
+                        help="opponent for the neural net (batch 4 H3, "
+                        "v11 — see research/iterations/iter-11.md): "
+                        "'heuristic' plays one colour per game with the "
+                        "frozen baseline heuristic instead of the net "
+                        "(odd games net=Black, even games net=White); "
+                        "default (None) is pure self-play. Only the "
+                        "batched/parallel path supports this; with "
+                        "--concurrency 1 the flag is rejected.")
     args = parser.parse_args()
     if args.workers < 1:
         print(f"--workers must be >= 1, got {args.workers}", file=sys.stderr)
         return 2
     if args.workers > 1 and args.concurrency < 1:
         print(f"--concurrency must be >= 1, got {args.concurrency}",
+              file=sys.stderr)
+        return 2
+    if args.opponent is not None and args.concurrency < 2 and args.workers < 2:
+        print("--opponent requires the batched path "
+              "(--concurrency > 1 or --workers > 1)",
               file=sys.stderr)
         return 2
 
@@ -125,7 +140,8 @@ def main() -> int:
                       games_existing=already, games_to_generate=to_generate,
                       concurrency=args.concurrency,
                       max_batch_size=args.max_batch_size,
-                      workers=args.workers)
+                      workers=args.workers,
+                      opponent=args.opponent)
         run.info(f"run dir: {run_dir}")
         if to_generate == 0:
             run.info(
@@ -149,6 +165,10 @@ def main() -> int:
             resign_threshold=sp["resign_threshold"],
             max_moves=int(sp["max_moves"]),
         )
+        if args.opponent is not None:
+            game_kwargs["opponent"] = args.opponent
+            run.info(f"opponent mode: {args.opponent} "
+                     "(one colour per game plays the frozen heuristic)")
         run.info(f"generating {to_generate} games x {sims} sims -> {out_dir}")
         if args.workers > 1:
             # Parallel path: the parent never builds the net — each
@@ -199,6 +219,8 @@ def main() -> int:
                     f"--run-dir {run_dir} --games {num_games} "
                     f"--workers {args.workers} "
                     f"--concurrency {args.concurrency}"
+                    + (f" --opponent {args.opponent}"
+                       if args.opponent else "")
                 )
                 run.log_event(
                     "run_error", kind="selfplay", error=str(e),
@@ -218,6 +240,8 @@ def main() -> int:
                     f"--run-dir {run_dir} --games {num_games} "
                     f"--workers {args.workers} "
                     f"--concurrency {args.concurrency}"
+                    + (f" --opponent {args.opponent}"
+                       if args.opponent else "")
                 )
                 run.log_event(
                     "run_interrupted", kind="selfplay",

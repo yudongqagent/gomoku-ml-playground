@@ -1,0 +1,70 @@
+# Batch 4 H3 (v11) — heuristic-opponent data generation config.
+#
+# Generates the 4,000-game training set for the v11 value net: the
+# round-2 checkpoint (resnet 32ch/4blocks, copied to
+# ml/runs/b4-h3/round2-final.pt) vs the frozen baseline heuristic,
+# via the B1 parallel path (--workers 4 --concurrency 8
+# --max-batch-size 32 --opponent heuristic). Self-play settings are
+# B1's own (50 sims/move, c_puct 1.5, Dirichlet 0.3/0.25,
+# temperature 1.0 for 30 moves, max_moves 225, no resign) so the
+# only difference from B1's 4,350-game self-play set is the
+# opponent — the controlled A/B against v8.
+#
+# Run (from the worktree root):
+#   OMP_NUM_THREADS=1 TORCH_THREADS=1 \
+#   /home/hatch/workspace/projects/gomoku-ml-playground/ml/.venv/bin/python -u \
+#     ml/scripts/selfplay.py --config b4-h3-selfplay --run-dir ml/runs/b4-h3 \
+#     --checkpoint ml/runs/b4-h3/round2-final.pt --games 4000 --sims 50 \
+#     --workers 4 --concurrency 8 --max-batch-size 32 --opponent heuristic
+#
+# Pre-registered budget (research/iterations/iter-11.md §1.1): 4,000
+# games at 50 sims/move, odd games net=Black, even games net=White.
+# Do not raise it without a new pre-registration.
+
+run_name: b4-h3
+seed: 0
+
+architecture:
+  name: resnet
+  params:
+    channels: 32
+    blocks: 4
+
+base_checkpoint: null
+resume: null
+
+selfplay:
+  games: 4000
+  sims_per_move: 50
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_epsilon: 0.25
+  temperature: 1.0
+  temperature_moves: 30
+  resign_threshold: null
+  max_moves: 225
+  checkpoint_every_games: 10
+
+train:
+  epochs: 5
+  batch_size: 64
+  lr: 0.002
+  lr_schedule: cosine
+  lr_step_size: 10
+  lr_gamma: 0.5
+  warmup_steps: 20
+  weight_decay: 0.0001
+  policy_weight: 1.0
+  value_weight: 1.0
+  augmentation: true
+  val_fraction: 0.05
+  checkpoint_every_epochs: 0
+
+eval:
+  games: 4
+  sims: 32
+  opponents: [random, heuristic]
+  mcts_sims: 100
+  tactical: true
+  tactical_sims: 50
+  auto: false

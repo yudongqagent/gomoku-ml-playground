@@ -6,16 +6,19 @@ and the oracle-verified perfect move instead (see
 ``research/iterations/iter-10.md`` §2.1 for the verification behind
 each one).
 
-Unlike v7/v8, iteration 1 produced NO patch: the dominant weakness
-class in all six positions is the q-vs-visits root-decision gap
-(the saving move has the HIGHER q but loses on visit counts to a
-high-prior move — most extremely in fl1-g9-ply19, where the losing
-move has 82 visits at q -0.131 and the save 8 visits at q +0.064),
-and that fix belongs to the parallel H1 workstream (v9, the
-q-vs-visits root decision on research/batch-4-h1). These positions
-are kept as xfails — a documented open weakness and the executable
-White-weakness suite a future root-decision change should fix —
-never silently dropped.
+Unlike v7/v8, iteration 1 produced NO patch. COORDINATOR'S
+CORRECTION (merge, see iter-10.md §6): the original text called
+the dominant class the "q-vs-visits root-decision gap" (the
+saving move has the HIGHER q but loses on visits), but the
+q-values in §2.1 are RAW q from ``analyse_critical.py`` —
+the OPPONENT's value under the negamax backup (see iter-9.md
+§1.0). Correctly signed, q prefers the LOSING move in 4 of 6
+positions (g1/g3/g9/g0); only g5/g7 are a genuine q-vs-visits
+gap (q prefers the save, visits decide) — and H1's smoke
+independently showed q-based root decisions lose at match level
+(pure q 0.20, tie-q 0.45 vs v7). These positions are kept as
+xfails — a documented open weakness and the executable
+White-weakness suite — never silently dropped.
 """
 
 import json
@@ -31,16 +34,17 @@ POSITIONS_PATH = os.path.join(
 )
 
 # Positions the current (unpatched) v10 does not fix — all six.
-# The dominant class is the q-vs-visits gap (H1/v9's fix); fl1-g5
-# and fl1-g7 are beyond-horizon value errors (the search's q also
-# prefers the losing move). See iter-10.md §2.1.
+# Coordinator's correction (merge, see iter-10.md §6): the q-values
+# below are RAW q (opponent's value); correctly signed (-q), q
+# prefers the LOSING move in g1/g3/g9/g0. Only g5/g7 are a genuine
+# q-vs-visits gap (q prefers the save, visits decide).
 XFAIL = {
-    "fl1-g1-ply67": "q-vs-visits: save q 0.207 > 0.172, visits 4 < 27",
-    "fl1-g3-ply67": "q-vs-visits: save q 0.271 > 0.161, visits 11 < 60",
-    "fl1-g5-ply71": "beyond-horizon value error: search prefers the loser",
-    "fl1-g7-ply31": "beyond-horizon value error: search prefers the loser",
-    "fl1-g9-ply19": "q-vs-visits (extreme): loser 82 visits at q -0.131, save 8 at +0.064",
-    "fl1-g0-ply40": "q-vs-visits: save q 0.149 > 0.109, visits 2 < 6",
+    "fl1-g1-ply67": "q (signed) prefers loser: save our-q -0.207 < -0.172, visits 4 < 27",
+    "fl1-g3-ply67": "q (signed) prefers loser: save our-q -0.271 < -0.161, visits 11 < 60",
+    "fl1-g5-ply71": "genuine q-vs-visits gap: save our-q -0.103 > -0.163, visits decide",
+    "fl1-g7-ply31": "genuine q-vs-visits gap: save our-q -0.097 > -0.108, visits decide",
+    "fl1-g9-ply19": "q (signed) prefers loser: loser 82 visits at our-q +0.131, save 8 at -0.064",
+    "fl1-g0-ply40": "q (signed) prefers loser: save our-q -0.149 < -0.109, visits 2 < 6",
 }
 
 

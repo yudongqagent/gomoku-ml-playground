@@ -28,8 +28,14 @@ from gomoku_ml.model import GomokuNet
 # ~290x (579 ms/call vs 2.0 ms at 1 thread, measured 2026-11-13 on
 # the 16ch/2block net), turning a 1-minute test file into a 10-minute
 # one. The B1 workers pin themselves to 1 thread for the same reason.
+# Interop threads can only be set once per process — guard the call,
+# since test_heuristic_opponent.py sets them too and whichever module
+# is collected second would otherwise raise at collection time.
 torch.set_num_threads(1)
-torch.set_num_interop_threads(1)
+try:
+    torch.set_num_interop_threads(1)
+except RuntimeError:
+    pass  # already set by an earlier-collected module
 
 
 def _tiny_net():
