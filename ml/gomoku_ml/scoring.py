@@ -188,6 +188,28 @@ ENGINE_VERSIONS: dict[int, dict] = {
     8: {"name": "scoring-v8", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100,
         "value_checkpoint": "ml/runs/b3-h2/value-net.pt"},
+    # v15 (iteration 15, batch 6): H1 — v7's PUCT MCTS with an
+    # UNNORMALIZED prior floor of 0.005 (see
+    # gomoku_ml.mcts_heuristic._priors and
+    # research/iterations/iter-15.md). Batch 5's recurring failure
+    # was saving moves starved at 2-6 visits while the loser held
+    # 7-12; no root-decision rule fixes a move the search never
+    # visits. The floor (chosen by the pre-registered sweep in
+    # iter-15 §1.2/§2.1: F0.005 beat C2.0 on the vs-v7 transfer
+    # cells, 0.5875 vs 0.4500) raises below-floor priors to 0.005
+    # WITHOUT renormalization — Step 0 measured that
+    # renormalization shrinks the very moves the floor is meant to
+    # lift (a 0.027 save becomes 0.020 at floor 0.01), because the
+    # tail's added mass dominates with ~93 candidates. Above-floor
+    # moves keep their exact v7 priors, so the sharp prior is
+    # preserved where it matters; a floor is not flattening (v13's
+    # temperature probe: flattening is catastrophic). Everything
+    # else is v7 unchanged: 100 sims, c_puct 1.5, capped +/-0.2
+    # attack-gradient leaf, win/block scans, most-visited root
+    # child.
+    15: {"name": "scoring-v15", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+         "prior_floor": 0.005},
 }
 
 # --- weights --------------------------------------------------------------

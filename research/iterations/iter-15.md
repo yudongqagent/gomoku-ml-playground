@@ -338,7 +338,86 @@ at battery end (clause 4).
 
 ### 2.1 Exploration sweep (§1.2)
 
-[To be filled in.]
+**vs v0 (40 games/cell, seeds 300/400) — COMPLETE.** Files:
+`research/iterations/sweep-{control,f0005,f001,c20,c30}-vs-v0.json`.
+All aggregates recomputed from the raw records (match the
+headers exactly).
+
+| Cell | Overall | As Black (n=20) | As White (n=20) | Time |
+|---|---|---|---|---|
+| control (v7) | 22W-17L-1D, 0.5625 [0.4101, 0.7040] | 12W-8L-0D, 0.6000 | 10W-9L-1D, 0.5250 | 479 s |
+| F0.005 | 28W-11L-1D, 0.7125 [0.5586, 0.8291] | 17W-2L-1D, 0.8750 | 11W-9L-0D, 0.5500 | 675 s |
+| F0.01 | 27W-12L-1D, 0.6875 [0.5329, 0.8093] | 15W-5L-0D, 0.7500 | 12W-7L-1D, 0.6250 | 624 s |
+| **C2.0** | **31W-9L-0D, 0.7750 [0.6250, 0.8768]** | 15W-5L-0D, 0.7500 | 16W-4L-0D, 0.8000 | 585 s |
+| C3.0 | 25W-15L-0D, 0.6250 [0.4703, 0.7578] | 18W-2L-0D, 0.9000 | 7W-13L-0D, 0.3500 | 665 s |
+
+**Restart note:** a runtime restart killed the first sweep run
+during the F0.005 cell (32/40 games flushed). The cell re-ran
+IN FULL from game 0 with the same seeds; the re-run reproduced
+the 32-game prefix EXACTLY (0 mismatches in moves and winners
+— determinism verified). The partial JSON is backed up
+uncommitted at `~/workspace/b6h1-logs/sweep-f0005-vs-v0-partial30.json`.
+
+**All four exploration cells beat the control vs v0** — but
+n=40 with wide CIs, and the control's own number (0.5625) sits
+below v7's battery number vs v0 (0.6650 at seeds 100/200), so
+the absolute levels carry seed noise; the WITHIN-sweep
+comparison (same seeds, same opponent) is what ranks the
+cells. The shape is informative:
+
+- **c_puct is an inverted U:** 1.5 -> 0.5625, 2.0 -> 0.7750,
+  3.0 -> 0.6250. The 2.0 peak is balanced across colours
+  (Black 0.75, White 0.80 — the best White number in the
+  sweep). At 3.0 the colour split explodes (Black 0.90, White
+  0.35): more exploration helps the side with tempo and hurts
+  the side without it — White's quiet positions need the
+  prior's focus, and at c_puct 3.0 the search spreads too thin
+  to hold them. This is the same non-monotonicity shape v13's
+  sims sweep found (100 optimal, 200 collapsing White), now in
+  the exploration constant.
+- **The floor is flatter and Black-loaded:** F0.005 (0.7125)
+  and F0.01 (0.6875) are within a game of each other; F0.005's
+  entire gain over the control comes as Black (0.875 vs 0.55
+  White — White barely moves). The floor broadens exploration
+  without fixing White's value problem, consistent with the
+  §1.5 diagnostic (the floor does not lift the save's visits).
+- **The diagnostic did not predict the sweep.** §1.5 showed
+  neither mechanism lifting save visits on the 5 documented
+  positions — yet all four cells beat the control vs v0. The
+  gain is evidently NOT "the save gets visited" but the
+  broader redistribution (the loser's visit share falls, the
+  tail is sampled, the search's move distribution changes) —
+  or noise. Either way, the sweep — not the diagnostic — ranks
+  the mechanisms, exactly as pre-registered.
+
+**Transfer cells (vs v7, 40 games, seeds 300/400):** per the
+§1.2 rule, the top 2 non-control cells by vs-v0 rate — C2.0
+(0.7750) and F0.005 (0.7125) — run against v7.
+
+| Cell | Overall vs v7 | As Black (n=20) | As White (n=20) | Time |
+|---|---|---|---|---|
+| C2.0 | 15W-19L-6D, 0.4500 [0.3071, 0.6017] | 6W-10L-4D, 0.4000 | 9W-9L-2D, 0.5000 | 2202 s |
+| **F0.005** | **22W-15L-3D, 0.5875 [0.4339, 0.7258]** | 11W-8L-1D, 0.5750 | 11W-7L-2D, 0.6000 | 1401 s |
+
+**The vs-v0 ranking does NOT transfer.** C2.0, the best cell vs
+v0 (0.7750), LOSES to v7 (0.4500) — the v12 pattern again: an
+intervention that helps against greedy 1-ply play hurts
+against an equal searching opponent (c_puct 2.0 spreads visits
+that v7's sharper search then exploits; C2.0 loses in both
+colours, worse as Black). F0.005, second vs v0 (0.7125), leads
+vs v7 (0.5875) with a balanced colour split (0.575/0.600).
+The transfer check earned its keep: picking by v0 alone would
+have chosen C2.0. (Both transfer CIs include 0.50 — n=40 is
+not a verdict; the 100-game battery decides.)
+
+**Decision (mechanical, per the §1.2 rule): v15 = v7 + the
+unnormalized prior floor 0.005.** F0.005 has the higher vs-v7
+rate (0.5875 vs 0.4500, gap 0.1375 — well outside the 0.05
+near-tie band, so no fallback applies). Registered as version
+15 in `ENGINE_VERSIONS` (`leaf_mode="gradient"`,
+`prior_floor=0.005`, c_puct 1.5, 100 sims — everything else
+v7). The floor value is FIXED from here (§1.3): the fast loop
+may not re-tune it.
 
 ### 2.2 Fast-loop iteration 1 — 10 games vs v0 (sweep-chosen v15)
 

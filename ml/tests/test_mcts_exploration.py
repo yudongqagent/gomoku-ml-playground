@@ -121,3 +121,26 @@ def test_floor_changes_search_but_keeps_win_scan():
                          rng=np.random.default_rng(0))
     move = mcts.choose_move(board, game.BLACK)
     assert (move % 15, move // 15) in [(7, 6), (7, 11)]
+
+
+def test_v15_dispatch_is_sweep_engine():
+    # v15 (iter-15 §2.1 decision) is v7 + prior floor 0.005. The
+    # registered player must carry the sweep parameters and play
+    # the sweep engine's move on a fixed position set.
+    v15 = scoring.get_player(15, seed=0)
+    assert v15._mcts.prior_floor == 0.005
+    assert v15._mcts.c_puct == 1.5
+    assert v15._mcts.leaf_mode == "gradient"
+    assert v15._mcts.sims == 100
+    boards = [
+        (_midgame_board(), game.BLACK),
+        (_midgame_board(), game.WHITE),
+        (_board_with([(7, 7)], [(7, 5)]), game.BLACK),
+    ]
+    for board, player in boards:
+        sweep = HeuristicMCTS(sims=100, leaf_mode="gradient",
+                              prior_floor=0.005,
+                              rng=np.random.default_rng(0))
+        v15 = scoring.get_player(15, seed=0)
+        assert sweep.choose_move(board.copy(), player) == (
+            v15.choose_move(board.copy(), player))
