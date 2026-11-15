@@ -250,6 +250,22 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # tanh scale 7.5. Terminal values are identical to v7's.
     14: {"name": "scoring-v14", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1"},
+    # v17 (iteration 17, batch 6): H3 — THE COMBINATION (see
+    # gomoku_ml.mcts_v17 and research/iterations/iter-17.md).
+    # v7's PUCT MCTS + v12's tie-prior-forcing root rule +
+    # v14's v1-kernel gradient leaf (gradient_v1) + v13's 2-ply
+    # threat check at the root. Each component passed 3/4 in
+    # batch 5 and failed a different clause (v12: clause 1,
+    # 0.4950; v13: clause 1, 0.5250; v14: clause 2, Elo -34.9);
+    # v17 tests whether they combine to 4/4. 100 sims in both
+    # colours (the sims optimum, iter-13 §2.1), c_puct 1.5,
+    # sharp v1 priors. The "v17" key makes ScoringPlayer
+    # dispatch to V17MCTS (a HeuristicMCTS subclass — WhiteMCTS
+    # cannot carry the combination: it hard-codes
+    # leaf_mode="gradient" and bypasses _choose_root_child).
+    # Versions 15-16 are the parallel batch-6 workstreams'.
+    17: {"name": "scoring-v17", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "v17": True},
 }
 
 # --- weights --------------------------------------------------------------
@@ -813,7 +829,16 @@ class ScoringPlayer:
             value_ckpt = ENGINE_VERSIONS[version].get("value_checkpoint")
             white_sims = ENGINE_VERSIONS[version].get("white_sims")
             white_temp = ENGINE_VERSIONS[version].get("white_temp")
-            if white_temp is not None:
+            if ENGINE_VERSIONS[version].get("v17"):
+                # v17: the combination (lazy import, mcts_v17
+                # imports this module via mcts_heuristic).
+                from .mcts_v17 import V17MCTS
+
+                self._mcts = V17MCTS(
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    rng=self.rng,
+                )
+            elif white_temp is not None:
                 # v13: WhiteMCTS + White prior temperature (lazy
                 # import, mcts_v13 imports this module via
                 # mcts_white/mcts_heuristic).
