@@ -536,9 +536,30 @@ verified, no data integrity issue.) Classifier: 35/35 losses
 via open four, 0 missed blocks, 2 clean missed preventions in
 158 threatened turns (losses). Defence solved.
 
-### 3.5 Ladder
+### 3.5 Ladder — Elo 636.4 (CLAUSE 2 PASSES)
 
-(TODO)
+`ml/scripts/eval_version.py --version 18 --ladder-games 20
+--mcts-sims 100 --seed 100` (identical counts/opponents to v7's
+ladder): vs random 20W-0L-0D (1.0000), vs heuristic 19W-0L-1D
+(0.9750; as Black 9W-0L-1D, as White 10W-0L-0D), vs mcts
+**14W-6L-0D (0.7000; as Black 8W-2L, as White 6W-4L)**.
+**Ladder Elo 636.4, interval [240.3, 1032.5]** — strictly higher
+than v7's 190.8 [21.8, 359.9], so **clause 2 PASSES**. 636.4 is
+the highest ladder Elo in the program by far (v16's 381.7 was
+the previous high) — and even its LOWER bound (240.3) clears
+v7's point estimate. The mcts matchup is the story: the ladder
+MCTS at 100 sims was the binding opponent for every version
+(v7 8W-12L, v16 9W-11L, v9/v12 10-10 ties), and v18 is the first
+version to beat it outright by a clear margin (14W-6L). The
+Black rollout leaf is what changed there: v18-as-Black goes
+8W-2L against the ladder MCTS where v16-as-Black (which IS v7)
+went 3W-7L. (The first ladder run was killed by a runtime
+restart ~26 min in with no saved output — eval_version.py does
+not flush incrementally; the re-run is the result reported
+here. Note the eval script's own tactical probe reports 20/20
+(old suite only, via `_choose_move`, bypassing MCTS dispatch);
+the clause-3 measurement is the full-dispatch result in §3.1
+(25/29 hard).)
 
 ### 3.6 Test suites (clause 4)
 
