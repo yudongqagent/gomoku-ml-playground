@@ -449,11 +449,27 @@ pre-registered.
 
 ## 3. v23 evaluation
 
-(TODO — battery on the FINAL version only.)
+Battery on the FINAL version (commit `84b1045`, after the fast
+loop stopped — no patches were made, so this is v23 as
+pre-registered). Pre-registered seeds 100/200 throughout (§1).
 
-### 3.1 Tactical suites
+### 3.1 Tactical suites — 20/20 old, 28/29 hard (CLAUSE 3 FAILS)
 
-(TODO)
+`ml/scripts/eval_tactical_full.py --version 23 --suite both
+--seed 100` (identical protocol to v7's measurement): old 20/20,
+hard **28/29**. Control re-run on this tree: v18 25/29 (fails
+exactly the four documented positions, reproducing iter-18
+§3.1). Clause 3 requires >= v7's 29/29, so **clause 3 FAILS**
+— on the single pre-registered suite-list-gap position,
+winning-quiet-setup-2 (chose (9,7); (9,7) wins 3/3 under
+v7-vs-v7 but is not in the suite's expectation list). All
+three documented q-compression tie failures flip (g26 chose
+(8,4), g79 chose (6,7), v1bl-g2 chose (7,5)) and NO other
+position regresses — the tie-break does exactly what §1.2
+pre-registered, recovering 3 of the 4 failures. The remaining
+gap is a measurement artefact, not an engine defect: no
+root rule can change a 79-vs-16 non-tie, and the chosen move
+wins. Counting it as a pass, v23 would be 29/29.
 
 ### 3.2 Head-to-head vs v7
 
