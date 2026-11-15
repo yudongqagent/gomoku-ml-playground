@@ -653,9 +653,9 @@ four, **0 missed blocks**, 83 threatened turns in losses,
 | 1. h2h vs v7 | ≥100 games, WR > 0.50, Wilson 95% CI lower > 0.50 | 62W-29L-9D, 0.6650, CI [0.5679, 0.7499] | **PASS** |
 | 2. Ladder Elo | strictly > 190.8 at identical counts/opponents | Elo -17.4, interval [-165.3, 130.6] (random 20-0, heuristic 9-10-1, mcts 13-7) | **FAIL** |
 | 3. Tactical | ≥ v7's 20/20 old + 29/29 hard | 20/20 old + 29/29 hard | **PASS** |
-| 4. Test suites | ml pytest, npm test, tsc all green | [PENDING — final re-run on the final tree] | [PENDING] |
+| 4. Test suites | ml pytest, npm test, tsc all green | ml pytest 299 passed, 7 skipped, 20 xfailed, 0 failures (235.3s); npm test 55/55; tsc --noEmit clean — re-run on the final tree | **PASS** |
 
-**v17: 3/4 (clause 4 pending). REJECTED** — clause 2
+**v17: 3/4. REJECTED** — clause 2
 fails decisively (the whole interval is below 190.8), so
 v17 does not pass the bar whatever clause 4 shows. v7
 remains the reference and stays on master; no kernel
