@@ -31,8 +31,19 @@ Design (see ``research/iterations/iter-6.md`` for v6 and
   uncapped gradient masked the -0.25 forcing penalties (see
   ``_GRADIENT_CAP`` and iter-7.md §2.1).
 * Win/block scans run before the search (as in every version).
-* Move choice: the most-visited root child, ties by the seeded
-  RNG. Sims: 100, c_puct: 1.5 — the SAME settings as the
+* Move choice: by default the most-visited root child, ties by
+  the seeded RNG (v6/v7). v9 (batch 4, H1) varies the ROOT
+  DECISION rule via ``root_decision``: ``"q"`` (argmax
+  our-perspective q), ``"tie-q"`` (most-visited, ties by q),
+  ``"blend"`` (q + a visit term), ``"tie-prior"`` (most-visited,
+  ties by v1 prior) — see :meth:`HeuristicMCTS._choose_root_child`
+  and ``research/iterations/iter-9.md`` §1, including the SIGN
+  CORRECTION there: a root child's raw ``q`` is the OPPONENT's
+  value (negamax backup), so "q" in every rule means ``-child.q``.
+  v12 (batch 5, H1) adds ``"tie-prior-forcing"`` (most-visited,
+  ties by forcing-ness first, then v1 prior) — see
+  ``research/iterations/iter-12.md`` §1.1.
+  Sims: 100, c_puct: 1.5 — the SAME settings as the
   ladder's :class:`gomoku_ml.baseline.HeuristicMCTSPlayer`, so
   any edge over it comes purely from the better priors (v1 vs v0
   scoring) and the better leaf value (terminal-aware vs crude
@@ -56,6 +67,7 @@ import numpy as np
 
 from . import game
 from . import kernel_numpy
+from . import kernel_v1
 from . import scoring
 
 # Temperature for the prior softmax over log1p(v1 scores). A
@@ -104,6 +116,41 @@ _GRADIENT_DEVELOPING = 100
 _GRADIENT_DEVELOPING_WEIGHT = 0.25
 _GRADIENT_SCALE = 4.0
 _GRADIENT_CAP = 0.2
+
+# --- v14 attack-gradient leaf (batch 5, H3) -------------------------------
+# Same gradient FORM as v7 (breadth count, tanh squash, +/-0.2 cap),
+# but the breadth counts come from the v1 kernel's attack scores
+# (5-window, broken-four-aware) instead of the v0 kernel's
+# (contiguous-run, blind to broken fours). Thresholds are the v1
+# analogues of v7's, derived from the v1 pattern classes (see
+# iter-14.md §1): strong = a move creating a four or an open three
+# (v1 attack >= 4000 — no combination of sub-4000 per-direction
+# values reaches 4000); developing = a move creating a half-open
+# three (400) or an open two (80) (80 <= attack < 4000 — the
+# strongest sub-open-two combination is 4 x two = 40). The tanh
+# scale (7.5) is re-derived from the measured v1 breadth-difference
+# distribution (std 4.09 on batch-3 game positions) by v7's rule
+# (scale ~= 1.8 x std); the cap (0.2) is UNCHANGED — a static
+# heuristic must never outweigh an exact terminal signal, and the
+# cap is what made v7 pass.
+_GRADIENT_V1_STRONG = 4000
+_GRADIENT_V1_DEVELOPING = 80
+_GRADIENT_V1_SCALE = 7.5
+
+# --- v9 root-decision rules (batch 4, H1) ----------------------------------
+# ``root_decision`` selects how the root child is picked after the
+# search (see HeuristicMCTS._choose_root_child). "visits" is the
+# v6/v7 default. The blend weight (0.1) is fixed in the
+# pre-registration (iter-9.md §1.1): q gaps below 0.1 are within
+# one gradient step (the gradient's full range is +/-0.2), so the
+# visit term overrides only sub-gradient-scale q differences.
+# v12 (batch 5, H1) adds "tie-prior-forcing": most-visited, ties
+# broken by forcing-ness first (moves creating a four), then the v1
+# prior — see iter-12.md §1.1.
+_ROOT_DECISIONS = (
+    "visits", "q", "tie-q", "blend", "tie-prior", "tie-prior-forcing",
+)
+_BLEND_VISIT_WEIGHT = 0.1
 
 
 class _Node:
@@ -177,6 +224,21 @@ def _breadth(attack: np.ndarray, empty_mask: np.ndarray) -> float:
     return strong + _GRADIENT_DEVELOPING_WEIGHT * developing
 
 
+def _breadth_v1(attack: np.ndarray, empty_mask: np.ndarray) -> float:
+    """Attack breadth of one side from v1 attack scores: the count
+    of its strong moves (v1 attack >= 4000: four/open-three makers)
+    plus 0.25 per developing move (v1 attack in [80, 4000):
+    half-open-three / open-two makers), over empty cells only.
+    Same form as :func:`_breadth`, with the v1 pattern-class
+    thresholds (see ``_GRADIENT_V1_STRONG``)."""
+    s = attack[empty_mask]
+    strong = int(np.count_nonzero(s >= _GRADIENT_V1_STRONG))
+    developing = int(
+        np.count_nonzero((s >= _GRADIENT_V1_DEVELOPING) & (s < _GRADIENT_V1_STRONG))
+    )
+    return strong + _GRADIENT_DEVELOPING_WEIGHT * developing
+
+
 def _attack_gradient(board: np.ndarray, player: int) -> float:
     """Breadth-gradient leaf value in (-0.2, 0.2) for ``player`` to
     move in a quiet position: ``0.2 * tanh((breadth(ours) -
@@ -208,9 +270,42 @@ def _gradient_leaf_value(board: np.ndarray, player: int) -> float:
     return _attack_gradient(board, player)
 
 
+def _attack_gradient_v1(board: np.ndarray, player: int) -> float:
+    """Breadth-gradient leaf value in (-0.2, 0.2) for ``player`` to
+    move in a quiet position, from the v1 kernel's attack-only
+    scores for both colours (one ``attack_v1_both`` call):
+    ``0.2 * tanh((breadth_v1(ours) - breadth_v1(theirs)) / 7.5)``.
+    Antisymmetric under colour swap. Same form as
+    :func:`_attack_gradient`, with the v1 thresholds and the
+    re-derived scale (7.5); the 0.2 cap is unchanged (see
+    ``_GRADIENT_CAP``)."""
+    black, white = kernel_v1.attack_v1_both(board)
+    mask = board == game.EMPTY
+    if player == game.BLACK:
+        ours, theirs = black, white
+    else:
+        ours, theirs = white, black
+    diff = _breadth_v1(ours, mask) - _breadth_v1(theirs, mask)
+    return _GRADIENT_CAP * math.tanh(diff / _GRADIENT_V1_SCALE)
+
+
+def _gradient_v1_leaf_value(board: np.ndarray, player: int) -> float:
+    """v14 leaf value: v7's terminal-aware values for terminal
+    positions, the v1-kernel attack gradient for quiet ones. The
+    terminal cases are identical to :func:`_terminal_leaf_value`
+    BY CONSTRUCTION (it returns 0.0 exactly for quiet positions),
+    so the ONLY difference between v7 and v14 is the quiet-leaf
+    gradient's input scores — a clean A/B of the v1 kernel."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    return _attack_gradient_v1(board, player)
+
+
 _LEAF_FUNCTIONS = {
     "terminal": _terminal_leaf_value,
     "gradient": _gradient_leaf_value,
+    "gradient_v1": _gradient_v1_leaf_value,
 }
 
 
@@ -221,6 +316,17 @@ class HeuristicMCTS:
     ``leaf_mode="gradient"`` is v7: quiet leaves get the attack
     breadth gradient (:func:`_gradient_leaf_value`); terminal
     values are identical in both modes.
+    ``leaf_mode="gradient_v1"`` is v14: quiet leaves get the attack
+    breadth gradient from the v1 kernel's scores
+    (:func:`_gradient_v1_leaf_value`); terminal values are
+    identical to v7's, so the only difference between v7 and v14
+    is the gradient's input scores.
+
+    ``root_decision`` (v9, batch 4 H1; v12, batch 5 H1) selects the
+    root move choice: ``"visits"`` (default, v6/v7 behaviour —
+    most-visited, ties by RNG), ``"q"``, ``"tie-q"``, ``"blend"``,
+    ``"tie-prior"``, ``"tie-prior-forcing"`` — see
+    :meth:`_choose_root_child`.
     """
 
     def __init__(
@@ -229,16 +335,23 @@ class HeuristicMCTS:
         c_puct: float = 1.5,
         rng: np.random.Generator | None = None,
         leaf_mode: str = "terminal",
+        root_decision: str = "visits",
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS:
             raise ValueError(
                 f"unknown leaf_mode: {leaf_mode!r} "
                 f"(known: {sorted(_LEAF_FUNCTIONS)})"
             )
+        if root_decision not in _ROOT_DECISIONS:
+            raise ValueError(
+                f"unknown root_decision: {root_decision!r} "
+                f"(known: {list(_ROOT_DECISIONS)})"
+            )
         self.sims = sims
         self.c_puct = c_puct
         self.rng = rng
         self.leaf_mode = leaf_mode
+        self.root_decision = root_decision
         self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
 
     def choose_move(self, board: np.ndarray, player: int) -> int:
@@ -259,15 +372,131 @@ class HeuristicMCTS:
         root = _Node(1.0)
         for _ in range(self.sims):
             self._run_one(root, board, player, None)
-        best_visits = max(c.visit_count for c in root.children.values())
-        best = [
-            m for m, c in root.children.items() if c.visit_count == best_visits
-        ]
-        if len(best) == 1:
-            return best[0]
+        return self._choose_root_child(root, board, player)
+
+    def _rng_or_first(self, moves: list[int]) -> int:
+        """Break a final tie: the seeded RNG's choice, or the first
+        move when there is no RNG (v6/v7 behaviour)."""
+        if len(moves) == 1:
+            return moves[0]
         if self.rng is not None:
-            return int(self.rng.choice(best))
-        return best[0]
+            return int(self.rng.choice(moves))
+        return moves[0]
+
+    def _choose_root_child(
+        self,
+        root: _Node,
+        board: np.ndarray | None = None,
+        player: int | None = None,
+    ) -> int:
+        """Pick the root move by this instance's root-decision rule
+        (v9, batch 4 H1; v12, batch 5 H1; see
+        ``research/iterations/iter-9.md`` §1 and
+        ``research/iterations/iter-12.md`` §1).
+
+        Every rule considers only VISITED children (visit_count >=
+        1): an unvisited child's q is undefined (0.0 by convention),
+        not a signal, and must never win an argmax over q. And "q"
+        throughout is OUR-perspective value, ``-child.q`` — a root
+        child's raw ``q`` is the OPPONENT's value under the negamax
+        backup (iter-9.md §1.0 sign correction; iter-7 §2.6 read
+        raw q as our value and got the finding backwards).
+
+        ``board``/``player`` are needed only by
+        ``"tie-prior-forcing"`` (to test forcing-ness); when they
+        are absent that rule degrades to plain ``"tie-prior"``.
+        ``choose_move`` always passes them.
+
+        * ``"visits"`` (v6/v7): most-visited; ties by RNG/first.
+          Unchanged behaviour — with sims >= 1 the max-visit child
+          always has >= 1 visit, so the visited filter is a no-op.
+        * ``"q"`` (variant A): argmax our-q; ties by visits, then
+          RNG/first.
+        * ``"tie-q"`` (variant B): most-visited; ties by our-q,
+          then RNG/first.
+        * ``"blend"`` (variant C): argmax ``our-q + 0.1 *
+          (visits / max_visits)``; ties by visits, then RNG/first.
+        * ``"tie-prior"`` (variant D, v9): most-visited; ties by
+          v1 prior (a monotone transform of the v1 1-ply score),
+          then RNG/first.
+        * ``"tie-prior-forcing"`` (v12): most-visited; ties by
+          forcing-ness first (moves creating a four —
+          ``scoring._is_forcing``), then v1 prior, then RNG/first.
+          Targets iter-9 §2.6's failure mode: v1's 1-ply score
+          undervalues forcing counter-threats (~20k) against
+          occupying a creator (~204k), so the prior tie-break
+          systematically prefers blocking one of two creators over
+          forcing — and with two creators, blocking one is useless.
+        """
+        visited = [
+            (m, c) for m, c in root.children.items() if c.visit_count >= 1
+        ]
+        if not visited:
+            # No simulation ran (sims == 0): fall back to the
+            # highest prior. Unused in practice (sims >= 1
+            # everywhere); the sane behaviour when there is no
+            # search to decide by.
+            return max(root.children, key=lambda m: root.children[m].prior)
+        if self.root_decision == "q":
+            best_q = max(-c.q for _, c in visited)
+            cands = [m for m, c in visited if -c.q == best_q]
+            best_v = max(root.children[m].visit_count for m in cands)
+            cands = [
+                m for m in cands if root.children[m].visit_count == best_v
+            ]
+            return self._rng_or_first(cands)
+        if self.root_decision == "blend":
+            max_v = max(c.visit_count for _, c in visited)
+
+            def _score(child: _Node) -> float:
+                return -child.q + _BLEND_VISIT_WEIGHT * (
+                    child.visit_count / max_v
+                )
+
+            best_s = max(_score(c) for _, c in visited)
+            cands = [m for m, c in visited if _score(c) == best_s]
+            best_v = max(root.children[m].visit_count for m in cands)
+            cands = [
+                m for m in cands if root.children[m].visit_count == best_v
+            ]
+            return self._rng_or_first(cands)
+        # "visits" / "tie-q" / "tie-prior" / "tie-prior-forcing":
+        # most-visited first.
+        best_v = max(c.visit_count for _, c in visited)
+        cands = [m for m, c in visited if c.visit_count == best_v]
+        if len(cands) > 1:
+            if self.root_decision == "tie-q":
+                best_q = max(-root.children[m].q for m in cands)
+                cands = [
+                    m for m in cands if -root.children[m].q == best_q
+                ]
+            elif self.root_decision in ("tie-prior", "tie-prior-forcing"):
+                if (
+                    self.root_decision == "tie-prior-forcing"
+                    and board is not None
+                    and player is not None
+                ):
+                    # Forcing-first (v12, iter-12.md §1.1): among
+                    # the tied children, prefer moves that create
+                    # a four. Only the tied children are tested
+                    # (ties are ~24% of searched moves, tie sizes
+                    # small), so the scan is cheap. If none is
+                    # forcing, the tie-break falls through to the
+                    # prior below. Without a board (synthetic-root
+                    # tests) the rule degrades to plain tie-prior.
+                    forcing = [
+                        m
+                        for m in cands
+                        if scoring._is_forcing(board, m, player)
+                    ]
+                    if forcing:
+                        cands = forcing
+                best_p = max(root.children[m].prior for m in cands)
+                cands = [
+                    m for m in cands
+                    if root.children[m].prior == best_p
+                ]
+        return self._rng_or_first(cands)
 
     def _select_child(self, node: _Node) -> int:
         """PUCT: ``-child.q`` (child values are from the opponent's

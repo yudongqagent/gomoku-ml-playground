@@ -1,4 +1,5 @@
-"""Tests for the heuristic-prior MCTS (v6, batch 2 H2; v7, batch 3 H1)."""
+"""Tests for the heuristic-prior MCTS (v6, batch 2 H2; v7, batch 3 H1;
+v14, batch 5 H3)."""
 
 import math
 
@@ -8,8 +9,11 @@ import pytest
 from gomoku_ml import game, scoring
 from gomoku_ml.mcts_heuristic import (
     HeuristicMCTS,
+    _Node,
     _attack_gradient,
+    _attack_gradient_v1,
     _gradient_leaf_value,
+    _gradient_v1_leaf_value,
     _priors,
     _terminal_leaf_value,
 )
@@ -281,3 +285,361 @@ def test_v7_iter5_game1_regression_xfail():
     v7 = scoring.get_player(7, seed=0)
     move = v7.choose_move(board, game.WHITE)
     assert (move % 15, move // 15) in [(7, 11), (6, 12)]
+
+
+# --- v14 (batch 5, H3): v1-kernel attack-gradient leaf ---------------------
+
+
+def test_gradient_v1_leaf_matches_terminal_leaf_on_terminal_positions():
+    # The v14 leaf is IDENTICAL to the terminal leaf on every
+    # non-quiet position, by construction — same as v7.
+    board = _board_with([(7, 7), (7, 8), (7, 9), (7, 10)], [(3, 3)])
+    assert _gradient_v1_leaf_value(board, game.BLACK) == 1.0
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 7), (5, 8)])
+    assert _gradient_v1_leaf_value(board, game.BLACK) == -1.0
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 8), (5, 9)])
+    assert _gradient_v1_leaf_value(board, game.BLACK) == -0.25
+
+
+def test_attack_gradient_v1_zero_on_empty_board():
+    board = game.empty_board()
+    assert _attack_gradient_v1(board, game.BLACK) == 0.0
+    assert _attack_gradient_v1(board, game.WHITE) == 0.0
+    assert _gradient_v1_leaf_value(board, game.BLACK) == 0.0
+
+
+def test_attack_gradient_v1_antisymmetric_and_bounded():
+    # Same mid-game board as the v7 test: antisymmetric under
+    # colour swap, strictly inside (-0.2, 0.2) — the cap is
+    # unchanged from v7.
+    rng = np.random.default_rng(0)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    gb = _attack_gradient_v1(board, game.BLACK)
+    gw = _attack_gradient_v1(board, game.WHITE)
+    assert gb == -gw
+    assert -0.2 < gb < 0.2
+
+
+def test_attack_gradient_v1_sees_broken_four_creation():
+    # The point of v14: Black holds XX_X (a broken-four setup);
+    # the v1 gradient counts the broken-four creation as a strong
+    # move, the v0 gradient does not. On this board the v1
+    # gradient for Black is strictly larger than the v0 gradient.
+    board = _board_with([(7, 7), (8, 7), (10, 7)], [(3, 3)])
+    assert scoring._winning_moves(board, game.BLACK) == []
+    assert scoring._winning_moves(board, game.WHITE) == []
+    g_v1 = _attack_gradient_v1(board, game.BLACK)
+    g_v0 = _attack_gradient(board, game.BLACK)
+    assert g_v1 > g_v0
+    assert g_v1 > 0.0
+    # And the value is the capped tanh of the v1 breadth
+    # difference at the pre-registered scale 7.5.
+    from gomoku_ml import kernel_v1
+    from gomoku_ml.mcts_heuristic import (
+        _GRADIENT_CAP,
+        _GRADIENT_V1_SCALE,
+        _breadth_v1,
+    )
+
+    black, white = kernel_v1.attack_v1_both(board)
+    mask = board == game.EMPTY
+    expected = _GRADIENT_CAP * math.tanh(
+        (_breadth_v1(black, mask) - _breadth_v1(white, mask))
+        / _GRADIENT_V1_SCALE
+    )
+    assert g_v1 == expected
+    assert _GRADIENT_V1_SCALE == 7.5
+
+
+def test_attack_gradient_v1_counts_breadth_not_best():
+    # Two open threes beat one, as in v7's test.
+    one = _board_with([(7, 7), (8, 7), (9, 7)], [(3, 3)])
+    two = _board_with([(7, 7), (8, 7), (9, 7), (11, 11), (12, 11), (13, 11)],
+                      [(3, 3)])
+    assert scoring._winning_moves(two, game.BLACK) == []
+    assert _attack_gradient_v1(two, game.BLACK) > _attack_gradient_v1(one, game.BLACK)
+
+
+def test_v14_registered_and_dispatches_to_gradient_v1_mcts():
+    v14 = scoring.get_player(14, seed=0)
+    assert v14.name == "scoring-v14"
+    assert v14.mcts is True
+    assert v14._mcts is not None
+    assert v14._mcts.sims == 100
+    assert v14._mcts.leaf_mode == "gradient_v1"
+    # v7 is unchanged (v0-kernel gradient leaf).
+    v7 = scoring.get_player(7, seed=0)
+    assert v7._mcts.leaf_mode == "gradient"
+
+
+def test_v14_choose_move_does_not_mutate_board():
+    rng = np.random.default_rng(0)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    before = board.copy()
+    mcts = HeuristicMCTS(sims=20, leaf_mode="gradient_v1",
+                         rng=np.random.default_rng(0))
+    mcts.choose_move(board, game.BLACK)
+    assert np.array_equal(board, before)
+# --- v9 root-decision rules (batch 4, H1) ---------------------------------
+# Tests build synthetic roots (no search): a child's raw q is the
+# OPPONENT's value under the negamax backup, so "q" in every rule
+# means -child.q (iter-9.md §1.0 sign correction).
+
+
+def _synthetic_root(specs):
+    """Root whose children are (move, visits, value_sum, prior).
+
+    Raw q = value_sum / visits (opponent's value); our-q = -q.
+    """
+    root = _Node(1.0)
+    root.children = {}
+    for move, visits, value_sum, prior in specs:
+        child = _Node(prior)
+        child.visit_count = visits
+        child.value_sum = value_sum
+        root.children[move] = child
+    return root
+
+
+def test_root_decision_default_is_visits():
+    mcts = HeuristicMCTS()
+    assert mcts.root_decision == "visits"
+    v7 = scoring.get_player(7, seed=0)
+    assert v7._mcts.root_decision == "visits"
+    v6 = scoring.get_player(6, seed=0)
+    assert v6._mcts.root_decision == "visits"
+
+
+def test_invalid_root_decision_raises():
+    with pytest.raises(ValueError):
+        HeuristicMCTS(root_decision="bogus")
+
+
+def test_root_decision_visits_picks_most_visited():
+    # Most-visited wins even with the worst our-q.
+    root = _synthetic_root([
+        (10, 50, 25.0, 0.1),   # our-q -0.5, most visited
+        (20, 10, -4.0, 0.1),   # our-q +0.4
+        (30, 5, -2.0, 0.1),    # our-q +0.4
+    ])
+    mcts = HeuristicMCTS(root_decision="visits")
+    assert mcts._choose_root_child(root) == 10
+
+
+def test_root_decision_q_uses_our_perspective_value():
+    # SIGN TEST: raw q is the opponent's value, so the child with
+    # the LOWEST raw q (worst for the opponent) is the best move
+    # for us — even with fewer visits. A rule that argmaxed raw q
+    # would pick move 10 (raw q +0.5, great for the opponent).
+    root = _synthetic_root([
+        (10, 50, 25.0, 0.1),   # raw q +0.5 -> our-q -0.5
+        (20, 10, -4.0, 0.1),   # raw q -0.4 -> our-q +0.4 (best)
+        (30, 5, -1.0, 0.1),    # raw q -0.2 -> our-q +0.2
+    ])
+    mcts = HeuristicMCTS(root_decision="q")
+    assert mcts._choose_root_child(root) == 20
+
+
+def test_root_decision_q_ignores_unvisited_children():
+    # An unvisited child's q is 0.0 by convention — not a signal.
+    # It must never beat a visited child with negative our-q.
+    root = _synthetic_root([
+        (10, 10, 2.0, 0.1),    # raw q +0.2 -> our-q -0.2
+        (20, 0, 0.0, 0.1),     # unvisited: q 0.0 by convention
+    ])
+    mcts = HeuristicMCTS(root_decision="q")
+    assert mcts._choose_root_child(root) == 10
+
+
+def test_root_decision_q_ties_broken_by_visits():
+    root = _synthetic_root([
+        (10, 5, -2.0, 0.1),    # our-q +0.4, 5 visits
+        (20, 8, -3.2, 0.1),    # our-q +0.4, 8 visits (wins tie)
+    ])
+    mcts = HeuristicMCTS(root_decision="q")
+    assert mcts._choose_root_child(root) == 20
+
+
+def test_root_decision_tie_q_breaks_visit_ties_by_our_q():
+    root = _synthetic_root([
+        (10, 10, 4.0, 0.1),    # 10 visits, our-q -0.4
+        (20, 10, -1.0, 0.1),   # 10 visits, our-q +0.1 (wins tie)
+        (30, 9, -8.1, 0.1),    # 9 visits, our-q +0.9 (not tied)
+    ])
+    mcts = HeuristicMCTS(root_decision="tie-q")
+    assert mcts._choose_root_child(root) == 20
+
+
+def test_root_decision_blend_formula():
+    # score = our-q + 0.1 * (visits / max_visits).
+    # Move 10: our-q -0.10, 10/10 visits -> -0.10 + 0.10 = 0.00.
+    # Move 20: our-q -0.01, 5/10 visits  -> -0.01 + 0.05 = 0.04.
+    # Move 30: our-q +0.20, 1/10 visits  -> +0.20 + 0.01 = 0.21.
+    # Pure q would pick 30 too, but visits would pick 10: the blend
+    # follows q here because the q gap (0.3) exceeds the 0.1 scale.
+    root = _synthetic_root([
+        (10, 10, 1.0, 0.1),
+        (20, 5, 0.05, 0.1),
+        (30, 1, -0.2, 0.1),
+    ])
+    mcts = HeuristicMCTS(root_decision="blend")
+    assert mcts._choose_root_child(root) == 30
+
+
+def test_root_decision_blend_visits_override_small_q_gap():
+    # q gap 0.05 (< 0.1 scale): visits decide. Move 10: our-q
+    # -0.05, 10/10 visits -> 0.05. Move 20: our-q 0.00, 1/10 visits
+    # -> 0.01. Pure q would pick 20; the blend picks 10.
+    root = _synthetic_root([
+        (10, 10, 0.5, 0.1),
+        (20, 1, 0.0, 0.1),
+    ])
+    mcts = HeuristicMCTS(root_decision="blend")
+    assert mcts._choose_root_child(root) == 10
+
+
+def test_root_decision_tie_prior_breaks_visit_ties_by_prior():
+    root = _synthetic_root([
+        (10, 10, 0.0, 0.05),
+        (20, 10, 0.0, 0.09),   # same visits, higher prior
+        (30, 9, 0.0, 0.50),    # higher prior but fewer visits
+    ])
+    mcts = HeuristicMCTS(root_decision="tie-prior")
+    assert mcts._choose_root_child(root) == 20
+
+
+def test_root_decision_section26_stats():
+    # iter-7 §2.6 root stats (reproduced exactly in iter-9.md
+    # §1.0): (7,4) flat 67 and (8,4) flat 68 tie at 10 visits with
+    # raw q 0.042 / 0.032; (9,8) flat 129 has 7 visits, raw q
+    # 0.071. Correctly signed, q prefers the LOSING (8,4) — so
+    # tie-q and q both pick it, and the blend does too (0.068 vs
+    # 0.058). Only tie-prior can save the game, and only if (7,4)'s
+    # prior exceeds (8,4)'s (v1 ranks (7,4) 3rd, (8,4) 6th).
+    root = _synthetic_root([
+        (67, 10, 0.42, 0.077),    # (7,4) saving, our-q -0.042
+        (68, 10, 0.32, 0.076),    # (8,4) losing, our-q -0.032
+        (129, 7, 0.497, 0.078),   # (9,8) saving, our-q -0.071
+    ])
+    assert HeuristicMCTS(root_decision="tie-q")._choose_root_child(root) == 68
+    assert HeuristicMCTS(root_decision="q")._choose_root_child(root) == 68
+    assert HeuristicMCTS(root_decision="blend")._choose_root_child(root) == 68
+    assert (
+        HeuristicMCTS(root_decision="tie-prior")._choose_root_child(root)
+        == 67
+    )
+
+
+# --- v12 "tie-prior-forcing" root decision (batch 5, H1) ---------------
+# iter-12.md §1.1: most-visited; ties broken by forcing-ness first
+# (moves creating a four), then the v1 prior. Targets iter-9 §2.6's
+# failure mode, where the prior preferred occupying a creator
+# (~204k) over a forcing counter-threat (~20k).
+
+
+def _forcing_board():
+    """White has three in a row at (7,7)-(7,9): both (7,6) and
+    (7,10) create a four (forcing); (0,0) and (1,1) do not."""
+    return _board_with([(3, 3)], [(7, 7), (7, 8), (7, 9)])
+
+
+def test_root_decision_tie_prior_forcing_prefers_forcing_over_prior():
+    # The §2.6 shape: the forcing move has the LOWER prior, the
+    # quiet move the higher — forcing must win the tie anyway.
+    # (7,10) flat 157 is forcing; (0,0) flat 0 is not.
+    root = _synthetic_root([
+        (157, 5, 0.0, 0.04),   # forcing, lower prior
+        (0, 5, 0.0, 0.09),     # not forcing, higher prior
+    ])
+    board = _forcing_board()
+    assert scoring._is_forcing(board, 157, game.WHITE)
+    assert not scoring._is_forcing(board, 0, game.WHITE)
+    mcts = HeuristicMCTS(root_decision="tie-prior-forcing")
+    assert mcts._choose_root_child(root, board, game.WHITE) == 157
+    # Control: plain tie-prior picks the higher-prior quiet move.
+    assert (
+        HeuristicMCTS(root_decision="tie-prior")._choose_root_child(
+            root, board, game.WHITE
+        )
+        == 0
+    )
+
+
+def test_root_decision_tie_prior_forcing_prior_breaks_forcing_ties():
+    # Two forcing moves tied: the prior decides between them.
+    # (7,6) flat 97 and (7,10) flat 157 are both forcing; (0,0)
+    # has the highest prior but is not forcing, so it loses.
+    root = _synthetic_root([
+        (97, 5, 0.0, 0.03),   # forcing, lower prior
+        (157, 5, 0.0, 0.05),   # forcing, higher prior
+        (0, 5, 0.0, 0.09),     # not forcing, highest prior
+    ])
+    board = _forcing_board()
+    mcts = HeuristicMCTS(root_decision="tie-prior-forcing")
+    assert mcts._choose_root_child(root, board, game.WHITE) == 157
+
+
+def test_root_decision_tie_prior_forcing_falls_back_to_prior():
+    # No tied child is forcing: the rule is plain tie-prior.
+    root = _synthetic_root([
+        (0, 5, 0.0, 0.04),
+        (1, 5, 0.0, 0.09),     # higher prior wins
+    ])
+    board = _forcing_board()
+    assert not scoring._is_forcing(board, 0, game.WHITE)
+    assert not scoring._is_forcing(board, 1, game.WHITE)
+    mcts = HeuristicMCTS(root_decision="tie-prior-forcing")
+    assert mcts._choose_root_child(root, board, game.WHITE) == 1
+
+
+def test_root_decision_tie_prior_forcing_without_board_is_tie_prior():
+    # Synthetic-root callers pass no board: the forcing filter is
+    # skipped and the rule degrades to plain tie-prior (the
+    # higher-prior child wins even if it would not be forcing).
+    root = _synthetic_root([
+        (157, 5, 0.0, 0.04),
+        (0, 5, 0.0, 0.09),
+    ])
+    mcts = HeuristicMCTS(root_decision="tie-prior-forcing")
+    assert mcts._choose_root_child(root) == 0
+
+
+def test_root_decision_tie_prior_forcing_ignores_non_tied_forcing():
+    # Forcing only breaks TIES: a forcing child with fewer visits
+    # must not beat the most-visited child.
+    root = _synthetic_root([
+        (157, 4, 0.0, 0.04),   # forcing, fewer visits
+        (0, 5, 0.0, 0.09),     # not forcing, most visited
+    ])
+    board = _forcing_board()
+    mcts = HeuristicMCTS(root_decision="tie-prior-forcing")
+    assert mcts._choose_root_child(root, board, game.WHITE) == 0
+
+
+def test_v12_registration_is_tie_prior_forcing_gradient():
+    v12 = scoring.get_player(12, seed=0)
+    assert v12._mcts.root_decision == "tie-prior-forcing"
+    assert v12._mcts.leaf_mode == "gradient"
+    assert v12._mcts.sims == 100
+    # v7/v9 untouched by the v12 registration.
+    assert scoring.get_player(7, seed=0)._mcts.root_decision == "visits"
+    assert scoring.get_player(9, seed=0)._mcts.root_decision == "tie-prior"
+
+
+def test_v12_choose_move_deterministic_for_same_seed():
+    board = _board_with(
+        [(7, 7), (8, 8), (9, 9)], [(7, 8), (8, 7), (6, 6)]
+    )
+    a = scoring.get_player(12, seed=42)
+    b = scoring.get_player(12, seed=42)
+    assert a.choose_move(board, game.BLACK) == b.choose_move(
+        board, game.BLACK
+    )
