@@ -222,6 +222,44 @@ for tactical). Fast-loop dev seeds: iter 1 vs v0 1001/2001,
 iter 2 vs v7 1002/2002, iter 3 1003/2003, iter 4 1004/2004
 — all distinct from the battery's 100/200.
 
+### 1.4 Component verification — RESULTS (identity checks, not evals)
+
+All checks from §1.2 pass. The ported components behave
+identically to their batch-5 versions:
+
+- **v1 kernel:** `test_kernel_v1.py` green — 0 mismatches vs
+  the frozen fixtures AND the live `scoring.score_attack`
+  reference, both players, all cells, all 60 fixtures, plus
+  the 6 targeted broken-four/gap-three boards.
+- **v12 root rule:** `diag_v12_forcing.py` reproduces iter-12
+  §1.5 EXACTLY on the §2.6 position (swap game 41, ply 21):
+  the three-way 5-visit tie, our-q -0.204355 (forcing moves)
+  vs -0.421490 ((7,8)), priors 0.039113/0.038961/0.124404,
+  v1 scores 20167/20010/204024; tie-prior-forcing plays
+  (3,11); v9 regressions 1/3 for all three rules.
+- **Regression suites:** the ported `test_regression_v9/v12/
+  v13/v14.py`, `test_mcts_v13.py`, `test_mcts_white.py` all
+  pass with the recorded xfail counts (full ml suite: 299
+  passed, 7 skipped, 15 xfailed, 0 failures — batch-5's 290
+  + the 9 new v17 tests).
+- **Tactical suites (full-dispatch driver, seed 0):** v12
+  20/20 + 29/29, v13 20/20 + 29/29, v14 20/20 + 29/29 — all
+  matching their batch-5 records. **v17 (the combination):
+  20/20 + 29/29** — clause 3 holds on the as-registered
+  engine; re-run on the final engine in §3.
+- **Deterministic prefix replays** (10 games each, battery
+  seeds 100/200, move lists + winners vs the batch-5 match
+  JSONs on `research/batch-5`): v12-vs-v7 **0 mismatches**
+  (5W-3L-2D in the prefix, 754s), v13-vs-v7 **0 mismatches**
+  (4W-6L-0D, 257s), v14-vs-v7 **0 mismatches** (4W-4L-2D,
+  624s). The ports are exact; the combination is built on
+  verified components. (A runtime restart wiped /tmp
+  mid-verification, including the v12 replay file — the
+  v12 0-mismatch result was recorded before the restart and
+  the reference JSONs were re-extracted from git into
+  `~/workspace/b6h3-logs/`; the v13/v14 replays and all
+  later work write there or into the repo, not /tmp.)
+
 ## 2. Loss analysis for iteration 17
 
 [Fast-loop worked games go here — see the method note at the top.]
