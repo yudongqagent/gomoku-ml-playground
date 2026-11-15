@@ -177,11 +177,59 @@ seed-dependent). Fast-loop dev seeds 1001/2001, 1002/2002, ...
 
 ### 1.3 Mechanism check (post-implementation, pre-fast-loop)
 
-(TODO — after implementation, before any fast-loop game: v23
-run on the 4 failing tactical positions plus the full suite at
---seed 100, and on v18's regression positions, to verify the
-dispatch does what §1 says it does. This is an implementation
-check, not pre-registration evidence and not an eval.)
+After implementation and before any fast-loop game, v23 was run
+on the 4 failing tactical positions (fresh-seed-0 root dumps,
+`/tmp/dump_v23_tactical_fails.py`) and on the full tactical
+suites at `--seed 100` (the established protocol). This is an
+implementation check, not pre-registration evidence and not an
+eval — it verifies the dispatch does what §1 says it does.
+
+**Root dumps reproduce iter-18 §3.1 exactly** (same ties, same
+q values, same priors — the search is unchanged; only the final
+selection differs):
+
+| Position | v18 root state (seed 0) | v23 picks |
+|---|---|---|
+| prev-v1v0s-g26 | 4-way tie at 3 visits; expected our-q −0.583, losers −1.000 | (9,4) EXPECTED |
+| prev-v1v1s-g79 | 7-way tie at 3 visits; expected our-q −0.583, losers −1.000 | (7,9) EXPECTED |
+| prev-v1bl-g2 | 2-way tie at 8 visits; expected (7,5) our-q −0.594 vs (7,9) −0.724 | (7,5) EXPECTED |
+| winning-quiet-setup-2 | NO tie: 79 visits on (9,7) vs 16 on (8,7) | (9,7), as v18 |
+
+Two details worth recording. First, on g26 and g79 the q-tie
+fallback (rule 4) fires: the expected moves share the top our-q
+exactly (−0.583 on both), so v23 falls back to RNG choice among
+them — harmless, because every q-tied move is expected. Second,
+in the ISOLATED seed-0 dumps v18's RNG happens to pick an
+expected move on g26 ((9,4)) and g79 ((7,8)) — the suite-run
+failures came from the RNG stream state at those positions when
+one player instance runs the whole suite, which is exactly why
+the tie-break (deterministic where q separates, RNG only among
+equal-q moves) is the fix rather than luck.
+
+**Full suites at `--seed 100`: old 20/20, hard 28/29** — exactly
+the pre-registered expectation (§1.2). All three tie failures
+flip (g26 chose (8,4), g79 chose (6,7), v1bl-g2 chose (7,5)),
+NO other position regresses, and the sole remaining failure is
+winning-quiet-setup-2 (chose (9,7)) — the suite-list gap, not a
+tie, not a defect. The q-compression tie failure mode is
+confirmed fixed by the minimal mechanism; the remaining gap is
+a measurement artefact (the suite's expectation list omits a
+move that wins 3/3 under v7-vs-v7).
+
+**v18 regression positions under v23** (seed 0, the v23
+regression file): the 3 White mechanism positions pass, the 2
+xfails stay xfails (fl1-g0-ply12: v23 plays (7,10) as v18 did;
+fl2-g7-ply9: v23 plays (6,4) — the rollout leaf prefers (6,4)
+too, so the q-break cannot flip a twin choice the leaf itself
+ranks wrong), fl1-g6-ply78 passes. The tie-break changes
+nothing where no tie exists, as designed.
+
+**v18 behaviour preserved by the refactor.** `choose_move`'s
+root selection was extracted into `_pick_root_move` (same code,
+same order) so the rule is unit-testable; the full
+`test_mcts_heuristic` + v7/v16/v18 regression suites pass
+unchanged (56 passed, 6 xfailed), and v23's own unit tests (5)
+plus its regression file (8 passed, 3 xfailed) are green.
 
 ### 1.4 Battery (the verdict — pre-registered seeds and commands)
 
