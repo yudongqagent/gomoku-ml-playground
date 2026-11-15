@@ -546,7 +546,17 @@ measures it precisely.
 
 ## 3. v13 evaluation (FULL VALIDATION BATTERY — final v13)
 
-### 3.1 Tactical suites — TO BE RUN
+### 3.1 Tactical suites
+
+Old 20-position suite, full-dispatch driver
+(`ml/scripts/eval_tactical_full.py`, `player.choose_move`):
+**v13 20/20** (= v7's 20/20). Hard suite (29 positions):
+**v13 29/29** (= v7's 29/29). Log:
+`research/iterations/tactical-v13.log` (gitignored; the
+TACTICAL_JSON line is in `research/iterations/battery.log`).
+**Clause 3 PASSES** (old 20/20 = v7's 20/20; hard 29/29 =
+v7's 29/29). The threat check costs nothing tactically — as
+in v10 (20/20 + 29/29).
 
 ### 3.2 Head-to-head vs v7 (100 games, seeds 100/200) — TO BE RUN
 
