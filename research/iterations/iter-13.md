@@ -177,12 +177,81 @@ decision and the leaf). `ml/gomoku_ml/scoring.py` gains ONLY
 the `ENGINE_VERSIONS[13]` registry entry and a minimal
 dispatch hook. `baseline.py` is frozen and untouched.
 
-## 1b. v13 design (pre-registered AFTER the sweep — TO BE WRITTEN)
+## 1b. v13 design (pre-registered AFTER the sweep — WRITTEN 2026-11-14)
 
-[To be written once the sweep (§2.1) is complete: the chosen
-White sims count per the §1.2 decision rule, the White-priors
-or White-opening-book design, and the mechanism check. No v13
-code is written before this section exists.]
+**Base (decided by the §1.2 rule, §2.1):** v7's PUCT MCTS
+(capped attack-gradient leaf) + v3's 2-ply threat check at the
+root, 100 sims in both colours. The sweep proved 100 is the
+White optimum (0.775 vs v0; 50 -> 0.525, 150 -> 0.55,
+200 -> 0.00), so the sims lever is exhausted and v13's White
+gain must come from the priors.
+
+**The White-specific change: a White-only prior temperature.**
+`_priors` softmaxes `log1p(v1 score) / 2.0` over all
+candidates; the /2.0 temperature gives a ~7x prior ratio
+between successive pattern classes, so a 200k move (an
+open-four maker or its block) takes a huge prior share. The
+fast loop (§2.2) diagnosed the mechanism on White's losses:
+in g9 ply 5 the losing block (6,7) holds prior 0.34 (38 of
+100 visits) while the oracle-verified saves (9,7)/(4,7) hold
+0.108 each; in g7 ply 25 the two 20k four-makers take 0.087
+each (10 visits each) while the save (8,9) takes 0.04 (4
+visits). White's saving moves are quiet counterplay the v1
+scorer ranks below the big single-pattern moves, so the
+prior starves them of visits. v13 flattens the prior ONLY
+when the engine plays White: temperature `T_w` (Black keeps
+2.0), applied to every node of the search when the engine is
+White. One knob, White-specific, falsifiable.
+
+**Decision procedure (pre-registered, mechanical):**
+
+1. **Position probe (NOT an eval).** Run the temperature
+   variants on the 7 White-to-move diagnostic positions (the
+   2 White critical positions from fast-loop iteration 1,
+   §2.2 — g7-ply25, g9-ply15 — + the 5 White v10 regression
+   positions) at T_w in {2.0, 3.0, 4.0} and count
+   oracle-verified saves played. Proceed to step 2 ONLY if
+   some T_w > 2.0 plays strictly more saves than the
+   T_w = 2.0 control. If no temperature beats the control on
+   the probe, the temperature hypothesis is refuted on
+   arrival — no match sweep, no temperature in v13.
+2. **Temperature sweep (if the probe passes).** T_w in
+   {2.0, 3.0, 4.0} vs v0, 40 games each (20 as White),
+   sweep seeds 300/400, same harness as §1.2. Pick the
+   T_w with the highest as-White win rate vs v0; ties or
+   near-ties (within 0.10) broken by a 40-game match vs v7
+   at the tied temperatures; a remaining tie broken by the
+   lower temperature. If no T_w beats the T_w = 2.0 control,
+   v13 ships with T_w = 2.0 (i.e. the base).
+3. **Fast loop iteration 2** on the chosen v13, then the
+   §1.4 battery.
+
+**Contingency (not pre-registered as a design — it would
+need its own §1b entry if pursued):** if the temperature
+hypothesis is refuted at the probe, the remaining
+White-specific direction is a White opening book derived
+from probe matches (play N games from each candidate White
+reply to Black's centre opening, book the best) — NOT a
+book hand-written from one fast-loop game (the g9 ply-5
+oracle verdict disagrees with actual engine play from the
+same position: g3 won from the identical opening, so a
+(6,7) ban on that evidence alone would be overfitting to
+the oracle proxy).
+
+**What this design does NOT do:** no q-based root decision
+(CLOSED), no leaf change (H3's work; the leaf is not the
+binding constraint), no sims change beyond the sweep's
+verdict, no net value.
+
+**Mechanism check (pre-registered, NOT an eval):** at the
+chosen T_w, v13-as-White should play the saving move on
+the g9-ply-5 opening position (9,7) or (4,7) instead of the
+losing block (6,7). If it does not, the temperature does
+not fix the known opening pathology and the design's
+mechanism is in doubt before any match is played — recorded
+as an xfail, following iter-10's precedent of not amending
+a pre-registered design on one diagnostic position (the
+sweep + battery decide).
 
 ## 2. Sweep and loss analysis
 
@@ -233,7 +302,109 @@ sequentially after the v0 sweep; results recorded here when
 complete. The sims decision above does not depend on them
 (the §1.2 rule resolves on the v0 primary with no near-tie).
 
-### 2.2 Fast-loop iteration 1 — TO BE RUN
+### 2.2 Fast-loop iteration 1 — 10 games vs v7 (v13 BASE)
+
+**Batch:** `research/iterations/fastloop1-v13-vs-v7.json`
+(seeds v13=1001 / v7=2001 — development seeds, distinct from
+the bar battery's 100/200 and the sweep's 300/400).
+**6W-4L-0D, win rate 0.6000, CI [0.3127, 0.8318]**, 364.7 s.
+Split: as Black 3W-2L (games 0, 2 lost; 4, 6, 8 won), as
+White 3W-2L (games 1, 3, 5 won; 7, 9 lost). Classifier:
+4/4 losses via open four, 0 missed blocks, 0 clean missed
+preventions in 10 threatened turns (losses). Defence is
+still solved; the losses are lost races. All 10 games are
+distinct lines. Note: the (7,5) White-reply opening line —
+(7,7)(7,5)(5,7)(3,7)(8,7)(6,7) — appears in 4 of the 10
+games (g0, g2, g3, g9); v13 goes 1W-3L from it, and White
+wins 3 of the 4 regardless of engine.
+
+**The losing move in each game** (walk-back,
+`ml/scripts/walkback_loss.py`, corrected oracle method —
+the actual move's v1-vs-v1 playout must lose at all 3 seeds
+before an alternative counts; seeds 0,1,2; alternatives are
+the top-6 by v1 score plus forcing moves; JSONs:
+`research/iterations/walkback-fl1-g{0,2,7,9}.json`):
+
+| Game | Last preventable turn | v13 played (loses 3/3) | Perfect move (oracle) |
+|---|---|---|---|
+| 0 (Black, 18 plies) | ply 12 | (11,9) | (9,7) / (7,8) — win 3/3 |
+| 2 (Black, 36 plies) | ply 30 | (12,7) | (4,5) — draws/wins; (3,4)/(6,4) partial |
+| 7 (White, 33 plies) | ply 25 | (5,10) | (8,9) — wins 2/3; (6,11)/(4,11) draw 3/3 |
+| 9 (White, 21 plies) | ply 15 | (7,10) | (7,6) — wins 2/3 |
+
+First losing turns (earliest turn where the actual loses
+3/3 with a save): g0 ply 8 (7,9), saves incl. (3,5) wins
+3/3; g2 ply 20 (7,6), saves (10,3)/(10,8) draw 3/3; g7 ply
+19 (7,9), saves incl. (2,10) draws 3/3; g9 ply 5 (6,7) —
+the OPENING — saves (9,7) draws 3/3, (4,7) wins 2/3.
+
+**Critical-position analysis** (`ml/scripts/analyse_critical.py`,
+100 sims, gradient leaf; q reported here is OUR-perspective
+q = -raw child.q, per iter-9 §1.0 — the script reports raw
+q, which is the opponent's value):
+
+| Position | Actual (v1 rank / prior) | Actual visits / our-q | Save visits / our-q |
+|---|---|---|---|
+| g0 ply 12 | (11,9) rank 8, p=0.037 | 5 / -0.013 | (9,7): 4 / -0.053 |
+| g2 ply 30 | (12,7) rank 11, p=0.030 | 5 / -0.040 | (4,5): 2 / -0.113 |
+| g7 ply 25 | (5,10) rank 2, p=0.087 | 10 / -0.045 | (8,9): 4 / -0.104 |
+| g9 ply 15 | (7,10) rank 1, p=0.148 | 24 / -0.005 | (7,6): 16 / +0.032 |
+| g9 ply 5 (opening) | (6,7) rank 1, p=0.340 | 38 / -0.021 | (9,7): 10 / -0.044 |
+
+**The dominant class is beyond-horizon value error, NOT a
+decision-rule or visit-starvation problem.** In 4 of the 5
+positions the search's own correctly-signed q prefers the
+LOSING move (g0, g2, g7, g9-ply-5); only in g9 ply 15 does
+q prefer the save (+0.032 vs -0.005) while visits override
+it (24 vs 16) — and that save leaves a Black creator live,
+so the threat check would filter it out anyway. The
+gradient leaf gives no consistent signal (it prefers the
+loser in g0/g7/g9-15, the save in g9-5, tied in g2). The
+positions are quiet (0 creators) except g9 ply 15 and g9
+ply 5 (1 Black creator each), so the threat check is mostly
+disengaged. The White losses share one visible pattern:
+**the losing move is the top-v1-score move** — a 200k
+open-four maker/block (g9 ply 15: (7,10), 200090; g9 ply 5:
+(6,7), 200012, prior 0.34) or a 20k four-maker (g7 ply 25:
+(5,10), 20008) — while the saves are quiet counterplay
+(rank 2-5, scores 4k-24k). The v1 prior concentrates the
+search on the big single-pattern move; the leaf cannot see
+far enough to correct it. That concentration is the
+mechanism the §1b White-prior-temperature design targets.
+
+**Caveat on the opening position (g9 ply 5).** The oracle
+says (6,7) loses 3/3 — but game 3 won from the IDENTICAL
+opening (same first 8 plies, diverging only at ply 8) under
+actual engine play. The v1-vs-v1 oracle is a proxy, and
+here it disagrees with engine play; a book entry banning
+(6,7) on this evidence alone would be overfitting to the
+oracle (see §1b's contingency note).
+
+**NO PATCH from iteration 1 yet — the loop continues to
+the §1b temperature probe.** Iteration 1 produced no
+verified patchable class with a certain fix (the dominant
+class is value error, whose fix is not established), but
+it DID produce a testable White-specific mechanism (prior
+concentration on big-score moves) with a one-knob
+intervention (White prior temperature). Per the §1b
+decision procedure, the probe decides whether the
+temperature is worth a match sweep; the loop does not stop
+while a pre-registered probe is pending.
+
+**Regression tests:** `ml/gomoku_ml/regression_positions_v13.json`
+(4 positions from this iteration: g0-ply12, g2-ply30,
+g7-ply25, g9-ply15 — stone lists + expected saves, generated
+from the game records) +
+`ml/tests/test_regression_v13.py`. All 4 are documented
+xfails until a patch plays the save. (g9-ply-5 is the §1b
+mechanism check, tracked separately — its oracle verdict
+disagrees with engine play in g3, so it is not a regression
+test.) Reproduction note (verified): the unpatched base with
+a fresh seed-0 player reproduces the exact losing move on
+g0 (11,9) and g9-ply15 (7,10); on g2 it plays (9,10) and on
+g7 (5,13) — both tied alternatives at the same visit count
+in the critical analysis, still non-saves — so the base
+plays a non-save on all 4 positions.
 
 ### 2.3 Fast-loop iteration 2 — TO BE RUN
 
