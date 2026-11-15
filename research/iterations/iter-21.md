@@ -252,31 +252,70 @@ registry entry (plus [16], [18], [19] as controls).
 unchanged from `research/batch-7-h2`. `baseline.py` is frozen
 and untouched.
 
-### 1.2 Port controls (post-implementation, pre-fast-loop)
+### 1.2 Port controls (post-implementation, pre-fast-loop) — BOTH PASS
 
-Before any v21 eval, the port is verified by reproducing the two
+Before any v21 eval, the port was verified by reproducing the two
 parent versions' tactical numbers on this tree, under the
 identical protocol (`eval_tactical_full.py --seed 100`):
-v18 must score 20/20 old + 25/29 hard (failing exactly g26, g79,
-v1bl-g2, winning-quiet-setup-2), and v19 must score 20/20 old +
-27/29 hard (failing exactly g12 and g45). If either control
-differs, the port is wrong and v21 numbers cannot be trusted.
-These are implementation checks, not pre-registration evidence
-and not eval.
+
+- v18: **20/20 old + 25/29 hard**, failing exactly g26 (chose
+  (12,3)), g79 (chose (5,1)), v1bl-g2 (chose (7,9)) and
+  winning-quiet-setup-2 (chose (9,7)) — identical to iter-18 §3.1,
+  including passing g12 (chose (12,2)) by RNG tie-break luck.
+- v19: **20/20 old + 27/29 hard**, failing exactly g12 (chose
+  (7,3)) and g45 (chose (10,4)) — identical to iter-19 §3.1.
+
+Both controls reproduce exactly, so the port is trusted: v18's
+rollout leaf and v19's blend behave on this tree exactly as they
+did on their own branches. These are implementation checks, not
+pre-registration evidence and not eval.
 
 ### 1.3 Mechanism check (post-implementation, pre-fast-loop)
 
-After implementation and before any fast-loop game, v21 is run
-once on v18's 7 regression positions (seed 0, full 100-sim
-search) — the 5 v16 mechanism positions plus v18's two fast-loop
-xfails — and root dumps are taken on v18's four tactical failures
-and v19's g45. This is an implementation check, not
-pre-registration evidence and not an eval — it verifies the
-dispatch does what §1 says it does, and records whether the blend
-moves any of the documented tie-breaks at seed 0. (Tactical
+After implementation and before any fast-loop game, v21 was run
+once on v18's 6 regression positions (seed 0, full 100-sim
+search) and root dumps were taken on v18's four tactical failures
+and v19's g45/g12 (`/tmp/mech_v21.py`). This is an implementation
+check, not pre-registration evidence and not an eval — it verifies
+the dispatch does what §1 says it does, and records whether the
+blend moves any of the documented tie-breaks at seed 0. (Tactical
 results are seed-dependent for rollout-leaf engines; the
 mechanism check at seed 0 does not predict the battery's seed-100
 outcome.)
+
+**Regression positions (seed 0):** v21 matches v18 on all 6 —
+passes the 4 v18 passes (mech-v13-g9-ply15 (7,6), mech-v14-g3-ply13
+(6,5), fl1-g7-ply89 (12,0), fl1-g6-ply78 (5,7)) and fails the same
+2 xfails (fl1-g0-ply12 (7,10), fl2-g7-ply9 (6,4)). v21-as-White
+matches v19 on all three White positions, as designed. These 6
+positions are v21's regression file
+(`regression_positions_v21.json`, copied unchanged from v18's),
+with the same 2 xfails.
+
+**Root dumps (fresh seed 0):**
+
+| Position | To move | v21 | v18 | What the blend did |
+|---|---|---|---|---|
+| prev-v2v1s-g12 | White | (7,3) FAIL | (7,3) FAIL | INERT — root dumps byte-identical (5-5-5-5-5 tie, good moves our-q −0.75 vs blockers −1.00); the gradient at terminal positions aligns with the terminal and the clamp pins everything, exactly as iter-19 §3.1 found for v19. |
+| prev-v1v0s-g26 | Black | (9,4) PASS | (9,4) PASS | Spread q (expected −0.583→−0.48/−0.518, losers −1.000→−0.94) but the 3-3-3-3 visit tie PERSISTS; both pass at seed 0 by RNG luck. The blend widens the q gap (0.42→0.46) without converting it into visits. |
+| prev-v1v1s-g79 | Black | (7,9) PASS | (7,8) PASS | BREAKS the tie: (7,9) takes 4 visits outright (our-q −0.577) vs 3s — a genuine visit-allocation change, not RNG luck (v18 ties seven moves at 3 and passes by luck). |
+| prev-v1bl-g2 | Black | (7,5) PASS | (7,9) FAIL | BREAKS the tie: (7,5) 8 visits vs (7,9) 7 (v18 ties 8-8 and RNG picks the loser). The expected move's q rose more (−0.594→−0.513) than the loser's (−0.724→−0.663). A genuine blend fix at the mechanism level. |
+| prev-v1v1s-g45 | White | (12,7) PASS | (12,7) PASS | The g45 regression mechanism is PRESENT: the loser (10,4) is softened to −0.932 and earns a second visit, tying 2-2-2-2 with the good moves; v21 passes at seed 0 by RNG luck only (iter-19: fresh-player v19 also passes here; the battery RNG picked (10,4)). |
+| winning-quiet-setup-2 | Black | (9,7) FAIL | (9,7) FAIL | INERT — root dumps byte-identical (79 visits on (9,7), our-q +0.959, vs 16 on (8,7) at +1.000). The suite-list gap: (9,7) wins 3/3 under v7-vs-v7 (iter-18 §3.1). |
+
+**Pre-fast-loop tactical diagnostic (seed 100, the battery
+protocol — NOT the verdict, which runs on the final patched
+version): v21 scores 20/20 old + 26/29 hard**, failing g12
+(chose (7,3)), g45 (chose (10,4)) and winning-quiet-setup-2
+(chose (9,7)). All three of v18's Black q-compression ties are
+fixed at seed 100 (g26 chose (8,4), g79 chose (7,9), v1bl-g2
+chose (7,5)) — the blend does what it was designed to do on
+Black's side — but v21 inherits v19's two White failures (g12
+inert, g45 regressed) plus the suite-list gap. 26/29 sits between
+v18's 25/29 and v19's 27/29, inside the pre-registered 26–28/29
+range. Clause 3 needs 29/29; the fast loop (§2) is the only
+remaining route to a leaf-level patch — the three failures are
+all tie/RNG or suite-list cases, and a root rule is CLOSED.
 
 ## 2. Loss analysis for iteration 21
 
