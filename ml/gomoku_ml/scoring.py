@@ -228,6 +228,29 @@ ENGINE_VERSIONS: dict[int, dict] = {
     18: {"name": "scoring-v18", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both"},
+    # v19 (iteration 19, batch 7): H2 — v16's White-only 2-ply
+    # rollout leaf with BLENDED rollout terminals (see
+    # gomoku_ml.mcts_heuristic._blend_rollout_terminal and
+    # research/iterations/iter-19.md). v16's rollout leaf
+    # compresses all q values toward -1.0 in creator-rich positions
+    # (iter-16 §3.1): the 2-ply horizon reaches a forcing loss from
+    # nearly every quiet leaf, so the search cannot rank defences it
+    # knows are all losing — on the hard suite's prev-v2v1s-g12 the
+    # good moves sit at q -0.75 vs -1.00 for the blockers and the
+    # blockers' 3x prior advantage ties the visits 5-5, broken by
+    # RNG. v19 blends each rollout-found ±1 terminal with the
+    # symmetric v1 gradient at the terminal position, clamped to
+    # [-1, 1]: losing lines with counterplay breadth rise above
+    # -1.0, hopeless lines stay pinned, and the terminal's dominance
+    # over quiet leaves (±0.2) and the must-block (-0.25) is
+    # preserved. Leaf-start terminals stay exact; the rollout-end
+    # must-block stays gradient-evaluated (v16 patch 2); v16's two
+    # fast-loop patches (v1 rollout policy, open-four priority) are
+    # kept verbatim. As Black, v19 IS v7 exactly, as v16 was.
+    # Versions 17-18 are the parallel batch-6/7 workstreams'.
+    19: {"name": "scoring-v19", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_blend"},
 }
 
 # --- weights --------------------------------------------------------------

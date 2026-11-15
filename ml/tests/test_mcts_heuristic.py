@@ -1,5 +1,5 @@
 """Tests for the heuristic-prior MCTS (v6, batch 2 H2; v7, batch 3 H1;
-v16, batch 6 H2; v18, batch 7 H1)."""
+v16, batch 6 H2; v18, batch 7 H1; v19, batch 7 H2)."""
 
 import math
 
@@ -11,6 +11,7 @@ from gomoku_ml.mcts_heuristic import (
     HeuristicMCTS,
     _attack_gradient,
     _attack_gradient_v1,
+    _blend_rollout_terminal,
     _gradient_leaf_value,
     _priors,
     _rollout_leaf_value,
@@ -541,3 +542,180 @@ def test_rollout_both_leaf_mode_rejects_unknown_mode():
     # (and the error message lists both rollout modes).
     with pytest.raises(ValueError, match="rollout2_v1_both"):
         HeuristicMCTS(sims=10, leaf_mode="rollout3_v1")
+
+
+# --- v19 (batch 7, H2): blended rollout terminal ----------------------------
+
+def test_blend_rollout_terminal_zero_gradient_is_identity():
+    # Empty board: both breadths are 0, so the gradient is 0 and the
+    # blend returns the terminal unchanged (a draw is a fact).
+    board = game.empty_board()
+    assert _blend_rollout_terminal(1.0, board, game.BLACK) == 1.0
+    assert _blend_rollout_terminal(-1.0, board, game.BLACK) == -1.0
+    assert _blend_rollout_terminal(0.0, board, game.BLACK) == 0.0
+
+
+def test_blend_rollout_terminal_shifts_and_clamps():
+    # Black holds an open three (two four-makers); White has a lone
+    # stone — Black's breadth dominates, so the gradient for Black
+    # is positive and for White negative.
+    board = _board_with([(7, 7), (8, 7), (9, 7)], [(3, 3)])
+    assert _attack_gradient_v1(board, game.BLACK) > 0
+    # A loss softened by counterplay breadth, a win pinned by the
+    # clamp (predictions never exceed facts).
+    softened_loss = _blend_rollout_terminal(-1.0, board, game.BLACK)
+    assert -1.0 < softened_loss <= -0.8
+    assert _blend_rollout_terminal(1.0, board, game.BLACK) == 1.0
+    # Same board from White's perspective: the signs flip.
+    weak_win = _blend_rollout_terminal(1.0, board, game.WHITE)
+    assert 0.8 <= weak_win < 1.0
+    assert _blend_rollout_terminal(-1.0, board, game.WHITE) == -1.0
+
+
+def test_blended_rollout_leaf_matches_v16_on_quiet_rollout_ends():
+    # From the empty board the 2-ply rollout ends quietly (no
+    # terminal in 2 plies), so the blend is a no-op: v19's leaf
+    # equals v16's exactly. The blend ONLY affects rollout
+    # terminals.
+    board = game.empty_board()
+    assert _rollout_leaf_value(board, game.BLACK, blend=True) == (
+        _rollout_leaf_value(board, game.BLACK, blend=False)
+    )
+    assert _rollout_leaf_value(board, game.WHITE, blend=True) == (
+        _rollout_leaf_value(board, game.WHITE, blend=False)
+    )
+
+
+def test_blended_rollout_leaf_matches_terminal_leaf_on_terminal_positions():
+    # Leaf-start terminals are FACTS: the blend never touches them.
+    board = _board_with([(7, 7), (7, 8), (7, 9), (7, 10)], [(3, 3)])
+    assert _rollout_leaf_value(board, game.BLACK, blend=True) == 1.0
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 7), (5, 8)])
+    assert _rollout_leaf_value(board, game.BLACK, blend=True) == -1.0
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 8), (5, 9)])
+    assert _rollout_leaf_value(board, game.BLACK, blend=True) == -0.25
+
+
+def test_blended_rollout_leaf_bounded_and_deterministic():
+    rng = np.random.default_rng(2)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    v1 = _rollout_leaf_value(board, game.BLACK, blend=True)
+    v2 = _rollout_leaf_value(board, game.BLACK, blend=True)
+    assert -1.0 <= v1 <= 1.0
+    assert v1 == v2  # deterministic: no RNG in the leaf
+
+
+def test_v19_registered_and_dispatches_to_blend_mcts():
+    v19 = scoring.get_player(19, seed=0)
+    assert v19.name == "scoring-v19"
+    assert v19.mcts is True
+    assert v19._mcts is not None
+    assert v19._mcts.sims == 100
+    assert v19._mcts.leaf_mode == "rollout2_v1_blend"
+    # v16 and v7 are unchanged.
+    v16 = scoring.get_player(16, seed=0)
+    assert v16._mcts.leaf_mode == "rollout2_v1"
+    v7 = scoring.get_player(7, seed=0)
+    assert v7._mcts.leaf_mode == "gradient"
+
+
+def test_v19_as_black_matches_v7():
+    # v19-as-Black IS v7 exactly (same leaf, same priors, same
+    # search) — the Black games are a built-in control. Same seed,
+    # same positions, same moves.
+    rng = np.random.default_rng(5)
+    for trial in range(3):
+        board = game.empty_board()
+        cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+        rng.shuffle(cells)
+        for i, (x, y) in enumerate(cells[:20]):
+            board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+        v7 = scoring.get_player(7, seed=0)
+        v19 = scoring.get_player(19, seed=0)
+        assert v19.choose_move(board, game.BLACK) == v7.choose_move(
+            board, game.BLACK
+        ), f"trial {trial}: v19-as-Black differs from v7"
+
+
+def test_v19_leaf_value_matches_v7_when_root_is_black():
+    # Leaf-level version of the Black-control claim: with the root
+    # player Black, the v19 leaf equals v7's gradient leaf on every
+    # sampled board (terminal and quiet alike).
+    rng = np.random.default_rng(6)
+    mcts = HeuristicMCTS(sims=10, leaf_mode="rollout2_v1_blend")
+    mcts._root_player = game.BLACK
+    for _ in range(5):
+        board = game.empty_board()
+        cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+        rng.shuffle(cells)
+        for i, (x, y) in enumerate(cells[:20]):
+            board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+        for player in (game.BLACK, game.WHITE):
+            assert mcts._leaf_value(board, player) == _gradient_leaf_value(
+                board, player
+            )
+
+
+def test_v19_choose_move_deterministic_for_same_seed():
+    rng = np.random.default_rng(1)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:20]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    a = scoring.get_player(19, seed=0)
+    b = scoring.get_player(19, seed=0)
+    assert a.choose_move(board, game.WHITE) == b.choose_move(board, game.WHITE)
+
+
+def test_v19_choose_move_does_not_mutate_board():
+    rng = np.random.default_rng(0)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    before = board.copy()
+    mcts = HeuristicMCTS(sims=20, leaf_mode="rollout2_v1_blend",
+                         rng=np.random.default_rng(0))
+    mcts.choose_move(board, game.WHITE)
+    assert np.array_equal(board, before)
+
+
+def test_unknown_rollout_leaf_mode_raises():
+    with pytest.raises(ValueError, match="unknown leaf_mode"):
+        HeuristicMCTS(sims=10, leaf_mode="rollout2_v1_blended")
+
+
+def test_blended_rollout_leaf_spreads_terminal_lines():
+    # The blend's whole point (iter-19 §1): lines the rollout calls
+    # terminal get spread by the gradient at the terminal position
+    # instead of all collapsing to exactly ±1.0. Two concrete boards
+    # (found by probing random boards): a rollout win weakened by an
+    # unfavourable end gradient, and a rollout loss softened by
+    # counterplay breadth — both stay inside the terminal band
+    # ([0.8, 1.0] / [-1.0, -0.8]), clearly separated from quiet
+    # leaves (±0.2).
+    rng = np.random.default_rng(2)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(3, 12) for x in range(3, 12)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    assert _rollout_leaf_value(board, game.BLACK) == 1.0
+    blended = _rollout_leaf_value(board, game.BLACK, blend=True)
+    assert 0.8 <= blended < 1.0
+
+    rng = np.random.default_rng(8)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(3, 12) for x in range(3, 12)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    assert _rollout_leaf_value(board, game.BLACK) == -1.0
+    blended = _rollout_leaf_value(board, game.BLACK, blend=True)
+    assert -1.0 < blended <= -0.8
