@@ -1,7 +1,10 @@
 # Iteration 17 — v17: the combination (batch 6, H3)
 
-**Status: IN PROGRESS — pre-registration (§1) written BEFORE any eval.
-Components ported from `research/batch-5`, not re-derived.**
+**Status: IN PROGRESS — fast loop complete (2 iterations, no
+patchable class, loop stopped per the stopping rule); the battery
+runs on the as-registered v17. Clause 4 pre-check green (ml pytest
+299 passed / 7 skipped / 20 xfailed / 0 failures; npm test 55/55;
+tsc clean). Pre-registration (§1) was written BEFORE any eval.**
 
 **METHOD (carried over from batch 3/4/5).** The fast 10-game loop
 stays the finding method: play 10 games, read every move, find
@@ -466,9 +469,49 @@ fast-loop patches). The temporary diagnostic version 97
 
 ### 2.5 Aggregate counts (secondary)
 
-[PENDING — filled after the battery.]
+[PENDING — filled after the battery, from the classifier on the
+three 100-game matches.]
 
 ## 3. v17 evaluation
+
+**Engine note:** the fast loop made NO patch, so the battery runs
+on the pre-registered engine exactly as implemented in §1 (v7's
+MCTS + the v1-kernel gradient leaf, scale 7.5, cap ±0.2, +
+tie-prior-forcing root rule + the 2-ply threat check at the
+root). Tactical was measured on this engine in §1.4 (20/20 +
+29/29) and is re-run in §3.5 for the record.
+
+### 3.1 Smoke — NOT RUN (no smoke; the fast loop is the smoke)
+
+Per the batch-5 method the 10-game fast loop (§2.1-2.2) is the
+only small-sample evidence, and small-sample smokes mislead
+(v8, v11, and v17's own 0-10 transposition artefact in §2.1)
+— the 100-game battery is the verdict.
+
+### 3.2 Tactical suites — pre-battery (re-run on the final engine in §3.5)
+
+Old 20-position suite, full-dispatch driver
+(`ml/scripts/eval_tactical_full.py`): **v17 20/20**. Hard suite
+(29 positions): **v17 29/29** — a perfect score, matching v7's
+20/20 + 29/29. The combination costs nothing tactically.
+
+### 3.3 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
+
+[PENDING — running.]
+
+### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
+
+[PENDING]
+
+### 3.5 Tactical suites — FINAL BATTERY (re-run on the final engine)
+
+[PENDING]
+
+### 3.6 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
+
+[PENDING]
+
+### 3.7 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
 
 [PENDING]
 
