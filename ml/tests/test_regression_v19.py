@@ -29,17 +29,20 @@ POSITIONS_PATH = os.path.join(
 # the loser first (q +0.109 vs ~-0.04 for the saves). No structural
 # patch within scope (see iter-19.md §2.1); the leaf-start gradient
 # blend was measured and does not fix it.
-# fl1-g0-ply12, fl1-g2-ply40, fl1-g4-ply20, fl1-g6-ply20: Black
-# positions — v19-as-Black IS v7, so v19 plays v7's losing move
-# there; fixing them would mean changing the Black leaf, which is
-# out of scope for the White-leaf workstream (the Black games are
-# the built-in control). Documented xfails, not dropped.
+# fl1-g0-ply12, fl1-g2-ply40, fl1-g4-ply20, fl1-g6-ply20,
+# fl2-g6-ply30, fl2-g8-ply40: Black positions — v19-as-Black IS v7,
+# so v19 plays v7's losing move there; fixing them would mean
+# changing the Black leaf, which is out of scope for the White-leaf
+# workstream (the Black games are the built-in control). Documented
+# xfails, not dropped.
 XFAIL = {
     "fl1-g9-ply19": "Beyond-horizon quiet-setup kill; rollout leaf misranks the loser — see iter-19.md §2.1",
     "fl1-g0-ply12": "Black position (v19-as-Black is v7); see iter-19.md §2.1",
     "fl1-g2-ply40": "Black position (v19-as-Black is v7); see iter-19.md §2.1",
     "fl1-g4-ply20": "Black position (v19-as-Black is v7); see iter-19.md §2.1",
     "fl1-g6-ply20": "Black position (v19-as-Black is v7); see iter-19.md §2.1",
+    "fl2-g6-ply30": "Black position (v19-as-Black is v7); see iter-19.md §2.2",
+    "fl2-g8-ply40": "Black position (v19-as-Black is v7); see iter-19.md §2.2",
 }
 
 

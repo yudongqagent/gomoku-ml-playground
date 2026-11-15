@@ -300,6 +300,54 @@ the specific risk is a loss where v19 plays a loser v16 does NOT
 play (a blend-caused regression), which iteration 1 did not
 produce. Iteration 2 runs to check for exactly that.
 
+### 2.2 Fast-loop iteration 2 — 10 games vs v7 + 10 games vs v0 (LOOP STOPS)
+
+**Batch vs v7:** `research/iterations/fastloop2-v19-vs-v7.json`
+(seeds v19=1002 / v7=2002). **8W-2L-0D, win rate 0.8000, CI
+[0.4902, 0.9433]**, 516.3 s. Split: as Black 3W-2L (0.60), as
+White **5W-0L (1.00)** — the iteration-1 White 2W-3L was noise;
+across both iterations White is 7W-3L (0.70). Classifier: 2/2
+losses via open four, 0 missed blocks, 0 missed preventions in 4
+threatened turns (losses). Defence still solved.
+
+**Batch vs v0:** `research/iterations/fastloop2-v19-vs-v0.json`
+(seeds v19=1002 / v0=2002). **7W-2L-1D, win rate 0.7500, CI
+[0.4422, 0.9191]**, 220.3 s. Split: as Black 2W-2L-1D (0.50), as
+White **5W-0L (1.00)** — White perfect against v0 in both
+iterations (10W-0L). Classifier: 2/2 losses via open four, 0
+missed blocks, 0 missed preventions in 6 threatened turns.
+
+**Walk-backs — all four losses in this iteration are Black
+games, i.e. v7's moves (v19-as-Black IS v7), recorded only:**
+vs v7 game 6 ply 30 played (12,6), 1 save; game 8 ply 40 played
+(9,11), 2 saves (`research/iterations/walkback-fl2-g{6,8}.json`);
+vs v0 game 2 ply 14 played (5,8), 1 save; game 4 ply 16 played
+(8,7), 2 saves (`research/iterations/walkback-fl2v0-g{2,4}.json`).
+
+**No White loss in this iteration against either opponent, hence
+no new patchable White weakness class — the fast loop STOPS here
+(2 iterations) per its stopping rule.** In particular, no
+blend-caused regression appeared: across 20 White games (10 vs
+v7, 10 vs v0) v19 lost 3, all in iteration 1, all beyond-horizon
+losses shared with v16 — never a move v16 plays correctly and
+v19 gets wrong. Fast-loop totals over 40 games: v19 27W-12L-1D
+(0.6875); as White 17W-3L (0.85), as Black 10W-9L-1D (0.525).
+The 100-game battery is the verdict — the fast loop's 40 games
+are development signal, not the bar.
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
+
+### 2.5 Aggregate counts (secondary)
+
+Fast-loop defence (2 iterations, 40 games, 12 losses): 12/12
+losses via open four, 0 missed blocks, 0 clean missed preventions
+(41 threatened turns in losses). Defence remains solved; every
+loss is a lost race, as in all batches since v6. White lost 3 of
+20 games (all vs v7, all iteration 1); Black lost 9 of 20 (v7's
+mirror games).
+
 ## 3. v19 evaluation
 
 Battery on the FINAL version (after the fast loop stopped).
