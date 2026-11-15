@@ -463,11 +463,94 @@ rollout leaf is a large White-side gain, while the Black games
 100-game battery is the verdict — the fast loop's 30 games are
 development signal, not the bar.
 
-### 2.4 Fast-loop iteration 4 — NOT RUN YET
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 3)
 
 ### 2.5 Aggregate counts (secondary)
 
+Fast-loop defence (3 iterations, 30 games, 12 losses): 12/12
+losses via open four, 0 missed blocks, 0 clean missed preventions
+(46 threatened turns in losses). Defence remains solved; every
+loss is a lost race, as in all batches since v6.
+
 ## 3. v16 evaluation
+
+Battery on the FINAL version (commit `060b883`, after the fast
+loop stopped). Pre-registered seeds 100/200 throughout (§1.2).
+
+### 3.1 Tactical suites — 20/20 old, 28/29 hard (CLAUSE 3 FAILS)
+
+`ml/scripts/eval_tactical_full.py --version 16 --suite both
+--seed 100` (identical protocol to v7's measurement): old 20/20,
+hard **28/29**. v7 under the identical protocol: 20/20 + 29/29
+(re-run here to confirm). The single failure is
+`prev-v2v1s-g12` (Prevent the open four — v2v1s game 12, White to
+move): v16 chose (7,3), expected (12,2) or (13,2).
+
+**The failure is on a position that is a forced loss for White —
+v16's evaluation is correct and the suite's expectation is wrong.**
+Direct verification at the root (White to move): Black has THREE
+open-four creators — (7,1) leaves winning moves (6,1)+(11,1),
+(7,3) leaves (10,0)+(5,5), (11,1) leaves (7,1)+(12,1). White can
+block at most one; every White move loses by force (block one
+creator → Black plays another; counter-four (12,2) → Black blocks
+(13,2) → White blocks one creator → Black plays another and
+wins). The suite's expected moves are the weak v1-oracle's idea
+of a save, not saves. v7 "passes" because its gradient leaf is too
+optimistic to see the forced loss (leaf -0.185 at the post-block
+position), so its search prefers the counter-four for the wrong
+reason. v16's rollout leaf sees the loss exactly (leaf -1.000:
+after (12,2)+block, White's rollout reply correctly blocks (7,1),
+Black's reply plays the second open-four creator (7,3), White
+faces two winning moves).
+
+**Failure mechanism (root dump, driver RNG state reproduced
+exactly — `/tmp/dump_g12_root.py`):** v7's root q for (12,2)/(13,2)
+is -0.09 vs -0.70 for the blocking moves (gap 0.61), so the good
+moves take 6 visits vs 3 and win. v16's rollout leaf compresses
+all q values toward -1.0 ((12,2)/(13,2) at -0.75, blockers at
+-1.00 — gap 0.25), the blockers' 3x prior advantage (0.130 vs
+0.041) ties the visits 5-5 across five moves, and the RNG
+tie-break picks (7,3). The good moves are still least-bad by q,
+but visits tie. This is a genuine weakness of the rollout leaf
+beyond this one position: in creator-rich positions the rollout
+sees losses 2 plies out from nearly every quiet leaf, flattening
+the q signal the search needs to discriminate among defences.
+(The same flattening is why v6's flat quiet leaves (0) pass this
+position: terminal -1.0s in bad lines vs 0s in good lines
+preserve the ordering that the rollout's foresight erases.)
+
+**No patch.** The only fixes are (i) a root tie-break rule
+preferring higher our-q among equal-visit children — CLOSED
+(v9/v12's exact family: root-decision rules are exhausted), or
+(ii) deliberately degrading the leaf's accuracy so it shares v7's
+blindness — absurd. The battery runs on the final version; 28/29
+stands as the clause-3 result. Lesson for future workstreams: run
+the full tactical suites after EVERY patch, not just at battery
+time — the mechanism checks (10 White critical positions) did not
+cover this hard-suite position, so the regression was caught only
+at the battery.
+
+### 3.2 Head-to-head vs v7 — 52W-37L-11D, 0.5750 (CLAUSE 1 FAILS)
+
+`research/iterations/batch-v16-vs-v7.json` (100 games, normal
+rules, seeds 100/200, 6315.9 s): **v16 52W-37L-11D, win rate
+0.5750, 95% CI [0.4771, 0.6673]** — aggregates recomputed from the
+raw records (match the script's printed summary exactly). Split:
+as Black 22W-21L-7D (0.510), as White 30W-16L-4D (0.640). Clause 1
+requires the CI lower bound > 0.50; 0.4771 < 0.50, so **clause 1
+FAILS** — v16 beats v7 on points but not by an established margin.
+The White gain is real (0.64 vs v7's own 0.52 as White vs v1, and
+the fast loop's White 12W-3L pointed the same way), but the Black
+games — v16-as-Black IS v7, a mirror decided by seed — run at
+0.51, and the combined 0.5750 sits 2.5 points short of the ~0.60
+needed for the CI lower bound to clear 0.50. (The first run of
+this match was killed by a runtime restart at 69/100 games; the
+re-run with the same seeds reproduced the saved 69-game partial
+EXACTLY — all records identical — and the final 31 games are new.
+Determinism verified, no data integrity issue; the restart cost
+only wall-clock time.) Classifier: 37/37 losses via open four, 0
+missed blocks, 0 clean missed preventions in 149 threatened turns
+(losses). Defence still solved.
 
 ## 4. Bar check (v16 vs v7)
 
