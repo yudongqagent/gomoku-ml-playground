@@ -221,7 +221,23 @@ known missing-gitignored-checkpoint skips in a fresh worktree
 
 ### 2.1 Fast-loop iteration 1 — 10 games vs v0
 
-[To be filled.]
+**Batch:** `research/iterations/fast-v12-vs-v0-iter1.json`
+(seeds v12=1001 / v0=2001 — development seeds, distinct from the bar
+battery's 100/200). **10W-0L-0D, win rate 1.0000, CI [0.7225,
+1.0000]**, 282.4 s. Per colour: as Black 5W-0L-0D, as White
+5W-0L-0D. Mean game length 45.1 plies. **No losses — nothing to
+patch from this iteration.**
+
+Comparison on identical seeds: v9's iter 1 (same seeds 1001/2001)
+was 8W-2L, both losses as Black in 124-ply games (iter-9 §2.1,
+distributed drift, no verified single losing move). v12 wins both
+of those games — game 0 in 89 plies, game 2 in 33 plies. The
+forcing tie-break changes v9's two long as-Black losses into wins
+at this scale. n=10 is weak evidence and the 100-game battery vs
+v0 is the real measure, but the direction is the one the rule was
+designed for: the as-Black long-game weakness class that v9's
+loop could not patch is where the forcing-first tie-break shows
+up first.
 
 ### 2.2 Fast-loop iteration 2 — 10 games vs v7
 
