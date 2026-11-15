@@ -496,7 +496,11 @@ race lost, never a defensive error.
 
 ## 3. v22 evaluation
 
-(TBD.)
+**Engine note:** the fast loop produced NO patch (§2.2), so the
+battery runs on the pre-registered v22 exactly as implemented in
+§1.2 (v14's MCTS + the Black-only gap-demoted v1 gradient leaf,
+scale 7.0, cap ±0.2). Tactical was measured on this engine before
+the battery (§3.2) and is re-run in §3.5 for the record.
 
 ### 3.1 Smoke — NOT RUN (no smoke; the fast loop is the smoke)
 
@@ -507,11 +511,48 @@ the verdict.
 
 ### 3.2 Tactical suites — pre-battery (re-run on the final engine in §3.5)
 
-(TBD.)
+Old 20-position suite, full-dispatch driver
+(`ml/scripts/eval_tactical_full.py --version 22 --suite both
+--seed 100`): **v22 20/20**. Hard suite (29 positions): **v22
+29/29** — a perfect score, matching v7's 20/20 + 29/29. The
+conditional demotion costs nothing tactically.
 
 ### 3.3 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
 
-(TBD.)
+[NOTE: the first run was killed by a runtime restart at 64/100
+games (36W-23L-5D, partial JSON backed up to
+`~/workspace/b8h2-logs/batch-v22-vs-v7-partial.json`, not
+committed). The re-run started IN FULL from game 0 with the same
+seeds — matches are deterministic, so the re-run reproduces the
+64-game prefix identically (verified: 0 mismatches in moves and
+winners across all 64 games, including identical W/L/D at the 30-
+and 44-game marks) and completes 64-99 as pre-registered.]
+
+**v22 beats v7: 54W-38L-8D, win rate 0.5800, 95% CI [0.4821,
+0.6720]**, 5270.4 s. File:
+`research/iterations/batch-v22-vs-v7.json` (seeds 100/200). Per
+colour: as Black 25W-17L-8D (0.5800), as White 29W-21L-0D
+(0.5800) — a PERFECTLY SYMMETRIC split, the first of any v1-leaf
+version (v14: 0.72/0.48; v20: 0.61/0.53). The conditional
+demotion balanced the colours exactly as designed: Black gave
+back part of v14's opening edge (0.72 → 0.58) while White gained
+(0.48 → 0.58), and White's gain exceeds v20's (0.53) — the
+theirs-term demotion (Black's phantom breadth not over-feared)
+plus White's full counterplay vocabulary. Mean game length 60.42
+plies (min 21, max 225); wins mean 44.6 plies, losses mean 48.3
+— v22 wins slightly FASTER than it loses, reversing the familiar
+pattern (v20: wins 50.0, losses 36.6). 96 distinct lines in 100
+games (no transposition collapse). Loss classifier: 38/38 losses
+via open four, **0 missed blocks**, 177 threatened turns in
+losses, **0 clean missed preventions** — defence is solved.
+**Clause 1 FAILS** (0.5800 > 0.50, but the CI lower bound 0.4821
+< 0.50 — the edge over v7 is not established). v22 scores above
+v20 against v7 (0.5800 vs 0.5700) but below v14 (0.6000, CI lower
+0.5020): the conditional demotion recovers 1 game per 100 over
+the global demotion, not the ~3 the design hoped for — the
+bl-ply12 regression (§1.3) and the White gap-saturation misses
+(§2.2) are the visible costs, and Black's vs-v7 edge was partly
+in the gap-three breadth v22 still demotes for Black.
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
