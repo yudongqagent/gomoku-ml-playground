@@ -321,7 +321,28 @@ Old 20-position suite, full-dispatch driver
 
 ### 3.3 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
 
-(To be filled.)
+**v14 beats v7: 58W-38L-4D, win rate 0.6000, 95% CI
+[0.5020, 0.6906]**, 5375.7 s. File:
+`research/iterations/batch-v14-vs-v7.json` (seeds 100/200).
+Per colour: as Black 35W-13L-2D (0.7200), as White 23W-25L-2D
+(0.4800) — v14's entire edge lives in the Black games; as
+White it still loses to v7, the same White gap every version
+has shown. Mean game length 49.72 plies (min 15, max 225);
+wins mean 48.1 plies, losses mean 43.0 — v14 wins and loses
+at similar speeds against v7, unlike against v0 (wins slow,
+losses fast). Loss classifier
+(`ml/scripts/classify_batch_losses.py`): 38/38 losses via open
+four, **0 missed blocks**, 163 threatened turns in losses, **2
+clean missed preventions (1.2%)** — defence is essentially
+solved, as in v7's own matches (v7: 1 in 93 vs v1).
+**Clause 1 PASSES** (0.6000 > 0.50, CI lower bound 0.5020 >
+0.50) — but by the slimmest possible margin: the lower bound
+clears 0.50 by 0.002, i.e. ONE game the other way (57W-39L-4D,
+0.59) would have failed the clause. This is a pass on the
+letter of the pre-registered bar, and it is recorded here as a
+marginal one, not a decisive one: the v1-kernel gradient buys
+a small edge over v7, concentrated in Black's opening
+advantage, and nothing as White.
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
