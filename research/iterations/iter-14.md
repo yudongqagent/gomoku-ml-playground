@@ -300,7 +300,44 @@ way, even when the search cannot follow it at 100 sims.
 
 ## 3. v14 evaluation
 
-(To be filled by the final battery.)
+**Engine note:** the fast loop made NO patch, so the battery runs on
+the pre-registered engine exactly as implemented in §1 (v7's MCTS +
+the v1-kernel gradient leaf, scale 7.5, cap ±0.2). Tactical was
+measured on this engine before the fast loop and is re-run in §3.5
+for the record.
+
+### 3.1 Smoke — NOT RUN (no smoke; the fast loop is the smoke)
+
+Per the batch-5 method the 10-game fast loop (§2.1, 6W-4L vs v0)
+is the only small-sample evidence, and small-sample smokes
+mislead (v8, v11) — the 100-game battery is the verdict.
+
+### 3.2 Tactical suites — pre-battery (re-run on the final engine in §3.5)
+
+Old 20-position suite, full-dispatch driver
+(`ml/scripts/eval_tactical_full.py`): **v14 20/20**. Hard suite
+(29 positions): **v14 29/29** — a perfect score, matching v7's
+20/20 + 29/29. The v1-kernel gradient costs nothing tactically.
+
+### 3.3 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
+
+(To be filled.)
+
+### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
+
+(To be filled.)
+
+### 3.5 Tactical suites — FINAL BATTERY (re-run on the final engine)
+
+(To be filled.)
+
+### 3.6 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
+
+(To be filled.)
+
+### 3.7 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
+
+(To be filled.)
 
 ## 4. Bar check (v14 vs v7)
 
