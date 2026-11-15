@@ -441,6 +441,30 @@ twice; the restarts cost only wall-clock time.) Classifier:
 preventions in 115 threatened turns (losses). Defence still
 solved.
 
+### 3.3 Head-to-head vs v0 — 84W-16L-0D, 0.8400
+
+`research/iterations/batch-v19-vs-v0.json` (100 games, normal
+rules, seeds 100/200, 1937.4 s): **v19 84W-16L-0D, win rate
+0.8400, 95% CI [0.7558, 0.8990]** — aggregates recomputed from
+the raw records. Split: as Black 34W-16L-0D (0.68), as White
+**50W-0L-0D (1.000)**. The headline AND the splits are identical
+to v16's (84W-16L-0D; Black 34W-16L, White 50W-0L): against the
+frozen baseline the blend changes nothing at the aggregate
+level — White is perfect under both versions, and all 16 losses
+are as Black (v19-as-Black IS v7; v7 lost 13 as Black to v0 in
+its own battery, 16 here is seed/RNG-stream noise). Far above
+v7's 0.6650 vs v0 (64W-31L-5D), and the entire gain is
+White-side, as with v16. (One runtime restart interrupted this
+match at 19/100 games; the re-run with the same seeds reproduced
+the saved partial EXACTLY. Determinism verified a third time.)
+Classifier: 16/16 losses via open four, 0 missed blocks, 0 clean
+missed preventions in 70 threatened turns (losses). **Ordering
+is transitive: v19 > v7 (0.5750) > v0 (v7 0.6650, v19 0.8400) —
+no non-transitivity**, unlike v4 (v4>v1>v0>v4) and v14
+(v14>v7>heuristic>v14). The v19 gain over v7 is a genuine
+strength gain that extends down the ladder, not a matchup
+artefact — the same conclusion as v16's.
+
 ## 4. Bar check (v19 vs v7)
 
 ## 5. What this means
