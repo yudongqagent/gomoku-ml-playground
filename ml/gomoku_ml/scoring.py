@@ -206,6 +206,22 @@ ENGINE_VERSIONS: dict[int, dict] = {
     9: {"name": "scoring-v9", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
         "root_decision": "tie-prior"},
+    # v12 (iteration 12, batch 5): H1 — v7's PUCT MCTS with the
+    # ROOT DECISION changed to "tie-prior-forcing": most-visited,
+    # ties broken by forcing-ness first (moves creating a four),
+    # then the v1 prior (see gomoku_ml.mcts_heuristic.
+    # _choose_root_child and research/iterations/iter-12.md).
+    # Targets iter-9 §2.6's failure mode: v1's 1-ply score
+    # undervalues forcing counter-threats (~20k) against
+    # occupying a creator (~204k), so tie-prior prefers blocking
+    # one of two creators over forcing. Honest limit (iter-12
+    # §1.0): the §2.6 position does NOT verify as a single losing
+    # move — the rule is a hypothesis to test at match scale, not
+    # a verified fix. Everything else is v7 unchanged (gradient
+    # leaf, 100 sims, c_puct 1.5).
+    12: {"name": "scoring-v12", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+         "root_decision": "tie-prior-forcing"},
 }
 
 # --- weights --------------------------------------------------------------

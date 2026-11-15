@@ -432,3 +432,110 @@ def test_root_decision_section26_stats():
         HeuristicMCTS(root_decision="tie-prior")._choose_root_child(root)
         == 67
     )
+
+
+# --- v12 "tie-prior-forcing" root decision (batch 5, H1) ---------------
+# iter-12.md §1.1: most-visited; ties broken by forcing-ness first
+# (moves creating a four), then the v1 prior. Targets iter-9 §2.6's
+# failure mode, where the prior preferred occupying a creator
+# (~204k) over a forcing counter-threat (~20k).
+
+
+def _forcing_board():
+    """White has three in a row at (7,7)-(7,9): both (7,6) and
+    (7,10) create a four (forcing); (0,0) and (1,1) do not."""
+    return _board_with([(3, 3)], [(7, 7), (7, 8), (7, 9)])
+
+
+def test_root_decision_tie_prior_forcing_prefers_forcing_over_prior():
+    # The §2.6 shape: the forcing move has the LOWER prior, the
+    # quiet move the higher — forcing must win the tie anyway.
+    # (7,10) flat 157 is forcing; (0,0) flat 0 is not.
+    root = _synthetic_root([
+        (157, 5, 0.0, 0.04),   # forcing, lower prior
+        (0, 5, 0.0, 0.09),     # not forcing, higher prior
+    ])
+    board = _forcing_board()
+    assert scoring._is_forcing(board, 157, game.WHITE)
+    assert not scoring._is_forcing(board, 0, game.WHITE)
+    mcts = HeuristicMCTS(root_decision="tie-prior-forcing")
+    assert mcts._choose_root_child(root, board, game.WHITE) == 157
+    # Control: plain tie-prior picks the higher-prior quiet move.
+    assert (
+        HeuristicMCTS(root_decision="tie-prior")._choose_root_child(
+            root, board, game.WHITE
+        )
+        == 0
+    )
+
+
+def test_root_decision_tie_prior_forcing_prior_breaks_forcing_ties():
+    # Two forcing moves tied: the prior decides between them.
+    # (7,6) flat 97 and (7,10) flat 157 are both forcing; (0,0)
+    # has the highest prior but is not forcing, so it loses.
+    root = _synthetic_root([
+        (97, 5, 0.0, 0.03),   # forcing, lower prior
+        (157, 5, 0.0, 0.05),   # forcing, higher prior
+        (0, 5, 0.0, 0.09),     # not forcing, highest prior
+    ])
+    board = _forcing_board()
+    mcts = HeuristicMCTS(root_decision="tie-prior-forcing")
+    assert mcts._choose_root_child(root, board, game.WHITE) == 157
+
+
+def test_root_decision_tie_prior_forcing_falls_back_to_prior():
+    # No tied child is forcing: the rule is plain tie-prior.
+    root = _synthetic_root([
+        (0, 5, 0.0, 0.04),
+        (1, 5, 0.0, 0.09),     # higher prior wins
+    ])
+    board = _forcing_board()
+    assert not scoring._is_forcing(board, 0, game.WHITE)
+    assert not scoring._is_forcing(board, 1, game.WHITE)
+    mcts = HeuristicMCTS(root_decision="tie-prior-forcing")
+    assert mcts._choose_root_child(root, board, game.WHITE) == 1
+
+
+def test_root_decision_tie_prior_forcing_without_board_is_tie_prior():
+    # Synthetic-root callers pass no board: the forcing filter is
+    # skipped and the rule degrades to plain tie-prior (the
+    # higher-prior child wins even if it would not be forcing).
+    root = _synthetic_root([
+        (157, 5, 0.0, 0.04),
+        (0, 5, 0.0, 0.09),
+    ])
+    mcts = HeuristicMCTS(root_decision="tie-prior-forcing")
+    assert mcts._choose_root_child(root) == 0
+
+
+def test_root_decision_tie_prior_forcing_ignores_non_tied_forcing():
+    # Forcing only breaks TIES: a forcing child with fewer visits
+    # must not beat the most-visited child.
+    root = _synthetic_root([
+        (157, 4, 0.0, 0.04),   # forcing, fewer visits
+        (0, 5, 0.0, 0.09),     # not forcing, most visited
+    ])
+    board = _forcing_board()
+    mcts = HeuristicMCTS(root_decision="tie-prior-forcing")
+    assert mcts._choose_root_child(root, board, game.WHITE) == 0
+
+
+def test_v12_registration_is_tie_prior_forcing_gradient():
+    v12 = scoring.get_player(12, seed=0)
+    assert v12._mcts.root_decision == "tie-prior-forcing"
+    assert v12._mcts.leaf_mode == "gradient"
+    assert v12._mcts.sims == 100
+    # v7/v9 untouched by the v12 registration.
+    assert scoring.get_player(7, seed=0)._mcts.root_decision == "visits"
+    assert scoring.get_player(9, seed=0)._mcts.root_decision == "tie-prior"
+
+
+def test_v12_choose_move_deterministic_for_same_seed():
+    board = _board_with(
+        [(7, 7), (8, 8), (9, 9)], [(7, 8), (8, 7), (6, 6)]
+    )
+    a = scoring.get_player(12, seed=42)
+    b = scoring.get_player(12, seed=42)
+    assert a.choose_move(board, game.BLACK) == b.choose_move(
+        board, game.BLACK
+    )

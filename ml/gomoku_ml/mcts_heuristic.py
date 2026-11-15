@@ -40,6 +40,9 @@ Design (see ``research/iterations/iter-6.md`` for v6 and
   and ``research/iterations/iter-9.md`` §1, including the SIGN
   CORRECTION there: a root child's raw ``q`` is the OPPONENT's
   value (negamax backup), so "q" in every rule means ``-child.q``.
+  v12 (batch 5, H1) adds ``"tie-prior-forcing"`` (most-visited,
+  ties by forcing-ness first, then v1 prior) — see
+  ``research/iterations/iter-12.md`` §1.1.
   Sims: 100, c_puct: 1.5 — the SAME settings as the
   ladder's :class:`gomoku_ml.baseline.HeuristicMCTSPlayer`, so
   any edge over it comes purely from the better priors (v1 vs v0
@@ -120,7 +123,12 @@ _GRADIENT_CAP = 0.2
 # pre-registration (iter-9.md §1.1): q gaps below 0.1 are within
 # one gradient step (the gradient's full range is +/-0.2), so the
 # visit term overrides only sub-gradient-scale q differences.
-_ROOT_DECISIONS = ("visits", "q", "tie-q", "blend", "tie-prior")
+# v12 (batch 5, H1) adds "tie-prior-forcing": most-visited, ties
+# broken by forcing-ness first (moves creating a four), then the v1
+# prior — see iter-12.md §1.1.
+_ROOT_DECISIONS = (
+    "visits", "q", "tie-q", "blend", "tie-prior", "tie-prior-forcing",
+)
 _BLEND_VISIT_WEIGHT = 0.1
 
 
@@ -240,10 +248,11 @@ class HeuristicMCTS:
     breadth gradient (:func:`_gradient_leaf_value`); terminal
     values are identical in both modes.
 
-    ``root_decision`` (v9, batch 4 H1) selects the root move
-    choice: ``"visits"`` (default, v6/v7 behaviour — most-visited,
-    ties by RNG), ``"q"``, ``"tie-q"``, ``"blend"``,
-    ``"tie-prior"`` — see :meth:`_choose_root_child`.
+    ``root_decision`` (v9, batch 4 H1; v12, batch 5 H1) selects the
+    root move choice: ``"visits"`` (default, v6/v7 behaviour —
+    most-visited, ties by RNG), ``"q"``, ``"tie-q"``, ``"blend"``,
+    ``"tie-prior"``, ``"tie-prior-forcing"`` — see
+    :meth:`_choose_root_child`.
     """
 
     def __init__(
@@ -289,7 +298,7 @@ class HeuristicMCTS:
         root = _Node(1.0)
         for _ in range(self.sims):
             self._run_one(root, board, player, None)
-        return self._choose_root_child(root)
+        return self._choose_root_child(root, board, player)
 
     def _rng_or_first(self, moves: list[int]) -> int:
         """Break a final tie: the seeded RNG's choice, or the first
@@ -300,9 +309,16 @@ class HeuristicMCTS:
             return int(self.rng.choice(moves))
         return moves[0]
 
-    def _choose_root_child(self, root: _Node) -> int:
+    def _choose_root_child(
+        self,
+        root: _Node,
+        board: np.ndarray | None = None,
+        player: int | None = None,
+    ) -> int:
         """Pick the root move by this instance's root-decision rule
-        (v9, batch 4 H1; see ``research/iterations/iter-9.md`` §1).
+        (v9, batch 4 H1; v12, batch 5 H1; see
+        ``research/iterations/iter-9.md`` §1 and
+        ``research/iterations/iter-12.md`` §1).
 
         Every rule considers only VISITED children (visit_count >=
         1): an unvisited child's q is undefined (0.0 by convention),
@@ -311,6 +327,11 @@ class HeuristicMCTS:
         child's raw ``q`` is the OPPONENT's value under the negamax
         backup (iter-9.md §1.0 sign correction; iter-7 §2.6 read
         raw q as our value and got the finding backwards).
+
+        ``board``/``player`` are needed only by
+        ``"tie-prior-forcing"`` (to test forcing-ness); when they
+        are absent that rule degrades to plain ``"tie-prior"``.
+        ``choose_move`` always passes them.
 
         * ``"visits"`` (v6/v7): most-visited; ties by RNG/first.
           Unchanged behaviour — with sims >= 1 the max-visit child
@@ -321,9 +342,17 @@ class HeuristicMCTS:
           then RNG/first.
         * ``"blend"`` (variant C): argmax ``our-q + 0.1 *
           (visits / max_visits)``; ties by visits, then RNG/first.
-        * ``"tie-prior"`` (variant D): most-visited; ties by v1
-          prior (a monotone transform of the v1 1-ply score), then
-          RNG/first.
+        * ``"tie-prior"`` (variant D, v9): most-visited; ties by
+          v1 prior (a monotone transform of the v1 1-ply score),
+          then RNG/first.
+        * ``"tie-prior-forcing"`` (v12): most-visited; ties by
+          forcing-ness first (moves creating a four —
+          ``scoring._is_forcing``), then v1 prior, then RNG/first.
+          Targets iter-9 §2.6's failure mode: v1's 1-ply score
+          undervalues forcing counter-threats (~20k) against
+          occupying a creator (~204k), so the prior tie-break
+          systematically prefers blocking one of two creators over
+          forcing — and with two creators, blocking one is useless.
         """
         visited = [
             (m, c) for m, c in root.children.items() if c.visit_count >= 1
@@ -357,7 +386,8 @@ class HeuristicMCTS:
                 m for m in cands if root.children[m].visit_count == best_v
             ]
             return self._rng_or_first(cands)
-        # "visits" / "tie-q" / "tie-prior": most-visited first.
+        # "visits" / "tie-q" / "tie-prior" / "tie-prior-forcing":
+        # most-visited first.
         best_v = max(c.visit_count for _, c in visited)
         cands = [m for m, c in visited if c.visit_count == best_v]
         if len(cands) > 1:
@@ -366,7 +396,27 @@ class HeuristicMCTS:
                 cands = [
                     m for m in cands if -root.children[m].q == best_q
                 ]
-            elif self.root_decision == "tie-prior":
+            elif self.root_decision in ("tie-prior", "tie-prior-forcing"):
+                if (
+                    self.root_decision == "tie-prior-forcing"
+                    and board is not None
+                    and player is not None
+                ):
+                    # Forcing-first (v12, iter-12.md §1.1): among
+                    # the tied children, prefer moves that create
+                    # a four. Only the tied children are tested
+                    # (ties are ~24% of searched moves, tie sizes
+                    # small), so the scan is cheap. If none is
+                    # forcing, the tie-break falls through to the
+                    # prior below. Without a board (synthetic-root
+                    # tests) the rule degrades to plain tie-prior.
+                    forcing = [
+                        m
+                        for m in cands
+                        if scoring._is_forcing(board, m, player)
+                    ]
+                    if forcing:
+                        cands = forcing
                 best_p = max(root.children[m].prior for m in cands)
                 cands = [
                     m for m in cands

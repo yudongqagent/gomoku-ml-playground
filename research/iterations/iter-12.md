@@ -177,12 +177,43 @@ seeds: iter 1 vs v0 1001/2001, iter 2 vs v7 1002/2002, iter 3
 
 ### 1.5 Pre-eval observation (recorded AFTER implementation, BEFORE any eval)
 
-[To be filled after implementation: diagnostic on the §2.6
-position (what v12 plays at swap game 41 ply 21) + tactical
-suites for v12 (full-dispatch driver, same driver/seeds/suites
-as the battery — so these ARE the clause-3 numbers for v12
-unless the fast loop patches the engine, in which case tactical
-is re-run in §3.5).]
+Diagnostic only — the design stands as pre-registered; the evals
+decide. Driver: `ml/scripts/diag_v12_forcing.py` (the v9 swap JSON
+lives on `research/batch-4-h1`; extracted to /tmp for the diag).
+
+**§2.6 position** (swap game 41, ply 21, White to move) — the
+root stats reproduce iter-9 §2.6's numbers exactly: (3,11) v=5,
+our-q −0.204355, prior 0.039113, v1 score 20167, forcing=True;
+(2,12) v=5, our-q −0.204355, prior 0.038961, v1 score 20010,
+forcing=True; (7,8) v=5, our-q −0.421490, prior 0.124404, v1
+score 204024, forcing=False. The three-way tie at 5 visits is
+confirmed, and the forcing predicate separates exactly the two
+preventing moves.
+
+| rule | plays at ply 21 | verdict |
+|---|---|---|
+| visits (v7, no RNG) | (7,8) | PLAYED — the move v9/v7 played in the match |
+| tie-prior (v9, no RNG) | (7,8) | PLAYED — the §2.6 failure mode, reproduced |
+| tie-prior-forcing (v12, no RNG) | (3,11) | FORCING — the rule does what it claims: among the tied triple, the forcing subset {(3,11), (2,12)} wins, and the prior picks (3,11) (20167 > 20010) |
+
+**v9 regression positions (3):** visits 1/3, tie-prior 1/3,
+tie-prior-forcing 1/3 — the SAME pattern for all three rules (the
+2 failures are the known xfails fl2-g2-ply22, fl2-g6-ply20 from
+iter-9 §2.2). The forcing tie-break changes nothing on v9's
+regression positions.
+
+**Tactical suites (full-dispatch driver, same driver/seeds/suites
+as the battery — so these ARE the clause-3 numbers for v12 unless
+the fast loop patches the engine):** old **20/20**, hard **29/29**
+(prevention 16/16, setup 7/7, winning 2/2, vcf 4/4). The
+forcing-first tie-break costs nothing tactically: no tactical
+position is decided by an exact visit tie in a way the forcing
+filter changes. **Clause 3 holds at pre-eval.**
+
+**Full ml test suite (on the implemented v12): 254 passed, 7
+skipped, 4 xfailed, 0 failures** (417.6 s). The 7 skips are the
+known missing-gitignored-checkpoint skips in a fresh worktree
+(v8/v11 nets live only in the batch-3/4 worktrees).
 
 ## 2. Loss analysis for iteration 12
 
