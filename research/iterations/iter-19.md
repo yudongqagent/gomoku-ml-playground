@@ -351,7 +351,60 @@ mirror games).
 ## 3. v19 evaluation
 
 Battery on the FINAL version (after the fast loop stopped).
-Pre-registered seeds 100/200 throughout (§1.1).
+Pre-registered seeds 100/200 throughout (§1.1). The fast loop made
+no patches, so the battery version is the pre-registered design
+exactly (commit `a4713ea`).
+
+### 3.1 Tactical suites — 20/20 old, 27/29 hard (CLAUSE 3 FAILS)
+
+`ml/scripts/eval_tactical_full.py --version 19 --suite both
+--seed 100` (identical protocol to v7's and v16's measurements):
+old 20/20, hard **27/29** — one WORSE than v16's 28/29. v7 under
+the identical protocol: 20/20 + 29/29. The two failures are both
+prevention positions, White to move:
+
+**`prev-v2v1s-g12` (chose (7,3), expected (12,2)/(13,2)) — the
+blend is INERT here, as the pre-battery root dump predicted.**
+v16 fails this position identically. The root dumps are
+byte-identical between v16 and v19 (good moves q -0.75 at 5
+visits, blockers q -1.00 at 5 visits, RNG tie-break picks (7,3)):
+no leaf in the 100-sim search changes value under the blend,
+because the gradient at the terminal positions in this subtree is
+aligned with the terminal (negative at losses) and the clamp pins
+everything at -1.0. The counterplay breadth the blend was meant
+to reward — White's four (12,2) — is already spent/blocked by
+the time the rollout reaches a terminal, so White's breadth at
+the terminal position is low. The pre-registration's refutation
+scenario (§1, "the gradient at terminal positions is almost
+always aligned with the terminal") is exactly what happens on
+g12. (The position is still a forced loss for White and v19's
+evaluation is still more accurate than the suite's — iter-16
+§3.1's analysis stands — but the blend does not change the
+outcome.)
+
+**`prev-v1v1s-g45` (chose (10,4), expected (11,7)/(12,7)) — a
+genuine blend REGRESSION.** v16 passes this position (28/29,
+choosing (11,7)) under the identical protocol; v19 fails it.
+Mechanism (root dumps, fresh player, seed 0): v16 gives the
+losing move (10,4) 1 visit at q -1.000 and the good moves 2
+visits each at q -0.375, so the good moves win 2-1. v19's blend
+SOFTENS (10,4)'s -1.000 to -0.932 — (10,4) is an attacking move
+that creates White threats while failing to prevent Black's open
+four, so it holds counterplay breadth at the terminal position —
+and the softened q plus its 3x prior advantage (0.133 vs 0.042)
+earns it a second visit, tying the good moves 2-2-2; under the
+battery's RNG state the tie-break picks (10,4). (With a fresh
+player v19 plays (12,7) — a pass — so the failure is the
+tie-plus-RNG, but the blend created the tie.) The blend's core
+assumption — "losing with counterplay breadth is better than
+losing without it" — is wrong here: the right moves PREVENT the
+loss and need no counterplay, while the losing move's counterplay
+is exactly what makes it attractive to a softened leaf. The blend
+cannot distinguish "counterplay that saves the game" from
+"counterplay that loses more slowly". This is the refutation of
+the blend as a general mechanism, at the tactical level: it
+reorders among losing lines, and the reordering is not always
+right.
 
 ## 4. Bar check (v19 vs v7)
 
