@@ -1,0 +1,77 @@
+{
+ "version": 17,
+ "description": "Critical positions from the v17 fast loop (iteration 1, vs v0). Each is a verified losing move and the oracle-verified saving move instead (see research/iterations/iter-17.md \u00a72). Iteration 1 found no new patchable weakness class, so no patch was made and the position is a documented xfail \u2014 an open weakness for the next batch.",
+ "positions": [
+  {
+   "id": "fl1-g1-ply13",
+   "source": "fastloop1-v17-vs-v0.json game 1, ply 13",
+   "black": [
+    [
+     7,
+     7
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     5,
+     5
+    ],
+    [
+     7,
+     6
+    ],
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     8
+    ],
+    [
+     6,
+     7
+    ]
+   ],
+   "white": [
+    [
+     5,
+     7
+    ],
+    [
+     9,
+     9
+    ],
+    [
+     4,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     9,
+     6
+    ],
+    [
+     5,
+     9
+    ]
+   ],
+   "to_move": "white",
+   "played": [
+    6,
+    9
+   ],
+   "expected": [
+    [
+     6,
+     5
+    ]
+   ]
+  }
+ ]
+}

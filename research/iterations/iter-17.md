@@ -266,9 +266,111 @@ identically to their batch-5 versions:
 
 ### 2.1 Fast-loop iteration 1 — 10 games vs v0
 
-[PENDING]
+**Batch:** `research/iterations/fastloop1-v17-vs-v0.json`
+(seeds v17=1001 / v0=2001 — development seeds, distinct from
+the bar battery's 100/200). **0W-10L-0D, win rate 0.0000, CI
+[0.0000, 0.2775]**, 85.1 s. **This number is a transposition
+artefact, not a measurement — see the isolation experiment
+below.** The 10 games are just 2 distinct lines repeated 5
+times each (as Black: 28 plies, White wins; as White: 25
+plies, Black wins). Classifier: 10/10 losses via open four,
+0 missed blocks, 0 clean missed preventions in 55 threatened
+turns. Defence is perfect; the losses are lost races.
 
-### 2.2 Fast-loop iteration 2 — NOT RUN
+**The losing move in each distinct game** (walk-back,
+`ml/scripts/walkback_loss.py`, corrected oracle method,
+seeds 0,1,2):
+
+| Game | Last preventable turn | v17 played (loses 3/3) | Perfect move (oracle) |
+|---|---|---|---|
+| 0 (28 plies, Black) | none | — (no alternative saves at any turn from ply 18 on; at ply 16 and earlier the actual does not lose at all seeds) | — |
+| 1 (25 plies, White) | ply 13 | (6,9) | (6,5) — draws 3/3 |
+
+**Game 1 ply 13 is not a v17 defect.** At the critical
+position Black holds exactly 2 creators, (6,9) and (6,5) —
+and v7, v12, v13, v14, v17 and the unfiltered leaf+root
+engine ALL play (6,9). Both moves kill all Black creators,
+both are safe, and v17's own search prefers (6,9) (31 visits
+vs 14, our-q +0.047 vs -0.035, prior 0.1294 vs 0.1282).
+This is iter-14 games 1/3 exactly: two creator-blocks
+indistinguishable to every signal in the engine. No patch.
+
+**Game 0 has no losing move** (distributed drift, the iter-6
+result). A 12-turn walk-back flags plies 4 and 6 ((8,5) and
+(9,6), both "lose 3/3 with 5/5 alternatives saving") — but
+v14 played the IDENTICAL moves at plies 4 and 6 in its game
+2 on these seeds (the two engines' games share plies 0-8)
+and WON that game in 39 plies. The oracle verdict is
+contradicted by actual engine play, so per iter-13's
+g9-ply-5 precedent it is not a patch target — patching on
+it would be overfitting to the oracle proxy.
+
+**The 0-10, isolated (the iteration's real finding).** A
+0-10 against v0 — worse than any version in the program —
+demanded isolation before any patch was considered. Three
+controls, all 10 games vs v0 at the same seeds (1001/2001):
+
+| Engine | Result | Note |
+|---|---|---|
+| v17 (leaf + root + threat check) | 0W-10L-0D | the fast-loop batch |
+| v97 (leaf + root, NO threat check; temporary diagnostic version, removed before the battery) | 0W-10L-0D | identical game shapes (28/25 plies); move-identical to v17 except game 0's final, already-lost ply |
+| v14 (leaf only, plain visits root) | 6W-4L-0D | reproduces iter-14 §2.1 exactly |
+
+The threat check is EXONERATED (v97 without it goes 0-10
+too). The collapse sits in the leaf+root combination — but
+**it does not reproduce at fresh seeds**: v97 vs v0 at
+1002/2002 goes **6W-4L-0D** (v14 at the same seeds: 5W-5L).
+So the 0-10 is seed luck amplified by deterministic
+transposition, not a systematic defect:
+
+- The tie-prior-forcing rule is nearly deterministic: ties
+  are broken by forcing-ness, then prior — both
+  deterministic signals — and the RNG is consulted only
+  when forcing-ness AND prior both tie (rare). v17's play
+  therefore barely depends on RNG state, so the 10-game
+  batch collapses into 2 repeated lines instead of sampling
+  10 different ones. v14's visits rule consults the RNG on
+  every visit tie, so its 10 games are 10 different lines.
+- At seeds 1001/2001 both of v17's lines happen to lose to
+  v0; at 1002/2002 its lines win 6/10. n=10 that is really
+  n=2 cannot distinguish "the rule is bad with this leaf"
+  from "these two lines are bad" — and the fresh-seed
+  result says it is the latter.
+- Corroboration: with IDENTICAL RNG state (fresh seed 0),
+  all three root rules pick the SAME move at both analysed
+  diverging positions (v14 game 4 ply 2: all pick (8,7);
+  v14 game 2 ply 10: all pick (9,7), the 14-visit tie with
+  (5,6) broken by the forcing move's higher prior). The
+  game-list divergences between v14 and v97 are RNG-state
+  artefacts, not rule effects. (And the (9,7)-vs-(5,6)
+  choice is exonerated by the walk-back: (9,7) does not
+  lose at all seeds at ply 10.)
+
+**Methodological lesson, recorded for the program:** for a
+near-deterministic engine, a 10-game fast loop against a
+deterministic opponent is nearly useless as a STRENGTH
+signal — it measures 2 lines, not 10 games. The loop still
+works as a FINDING method (it produced the ply-13
+position), but its W/L record must not be read as an eval,
+and a shocking fast-loop number (0-10) must be checked at
+fresh seeds before any conclusion is drawn. The 100-game
+battery does not have this problem against v7: v7's RNG
+tie-breaks vary its play per game, so v17 faces different
+boards even though its own replies are near-deterministic.
+
+**No patch from iteration 1; the loop continues to
+iteration 2 vs v7.** Iteration 1 found no new patchable
+weakness class (game 0: drift; game 1: an all-versions
+mistake; plies 4/6: oracle contradicted by engine play),
+but the vs-v7 losses are the ones that matter for the bar
+and iteration 1 played only v0 — so iteration 2 runs
+against v7 before the stopping rule is applied. The v17
+regression file records the game-1 ply-13 position as an
+xfail (`regression_positions_v17.json`, `fl1-g1-ply13`).
+
+### 2.2 Fast-loop iteration 2 — 10 games vs v7
+
+[PENDING]
 
 ### 2.3 Fast-loop iteration 3 — NOT RUN
 
