@@ -487,9 +487,29 @@ positions.
 
 (TODO)
 
-### 3.3 Head-to-head vs v0
+### 3.3 Head-to-head vs v0 — 96W-2L-2D, 0.9700
 
-(TODO)
+`research/iterations/batch-v18-vs-v0.json` (100 games, normal
+rules, seeds 100/200, 4557.5 s): **v18 96W-2L-2D, win rate
+0.9700, 95% CI [0.9155, 0.9897]** — aggregates recomputed from
+the raw records. Split: as Black 46W-2L-2D (0.94), as White
+**50W-0L-0D (1.000)** — v18-as-White repeats v16's perfect
+White score against the frozen baseline, and v18-as-Black
+improves v16-as-Black's 0.68 to 0.94 (+26 points). This is the
+second-best vs-v0 result in the program (after v12's perfect
+100W-0L-0D) and far above v7's 0.6650 (64W-31L-5D) and v16's
+0.8400. Both losses are as Black (games 4 and 32, 60 and 58
+plies); both draws are as Black, both 225-ply full-board
+marathons. Classifier: 2/2 losses via open four, 0 missed
+blocks, 1 clean missed prevention in 7 threatened turns
+(losses); 4 missed preventions in 508 threatened turns across
+all 100 games. Defence is essentially solved. **Ordering is
+transitive so far: v18 > v7 > v0** (v18 0.97 vs v0, v7 0.665 vs
+v0) — no non-transitivity of the v14/v17 kind. Notably, the
+v1-kernel leaf's weakness against greedy play (v17-as-Black
+0.37 vs v0) does NOT afflict v18: the rollout leaf evaluates
+the gradient AFTER the opponent's best reply, so greedy play
+is handled inside the rollout rather than by the static leaf.
 
 ### 3.4 Swap-rule head-to-head vs v7
 
