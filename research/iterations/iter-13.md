@@ -294,13 +294,26 @@ v7's 100 sims in both colours — the sims lever is exhausted
 that, and mapping the cliff). The White gain must come from
 step 2 (priors/book) alone.
 
-**vs v7 (40 games/cell, seeds 300/400) — RUNNING.** The
-transfer check: does the inverted-U shape hold against the
-reference opponent? (v10's White collapse vs v7 was 0.34,
-not 0.00 — a different shape than vs v0.) Cells run
-sequentially after the v0 sweep; results recorded here when
-complete. The sims decision above does not depend on them
-(the §1.2 rule resolves on the v0 primary with no near-tie).
+**vs v7 (40 games/cell, seeds 300/400).** Files:
+`research/iterations/sweep-s{50,100,150,200}-vs-v7.json`.
+
+| White sims | Overall | As Black (n=20) | As White (n=20) | Time |
+|---|---|---|---|---|
+| 50 | 18W-19L-3D, 0.4875 | 13W-5L-2D, 0.7000 | 5W-14L-1D, 0.2750 | 1907 s |
+| **100** | 23W-14L-3D, 0.6125 | 11W-8L-1D, 0.5750 | **12W-6L-2D, 0.6500** | 1739 s |
+| 150 | — running — | | | |
+| 200 | — pending — | | | |
+
+The inverted-U shape transfers to v7: White 0.275 at 50
+sims, 0.65 at 100. (The s100-vs-v7 cell was interrupted by
+a runtime restart at 7 games; the re-run with the same seeds
+reproduced the 7-game prefix exactly — determinism
+verified.) Note the s100 cell (v7 + threat check, symmetric
+100 sims) beats v7 0.6125 overall in 40 games — the threat
+check alone may be worth something against v7, or it is
+noise (CI [0.4581, 0.7472]); the 100-game battery decides.
+The sims decision (§2.1, v0 primary) does not depend on the
+remaining cells.
 
 ### 2.2 Fast-loop iteration 1 — 10 games vs v7 (v13 BASE)
 
@@ -406,13 +419,37 @@ g7 (5,13) — both tied alternatives at the same visit count
 in the critical analysis, still non-saves — so the base
 plays a non-save on all 4 positions.
 
-### 2.3 Fast-loop iteration 2 — TO BE RUN
+### 2.3 White prior-temperature probe (iter-13 §1b step 1)
 
-### 2.4 Fast-loop iteration 3 — TO BE RUN
+**Probe: T=2.0: 0/7 saves; T=3.0: 1/7; T=4.0: 0/7.**
+Script: `ml/scripts/probe_white_temp.py` (log:
+`research/iterations/probe-white-temp.log`, gitignored).
+The 7 White-to-move diagnostic positions are the 2 White
+fast-loop positions (g7-ply25, g9-ply15) + the 5 White v10
+regression positions. The single flip is at T=3.0 on
+fl1-g9-ply19, where the engine plays the forcing save (4,9)
+instead of the loser (3,10) — the temperature gives the
+low-prior forcing move enough visits to win the root. At
+T=4.0 the flip disappears (back to (3,10)): more flattening
+is not monotonically better either. **Per the pre-registered
+§1b rule the probe PASSES (1 > 0)** — thinly — so the match
+sweep (step 2) runs. Honestly recorded: 1/7 is a weak pass,
+and the mechanism check FAILS at all three temperatures
+(g9-ply-5: (6,7) at T=2.0, 3.0 and 4.0 — the temperature
+does not fix the opening pathology). Per §1b the design is
+NOT amended on one diagnostic position; the sweep + battery
+decide. If the sweep shows no temperature beating the
+control, v13 ships with T=2.0 (the base).
 
-### 2.5 Fast-loop iteration 4 — TO BE RUN
+### 2.4 White prior-temperature sweep (§1b step 2) — RUNNING
 
-### 2.6 Aggregate counts (secondary)
+### 2.5 Fast-loop iteration 2 — TO BE RUN
+
+### 2.6 Fast-loop iteration 3 — TO BE RUN
+
+### 2.7 Fast-loop iteration 4 — TO BE RUN
+
+### 2.8 Aggregate counts (secondary)
 
 ## 3. v13 evaluation (FULL VALIDATION BATTERY — final v13)
 
