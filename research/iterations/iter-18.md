@@ -1,8 +1,7 @@
 # Iteration 18 — v18: rollout leaf for both colours (batch 7, H1)
 
-**Status: IN PROGRESS — pre-registration (§1) written before any eval;
-implementation not yet started.** Comparison target is v7 (the
-batch-7 reference). This is the H1 workstream of batch 7 (H2 is v19,
+**Status: COMPLETE — REJECTED 3/4 (clause 3 fails: tactical
+25/29 hard).** Comparison target is v7 (the batch-7 reference). This is the H1 workstream of batch 7 (H2 is v19,
 the blended rollout leaf; H3 is v20, the v1 leaf vs greedy play);
 work happens on branch `research/batch-7-h1` in the `gomoku-b7-h1`
 worktree. v18 does NOT change the root decision rule
@@ -483,9 +482,31 @@ score diverge for v18 — the h2h numbers below decide whether
 the Black rollout leaf is a net gain despite costing 3 tactical
 positions.
 
-### 3.2 Head-to-head vs v7
+### 3.2 Head-to-head vs v7 — 73W-18L-9D, 0.7750 (CLAUSE 1 PASSES)
 
-(TODO)
+`research/iterations/batch-v18-vs-v7.json` (100 games, normal
+rules, seeds 100/200, 6301.2 s): **v18 73W-18L-9D, win rate
+0.7750, 95% CI [0.6839, 0.8458]** — aggregates recomputed from
+the raw records (match the script's printed summary exactly).
+Split: as Black **40W-6L-4D (0.840)**, as White 33W-12L-5D
+(0.710). Clause 1 requires the CI lower bound > 0.50; 0.6839 >
+0.50, so **clause 1 PASSES** — by the widest margin in the
+program (v17's 0.6650 was the previous best h2h vs v7, and v16
+managed 0.5750). The Black rollout leaf gained +33 points as
+Black over v16-as-Black's 0.51 (which was v7 itself) — the
+mirror games that capped v16 are now v18's strongest split.
+The White split (0.71 vs v16's 0.64) is within noise for n=50
+and v18-as-White IS v16; the difference is RNG-stream
+divergence across the match. All 9 draws are 225-ply full-board
+marathons — v18's defence holds v7 to a full board without a
+win in nearly 1 game in 10. (This match was interrupted TWICE
+by runtime restarts, at 61/100 and at 84/100 games; each re-run
+with the same seeds reproduced the saved partial EXACTLY — all
+records identical — and only the remaining games are new.
+Determinism verified twice, no data integrity issue; the
+restarts cost only wall-clock time.) Classifier: 18/18 losses
+via open four, 0 missed blocks, 1 clean missed prevention in
+81 threatened turns (losses). Defence still solved.
 
 ### 3.3 Head-to-head vs v0 — 96W-2L-2D, 0.9700
 
@@ -561,14 +582,100 @@ here. Note the eval script's own tactical probe reports 20/20
 the clause-3 measurement is the full-dispatch result in §3.1
 (25/29 hard).)
 
-### 3.6 Test suites (clause 4)
+### 3.6 Test suites (clause 4) — ALL GREEN
 
-(TODO)
+On the final tree: ml pytest **266 passed, 7 skipped,
+6 xfailed, 0 failures** (180.87 s); npm test **55/55 passed**;
+`tsc --noEmit` **clean**. The 6 xfails are the documented
+regression positions that fail by design (v16's xfails plus
+v18's fl1-g0-ply12 and fl2-g7-ply9, §1.2/§2.2). `baseline.py`
+diff vs master: empty (frozen file untouched). Clause 4
+**PASSES**.
 
 ## 4. Bar check (v18 vs v7)
 
-(TODO)
+| Clause | Requirement | v18 result | Verdict |
+|--------|-------------|------------|---------|
+| 1. h2h vs v7 | ≥100 games, win rate > 0.50, CI lower > 0.50 | **73W-18L-9D, 0.7750, CI [0.6839, 0.8458]** | **PASS** |
+| 2. Ladder Elo | strictly > v7's 190.8 | **636.4 [240.3, 1032.5]** | **PASS** |
+| 3. Tactical | ≥ v7's 20/20 old + 29/29 hard | 20/20 old, **25/29 hard** | **FAIL** |
+| 4. Test suites | ml pytest, npm test, tsc all green | ml 266 passed / 7 skipped / 6 xfailed / 0 failures; npm 55/55; tsc clean | **PASS** |
+
+**Verdict: REJECTED — 3/4.** v18 is the strongest version in
+the program on every game-strength measure (best h2h vs v7 at
+0.775, best ladder Elo at 636.4, best-vs-v0 at 0.97 after v12's
+perfect 100-0, established swap edge 0.63) — and it fails the
+bar on a single clause, tactical, because the rollout leaf's
+q-compression loses RNG visit-ties on four Black-to-move
+positions. The game-strength gains and the tactical regression
+have the same root cause: the leaf's compressed q (many
+rollout-ends at exactly ±0.2) carries less information into
+the tree than the gradient's continuous values, so positions
+that the leaf knows (chosen −1.000 vs expected +0.250) are lost
+on visit counts. This is precisely the defect H2's v19 blend
+(terminal + end gradient) is designed to fix; v18's data is the
+evidence that the leaf's information content, not the search,
+is now the binding constraint.
+
+No non-transitivity: v18 > v7 > v0, and v18 > v0 directly at
+0.97. The v17-style collapse against greedy play did not
+recur — the rollout leaf behaves against v0 exactly as the
+fast loop predicted (20W-0L in the loop, 96W-2L-2D at battery
+scale).
 
 ## 5. What this means
 
-(TODO)
+1. **The rollout leaf works as Black too — decisively.** The
+   Black mirror games were v16's cap (0.51); v18's Black split
+   vs v7 is 0.84, and the ladder MCTS went from 3W-7L as
+   v16-as-Black to 8W-2L as v18-as-Black. The 2-ply rollout is
+   not a White-only mechanism; it is a general leaf
+   improvement. H1's hypothesis is confirmed on game strength.
+
+2. **The leaf is now the binding constraint — twice over.**
+   Batch 6's v14 lesson ("the leaf is not the binding
+   constraint") is inverted: v18's game-strength gains come
+   entirely from the leaf, AND its only failure (tactical) is a
+   leaf information-content defect (q-compression). Both of
+   batch 7's other hypotheses are about the leaf (H2's blend,
+   H3's v1-leaf fix against greedy play); v18's numbers say
+   that focus is right.
+
+3. **The fast loop's barren verdict was correct.** Two
+   iterations, 40 games, zero patchable weakness classes — and
+   the battery confirmed it: no v17-style collapse anywhere,
+   defence still solved (all 55 battery losses across the three
+   matches via open four, 0 missed blocks). The loop's job was
+   to find what to patch; "nothing" was the right answer for
+   v18, and the battery is the evidence.
+
+4. **The walk-back oracle is no longer sufficient for
+   rollout-leaf engines** (iter-18 §2.1). The v1 oracle shares
+   the argmax-of-sum flaw and nominates saves that lose by
+   force; every nominated save now needs v7-vs-v7 playouts or
+   exact computation. This is a durable methodological change
+   for batch 7's remaining fast loops.
+
+5. **The tactical suite is now the gate, and it's a narrow
+   one.** Three of v18's four failures are RNG visit-ties the
+   leaf already knows the answer to; the fourth is a suite-list
+   gap (the chosen move wins). The bar's clause 3 measures
+   visit-count conversion, not leaf knowledge — and that is
+   exactly what H2's blend (a continuous terminal+gradient
+   value, spreading q away from the ±0.2 caps) is built to
+   restore. If v19 fixes the tie-breaks without giving back the
+   game strength, it passes; v18 is the floor it has to beat
+   on strength (0.775 h2h, 636.4 Elo) and the evidence that the
+   leaf direction is right.
+
+6. **What changed because of a specific loss: nothing was
+   patched.** The fast loop examined both losses in 40 games
+   in full (iter-18 §2.1/§2.2); both were distributed drift
+   with no patchable losing move, and the battery's losses show
+   the same signature (18/18 via open four, 1 missed prevention
+   in 81 threatened turns). v18-as-batteried IS
+   v18-as-pre-registered. The two losses that mattered most
+   were methodological, not algorithmic: they exposed the
+   walk-back oracle's flaw (§2.1) and produced the two
+   regression xfails (fl1-g0-ply12, fl2-g7-ply9) that future
+   versions inherit.
