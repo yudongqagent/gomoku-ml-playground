@@ -123,10 +123,24 @@ class _Node:
         return self.value_sum / self.visit_count if self.visit_count else 0.0
 
 
-def _priors(board: np.ndarray, player: int) -> dict[int, float]:
+def _priors(
+    board: np.ndarray, player: int, prior_floor: float = 0.0,
+) -> dict[int, float]:
     """Softmax over log1p(v1 scores) / temperature, over all
     candidate moves. Returns a move -> prior dict summing to 1
-    (empty when there are no candidates)."""
+    (empty when there are no candidates) — UNLESS ``prior_floor``
+    is set (v15, batch 6 H1; see iter-15.md §1.0): priors below
+    the floor are raised to the floor and the sum is NOT
+    re-divided. PUCT uses the prior only as an exploration weight,
+    so the weights need not sum to 1; and Step 0 measured that
+    renormalization shrinks the very moves the floor is meant to
+    lift (a 0.027 save becomes 0.020 at floor 0.01, 0.0127 at
+    0.02 — the tail's added mass dominates with ~93 candidates).
+    The unnormalized floor is a pure exploration bonus for the
+    tail: above-floor moves keep their EXACT v7 priors, so the
+    sharp prior is preserved where it matters. A floor is not
+    flattening (v13's temperature probe: flattening is
+    catastrophic)."""
     flat = board.reshape(-1).tolist()
     cands = scoring._candidate_moves(board)
     if not cands:
@@ -139,7 +153,10 @@ def _priors(board: np.ndarray, player: int) -> dict[int, float]:
     top = max(logits.values())
     weights = {m: math.exp(v - top) for m, v in logits.items()}
     total = sum(weights.values())
-    return {m: w / total for m, w in weights.items()}
+    priors = {m: w / total for m, w in weights.items()}
+    if prior_floor > 0.0:
+        priors = {m: max(p, prior_floor) for m, p in priors.items()}
+    return priors
 
 
 def _terminal_leaf_value(board: np.ndarray, player: int) -> float:
@@ -221,6 +238,14 @@ class HeuristicMCTS:
     ``leaf_mode="gradient"`` is v7: quiet leaves get the attack
     breadth gradient (:func:`_gradient_leaf_value`); terminal
     values are identical in both modes.
+
+    ``prior_floor`` (v15, batch 6 H1) is an exploration floor on
+    the priors, applied at every expansion: priors below the
+    floor are raised to it, WITHOUT renormalization (see
+    :func:`_priors` and iter-15.md §1.0 for why renormalization
+    is excluded). 0.0 (the default) is v6/v7 behaviour exactly.
+    ``c_puct`` is the PUCT exploration constant (v6/v7: 1.5);
+    v15 sweeps higher values (see iter-15.md §1.2).
     """
 
     def __init__(
@@ -229,16 +254,22 @@ class HeuristicMCTS:
         c_puct: float = 1.5,
         rng: np.random.Generator | None = None,
         leaf_mode: str = "terminal",
+        prior_floor: float = 0.0,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS:
             raise ValueError(
                 f"unknown leaf_mode: {leaf_mode!r} "
                 f"(known: {sorted(_LEAF_FUNCTIONS)})"
             )
+        if not 0.0 <= prior_floor < 1.0:
+            raise ValueError(
+                f"prior_floor must be in [0, 1), got {prior_floor!r}"
+            )
         self.sims = sims
         self.c_puct = c_puct
         self.rng = rng
         self.leaf_mode = leaf_mode
+        self.prior_floor = prior_floor
         self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
 
     def choose_move(self, board: np.ndarray, player: int) -> int:
@@ -309,7 +340,7 @@ class HeuristicMCTS:
                 return 0.0
         # Expansion: first visit — compute priors, evaluate the leaf.
         if node.children is None:
-            priors = _priors(board, player)
+            priors = _priors(board, player, self.prior_floor)
             node.children = {m: _Node(p) for m, p in priors.items()}
             if last_move is None:  # root: no leaf value
                 node.visit_count += 1

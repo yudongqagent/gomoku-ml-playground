@@ -773,6 +773,8 @@ class ScoringPlayer:
 
                 self._mcts = HeuristicMCTS(
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    c_puct=ENGINE_VERSIONS[version].get("c_puct", 1.5),
+                    prior_floor=ENGINE_VERSIONS[version].get("prior_floor", 0.0),
                     leaf_mode=ENGINE_VERSIONS[version].get("leaf_mode", "terminal"),
                     rng=self.rng,
                 )
