@@ -359,10 +359,27 @@ def _rollout_move(board: np.ndarray, player: int) -> tuple[int, float | None]:
         own, opp = black, white
     else:
         own, opp = white, black
-    total = own + opp
     empty = board == game.EMPTY
     if not empty.any():
         return -1, 0.0
+    # FAST-LOOP PATCH (iter-16 §2.2): an own open-four creation
+    # (own v1 attack >= OPEN_FOUR = 200_000) leaves >= 2 winning
+    # moves — a forced win — and must not lose the argmax to a
+    # defensive block. In fast-loop game 9, Black's (6,3) (own
+    # 200080, an open four) lost to (6,8) (total 200422: a block of
+    # one White four) by 332 points; (6,8) loses the game, (6,3)
+    # wins it outright, and the rollout leaf hallucinated a White
+    # win (+1.000) for a losing move. This sits after the forced
+    # block above (an opponent four on the board must be answered
+    # first — otherwise the opponent wins immediately) and before
+    # the argmax. No non-forcing combination reaches 200_000 (the
+    # next-largest bonus is DOUBLE_OPEN_THREE_BONUS = 50_000), so
+    # the threshold is exact.
+    masked_own = own.copy()
+    masked_own[~empty] = -1
+    if masked_own.max() >= scoring.OPEN_FOUR:
+        return int(np.argmax(masked_own)), None
+    total = own + opp
     total[~empty] = -1
     return int(np.argmax(total)), None
 

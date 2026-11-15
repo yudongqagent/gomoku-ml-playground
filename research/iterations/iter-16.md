@@ -355,7 +355,82 @@ Black positions, v16-as-Black is v7). Targeted suites after the
 patch: test_regression_v16 + test_mcts_heuristic 35 passed, 3
 xfailed (2 new Black xfails + the known v7 iter-5 xfail).
 
-### 2.2 Fast-loop iteration 2 — NOT RUN YET
+### 2.2 Fast-loop iteration 2 — 10 games vs v7 (patched engine)
+
+**Batch:** `research/iterations/fastloop2-v16-vs-v7.json`
+(seeds v16=1002 / v7=2002). **6W-4L-0D, win rate 0.6000, CI
+[0.3127, 0.8318]**, 450.0 s. Split: as Black 3W-2L (0.60), as White
+3W-2L (0.60) — balanced, and the White split holds at 0.60 after
+the iteration-1 patch (4W-1L in iteration 1 was partly seed luck).
+Classifier: 4/4 losses via open four, 0 missed blocks, 0 missed
+preventions in 18 threatened turns (losses). Defence still solved.
+
+**Walk-backs** (`research/iterations/walkback-fl2-g{5,6,8,9}.json`):
+
+| Game | Last preventable turn | v16 played (loses 3/3) | Perfect move (oracle) |
+|---|---|---|---|
+| 5 (White, 45 plies) | none | — (ply 41/43 lose 3/3, no save; ply ≤39 wins 3/3) | — |
+| 6 (Black, 38 plies) | ply 30 | (12,6) | 1 save |
+| 8 (Black, 72 plies) | ply 64 | (12,12) | 2 saves (ply 56: 4 saves) |
+| 9 (White, 49 plies) | none | — (ply 47 loses 3/3, no save; ply ≤45 wins 3/3) | — |
+
+Games 6 and 8 are Black losses (v7's moves, out of scope). The two
+White losses share a pattern: the oracle says White was WINNING
+3/3 as late as 2 plies before the end, then Black's single move
+made it unwinnable with no saving reply. The v1 oracle is too weak
+to see Black's killer move — so the walk-back finds no losing move
+for White in either game. Both were investigated directly instead.
+
+**Game 9, ply 45 — the rollout policy picks a losing move over a
+winning move (PATCHED).** After White's (5,5), Black has SEVEN
+four-creating moves. The rollout leaf valued the position at
+-1.000 for Black — a hallucinated White win — because the
+rollout-policy Black reply was (6,8), which lets White's (10,11)
+create a double four. (6,8) won the v1-argmax (total 200422: own
+401 + opp 200021, a block of one White four) over Black's (6,3)
+(total 200090) by 332 points — but (6,3) creates an OPEN four
+(own v1 attack 200080), leaving Black TWO winning moves ((8,1)
+and (3,6)), a forced win; the real Black (v7) played (6,3) and won.
+Root cause: the argmax of (own + opp) v1 attack conflates attack
+and defence in one sum, so a defensive block can beat a forced win.
+**Patch:** in `_rollout_move`, after the forced block (an opponent
+four on the board must be answered first — otherwise the opponent
+wins immediately) and before the argmax: if the player's best own
+v1 attack is >= OPEN_FOUR (200,000), play the argmax of own attack
+alone. The threshold is exact — no non-forcing combination reaches
+200,000 (the next-largest bonus is DOUBLE_OPEN_THREE_BONUS =
+50,000), and an open four (or double closed four) leaves >= 2
+winning moves. Verified: the patched policy plays (6,3), the leaf
+after (5,5) is +1.000 for Black (correct), and the mechanism
+checks hold (3/5 v7 + 2/5 hard). Leaf-level regression test:
+`test_rollout_move_prefers_open_four_over_defensive_block`
+(game-9 board embedded). Note the patch does NOT change the move
+at ply 45 itself: patched v16 still plays (5,5) — correctly, since
+all 8 top White alternatives are -1.000 (the position was already
+lost; (5,5) blocks Black's immediate five, v1 total 10,004,022)
+and v7 plays (5,5) there too. The patch's value is upstream: the
+corrected leaf steers White's search away from such positions
+earlier. (Side observation: the v1 oracle itself shares this flaw —
+v1-as-Black would also play (6,8) over (6,3) — which is why the
+walk-back oracle called (5,5) winning.)
+
+**Game 5, ply 39 — double-creator beyond the rollout horizon
+(OPEN, not patched).** After White's (7,3), Black has TWO creators
+((8,3) and (8,4)). The rollout plays Black (8,3), White blocks
+(8,4) (which also occupies the second creator square), and the
+gradient says White is fine (+0.136) — but the real Black plays
+(8,4), White blocks (8,3), and Black's follow-up (7,4) wins 2
+plies later. Two defects compound: (i) the rollout policy picks
+(8,3) over (8,4) among Black's creators (both score ~20,000; the
+difference is 2 plies out, invisible to any 1-ply policy), and
+(ii) the 2-ply rollout cannot see Black's (7,4) follow-up. The
+iteration-2 patch does not touch this position (leaf still -0.136,
+reply still (8,3) — verified). A fix would need either a deeper
+rollout (4-ply already refuted: false terminals) or a static
+double-creator term, and verifying a save needs a stronger oracle
+than v1 (v7-vs-v7 playouts) since the v1 oracle calls (7,3)
+winning. Recorded as the open weakness class to watch in
+iteration 3; if it recurs, it is the next patch candidate.
 
 ### 2.3 Fast-loop iteration 3 — NOT RUN YET
 

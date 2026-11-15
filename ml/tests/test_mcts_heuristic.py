@@ -342,6 +342,32 @@ def test_rollout_move_wins_blocks_and_loses():
     assert term == -1.0
 
 
+def test_rollout_move_prefers_open_four_over_defensive_block():
+    # FAST-LOOP PATCH (iter-16 §2.2): the rollout policy's argmax
+    # of (own + opp) v1 attack picked a defensive block over an own
+    # open-four creation — a forced win. Fast-loop game 9, after
+    # White's (5,5): Black's (6,3) creates an open four (own v1
+    # attack 200080, two winning moves) but lost the argmax to
+    # (6,8) (total 200422: it blocks one White four) by 332 points;
+    # (6,8) lets White create a double four and the leaf
+    # hallucinated a White win (+1.000) for a losing move. The
+    # patched policy plays (6,3) and the leaf is +1.0 for Black.
+    # Board: fastloop2-v16-vs-v7.json game 9 after ply 45.
+    black = [(7, 7), (7, 6), (7, 5), (8, 5), (6, 7), (4, 9), (8, 4),
+             (5, 6), (9, 2), (10, 5), (9, 7), (8, 6), (5, 3), (6, 2),
+             (9, 9), (7, 8), (7, 10), (8, 8), (8, 13), (5, 2),
+             (4, 5), (7, 2), (5, 4)]
+    white = [(6, 6), (7, 9), (7, 4), (6, 5), (9, 4), (5, 8), (8, 3),
+             (10, 1), (8, 9), (9, 5), (8, 7), (10, 8), (6, 4),
+             (6, 9), (5, 10), (8, 11), (8, 10), (8, 12), (11, 11),
+             (9, 11), (3, 4), (8, 2), (5, 5)]
+    board = _board_with(black, white)
+    move, term = _rollout_move(board, game.BLACK)
+    assert (move % 15, move // 15) == (6, 3)
+    assert term is None
+    assert _rollout_leaf_value(board, game.BLACK) == 1.0
+
+
 def test_attack_gradient_v1_antisymmetric_and_bounded():
     rng = np.random.default_rng(4)
     board = game.empty_board()
