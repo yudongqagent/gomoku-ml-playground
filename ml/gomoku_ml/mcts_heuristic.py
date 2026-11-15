@@ -1,5 +1,6 @@
 """PUCT MCTS with the v1 heuristic as prior and leaf value (v6, batch 2 H2;
-v7, batch 3 H1, adds an attack gradient to the leaf).
+v7, batch 3 H1, adds an attack gradient to the leaf; v16, batch 6 H2,
+adds a White-only 2-ply rollout leaf — see below).
 
 Standalone module: it does NOT import :mod:`gomoku_ml.mcts` (the
 neural AlphaZero MCTS, owned by the B2 batched-leaf workstream).
@@ -31,12 +32,30 @@ Design (see ``research/iterations/iter-6.md`` for v6 and
   uncapped gradient masked the -0.25 forcing penalties (see
   ``_GRADIENT_CAP`` and iter-7.md §2.1).
 * Win/block scans run before the search (as in every version).
-* Move choice: the most-visited root child, ties by the seeded
-  RNG. Sims: 100, c_puct: 1.5 — the SAME settings as the
+* Move choice: by default the most-visited root child, ties by
+  the seeded RNG (v6/v7). v9 (batch 4, H1) varies the ROOT
+  DECISION rule via ``root_decision``: ``"q"`` (argmax
+  our-perspective q), ``"tie-q"`` (most-visited, ties by q),
+  ``"blend"`` (q + a visit term), ``"tie-prior"`` (most-visited,
+  ties by v1 prior) — see :meth:`HeuristicMCTS._choose_root_child`
+  and ``research/iterations/iter-9.md`` §1, including the SIGN
+  CORRECTION there: a root child's raw ``q`` is the OPPONENT's
+  value (negamax backup), so "q" in every rule means ``-child.q``.
+  v12 (batch 5, H1) adds ``"tie-prior-forcing"`` (most-visited,
+  ties by forcing-ness first, then v1 prior) — see
+  ``research/iterations/iter-12.md`` §1.1.
+  Sims: 100, c_puct: 1.5 — the SAME settings as the
   ladder's :class:`gomoku_ml.baseline.HeuristicMCTSPlayer`, so
   any edge over it comes purely from the better priors (v1 vs v0
   scoring) and the better leaf value (terminal-aware vs crude
   local attack).
+* v16 (``leaf_mode="rollout2_v1"``, batch 6 H2): when the engine
+  plays White, quiet leaves are valued by a 2-PLY ROLLOUT ending in
+  the symmetric v1-kernel gradient — the leaf horizon extends past
+  the forcing exchange, where White's counterplay value lives; see
+  ``_rollout_leaf_value`` and ``research/iterations/iter-16.md``.
+  When the engine plays Black, v16 IS v7 exactly, so the Black
+  games are a built-in control.
 
 Backup accounting follows the AlphaZero convention: every node
 on the simulated path — including the newly expanded leaf — has
@@ -56,6 +75,7 @@ import numpy as np
 
 from . import game
 from . import kernel_numpy
+from . import kernel_v1
 from . import scoring
 
 # Temperature for the prior softmax over log1p(v1 scores). A
@@ -105,6 +125,41 @@ _GRADIENT_DEVELOPING_WEIGHT = 0.25
 _GRADIENT_SCALE = 4.0
 _GRADIENT_CAP = 0.2
 
+# --- v14 attack-gradient leaf (batch 5, H3) -------------------------------
+# Same gradient FORM as v7 (breadth count, tanh squash, +/-0.2 cap),
+# but the breadth counts come from the v1 kernel's attack scores
+# (5-window, broken-four-aware) instead of the v0 kernel's
+# (contiguous-run, blind to broken fours). Thresholds are the v1
+# analogues of v7's, derived from the v1 pattern classes (see
+# iter-14.md §1): strong = a move creating a four or an open three
+# (v1 attack >= 4000 — no combination of sub-4000 per-direction
+# values reaches 4000); developing = a move creating a half-open
+# three (400) or an open two (80) (80 <= attack < 4000 — the
+# strongest sub-open-two combination is 4 x two = 40). The tanh
+# scale (7.5) is re-derived from the measured v1 breadth-difference
+# distribution (std 4.09 on batch-3 game positions) by v7's rule
+# (scale ~= 1.8 x std); the cap (0.2) is UNCHANGED — a static
+# heuristic must never outweigh an exact terminal signal, and the
+# cap is what made v7 pass.
+_GRADIENT_V1_STRONG = 4000
+_GRADIENT_V1_DEVELOPING = 80
+_GRADIENT_V1_SCALE = 7.5
+
+# --- v9 root-decision rules (batch 4, H1) ----------------------------------
+# ``root_decision`` selects how the root child is picked after the
+# search (see HeuristicMCTS._choose_root_child). "visits" is the
+# v6/v7 default. The blend weight (0.1) is fixed in the
+# pre-registration (iter-9.md §1.1): q gaps below 0.1 are within
+# one gradient step (the gradient's full range is +/-0.2), so the
+# visit term overrides only sub-gradient-scale q differences.
+# v12 (batch 5, H1) adds "tie-prior-forcing": most-visited, ties
+# broken by forcing-ness first (moves creating a four), then the v1
+# prior — see iter-12.md §1.1.
+_ROOT_DECISIONS = (
+    "visits", "q", "tie-q", "blend", "tie-prior", "tie-prior-forcing",
+)
+_BLEND_VISIT_WEIGHT = 0.1
+
 
 class _Node:
     """One MCTS node. ``children`` is None until expansion."""
@@ -123,10 +178,24 @@ class _Node:
         return self.value_sum / self.visit_count if self.visit_count else 0.0
 
 
-def _priors(board: np.ndarray, player: int) -> dict[int, float]:
+def _priors(
+    board: np.ndarray, player: int, prior_floor: float = 0.0,
+) -> dict[int, float]:
     """Softmax over log1p(v1 scores) / temperature, over all
     candidate moves. Returns a move -> prior dict summing to 1
-    (empty when there are no candidates)."""
+    (empty when there are no candidates) — UNLESS ``prior_floor``
+    is set (v15, batch 6 H1; see iter-15.md §1.0): priors below
+    the floor are raised to the floor and the sum is NOT
+    re-divided. PUCT uses the prior only as an exploration weight,
+    so the weights need not sum to 1; and Step 0 measured that
+    renormalization shrinks the very moves the floor is meant to
+    lift (a 0.027 save becomes 0.020 at floor 0.01, 0.0127 at
+    0.02 — the tail's added mass dominates with ~93 candidates).
+    The unnormalized floor is a pure exploration bonus for the
+    tail: above-floor moves keep their EXACT v7 priors, so the
+    sharp prior is preserved where it matters. A floor is not
+    flattening (v13's temperature probe: flattening is
+    catastrophic)."""
     flat = board.reshape(-1).tolist()
     cands = scoring._candidate_moves(board)
     if not cands:
@@ -139,7 +208,10 @@ def _priors(board: np.ndarray, player: int) -> dict[int, float]:
     top = max(logits.values())
     weights = {m: math.exp(v - top) for m, v in logits.items()}
     total = sum(weights.values())
-    return {m: w / total for m, w in weights.items()}
+    priors = {m: w / total for m, w in weights.items()}
+    if prior_floor > 0.0:
+        priors = {m: max(p, prior_floor) for m, p in priors.items()}
+    return priors
 
 
 def _terminal_leaf_value(board: np.ndarray, player: int) -> float:
@@ -177,6 +249,21 @@ def _breadth(attack: np.ndarray, empty_mask: np.ndarray) -> float:
     return strong + _GRADIENT_DEVELOPING_WEIGHT * developing
 
 
+def _breadth_v1(attack: np.ndarray, empty_mask: np.ndarray) -> float:
+    """Attack breadth of one side from v1 attack scores: the count
+    of its strong moves (v1 attack >= 4000: four/open-three makers)
+    plus 0.25 per developing move (v1 attack in [80, 4000):
+    half-open-three / open-two makers), over empty cells only.
+    Same form as :func:`_breadth`, with the v1 pattern-class
+    thresholds (see ``_GRADIENT_V1_STRONG``)."""
+    s = attack[empty_mask]
+    strong = int(np.count_nonzero(s >= _GRADIENT_V1_STRONG))
+    developing = int(
+        np.count_nonzero((s >= _GRADIENT_V1_DEVELOPING) & (s < _GRADIENT_V1_STRONG))
+    )
+    return strong + _GRADIENT_DEVELOPING_WEIGHT * developing
+
+
 def _attack_gradient(board: np.ndarray, player: int) -> float:
     """Breadth-gradient leaf value in (-0.2, 0.2) for ``player`` to
     move in a quiet position: ``0.2 * tanh((breadth(ours) -
@@ -208,10 +295,359 @@ def _gradient_leaf_value(board: np.ndarray, player: int) -> float:
     return _attack_gradient(board, player)
 
 
+def _attack_gradient_v1(board: np.ndarray, player: int) -> float:
+    """Breadth-gradient leaf value in (-0.2, 0.2) for ``player`` to
+    move in a quiet position, from the v1 kernel's attack-only
+    scores for both colours (one ``attack_v1_both`` call):
+    ``0.2 * tanh((breadth_v1(ours) - breadth_v1(theirs)) / 7.5)``.
+    Antisymmetric under colour swap. Same form as
+    :func:`_attack_gradient`, with the v1 thresholds and the
+    re-derived scale (7.5); the 0.2 cap is unchanged (see
+    ``_GRADIENT_CAP``)."""
+    black, white = kernel_v1.attack_v1_both(board)
+    mask = board == game.EMPTY
+    if player == game.BLACK:
+        ours, theirs = black, white
+    else:
+        ours, theirs = white, black
+    diff = _breadth_v1(ours, mask) - _breadth_v1(theirs, mask)
+    return _GRADIENT_CAP * math.tanh(diff / _GRADIENT_V1_SCALE)
+
+
+def _gradient_v1_leaf_value(board: np.ndarray, player: int) -> float:
+    """v14 leaf value: v7's terminal-aware values for terminal
+    positions, the v1-kernel attack gradient for quiet ones. The
+    terminal cases are identical to :func:`_terminal_leaf_value`
+    BY CONSTRUCTION (it returns 0.0 exactly for quiet positions),
+    so the ONLY difference between v7 and v14 is the quiet-leaf
+    gradient's input scores — a clean A/B of the v1 kernel."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    return _attack_gradient_v1(board, player)
+
+
+# --- v20 gap-three demotion (batch 7, H3) ---------------------------------
+# The v1 breadth counts gap-three makers as STRONG (a gap three
+# XX_X scores 4006 in v1 — see scoring._score_from_counts, which
+# awards OPEN_THREE whenever a window holds 3 friendly stones with
+# both outside cells empty, contiguous or gapped). But a gap three
+# is killable by a single opponent move occupying the gap (XXOX is
+# dead), while a true open three (_XXX_) cannot be killed in one
+# move — and greedy 1-ply play finds the gap block automatically
+# (its defence term scores the gap-fill as blocking a 4-run). Gap-
+# three breadth is therefore PHANTOM against greedy play: it
+# evaporates on contact while the opponent builds its own race.
+# Iter-20 §2.0 verified the mechanism causally (6/6 engine-swap
+# continuations flip a v14 Black loss to v0 into a win when v7's
+# move replaces v14's; the ply-10 decomposition shows the v1
+# gradient's +4.0 preference for the cluster four comes entirely
+# from the three tier, 4 of whose 6 makers are gap-three makers)
+# and §2.1 confirmed it at a fresh seed (game 6 ply 28: v14 plays
+# the gap-heavy loser, v7 plays the save).
+#
+# The fix: a three-tier move (v1 attack in [4000, 20000)) counts
+# as STRONG only if it is a TRUE open-three maker — detected with
+# the v0 kernel as the filter (a true open three scores >= 1000 in
+# v0's contiguous-run scoring; a gap-three maker scores ~40-200,
+# because v0 cannot see the gap pattern at all). A three-tier move
+# with v0 attack < 1000 is a GAP-three maker and counts as
+# DEVELOPING (weight 0.25, the existing developing weight — no new
+# constant). Four-tier moves (v1 >= 20000, INCLUDING broken-four
+# makers) are unaffected: a broken four has exactly one winning
+# square, the same as a straight four, so both force a block
+# identically. The developing tier [80, 4000) is unaffected. The
+# tanh scale is re-derived from the demoted breadth distribution
+# by v7's rule (scale ~= 1.8 x std) in iter-20 §1.1; the cap
+# (+/-0.2) is UNCHANGED.
+_GRADIENT_V1_GAP_SCALE = 5.5  # Step-0 value (iter-20 §1.1): 1.8 x
+# the demoted breadth-difference std (3.02), rounded to the nearest
+# 0.5 by v7's rule — the same rule v7 (4.0) and v14 (7.5) used.
+
+
+def _breadth_v1_gap(
+    attack_v1: np.ndarray, attack_v0: np.ndarray, empty_mask: np.ndarray
+) -> float:
+    """Attack breadth of one side from v1 attack scores with
+    gap-three makers DEMOTED to the developing tier (v20, batch 7
+    H3): strong moves are four-makers (v1 attack >= 20000,
+    including broken fours) plus TRUE open-three makers (v1 attack
+    in [4000, 20000) AND v0 attack >= 1000); developing moves
+    (weight 0.25) are the [80, 4000) tier plus GAP-three makers
+    (v1 attack in [4000, 20000) AND v0 attack < 1000). Over empty
+    cells only. The v0 attack array is the filter: it is 0-mismatch
+    verified (kernel_numpy) and distinguishes the two three kinds
+    exactly where the v1 score cannot (gap-three 4006 vs
+    open-three 4000+)."""
+    s1 = attack_v1[empty_mask]
+    s0 = attack_v0[empty_mask]
+    four = int(np.count_nonzero(s1 >= scoring.FOUR))
+    three = (s1 >= _GRADIENT_V1_STRONG) & (s1 < scoring.FOUR)
+    true_three = int(
+        np.count_nonzero(three & (s0 >= _GRADIENT_STRONG))
+    )
+    gap_three = int(
+        np.count_nonzero(three & (s0 < _GRADIENT_STRONG))
+    )
+    developing = int(
+        np.count_nonzero(
+            (s1 >= _GRADIENT_V1_DEVELOPING) & (s1 < _GRADIENT_V1_STRONG)
+        )
+    )
+    return (
+        four
+        + true_three
+        + _GRADIENT_DEVELOPING_WEIGHT * (developing + gap_three)
+    )
+
+
+def _attack_gradient_v1_gap(board: np.ndarray, player: int) -> float:
+    """Breadth-gradient leaf value in (-0.2, 0.2) for ``player`` to
+    move in a quiet position, from the v1 kernel's attack scores
+    with gap-three makers demoted (see :func:`_breadth_v1_gap`),
+    using the v0 kernel's attack scores as the true/gap filter (one
+    ``attack_v1_both`` call plus one ``attack_both`` call):
+    ``0.2 * tanh((breadth_gap(ours) - breadth_gap(theirs)) /
+    scale)``. Antisymmetric under colour swap. Same form as
+    :func:`_attack_gradient_v1`, with the demoted breadth and the
+    re-derived scale; the 0.2 cap is unchanged (see
+    ``_GRADIENT_CAP``)."""
+    black1, white1 = kernel_v1.attack_v1_both(board)
+    black0, white0 = kernel_numpy.attack_both(board)
+    mask = board == game.EMPTY
+    if player == game.BLACK:
+        ours1, theirs1 = black1, white1
+        ours0, theirs0 = black0, white0
+    else:
+        ours1, theirs1 = white1, black1
+        ours0, theirs0 = white0, black0
+    diff = _breadth_v1_gap(ours1, ours0, mask) - _breadth_v1_gap(
+        theirs1, theirs0, mask
+    )
+    return _GRADIENT_CAP * math.tanh(diff / _GRADIENT_V1_GAP_SCALE)
+
+
+def _gradient_v1_gap_leaf_value(board: np.ndarray, player: int) -> float:
+    """v20 leaf value: v7's terminal-aware values for terminal
+    positions, the gap-demoted v1-kernel attack gradient for quiet
+    ones. The terminal cases are identical to
+    :func:`_terminal_leaf_value` BY CONSTRUCTION (it returns 0.0
+    exactly for quiet positions), so the ONLY difference between
+    v14 and v20 is the quiet-leaf gradient's three-tier weighting
+    — a clean A/B of the gap-three demotion."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    return _attack_gradient_v1_gap(board, player)
+
+
 _LEAF_FUNCTIONS = {
     "terminal": _terminal_leaf_value,
     "gradient": _gradient_leaf_value,
+    "gradient_v1": _gradient_v1_leaf_value,
+    "gradient_v1_gap": _gradient_v1_gap_leaf_value,
 }
+
+# --- v1-kernel breadth (ported from v14, batch 5 H3) -----------------------
+# Same gradient FORM as v7 (breadth count, tanh squash, +/-0.2 cap),
+# but the breadth counts come from the v1 kernel's attack scores
+# (5-window, broken-four-aware) instead of the v0 kernel's
+# (contiguous-run, blind to broken fours). Thresholds are the v1
+# analogues of v7's, derived from the v1 pattern classes (see
+# iter-14.md §1): strong = a move creating a four or an open three
+# (v1 attack >= 4000 — no combination of sub-4000 per-direction
+# values reaches 4000); developing = a move creating a half-open
+# three (400) or an open two (80) (80 <= attack < 4000 — the
+# strongest sub-open-two combination is 4 x two = 40).
+_GRADIENT_V1_STRONG = 4000
+_GRADIENT_V1_DEVELOPING = 80
+
+
+def _breadth_v1(attack: np.ndarray, empty_mask: np.ndarray) -> float:
+    """Attack breadth of one side from v1 attack scores: the count
+    of its strong moves (v1 attack >= 4000: four/open-three makers)
+    plus 0.25 per developing move (v1 attack in [80, 4000):
+    half-open-three / open-two makers), over empty cells only.
+    Same form as :func:`_breadth`, with the v1 pattern-class
+    thresholds (see ``_GRADIENT_V1_STRONG``). Ported from v14
+    (batch 5, H3); the kernel itself (:mod:`gomoku_ml.kernel_v1`)
+    is v14's exact port (0 mismatches vs frozen + live references)."""
+    s = attack[empty_mask]
+    strong = int(np.count_nonzero(s >= _GRADIENT_V1_STRONG))
+    developing = int(
+        np.count_nonzero((s >= _GRADIENT_V1_DEVELOPING) & (s < _GRADIENT_V1_STRONG))
+    )
+    return strong + _GRADIENT_DEVELOPING_WEIGHT * developing
+
+
+# --- v16 2-ply rollout leaf (batch 6, H2) ---------------------------------
+# The diagnosed White failure (iter-13 §2.2): in 4 of 5 critical
+# positions the search's correctly-signed q prefers the LOSING move —
+# a top-v1-score block or four-maker — over the oracle-verified save,
+# which is quiet counterplay whose value materialises several plies
+# out (the v1-vs-v1 oracle sees it only via deep playouts). No STATIC
+# breadth signal separates the save from the block: the symmetric,
+# asymmetric and one-sided gradients (v0 and v1 kernels) all prefer
+# the losing move on 7-8 of the 10 White critical positions, because
+# the block raises White's breadth too (iter-7 §2.1's one-sided
+# refutation, reproduced on the v1 kernel — iter-16 §1.1). The fix is
+# to extend the leaf's HORIZON: value the position AFTER a short
+# rollout, where the counterplay has materialised. v16's White leaf
+# rolls out exactly 2 plies (opponent reply + our reply) under a
+# win/block/attack-argmax policy and evaluates the symmetric v1
+# gradient at the resulting position:
+#
+# * rollout policy per ply (player P to move): a winning move wins
+#   (terminal +1); >= 2 opponent winning moves loses (terminal -1);
+#   exactly 1 opponent winning move is blocked (forced); else the
+#   argmax over empty cells of P's v1 total score (own v1 attack +
+#   opponent's v1 attack at the square — v1's full-value defence,
+#   broken-four aware — from one ``attack_v1_both`` call, up to the
+#   double-threat bonus, which v1's defence term omits). FAST-LOOP
+#   PATCH (iter-16 §2.1): the pre-registered policy used the v0
+#   kernel's attack-only argmax, whose opponent never prevents
+#   broken-four creations (v0 is blind to them) — in fast-loop game
+#   7 it replied (13,4) (v1 score 81) where v1's best is the
+#   prevention (12,0) (20004), letting the quiet move borrow the
+#   forcing move's value. The v1 policy is v1's 1-ply best move for
+#   both sides: a real engine's reply, not a greedy attacker.
+# * 2 plies, not 1: a 1-ply (opponent-reply-only) leaf measures
+#   robustness to the opponent's best attack, which favours the
+#   block — the save's value comes from OUR next move, so the
+#   rollout must include it. 4 plies was measured and rejected
+#   (iter-16 §1.1): the crude attack-argmax policy blunders at that
+#   depth, returning false terminal losses (-1.000) for 3 of the 10
+#   saving moves.
+# * the final value is v14's symmetric v1 gradient (scale 7.5, cap
+#   +/-0.2) — the v1 kernel feeding the value estimate, broken-four
+#   aware. Terminal values are exact throughout (a terminal reached
+#   inside the rollout returns the terminal value, not the gradient).
+#
+# The rollout leaf is White-only: when the engine plays Black, v16 IS
+# v7 exactly (same leaf, same priors, same search), so the Black
+# games are a built-in control. Two earlier v16 candidates were
+# measured and refuted before pre-registration (iter-16 §1.1): the
+# White asymmetric gradient (0/5 v13/v14 saves at the search level,
+# saturates) and a symmetric must-block gradient term (regressed v7
+# from 4/5 to 1/5 saves on its own regression positions — it softens
+# the -0.25 penalties the cap protects). The one-sided must-block
+# variant kept 4/5 + 0/5 (no regression, no signal). The rollout is
+# the ONLY candidate with positive search-level signal: 2/5 v13/v14
+# saves (v13-g9-ply15, v14-g3-ply13) at the cost of 1 v7 position
+# (g5, plays a non-save non-loser).
+_ROLLOUT_PLIES = 2
+_GRADIENT_V1_SCALE = 7.5
+
+
+def _attack_gradient_v1(board: np.ndarray, player: int) -> float:
+    """Symmetric v1-gradient leaf value in (-0.2, 0.2) for ``player``
+    to move in a quiet position, from the v1 kernel's attack-only
+    scores for both colours (one ``attack_v1_both`` call):
+    ``0.2 * tanh((breadth_v1(ours) - breadth_v1(theirs)) / 7.5)``.
+    Antisymmetric under colour swap. v14's form (batch 5, H3), with
+    the v1 thresholds and the re-derived scale (7.5); the 0.2 cap is
+    unchanged (see ``_GRADIENT_CAP``)."""
+    black, white = kernel_v1.attack_v1_both(board)
+    mask = board == game.EMPTY
+    if player == game.BLACK:
+        ours, theirs = black, white
+    else:
+        ours, theirs = white, black
+    diff = _breadth_v1(ours, mask) - _breadth_v1(theirs, mask)
+    return _GRADIENT_CAP * math.tanh(diff / _GRADIENT_V1_SCALE)
+
+
+def _rollout_move(board: np.ndarray, player: int) -> tuple[int, float | None]:
+    """One rollout ply for ``player`` to move. Returns ``(move,
+    terminal)`` where ``terminal`` is the value for ``player`` when
+    the ply ends the game (+1: ``player`` has a winning move; -1:
+    the opponent has >= 2 winning moves; 0.0: the board is full)
+    and None when the game continues after ``move``. Policy: win if
+    possible, block a single opponent winning move (forced), else
+    the argmax over empty cells of ``player``'s v1 total score (own
+    v1 attack + opponent's v1 attack at the square — v1's
+    full-value defence, broken-four aware — from one
+    ``attack_v1_both`` call, up to the double-threat bonus, which
+    v1's defence term omits; ties by lowest flat index —
+    deterministic). FAST-LOOP PATCH (iter-16 §2.1): the
+    pre-registered policy used the v0 kernel's attack-only argmax,
+    whose opponent never prevents broken-four creations."""
+    wins = scoring._winning_moves(board, player)
+    if wins:
+        return wins[0], 1.0
+    opp_wins = scoring._winning_moves(board, -player)
+    if len(opp_wins) >= 2:
+        return -1, -1.0
+    if len(opp_wins) == 1:
+        return opp_wins[0], None
+    black, white = kernel_v1.attack_v1_both(board)
+    if player == game.BLACK:
+        own, opp = black, white
+    else:
+        own, opp = white, black
+    empty = board == game.EMPTY
+    if not empty.any():
+        return -1, 0.0
+    # FAST-LOOP PATCH (iter-16 §2.2): an own open-four creation
+    # (own v1 attack >= OPEN_FOUR = 200_000) leaves >= 2 winning
+    # moves — a forced win — and must not lose the argmax to a
+    # defensive block. In fast-loop game 9, Black's (6,3) (own
+    # 200080, an open four) lost to (6,8) (total 200422: a block of
+    # one White four) by 332 points; (6,8) loses the game, (6,3)
+    # wins it outright, and the rollout leaf hallucinated a White
+    # win (+1.000) for a losing move. This sits after the forced
+    # block above (an opponent four on the board must be answered
+    # first — otherwise the opponent wins immediately) and before
+    # the argmax. No non-forcing combination reaches 200_000 (the
+    # next-largest bonus is DOUBLE_OPEN_THREE_BONUS = 50_000), so
+    # the threshold is exact.
+    masked_own = own.copy()
+    masked_own[~empty] = -1
+    if masked_own.max() >= scoring.OPEN_FOUR:
+        return int(np.argmax(masked_own)), None
+    total = own + opp
+    total[~empty] = -1
+    return int(np.argmax(total)), None
+
+
+def _rollout_leaf_value(board: np.ndarray, player: int) -> float:
+    """v16 White leaf value: v7's terminal-aware values for terminal
+    positions; for quiet positions, roll out exactly 2 plies
+    (opponent reply + our reply, :func:`_rollout_move`) and evaluate
+    the symmetric v1 gradient at the resulting position. A win/loss
+    reached inside the rollout returns the exact terminal value
+    (sign-adjusted to ``player``'s perspective: after an even number
+    of plies the player to move is ``player`` again). At the
+    rollout's END, only wins/losses (+/-1) are terminal: a must-block
+    (-0.25 — the opponent holds exactly one winning move) is a
+    position to evaluate with the gradient, not a game end.
+    FAST-LOOP PATCH (iter-16 §2.1): treating a rollout-found
+    must-block as an exact -0.25 lets a quiet move borrow a forcing
+    move's value (in fast-loop game 7, (11,9) scored +0.25 because
+    the rollout plays White's forcing (12,0) on ply 2, tying the
+    real forcing move (12,0) whose +0.25 is a FACT about the
+    position, not a prediction under the 1-ply rollout policy). The
+    must-block at the START (the real position) keeps v7's exact
+    -0.25 — only the rollout's end is gradient-evaluated. The board
+    is not mutated (the rollout plays on a copy)."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    cur = board.copy()
+    p = player
+    for i in range(_ROLLOUT_PLIES):
+        move, term = _rollout_move(cur, p)
+        if term is not None:
+            return term if i % 2 == 0 else -term
+        cur = game.apply_move(cur, move, p)
+        p = -p
+    # 2 plies: p == player again. Only a win/loss ends the rollout
+    # game; a must-block here is gradient-evaluated (see above).
+    if scoring._winning_moves(cur, p):
+        return 1.0
+    if len(scoring._winning_moves(cur, -p)) >= 2:
+        return -1.0
+    return _attack_gradient_v1(cur, p)
 
 
 class HeuristicMCTS:
@@ -221,6 +657,36 @@ class HeuristicMCTS:
     ``leaf_mode="gradient"`` is v7: quiet leaves get the attack
     breadth gradient (:func:`_gradient_leaf_value`); terminal
     values are identical in both modes.
+
+    ``prior_floor`` (v15, batch 6 H1) is an exploration floor on
+    the priors, applied at every expansion: priors below the
+    floor are raised to it, WITHOUT renormalization (see
+    :func:`_priors` and iter-15.md §1.0 for why renormalization
+    is excluded). 0.0 (the default) is v6/v7 behaviour exactly.
+    ``c_puct`` is the PUCT exploration constant (v6/v7: 1.5);
+    v15 sweeps higher values (see iter-15.md §1.2).
+    ``leaf_mode="rollout2_v1"`` is v16: when the engine plays White,
+    quiet leaves get the 2-ply rollout leaf
+    (:func:`_rollout_leaf_value`); when it plays Black, the leaf is
+    v7's exactly. The mode is instance-bound (the leaf needs the
+    root player's colour, recorded by :meth:`_run_one` on the root
+    call).
+    ``leaf_mode="gradient_v1"`` is v14: quiet leaves get the attack
+    breadth gradient from the v1 kernel's scores
+    (:func:`_gradient_v1_leaf_value`); terminal values are
+    identical to v7's, so the only difference between v7 and v14
+    is the gradient's input scores.
+    ``leaf_mode="gradient_v1_gap"`` is v20: v14's leaf with
+    gap-three makers demoted from the strong tier to the developing
+    tier (:func:`_gradient_v1_gap_leaf_value`); terminal values
+    identical, so the only difference between v14 and v20 is the
+    three-tier weighting.
+
+    ``root_decision`` (v9, batch 4 H1; v12, batch 5 H1) selects the
+    root move choice: ``"visits"`` (default, v6/v7 behaviour —
+    most-visited, ties by RNG), ``"q"``, ``"tie-q"``, ``"blend"``,
+    ``"tie-prior"``, ``"tie-prior-forcing"`` — see
+    :meth:`_choose_root_child`.
     """
 
     def __init__(
@@ -229,17 +695,56 @@ class HeuristicMCTS:
         c_puct: float = 1.5,
         rng: np.random.Generator | None = None,
         leaf_mode: str = "terminal",
+        prior_floor: float = 0.0,
+        root_decision: str = "visits",
     ) -> None:
-        if leaf_mode not in _LEAF_FUNCTIONS:
+        if leaf_mode not in _LEAF_FUNCTIONS and (
+            leaf_mode != "rollout2_v1"
+        ):
             raise ValueError(
                 f"unknown leaf_mode: {leaf_mode!r} "
-                f"(known: {sorted(_LEAF_FUNCTIONS)})"
+                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1']})"
+            )
+        if not 0.0 <= prior_floor < 1.0:
+            raise ValueError(
+                f"prior_floor must be in [0, 1), got {prior_floor!r}"
+            )
+        if root_decision not in _ROOT_DECISIONS:
+            raise ValueError(
+                f"unknown root_decision: {root_decision!r} "
+                f"(known: {list(_ROOT_DECISIONS)})"
             )
         self.sims = sims
         self.c_puct = c_puct
         self.rng = rng
         self.leaf_mode = leaf_mode
-        self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
+        self.prior_floor = prior_floor
+        self.root_decision = root_decision
+        if leaf_mode == "rollout2_v1":
+            self._leaf_value = self._rollout_v1_leaf_value
+        else:
+            self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
+        # Colour to move at the root of the current search (the
+        # engine's colour for this move). Set by _run_one on every
+        # root call — the same instance is reused across games in
+        # both colours, so it must be re-recorded per move, never
+        # set once. Read only by the v16 leaf.
+        self._root_player: int | None = None
+
+    def _rollout_v1_leaf_value(
+        self, board: np.ndarray, player: int
+    ) -> float:
+        """v16 leaf value: v7's leaf (:func:`_gradient_leaf_value`)
+        when the engine plays Black — making v16-as-Black EXACTLY
+        v7 (same leaf function, same priors, same search), so the
+        Black games are a built-in control — and the 2-ply rollout
+        leaf (:func:`_rollout_leaf_value`) when it plays White.
+        ``_root_player`` is set by :meth:`_run_one` on the root call
+        before any leaf is evaluated; ``None`` (leaf called outside
+        a search) falls back to the White branch."""
+        if self._root_player == game.BLACK:
+            return _gradient_leaf_value(board, player)
+        return _rollout_leaf_value(board, player)
 
     def choose_move(self, board: np.ndarray, player: int) -> int:
         # Immediate win (any winning move wins).
@@ -259,15 +764,131 @@ class HeuristicMCTS:
         root = _Node(1.0)
         for _ in range(self.sims):
             self._run_one(root, board, player, None)
-        best_visits = max(c.visit_count for c in root.children.values())
-        best = [
-            m for m, c in root.children.items() if c.visit_count == best_visits
-        ]
-        if len(best) == 1:
-            return best[0]
+        return self._choose_root_child(root, board, player)
+
+    def _rng_or_first(self, moves: list[int]) -> int:
+        """Break a final tie: the seeded RNG's choice, or the first
+        move when there is no RNG (v6/v7 behaviour)."""
+        if len(moves) == 1:
+            return moves[0]
         if self.rng is not None:
-            return int(self.rng.choice(best))
-        return best[0]
+            return int(self.rng.choice(moves))
+        return moves[0]
+
+    def _choose_root_child(
+        self,
+        root: _Node,
+        board: np.ndarray | None = None,
+        player: int | None = None,
+    ) -> int:
+        """Pick the root move by this instance's root-decision rule
+        (v9, batch 4 H1; v12, batch 5 H1; see
+        ``research/iterations/iter-9.md`` §1 and
+        ``research/iterations/iter-12.md`` §1).
+
+        Every rule considers only VISITED children (visit_count >=
+        1): an unvisited child's q is undefined (0.0 by convention),
+        not a signal, and must never win an argmax over q. And "q"
+        throughout is OUR-perspective value, ``-child.q`` — a root
+        child's raw ``q`` is the OPPONENT's value under the negamax
+        backup (iter-9.md §1.0 sign correction; iter-7 §2.6 read
+        raw q as our value and got the finding backwards).
+
+        ``board``/``player`` are needed only by
+        ``"tie-prior-forcing"`` (to test forcing-ness); when they
+        are absent that rule degrades to plain ``"tie-prior"``.
+        ``choose_move`` always passes them.
+
+        * ``"visits"`` (v6/v7): most-visited; ties by RNG/first.
+          Unchanged behaviour — with sims >= 1 the max-visit child
+          always has >= 1 visit, so the visited filter is a no-op.
+        * ``"q"`` (variant A): argmax our-q; ties by visits, then
+          RNG/first.
+        * ``"tie-q"`` (variant B): most-visited; ties by our-q,
+          then RNG/first.
+        * ``"blend"`` (variant C): argmax ``our-q + 0.1 *
+          (visits / max_visits)``; ties by visits, then RNG/first.
+        * ``"tie-prior"`` (variant D, v9): most-visited; ties by
+          v1 prior (a monotone transform of the v1 1-ply score),
+          then RNG/first.
+        * ``"tie-prior-forcing"`` (v12): most-visited; ties by
+          forcing-ness first (moves creating a four —
+          ``scoring._is_forcing``), then v1 prior, then RNG/first.
+          Targets iter-9 §2.6's failure mode: v1's 1-ply score
+          undervalues forcing counter-threats (~20k) against
+          occupying a creator (~204k), so the prior tie-break
+          systematically prefers blocking one of two creators over
+          forcing — and with two creators, blocking one is useless.
+        """
+        visited = [
+            (m, c) for m, c in root.children.items() if c.visit_count >= 1
+        ]
+        if not visited:
+            # No simulation ran (sims == 0): fall back to the
+            # highest prior. Unused in practice (sims >= 1
+            # everywhere); the sane behaviour when there is no
+            # search to decide by.
+            return max(root.children, key=lambda m: root.children[m].prior)
+        if self.root_decision == "q":
+            best_q = max(-c.q for _, c in visited)
+            cands = [m for m, c in visited if -c.q == best_q]
+            best_v = max(root.children[m].visit_count for m in cands)
+            cands = [
+                m for m in cands if root.children[m].visit_count == best_v
+            ]
+            return self._rng_or_first(cands)
+        if self.root_decision == "blend":
+            max_v = max(c.visit_count for _, c in visited)
+
+            def _score(child: _Node) -> float:
+                return -child.q + _BLEND_VISIT_WEIGHT * (
+                    child.visit_count / max_v
+                )
+
+            best_s = max(_score(c) for _, c in visited)
+            cands = [m for m, c in visited if _score(c) == best_s]
+            best_v = max(root.children[m].visit_count for m in cands)
+            cands = [
+                m for m in cands if root.children[m].visit_count == best_v
+            ]
+            return self._rng_or_first(cands)
+        # "visits" / "tie-q" / "tie-prior" / "tie-prior-forcing":
+        # most-visited first.
+        best_v = max(c.visit_count for _, c in visited)
+        cands = [m for m, c in visited if c.visit_count == best_v]
+        if len(cands) > 1:
+            if self.root_decision == "tie-q":
+                best_q = max(-root.children[m].q for m in cands)
+                cands = [
+                    m for m in cands if -root.children[m].q == best_q
+                ]
+            elif self.root_decision in ("tie-prior", "tie-prior-forcing"):
+                if (
+                    self.root_decision == "tie-prior-forcing"
+                    and board is not None
+                    and player is not None
+                ):
+                    # Forcing-first (v12, iter-12.md §1.1): among
+                    # the tied children, prefer moves that create
+                    # a four. Only the tied children are tested
+                    # (ties are ~24% of searched moves, tie sizes
+                    # small), so the scan is cheap. If none is
+                    # forcing, the tie-break falls through to the
+                    # prior below. Without a board (synthetic-root
+                    # tests) the rule degrades to plain tie-prior.
+                    forcing = [
+                        m
+                        for m in cands
+                        if scoring._is_forcing(board, m, player)
+                    ]
+                    if forcing:
+                        cands = forcing
+                best_p = max(root.children[m].prior for m in cands)
+                cands = [
+                    m for m in cands
+                    if root.children[m].prior == best_p
+                ]
+        return self._rng_or_first(cands)
 
     def _select_child(self, node: _Node) -> int:
         """PUCT: ``-child.q`` (child values are from the opponent's
@@ -309,9 +930,14 @@ class HeuristicMCTS:
                 return 0.0
         # Expansion: first visit — compute priors, evaluate the leaf.
         if node.children is None:
-            priors = _priors(board, player)
+            priors = _priors(board, player, self.prior_floor)
             node.children = {m: _Node(p) for m, p in priors.items()}
             if last_move is None:  # root: no leaf value
+                # Record the root player (the engine's colour for
+                # this move) — the v16 leaf branches on it. Set on
+                # every root call: the instance is reused across
+                # games in both colours.
+                self._root_player = player
                 node.visit_count += 1
                 return 0.0
             value = self._leaf_value(board, player)
