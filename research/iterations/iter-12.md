@@ -351,7 +351,18 @@ Measured in §1.5 (full-dispatch driver, same as the battery).
 
 ### 3.3 Fast-loop summary (final engine)
 
-[To be filled.]
+Two iterations, no patches — the battery runs on the
+as-registered v12 (tie-prior-forcing). Iteration 1 vs v0:
+10W-0L-0D, no losses (v9's iter 1 on the same seeds was 8W-2L;
+v12 wins both games v9 lost as Black). Iteration 2 vs v7:
+7W-3L-0D (v9's iter 2 on the same seeds: 4W-4L-2D); all three
+losses worked (verified losing moves at g2 ply 20, g1 ply 53,
+g5 ply 37) — all share the known exploration-starvation class
+(saving moves starved by low priors), none a root-decision fix,
+all three recorded as xfail regressions. Loop stopped per the
+stopping rule (no new patchable weakness class). Details in §2.
+The fast-loop numbers (10-0, 7-3) are encouraging but n=10 with
+wide CIs — the 100-game battery is the verdict.
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
