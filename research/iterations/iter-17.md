@@ -530,7 +530,39 @@ v7 by more than any of its components did (v14 0.6000, v13
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
-[PENDING]
+**v17 barely beats v0: 51W-48L-1D, win rate 0.5150, 95% CI
+[0.4183, 0.6106]**, 1399.9 s. File:
+`research/iterations/batch-v17-vs-v0.json` (seeds 100/200).
+Per colour: as Black **18W-31L-1D (0.3700)** — v17 LOSES
+as Black to the 1-ply baseline; as White 33W-17L-0D
+(0.6600). The colour pattern is INVERTED against both
+opponents: v17 plays White better than Black vs v7 (0.69 /
+0.64) and vs v0 (0.66 / 0.37). Mean game length 31.64 plies
+(min 24, max 225); wins mean 26.9 plies, losses mean 32.7
+— v17 wins fast and loses slower against v0, the reverse
+of the usual pattern. Loss classifier: 48/48 losses via
+open four, **0 missed blocks**, 251 threatened turns in
+losses, **0 clean missed preventions** — defence is still
+solved; v17 loses the race to v0's greedy play as Black,
+not through defensive errors. 31 distinct lines in 100
+games — transposition is substantial (the near-deterministic
+root rule), but the sample covers 31 lines, far more than
+the fast loop's 2.
+
+The non-transitivity is stark and is recorded prominently:
+v17 beats v7 decisively (0.6650, §3.3) and v7 beats v0
+(0.6650), yet v17 barely ties v0 (0.5150) — v17 > v7 > v0
+≈ v17, with v17's Black game against greedy play the
+broken link (0.37 as Black vs v0, against v7's 0.71 and
+v12's 1.00). The v1 gradient's denser threat signal helps
+against a searching opponent and hurts against greedy
+1-ply play (iter-14 §5's hypothesis, now with a second
+data point: v14 0.60 vs v0, v17 0.515) — and the
+combination's forcing-first tie-break, which was worth
+100-0 against v0 under the v0 leaf (v12), does not
+transfer that edge to the v1 leaf. The ladder (§3.6)
+measures the consequence directly, since its heuristic
+anchor IS v0.
 
 ### 3.5 Tactical suites — FINAL BATTERY (re-run on the final engine)
 
