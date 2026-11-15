@@ -397,7 +397,35 @@ gone: v12 scores the same (1.0000) in both colours against v0.
 
 ### 3.6 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
 
-[To be filled.]
+[NOTE: a runtime restart killed the first run at 33/100 games
+(13W-13L-7D, 0.5000 — partial JSON backed up to
+`~/workspace/b5h1-logs/batch-v12-vs-v7-partial33.json`, not
+committed). The match re-ran IN FULL from game 0 with the same
+seeds — matches are deterministic, so the re-run reproduces
+games 0-32 identically (verified: 0 mismatches in moves and
+winners across all 33 games) and completes 33-99 as
+pre-registered.]
+
+**v12 vs v7: 41W-42L-17D, win rate 0.4950, 95% CI [0.3990,
+0.5914]**, 4624.4 s. File:
+`research/iterations/batch-v12-vs-v7.json` (seeds 100/200).
+Per colour: as Black 17W-27L-6D (0.4000), as White 24W-15L-11D
+(0.5900) — the same colour asymmetry as v9 (edge as White,
+losing as Black), but weaker in BOTH colours than v9's split
+(Black 0.44, White 0.66). Mean game length 79.77 plies (v9's
+match: 68.21 — v12's games run longer). Loss classifier: 42/42
+losses via open four, **0 missed blocks**, 191 threatened turns
+in losses, **1 clean missed prevention (0.5%)** — defence is
+essentially solved (the same 1-prevention rate v7 and v9 showed
+in their own batteries). **Clause 1 FAILS** (0.4950 < 0.50, and
+the CI [0.3990, 0.5914] includes 0.50) — v12 and v7 are
+indistinguishable head-to-head; v12 loses by one game over 100.
+The fast loop's 0.70 (n=10) and the perfect 100-0 vs v0 did not
+translate against the equal opponent — the small-sample lesson
+again, in the other direction. Compared with v9's 0.5500 on the
+same seeds, v12 is 8 games worse against v7 while 7 games
+better against v0: the forcing tie-break helps against weak
+opposition and slightly hurts against an equal one (see §5).
 
 ### 3.7 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
 
