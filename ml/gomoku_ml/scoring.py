@@ -188,6 +188,19 @@ ENGINE_VERSIONS: dict[int, dict] = {
     8: {"name": "scoring-v8", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100,
         "value_checkpoint": "ml/runs/b3-h2/value-net.pt"},
+    # v13 (iteration 13, batch 5): H2 — White focus (see
+    # gomoku_ml.mcts_white / mcts_v13 and
+    # research/iterations/iter-13.md). Base is v7's PUCT MCTS
+    # (capped attack-gradient leaf) + v3's 2-ply threat check at
+    # the root, with the White sims count chosen by the §1.2
+    # sweep (100: White 0.775 vs v0, the peak; 50 -> 0.525,
+    # 150 -> 0.55, 200 -> 0.00). The "white_sims" key makes
+    # ScoringPlayer dispatch to WhiteMCTS (or the v13 subclass,
+    # when the §1b White-priors/book design lands). Versions
+    # 9-12 are the parallel batch-4/batch-5 workstreams'.
+    13: {"name": "scoring-v13", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+         "white_sims": 100},
 }
 
 # --- weights --------------------------------------------------------------
@@ -749,7 +762,18 @@ class ScoringPlayer:
         self._mcts = None
         if self.mcts:
             value_ckpt = ENGINE_VERSIONS[version].get("value_checkpoint")
-            if value_ckpt is not None:
+            white_sims = ENGINE_VERSIONS[version].get("white_sims")
+            if white_sims is not None:
+                # Colour-asymmetric MCTS (v10 port, v13): lazy import,
+                # mcts_white imports this module (via mcts_heuristic).
+                from .mcts_white import WhiteMCTS
+
+                self._mcts = WhiteMCTS(
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    white_sims=white_sims,
+                    rng=self.rng,
+                )
+            elif value_ckpt is not None:
                 # Learned-value MCTS (v8): lazy import, mcts_value
                 # imports this module (via mcts_heuristic). The path
                 # is relative to the repo root unless absolute; the

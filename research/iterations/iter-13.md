@@ -186,7 +186,52 @@ code is written before this section exists.]
 
 ## 2. Sweep and loss analysis
 
-### 2.1 White sims sweep — TO BE RUN
+### 2.1 White sims sweep
+
+**vs v0 (40 games/cell, seeds 300/400) — COMPLETE.** Files:
+`research/iterations/sweep-s{50,100,150,200}-vs-v0.json`.
+
+| White sims | Overall | As Black (n=20) | As White (n=20) | Time |
+|---|---|---|---|---|
+| 50 | 24W-15L-1D, 0.6125 | 14W-6L-0D, 0.7000 | 10W-9L-1D, 0.5250 | 761 s |
+| **100** | 27W-11L-2D, 0.7000 | 12W-7L-1D, 0.6250 | **15W-4L-1D, 0.7750** | 1302 s |
+| 150 | 27W-12L-1D, 0.6875 | 16W-3L-1D, 0.8250 | 11W-9L-0D, 0.5500 | 1443 s |
+| 200 | 14W-26L-0D, 0.3500 | 14W-6L-0D, 0.7000 | **0W-20L-0D, 0.0000** | 942 s |
+
+**The non-monotonicity reproduces at new seeds.** White vs v0
+peaks at 100 sims (0.775) and collapses to 0.00 at 200 —
+v10's 0W-50L (seeds 100/200, n=50) is not a seed artefact.
+The shape is an inverted U with a cliff: 0.525 -> 0.775 ->
+0.55 -> 0.00. Black is fine at every count (0.625-0.825;
+Black is fixed at 100 sims in all cells, so its variation is
+RNG-state noise across cells, not a sims effect) — the damage
+is exactly the White sims count, as in v10. The 200-sim
+White losses are fast (v10's ran 27-29 plies); the 50-sim
+White losses are faster still (four at 17 plies) — at 50
+sims White sometimes plays a bad opening reply and is
+overrun immediately. The 100-sim White losses run 35-41
+plies. Classifier on the s100 cell: 11/11 losses via open
+four, 0 missed blocks, 0 clean missed preventions in 52
+threatened turns — defence solved at every sims count; the
+sims count moves the ATTACK (whether White creates first),
+never the defence.
+
+**Decision (mechanical, per the §1.2 rule): 100 White sims.**
+Highest as-White rate vs v0 is 0.775 at 100 sims; the gap to
+the next-best count (0.55 at 150) is 0.225, well outside the
+0.10 near-tie band, so no v7 tie-break is needed. v13 keeps
+v7's 100 sims in both colours — the sims lever is exhausted
+(100 was already the optimum; the sweep's value is proving
+that, and mapping the cliff). The White gain must come from
+step 2 (priors/book) alone.
+
+**vs v7 (40 games/cell, seeds 300/400) — RUNNING.** The
+transfer check: does the inverted-U shape hold against the
+reference opponent? (v10's White collapse vs v7 was 0.34,
+not 0.00 — a different shape than vs v0.) Cells run
+sequentially after the v0 sweep; results recorded here when
+complete. The sims decision above does not depend on them
+(the §1.2 rule resolves on the v0 primary with no near-tie).
 
 ### 2.2 Fast-loop iteration 1 — TO BE RUN
 
