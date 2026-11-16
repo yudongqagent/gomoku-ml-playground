@@ -289,6 +289,17 @@ Run log confirms: "resuming: 4350 game(s) already in ...;
 generating 5650 more to reach 10000", 50 sims, checkpoint
 loaded, parallel mode workers=4/concurrency=8. Launch log:
 `ml/runs/ml1-h2/10k-completion-launch.log` (gitignored data).
+A waiter (`ml/runs/ml1-h2/wait-10k.sh`, 5-min polls) watches
+for completion; it exits when the parent exits. Early rate:
+79 games in the first ~5 min (~935/hr); B1's legs declined
+under contention (1033 -> 646/hr), so ETA is ~6-8.7 h
+(completion ~02:45-05:30 PST Mon 2026-11-16).
+
+**Clause-4 interim (before the battery):** npm test 55/55,
+tsc clean (fresh `npm ci`); targeted ml pytest green
+(`test_mcts_value` + `test_scoring` 52 passed,
+`test_split_holdout` 3 passed); full ml pytest running at
+launch time — result recorded in §6 when it lands.
 Code path verified identical to the B1 legs: `ml/scripts/
 selfplay.py`, `ml/gomoku_ml/selfplay.py`, `mcts.py`,
 `encoding.py`, `architectures.py`, `game.py` are byte-identical
