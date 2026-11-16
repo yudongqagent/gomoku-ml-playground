@@ -26,6 +26,8 @@ import common  # noqa: E402
 
 common.ensure_ml_on_path()
 
+import torch  # noqa: E402
+
 from gomoku_ml import train  # noqa: E402
 from gomoku_ml.architectures import build_architecture  # noqa: E402
 
@@ -44,6 +46,18 @@ def main() -> int:
     parser.add_argument("--epochs", type=int, default=None,
                         help="override the pre-registered step rule")
     args = parser.parse_args()
+
+    # Single-threaded torch: measured 0.57 s/step vs 2.73 s/step
+    # with 2 threads under this VM's contention (load ~11 from the
+    # sibling workstreams' workers) — the OpenMP threads spin and
+    # starve the actual work (see ml/scripts/common.py
+    # torch_threads() for the same observation on self-play).
+    # At 1 thread the ~6,500-step run takes ~1h wall.
+    torch.set_num_threads(1)
+    try:
+        torch.set_num_interop_threads(1)
+    except RuntimeError:
+        pass
 
     planes, policy, value = train.load_shards(args.data)
     n = len(planes)

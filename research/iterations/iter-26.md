@@ -215,6 +215,29 @@ directly), so its per-move cost should be ≤ v8's (v8 pays the v1
 prior scan AND a net forward per expansion; v26 pays only the
 forward). The battery should run no slower than v8's did.
 
+### 2.1 Threading (measured during the pipeline test)
+
+Under the batch's contention (load ~11: H1 ×2 workers, H2 ×4,
+H3 ×2, plus torch thread pools), torch's multi-threading is
+catastrophic: training measured **0.57 s/step at 1 thread vs
+2.73 s/step at 2 threads** (default 4 threads: 5.6 s/step), and a
+batch=1 forward measured **5.86 ms at 1 thread vs 35.98 ms at 2
+threads**. Fixes (performance only — no game decision changes):
+`train_policy.py` sets 1 thread (the ~6,500-step run ≈ 1h wall
+instead of ~10h), and `PolicyValueMCTS.choose_move` resets the
+process to 1 thread before the search (the setting persists, so
+in a match process it also speeds up the opponent's net inference
+after v26's first move). Thread count can in principle change
+floating-point summation order microscopically; PUCT decisions
+flip only on ~1e-6 ties, so this is environment noise at the
+level the program already accepts (batteries run on a shared VM
+under varying load). Pipeline test (throwaway net, 3 epochs on
+1,911 positions): train → calibrate → 2-game smoke all run
+end-to-end (smoke 0-2 vs v0, as expected for a barely-trained
+net with 0.0625 top-1 teacher agreement); calibration picked
+T=0.5 on the throwaway net (v1 median top-1 0.0741, teacher
+0.1224) — the real calibration runs after real training.
+
 ## 3. Fast loop
 
 (TBD — after the first trained net.)

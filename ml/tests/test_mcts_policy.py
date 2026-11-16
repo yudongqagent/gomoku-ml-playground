@@ -158,6 +158,17 @@ def test_choose_move_blocks_single_win(tmp_path):
     assert mcts.choose_move(board, game.BLACK) == 7 * 15 + 5
 
 
+def test_choose_move_uses_single_thread(tmp_path):
+    # Inference is single-threaded (batch=1 forwards measure 6x
+    # faster at 1 thread than 2 under contention); ValueMCTS sets
+    # 2 threads at construction, choose_move resets to 1.
+    board = _board_with([(7, 7), (8, 8)], [(7, 9), (9, 9)])
+    mcts = _policy_mcts(tmp_path, sims=10)
+    assert torch.get_num_threads() == 2  # ValueMCTS construction
+    mcts.choose_move(board, game.BLACK)
+    assert torch.get_num_threads() == 1
+
+
 def test_v26_registered_in_scoring(tmp_path, monkeypatch):
     # scoring.get_player(26) dispatches to PolicyValueMCTS with the
     # checkpoint from the env override (the registry path does not

@@ -102,6 +102,21 @@ class PolicyValueMCTS(ValueMCTS):
         # evaluator's value half for direct callers.
         self._leaf_value = self._policy_value_leaf_value
 
+    def choose_move(self, board: np.ndarray, player: int) -> int:
+        """v8's move choice (inherited: win/block scans, PUCT search,
+        v3's 2-ply threat check at the root), with single-threaded
+        torch inference: a batch=1 forward measures 5.9 ms at 1
+        thread vs 36.0 ms at 2 threads under this VM's contention
+        (load ~11 from the sibling workstreams), so the 2 threads
+        :class:`ValueMCTS` sets would make every move ~6x slower.
+        The setting is process-global and persists, so in a match
+        process it also speeds up the opponent's net inference
+        (v8) after v26's first move — a performance setting only,
+        not a game decision (see iter-26.md §2.1)."""
+        if torch.get_num_threads() != 1:
+            torch.set_num_threads(1)
+        return super().choose_move(board, player)
+
     def _net_eval(
         self,
         board: np.ndarray,
