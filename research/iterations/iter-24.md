@@ -516,6 +516,27 @@ smokes mislead. v24 is statistically indistinguishable from v8
 in strength; the distilled net matches v8's net but does not
 beat it head-to-head.
 
+**Clause 2 (ladder, 20 games/opponent, mcts_sims=100) — PASS:**
+ladder Elo **52.5** (interval [−96.9, 201.9]) vs v8's 0.0 —
+strictly higher at identical game counts/opponents. Per-opponent:
+random 20W-0L-0D (1.000), heuristic 11W-8L-1D (0.575; Black
+7-3, White 4-5-1), mcts 6W-14L-0D (0.300; Black 5-5, White
+1-9 — the White-vs-MCTS collapse is the same White weakness
+seen in v7/v18). The Elo interval includes 0, so the pass is on
+the point estimate as the clause is written, not a
+statistically certain edge. JSON:
+`research/iterations/ladder-v24.json`; log
+`ml/runs/ml1-h1/ladder-v24.log` (51 min wall).
+
+**Swap driver hardened (2026-11-16 ~18:45 UTC):**
+`ml/scripts/selfplay_batch.py` gained the same auto-resume as
+the other two drivers (resume from a partial `--out`, RNG
+restart recorded as `resumed_from_game`; placement RNG also
+restarts, so resumed openings may repeat earlier ones —
+recorded in the docstring). Verified with a hand-truncated
+v0-vs-v0 swap partial (resumed from game 1, completed 2 games,
+prior W/L/D preserved).
+
 TODO — clause-by-clause verdicts table.
 
 ## 7. Verdict
