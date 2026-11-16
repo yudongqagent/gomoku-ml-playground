@@ -303,12 +303,59 @@ same run dir (metrics append).
 TODO — fill in when training completes: final train/val loss,
 epochs run, best checkpoint (step/epoch), checkpoint path.
 
+**Final (completed 2026-11-16 11:45:26 UTC):** 15 epochs total
+(4 pre-interrupt + 11 resumed), 7,545 steps, 33,849 samples
+(32,157 train / 1,692 val, same seed-0 split both runs). Train
+loss 0.0797 → 0.0567; val loss 0.0786 → **0.0617**, improving
+monotonically from epoch 6 on (e6 0.0717, e8 0.0679, e10 0.0656,
+e12 0.0623, e14 0.0618, e15 0.0617) — no overfitting by epoch 15,
+but the pre-registered plan is 15 epochs and the battery is the
+verdict, so no extension. **Best checkpoint: epoch 15
+(`best.pt`, step 7545, val 0.06169)** — the resumed run's best
+beats epoch 4's 0.07251 outright, so the resume best-reset flaw
+never bit and no restore from `best-epoch4.pt` was needed.
+Per-epoch checkpoints `checkpoint-<step>.pt` (steps 2515–7545)
+also saved. Final checkpoint copied to the registry path:
+**`ml/runs/ml1-h1/value-net.pt`** (gitignored data; the
+coordinator needs this path to verify on the merged tree).
+
 ## 4. Holdout diagnostics (actuals)
 
-TODO — game-level holdout value MSE + sign accuracy (per source),
-B1-distribution diagnostic (2,000 positions), comparison with
-v8's holdout sign-accuracy 0.7165 (different target — outcomes
-vs rollout values — so compare with care).
+Game-level holdout (every 10th game, never trained on), targets =
+rollout-leaf labels. v24 net = `ml/runs/ml1-h1/value-net.pt`;
+v8 net = `ml/runs/b3-h2/value-net.pt` scored on the SAME targets
+for a direct comparison (v8 was trained on game outcomes, so its
+numbers here measure outcome-vs-rollout agreement, not its own
+holdout quality — compare with care). Full planes unless noted.
+Raw outputs in `ml/runs/ml1-h1/holdout-{v7,v18,random,b1diag}.txt`.
+
+| Holdout | n pos | v24 sign | v24 MSE | v24 mean\|v\| | v8 sign | v8 MSE |
+|---|---|---|---|---|---|---|
+| v7 | 2,050 | 0.7713 | 0.0447 | 0.062 | 0.523 | 0.412 |
+| v18 | 790 | 0.8384 | 0.0691 | 0.074 | 0.501 | 0.323 |
+| random | 538 | 0.7055 | 0.2378 | 0.308 | 0.463 | 0.615 |
+| **pooled in-dist** | **3,378** | **0.7766** | — | — | **0.504** | — |
+| B1-diag (off-dist) | 1,948 | 0.6257 | 0.1173 | 0.117 | 0.422 | 0.568 |
+
+**Verdict: the distillation learned the leaf function — the §1.4
+stop condition (chance-level holdout) does NOT trigger.**
+Pooled in-distribution sign agreement 0.777 vs 0.50 chance; even
+off-distribution (B1 random-init-net games, a distribution the net
+never saw) it is 0.626. v8's net is at/below chance on rollout
+labels everywhere (0.50 pooled) — the two nets encode genuinely
+different value functions, as expected from their different
+targets (v8's own outcome-holdout 0.7165 is a different target
+and not directly comparable). Notes: (a) random positions are
+the hardest (MSE 0.238 vs 0.045–0.069 on engine sources) — 28.5%
+are ±1 rollout-terminal labels, and the net leans on history
+planes for those (no-history sign falls to 0.547, mean|v| 0.31 →
+0.04); at inference leaves get search-path history, so the
+no-history view is a lower bound, not the operating point.
+(b) On v7 holdout the sign is history-robust (0.7713 both views)
+but no-history MSE nearly doubles (0.045 → 0.083) — magnitudes
+shift without history, signs do not. (c) B1-diag generalisation
+(0.626) is well above chance but clearly below in-distribution —
+distribution mismatch is reduced, not eliminated.
 
 ## 5. α sweep and fast loops
 

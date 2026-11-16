@@ -34,6 +34,44 @@ from fast_loop_match import resolve_opponent  # noqa: E402
 from selfplay_batch import play_recorded_game  # noqa: E402
 
 
+def _write_result(alpha, args, name_b, games, wins, losses, draws,
+                  t0, complete):
+    """Atomically write the current sweep state for one alpha.
+
+    Flushed after every game (like fast_loop_match) so a VM
+    replacement loses at most the in-progress game; the final write
+    (complete=True) has exactly the pre-registered shape.
+    """
+    lo, hi = evaluate.wilson_ci(wins, losses, draws)
+    result = {
+        "engine_a": "scoring-v24",
+        "engine_b": name_b,
+        "alpha": alpha,
+        "games": args.games,
+        "games_played": len(games),
+        "complete": complete,
+        "swap_rule": False,
+        "seed_a": args.seed_a,
+        "seed_b": args.seed_b,
+        "wins": wins,
+        "losses": losses,
+        "draws": draws,
+        "win_rate": round(evaluate.win_rate(wins, losses, draws), 4),
+        "win_rate_ci_95": [round(lo, 4), round(hi, 4)],
+        "elapsed_seconds": round(time.time() - t0, 1),
+        "records": games,
+    }
+    out = os.path.join(
+        args.out_dir, f"alpha-v24-{alpha}-vs-{args.opponent}.json")
+    os.makedirs(args.out_dir, exist_ok=True)
+    tmp = out + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2)
+        f.write("\n")
+    os.replace(tmp, out)
+    return result, out
+
+
 def run_match(alpha: float, args) -> dict:
     player_a = scoring.get_player(24, seed=args.seed_a)
     player_a._mcts.value_weight = alpha
@@ -76,33 +114,11 @@ def run_match(alpha: float, args) -> dict:
         print(f"  game {i}: {rec['winner']} ({rec['plies']} plies, "
               f"A {rec['a_colour']}) ({time.time() - t0:.0f}s)",
               file=sys.stderr, flush=True)
-    lo, hi = evaluate.wilson_ci(wins, losses, draws)
-    result = {
-        "engine_a": "scoring-v24",
-        "engine_b": name_b,
-        "alpha": alpha,
-        "games": args.games,
-        "games_played": len(games),
-        "complete": True,
-        "swap_rule": False,
-        "seed_a": args.seed_a,
-        "seed_b": args.seed_b,
-        "wins": wins,
-        "losses": losses,
-        "draws": draws,
-        "win_rate": round(evaluate.win_rate(wins, losses, draws), 4),
-        "win_rate_ci_95": [round(lo, 4), round(hi, 4)],
-        "elapsed_seconds": round(time.time() - t0, 1),
-        "records": games,
-    }
-    out = os.path.join(
-        args.out_dir, f"alpha-v24-{alpha}-vs-{args.opponent}.json")
-    os.makedirs(args.out_dir, exist_ok=True)
-    tmp = out + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(result, f, indent=2)
-        f.write("\n")
-    os.replace(tmp, out)
+        _write_result(alpha, args, name_b, games, wins, losses, draws,
+                      t0, complete=False)
+    result, out = _write_result(alpha, args, name_b, games, wins,
+                                losses, draws, t0, complete=True)
+    lo, hi = result["win_rate_ci_95"]
     print(f"  alpha {alpha}: {wins}W-{losses}L-{draws}D (win rate "
           f"{result['win_rate']:.4f}, 95% CI [{lo:.4f}, {hi:.4f}]) -> {out}",
           file=sys.stderr)
