@@ -327,8 +327,10 @@ take ~7.8 h (ETA ~15:30 UTC ≈ 07:30 PST, plus the 08:37 PST
 cross-track cron contention). Seed split: shards 0–4349 seed 0
 (1,449 unique), 4350–4913 seed 1 (564), 4914–5934 seed 2
 (1,021), 5935–9999 seed 3 (4,065). Launch log:
-`ml/runs/ml1-h2/10k-completion-launch3.log`; parent PID 1746;
-waiter relaunched against the new PID.
+`ml/runs/ml1-h2/10k-completion-launch3.log`; parent PID 1749
+(1746 was the setsid wrapper, which exits after forking — the
+waiter must watch the python parent, found via ps, not $! or
+pgrep); waiter relaunched against the new PID.
 
 **Clause-4 interim (before the battery):** npm test 55/55,
 tsc clean (fresh `npm ci`); targeted ml pytest green
