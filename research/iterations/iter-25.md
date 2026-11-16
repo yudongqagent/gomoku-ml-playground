@@ -588,7 +588,22 @@ here.) The battery re-runs tactical on the FINAL α (§5).
 Grid {1.0, 0.5, 0.25, 0.125} × 20 games vs v0 and vs v8
 (seeds 1001/2001), both sweeps in parallel (PIDs 5632/5682).
 Selection (§1.4): highest COMBINED win rate over the 40 games;
-ties toward LARGER α. (TBD — sweep results, selected α.)
+ties toward LARGER α.
+
+**VM replacement killed both sweeps 2026-11-16 ~17:27 UTC.**
+Completed arms (flushed per-arm, saved): vs v0 α=1.0 →
+5W-15L-0D (0.25); vs v0 α=0.5 → 10W-6L-4D (0.60); vs v8
+α=1.0 → 10W-10L-0D (0.50). Partial arms lost: vs v0 α=0.25
+at 14/20 (8W-6L), vs v8 α=0.5 at 12/20 (4W-8L). **Rest
+sweeps relaunched 17:29 UTC** (PIDs 1703/1712) with the
+remaining alphas only — vs v0 {0.25, 0.125}, vs v8 {0.5,
+0.25, 0.125}, same seeds — output to
+`sweep-v25-vs-v0-rest.json` / `sweep-v25-vs-v8-rest.json`,
+to be merged with the flushed arms afterwards. The sweep is
+seeded, so the re-run arms reproduce the lost partial games
+exactly (verify: α=0.25 vs v0 must show 8W-6L at game 14,
+α=0.5 vs v8 4W-8L at game 12). (TBD — final sweep results,
+selected α.)
 
 ## 4. Fast loop (TBD)
 
