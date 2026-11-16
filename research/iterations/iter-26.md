@@ -115,7 +115,15 @@ stay exact.
   games (seeds 5001/5002, separate shard dirs, merged at train
   time) — 2 workers, not 4: H2 already runs 4 workers on the
   shared 1.5 CPUs, and H3's data need is the smallest of the
-  three workstreams.
+  three workstreams. RESTART NOTE (VM replaced ~05:25 UTC, all
+  workers killed): 28 games / 1,911 positions survived (data-a
+  12, data-b 16; two 225-ply draws contribute 450 draw
+  positions). Restarted with FRESH seeds/dirs (5003 → data-a2,
+  138 games; 5004 → data-b2, 134 games) — a same-seed restart
+  would replay identical games and duplicate shards (generation
+  is fully deterministic given the seed). Target stays 300 games
+  total; train time merges data-a + data-b + data-a2 + data-b2
+  (+ H1's games if ready, §1.1).
 - **H1 reuse:** H1 (running in parallel) is generating v18
   self-play games with full move lists under `ml/runs/ml1-h1/`.
   If H1's games exist AND are available before H3's training
