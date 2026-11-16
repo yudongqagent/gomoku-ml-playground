@@ -521,9 +521,24 @@ and only the remaining 28 games are new.) Classifier: 9/9
 losses via open four, 0 missed blocks, 0 clean missed
 preventions in 51 threatened turns (losses).
 
-### 3.4 Swap-rule head-to-head vs v7
+### 3.4 Swap-rule head-to-head vs v7 — 69W-25L-6D, 0.7200 (swap edge established, driven by White)
 
-(TODO)
+`research/iterations/batch-v23-vs-v7-swap.json` (100 games, swap
+rule, balanced placement, placement_seed 11, tempo judge,
+seeds 100/200, 3308.4 s): **v23 69W-25L-6D, win rate 0.7200,
+95% CI [0.6251, 0.7986]** — aggregates recomputed from the raw
+records. Split: as Black 32W-16L-2D (0.660), as White
+**37W-9L-4D (0.780)** (50/50 colour split — the tempo judge
+split evenly). The swap edge over v7 IS established (CI lower
+bound 0.6251 > 0.50), and v23 is +8 wins over v18's 61W-35L-4D
+(0.6300, CI [0.5322, 0.7182]) — though the two CIs overlap, so
+the improvement over v18 is suggestive, not conclusive. The
+gain comes ENTIRELY from White: v18's swap split was Black
+0.72 / White 0.54; v23's is Black 0.660 / White 0.780. The
+pattern flipped — v18's swap edge came from Black, v23's comes
+from White (+11 wins as White, −3 as Black). Classifier:
+25/25 losses via open four, 0 missed blocks, 0 clean missed
+preventions in 133 threatened turns (losses).
 
 ### 3.5 Ladder
 
