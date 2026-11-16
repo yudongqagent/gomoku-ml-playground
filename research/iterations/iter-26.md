@@ -261,6 +261,35 @@ T=0.5 on the throwaway net (v1 median top-1 0.0741, teacher
   replacements hit ~every 2h during generation; a crash loses at
   most 5 epochs, and best.pt is copied aside before any resume).
 
+### 2.3 Training + calibration
+
+Training (19 epochs, ~6,631 steps, ~21 min wall): train loss
+5.50 → 3.99, policy loss 4.68 → 3.34, value loss 0.82 → 0.65.
+Best val loss 4.2188 at epoch 18; checkpoint
+`ml/runs/ml1-h3/policy-value-net.pt` (epoch-18 best.pt).
+Value-loss note: predicting 0 always gives MSE ≈ 0.81 (19%
+draws), so 0.65 is only modestly better than the constant
+baseline — the value head carries weak signal, and the prior is
+doing the work in v26. Policy-loss note: the target
+distributions' mean entropy is the floor for the policy CE;
+3.34 against a uniform-over-candidates baseline of ~ln(40) ≈
+3.7 shows the net has learned real ranking signal beyond
+candidate identification.
+
+Calibration (`calibrate_prior_temp.py`, 1,173 held-out
+positions, `ml/runs/ml1-h3/calibration.json`): v1 prior median
+top-1 0.0711; net top-1 agreement with the teacher 0.2745
+(exact top-move match — understates quality, since several
+moves are often equally good). Net median top-1 by T: 0.25 →
+0.8007, 0.5 → 0.4602, 1.0 → 0.1698, 2.0 → 0.0624. **Chosen T =
+2.0** (gap to v1's median 0.0087, the smallest) — the net at
+T=1.0 (0.1698) approximately reproduces the teacher's own
+sharpness, but the pre-registered rule matches the v1 prior's
+known-good flatness, and v1's flatness is PROVEN to work with
+this search (v6/v7). The verification smoke + tactical suite
+(§3) is the empirical check on this choice; the pre-registered
+fallback is T=1.0 (the only grid neighbour).
+
 ## 3. Fast loop
 
 (TBD — after the first trained net.)
