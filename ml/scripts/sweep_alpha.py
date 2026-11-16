@@ -35,7 +35,7 @@ from selfplay_batch import play_recorded_game  # noqa: E402
 
 
 def _write_result(alpha, args, name_b, games, wins, losses, draws,
-                  t0, complete):
+                  t0, complete, resumed=False, resumed_from_game=None):
     """Atomically write the current sweep state for one alpha.
 
     Flushed after every game (like fast_loop_match) so a VM
@@ -59,6 +59,8 @@ def _write_result(alpha, args, name_b, games, wins, losses, draws,
         "win_rate": round(evaluate.win_rate(wins, losses, draws), 4),
         "win_rate_ci_95": [round(lo, 4), round(hi, 4)],
         "elapsed_seconds": round(time.time() - t0, 1),
+        "resumed": resumed,
+        "resumed_from_game": resumed_from_game,
         "records": games,
     }
     out = os.path.join(
@@ -73,16 +75,42 @@ def _write_result(alpha, args, name_b, games, wins, losses, draws,
 
 
 def run_match(alpha: float, args) -> dict:
+    out = os.path.join(
+        args.out_dir, f"alpha-v24-{alpha}-vs-{args.opponent}.json")
+    games: list[dict] = []
+    wins = losses = draws = 0
+    start_game = 0
+    resumed = False
+    if os.path.exists(out):
+        with open(out, encoding="utf-8") as f:
+            prev = json.load(f)
+        if prev.get("complete"):
+            print(f"== alpha {alpha}: already complete "
+                  f"({prev['wins']}W-{prev['losses']}L-{prev['draws']}D), "
+                  f"skipping ==", file=sys.stderr)
+            return prev
+        # Resume a partial alpha: the saved games stand (played under
+        # the pre-registered protocol); the remaining games continue
+        # with fresh players, so the MCTS tie-break RNG restarts
+        # instead of continuing the pre-kill stream. The 20 games
+        # remain 20 fair games vs the opponent at this alpha with
+        # alternating colours; the restart is recorded in the JSON
+        # (resumed_from_game) and the iteration log.
+        games = prev["records"]
+        wins, losses, draws = prev["wins"], prev["losses"], prev["draws"]
+        start_game = len(games)
+        resumed = True
+        print(f"== alpha {alpha}: resuming from game {start_game} "
+              f"({wins}W-{losses}L-{draws}D so far; RNG restarts) ==",
+              file=sys.stderr)
     player_a = scoring.get_player(24, seed=args.seed_a)
     player_a._mcts.value_weight = alpha
     choose_a = player_a.choose_move
     choose_b, name_b = resolve_opponent(args.opponent, args.seed_b)
     print(f"== alpha {alpha}: scoring-v24 vs {name_b}, {args.games} games "
           f"(seeds {args.seed_a}/{args.seed_b}) ==", file=sys.stderr)
-    games: list[dict] = []
-    wins = losses = draws = 0
     t0 = time.time()
-    for i in range(args.games):
+    for i in range(start_game, args.games):
         a_is_black = (i % 2 == 0)
         a_colour = game.BLACK if a_is_black else game.WHITE
         if a_is_black:
@@ -115,9 +143,12 @@ def run_match(alpha: float, args) -> dict:
               f"A {rec['a_colour']}) ({time.time() - t0:.0f}s)",
               file=sys.stderr, flush=True)
         _write_result(alpha, args, name_b, games, wins, losses, draws,
-                      t0, complete=False)
+                      t0, complete=False, resumed=resumed,
+                      resumed_from_game=start_game if resumed else None)
     result, out = _write_result(alpha, args, name_b, games, wins,
-                                losses, draws, t0, complete=True)
+                                losses, draws, t0, complete=True,
+                                resumed=resumed,
+                                resumed_from_game=start_game if resumed else None)
     lo, hi = result["win_rate_ci_95"]
     print(f"  alpha {alpha}: {wins}W-{losses}L-{draws}D (win rate "
           f"{result['win_rate']:.4f}, 95% CI [{lo:.4f}, {hi:.4f}]) -> {out}",

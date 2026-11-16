@@ -359,7 +359,22 @@ distribution mismatch is reduced, not eliminated.
 
 ## 5. α sweep and fast loops
 
-TODO.
+**VM replacement during the sweep (2026-11-16 ~13:27 UTC):** the
+first sweep run was killed by SIGTERM after ~86 min with α=0.125
+at 12/20 games (5W-5L-2D). The per-game flush saved all 12 games;
+no completed alpha was lost (none had finished). The driver now
+auto-resumes: completed alphas are skipped, a partial alpha
+continues from its saved game count with fresh players. The
+saved games stand (played under the pre-registered protocol);
+the only deviation is that the MCTS tie-break RNG restarts for
+the remaining games of the interrupted alpha instead of
+continuing the pre-kill stream — the 20 games remain 20 fair
+games vs v8 at that α with alternating colours, and the restart
+is recorded in the JSON (`resumed_from_game`). Note the sweep's
+pace is dominated by 225-ply draws (games 8 and 11 took ~1000s
+each — full-board draws at ~5s/ply under contention).
+
+TODO — sweep results, registry α update, fast loops.
 
 ## 6. Validation battery
 
