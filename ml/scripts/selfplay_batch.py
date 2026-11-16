@@ -19,6 +19,12 @@ Swap-rule batches use a colour judge (see
 ``research/iterations/swap-judge-v2.md``): ``--judge tempo`` (the
 harness default since batch 2, H3) or ``--judge attack`` (the
 batch-1 judge). The judge is recorded in the output JSON.
+
+The output JSON is flushed after every game, and a partial
+``--out`` from a killed run is auto-resumed (same engine pair,
+game count and swap flag; the placement RNG restarts, so resumed
+openings may repeat earlier ones — recorded as
+``resumed_from_game`` in the JSON).
 """
 
 from __future__ import annotations
@@ -82,7 +88,7 @@ def _write_result(path: str, result: dict) -> None:
 
 
 def _summary(args, name_a, name_b, games, wins, losses, draws, t0,
-             complete):
+             complete, resumed=False, resumed_from_game=None):
     lo, hi = evaluate.wilson_ci(wins, losses, draws)
     return {
         "engine_a": name_a,
@@ -90,6 +96,8 @@ def _summary(args, name_a, name_b, games, wins, losses, draws, t0,
         "games": args.games,
         "games_played": len(games),
         "complete": complete,
+        "resumed": resumed,
+        "resumed_from_game": resumed_from_game,
         "swap_rule": args.swap_rule,
         "placement": args.placement if args.swap_rule else None,
         "placement_seed": args.placement_seed if args.swap_rule else None,
@@ -113,8 +121,40 @@ def run_batch(args) -> dict:
     scorer = scoring.score_attack
     games: list[dict] = []
     wins = losses = draws = 0
+    resumed = False
+    resumed_from_game = None
+    # Auto-resume: this VM is replaced without warning, so a partial
+    # --out from a killed run is continued, not restarted. The
+    # placement RNG restarts (openings may repeat earlier ones);
+    # alternation is preserved because the loop index is absolute.
+    if os.path.exists(args.out):
+        try:
+            with open(args.out, encoding="utf-8") as f:
+                prior = json.load(f)
+            if (prior.get("engine_a") == name_a
+                    and prior.get("engine_b") == name_b
+                    and prior.get("games") == args.games
+                    and prior.get("swap_rule") == args.swap_rule
+                    and isinstance(prior.get("records"), list)):
+                if prior.get("complete"):
+                    print(f"== {args.out} already complete "
+                          f"({prior['games_played']} games) — nothing to do ==",
+                          file=sys.stderr)
+                    return prior
+                games = prior["records"]
+                wins = prior["wins"]
+                losses = prior["losses"]
+                draws = prior["draws"]
+                resumed = True
+                resumed_from_game = len(games)
+                print(f"== resuming from game {resumed_from_game} "
+                      f"({wins}W-{losses}L-{draws}D so far; RNG restarts) ==",
+                      file=sys.stderr)
+        except (OSError, ValueError, KeyError) as e:
+            print(f"== ignoring unreadable prior {args.out}: {e} ==",
+                  file=sys.stderr)
     t0 = time.time()
-    for i in range(args.games):
+    for i in range(len(games), args.games):
         rec: dict = {"game": i}
         if args.swap_rule:
             a_opens = (i % 2 == 0)
@@ -175,12 +215,14 @@ def run_batch(args) -> dict:
         games.append(rec)
         _write_result(args.out, _summary(
             args, name_a, name_b, games, wins, losses, draws, t0,
-            complete=(i + 1 == args.games)))
+            complete=(i + 1 == args.games),
+            resumed=resumed, resumed_from_game=resumed_from_game))
         if (i + 1) % 10 == 0 or i + 1 == args.games:
             print(f"  {i + 1}/{args.games} games ({time.time() - t0:.0f}s)",
                   file=sys.stderr, flush=True)
     return _summary(args, name_a, name_b, games, wins, losses, draws,
-                    t0, complete=True)
+                    t0, complete=True,
+                    resumed=resumed, resumed_from_game=resumed_from_game)
 
 
 def np_random(seed: int):

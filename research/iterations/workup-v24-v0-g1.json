@@ -1,0 +1,358 @@
+{
+  "batch": "fast-v24-vs-v0-iter1.json",
+  "game": 1,
+  "version_a": 24,
+  "version_b": 0,
+  "a_colour": "white",
+  "plies": 25,
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "last_turns_tested": 4,
+  "qualifying_turns": 4,
+  "turns_with_saving_move": 1,
+  "earliest_saving_turn": 19,
+  "turns": [
+    {
+      "ply": 17,
+      "played": [
+        5,
+        8
+      ],
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "actual_losses": 3,
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 65,
+          "xy": [
+            5,
+            4
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 127,
+          "xy": [
+            7,
+            8
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 109,
+          "xy": [
+            4,
+            7
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 64,
+          "xy": [
+            4,
+            4
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        }
+      ],
+      "saving_moves": []
+    },
+    {
+      "ply": 19,
+      "played": [
+        8,
+        9
+      ],
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "actual_losses": 3,
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 79,
+          "xy": [
+            4,
+            5
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 109,
+          "xy": [
+            4,
+            7
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 123,
+          "xy": [
+            3,
+            8
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            1,
+            1
+          ],
+          "non_losses": 2,
+          "saves": true
+        },
+        {
+          "move": 64,
+          "xy": [
+            4,
+            4
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        }
+      ],
+      "saving_moves": [
+        {
+          "move": 123,
+          "xy": [
+            3,
+            8
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            1,
+            1
+          ],
+          "non_losses": 2,
+          "saves": true
+        }
+      ]
+    },
+    {
+      "ply": 21,
+      "played": [
+        3,
+        7
+      ],
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "actual_losses": 3,
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 123,
+          "xy": [
+            3,
+            8
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 67,
+          "xy": [
+            7,
+            4
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 64,
+          "xy": [
+            4,
+            4
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 63,
+          "xy": [
+            3,
+            4
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        }
+      ],
+      "saving_moves": []
+    },
+    {
+      "ply": 23,
+      "played": [
+        8,
+        11
+      ],
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "actual_losses": 3,
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 67,
+          "xy": [
+            7,
+            4
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 137,
+          "xy": [
+            2,
+            9
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 63,
+          "xy": [
+            3,
+            4
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 48,
+          "xy": [
+            3,
+            3
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 64,
+          "xy": [
+            4,
+            4
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        }
+      ],
+      "saving_moves": []
+    }
+  ]
+}

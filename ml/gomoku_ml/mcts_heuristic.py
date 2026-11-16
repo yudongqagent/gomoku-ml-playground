@@ -127,6 +127,9 @@ _GRADIENT_CAP = 0.2
 _GRADIENT_V1_STRONG = 4000
 _GRADIENT_V1_DEVELOPING = 80
 _GRADIENT_V1_SCALE = 7.5
+# v16/v18 2-ply rollout leaf (batch 6 H2 / batch 7 H1): the rollout
+# length, defined once here (both ML-batch-1 ports agreed on 2).
+_ROLLOUT_PLIES = 2
 
 
 class _Node:
@@ -303,9 +306,6 @@ def _breadth_v1(attack: np.ndarray, empty_mask: np.ndarray) -> float:
 # the ONLY candidate with positive search-level signal: 2/5 v13/v14
 # saves (v13-g9-ply15, v14-g3-ply13) at the cost of 1 v7 position
 # (g5, plays a non-save non-loser).
-_ROLLOUT_PLIES = 2
-
-
 def _attack_gradient_v1(board: np.ndarray, player: int) -> float:
     """Symmetric v1-gradient leaf value in (-0.2, 0.2) for ``player``
     to move in a quiet position, from the v1 kernel's attack-only
@@ -324,6 +324,24 @@ def _attack_gradient_v1(board: np.ndarray, player: int) -> float:
     return _GRADIENT_CAP * math.tanh(diff / _GRADIENT_V1_SCALE)
 
 
+# --- v16 2-ply rollout leaf (batch 6, H2) — ported verbatim from
+# research/batch-7; see iter-16.md §1 for the design rationale.
+# The rollout policy per ply (player P to move): a winning move
+# wins (terminal +1); >= 2 opponent winning moves loses (terminal
+# -1); exactly 1 opponent winning move is blocked (forced); else
+# the argmax over empty cells of P's v1 total score (own v1 attack
+# + opponent's v1 attack at the square — v1's full-value defence,
+# broken-four aware — from one ``attack_v1_both`` call, up to the
+# double-threat bonus, which v1's defence term omits). FAST-LOOP
+# PATCHES (iter-16 §2.1/§2.2), both included: the v1 rollout
+# policy (the v0 policy's opponent never prevents broken-four
+# creations) and open-four priority (an own open-four creation
+# must not lose the argmax to a defensive block). 2 plies, not 1
+# (the save's value comes from OUR next move) and not 4 (the
+# crude attack-argmax policy blunders at that depth — false
+# terminal losses for 3 of 10 saving moves). The final value is
+# v14's symmetric v1 gradient (scale 7.5, cap +/-0.2) at the
+# rollout's end; terminal values are exact throughout.
 def _rollout_move(board: np.ndarray, player: int) -> tuple[int, float | None]:
     """One rollout ply for ``player`` to move. Returns ``(move,
     terminal)`` where ``terminal`` is the value for ``player`` when
@@ -433,7 +451,9 @@ def _rollout_leaf_value(
     position, not a prediction under the 1-ply rollout policy). The
     must-block at the START (the real position) keeps v7's exact
     -0.25 — only the rollout's end is gradient-evaluated. The board
-    is not mutated (the rollout plays on a copy)."""
+    is not mutated (the rollout plays on a copy). Ported verbatim
+    from research/batch-7 (v16, batch 6 H2; v18, batch 7 H1, uses
+    this same function for both colours)."""
     value = _terminal_leaf_value(board, player)
     if value != 0.0:
         return value
@@ -459,6 +479,8 @@ def _rollout_leaf_value(
 _LEAF_FUNCTIONS = {
     "terminal": _terminal_leaf_value,
     "gradient": _gradient_leaf_value,
+    # Rollout modes ("rollout2_v1", "rollout2_v1_both") are NOT
+    # here: they are instance-bound methods (see __init__).
 }
 
 

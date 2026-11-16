@@ -6,7 +6,10 @@ heuristic-MCTS ladder opponent (``mcts`` — not addressable through
 ``selfplay_batch.py``'s ``vN`` engine names). Output JSON has the same
 shape as ``selfplay_batch.py`` output (``records`` with full move
 lists), so ``classify_losses.py`` and ``workup_loss.py`` work on it
-unchanged.
+unchanged. Resumable: if ``--out`` already holds a partial (incomplete)
+match, the saved games stand and the remaining games continue with
+fresh players (the MCTS tie-break RNG restarts — recorded in the
+JSON as ``resumed_from_game``); a complete ``--out`` is left alone.
 
 Fast-loop seed policy (recorded in research/iterations/iter-8.md §4):
 iteration k uses seed-a = 1000 + k, seed-b = 2000 + k — fresh games,
@@ -52,7 +55,7 @@ def resolve_opponent(name: str, seed: int):
 
 
 def _write_result(args, name_a, name_b, games, wins, losses, draws,
-                  t0, complete):
+                  t0, complete, resumed=False, resumed_from_game=None):
     """Atomically write the current batch state to ``args.out``.
 
     Same shape as ``selfplay_batch.py`` output, plus ``games_played``
@@ -78,6 +81,8 @@ def _write_result(args, name_a, name_b, games, wins, losses, draws,
         "win_rate": round(evaluate.win_rate(wins, losses, draws), 4),
         "win_rate_ci_95": [round(lo, 4), round(hi, 4)],
         "elapsed_seconds": round(time.time() - t0, 1),
+        "resumed": resumed,
+        "resumed_from_game": resumed_from_game,
         "records": games,
     }
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
@@ -107,8 +112,31 @@ def main() -> int:
           f"(seeds {args.seed_a}/{args.seed_b}) ==", file=sys.stderr)
     games: list[dict] = []
     wins = losses = draws = 0
+    start_game = 0
+    resumed = False
+    if os.path.exists(args.out):
+        with open(args.out, encoding="utf-8") as f:
+            prev = json.load(f)
+        if prev.get("complete"):
+            print(f"== already complete ({prev['wins']}W-{prev['losses']}L-"
+                  f"{prev['draws']}D), skipping ==", file=sys.stderr)
+            return 0
+        # Resume a partial match: the saved games stand (played under
+        # the registered protocol); the remaining games continue with
+        # fresh players, so the MCTS tie-break RNG restarts instead
+        # of continuing the pre-kill stream. The games remain fair
+        # games vs the opponent at these seeds with alternating
+        # colours; the restart is recorded in the JSON
+        # (resumed_from_game) and the iteration log.
+        games = prev["records"]
+        wins, losses, draws = prev["wins"], prev["losses"], prev["draws"]
+        start_game = len(games)
+        resumed = True
+        print(f"== resuming from game {start_game} "
+              f"({wins}W-{losses}L-{draws}D so far; RNG restarts) ==",
+              file=sys.stderr)
     t0 = time.time()
-    for i in range(args.games):
+    for i in range(start_game, args.games):
         a_is_black = (i % 2 == 0)
         a_colour = game.BLACK if a_is_black else game.WHITE
         if a_is_black:
@@ -145,7 +173,9 @@ def main() -> int:
         # Flush after EVERY game: a VM replacement must lose at most
         # the in-progress game (see selfplay_batch.py).
         _write_result(args, player_a.name, name_b, games, wins, losses,
-                      draws, t0, complete=(i + 1 == args.games))
+                      draws, t0, complete=(i + 1 == args.games),
+                      resumed=resumed,
+                      resumed_from_game=start_game if resumed else None)
     lo, hi = evaluate.wilson_ci(wins, losses, draws)
     print(f"  {player_a.name}: {wins}W-{losses}L-{draws}D (win rate "
           f"{evaluate.win_rate(wins, losses, draws):.4f}, "
