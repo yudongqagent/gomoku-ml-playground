@@ -376,6 +376,32 @@ each — full-board draws at ~5s/ply under contention).
 
 TODO — sweep results, registry α update, fast loops.
 
+**α sweep — COMPLETE 2026-11-16 ~14:47 UTC** (20 games each vs
+v8, seeds 1001/2001; per-alpha JSONs
+`research/iterations/alpha-v24-<α>-vs-v8.json`):
+
+| α | W-L-D | Win rate | 95% CI | As Black | As White |
+|---|---|---|---|---|---|
+| 0.125 | 9-9-2 | 0.500 | [0.299, 0.701] | 7-2-1 | 2-7-1 |
+| 0.25 | 10-7-3 | 0.575 | [0.364, 0.762] | 5-4-1 | 5-3-2 |
+| 0.5 | 7-12-1 | 0.375 | [0.200, 0.591] | 3-6-1 | 4-6-0 |
+| **1.0** | **13-7-0** | **0.650** | **[0.433, 0.819]** | 8-2-0 | 5-5-0 |
+
+**Winner: α = 1.0 (full weight)** — registry `value_weight` set
+to 1.0. The result is non-monotone in α (0.5 is the worst), so
+the §1.4 no-signal rule does not apply (1.0 vs 0.5 differ by 6
+wins). Full weight winning is the OPPOSITE of v8/v11's lesson —
+the likely mechanism is calibration: the distilled net's values
+are small in magnitude (mean|v| ~0.06 on engine positions, most
+labels in ±0.2) and well-calibrated (holdout MSE 0.045–0.069,
+sign 0.78), so α=1.0 here contributes about as much as α≈0.12
+did on v8's net (mean|v| 0.53) — the optimizer's curse has
+little magnitude to exploit. Colour note: at α=1.0 Black is
+strong (8-2) and White is even (5-5); at α=0.125 the split was
+extreme (Black 7-2-1, White 2-7-1). All four CIs overlap, so the
+sweep selects α but proves nothing — the 100-game battery is
+the verdict, as pre-registered.
+
 ## 6. Validation battery
 
 **Clause 4 (test suites) — run early, while the sweep runs:**

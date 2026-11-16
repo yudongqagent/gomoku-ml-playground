@@ -208,14 +208,16 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # research/iterations/iter-24.md). The ONLY differences from
     # v8 are the checkpoint (trained on rollout-leaf labels from
     # v7/v18 self-play + random playouts, value-only loss) and the
-    # swept α (``value_weight`` — set to the α-sweep winner; the
-    # 0.25 here is v8's default until the sweep runs). Search,
+    # swept α (``value_weight`` — 1.0, the α-sweep winner at 0.65
+    # vs v8 over 20 games; the distilled values are small in
+    # magnitude, mean|v| ~0.06, so full weight is not the
+    # optimizer's-curse exposure it was for v8's net). Search,
     # priors, sims, threat check, terminal cases: v8 unchanged, so
     # the battery is a clean A/B of the distilled net.
     24: {"name": "scoring-v24", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml1-h1/value-net.pt",
-         "value_weight": 0.25},
+         "value_weight": 1.0},
 }
 
 # --- weights --------------------------------------------------------------
