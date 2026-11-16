@@ -364,6 +364,22 @@ seed 3 (1,138), 7073–8414 seed 4 (1,342), 8415–9999 seed 5
 `ml/runs/ml1-h2/10k-completion-launch5.log`; parent PID 1702;
 waiter relaunched against the new PID.
 
+**Fifth VM replacement (~13:26 UTC 2026-11-16, leg 5 killed).**
+The VM was replaced again ~2 h into leg 5 (parent PID 1702
+killed outright). 1,368 games orphaned in
+`.parallel-1702-*/worker*/`; 0 lost. Relaunched with the
+**seed-6 config** (`ml/configs/ml1-h2-selfplay-resume6.yaml`):
+recovered all 1,368 orphans (numbered game8415–game9782) and
+resumed at 9,783/10,000, generating the final 217 games.
+Leg-5 rate: 1,368 games in ~119 min ≈ 690/hr; the final 217
+take ~19 min (ETA ~13:50 UTC ≈ 05:50 PST). Seed split: shards
+0–4349 seed 0 (1,449 unique), 4350–4913 seed 1 (564),
+4914–5934 seed 2 (1,021), 5935–7072 seed 3 (1,138), 7073–8414
+seed 4 (1,342), 8415–9782 seed 5 (1,368), 9783–9999 seed 6
+(217). Launch log:
+`ml/runs/ml1-h2/10k-completion-launch6.log`; parent PID 1730;
+waiter relaunched against the new PID.
+
 **Clause-4 interim (before the battery):** npm test 55/55,
 tsc clean (fresh `npm ci`); targeted ml pytest green
 (`test_mcts_value` + `test_scoring` 52 passed,
