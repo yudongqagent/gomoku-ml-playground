@@ -290,7 +290,80 @@ this search (v6/v7). The verification smoke + tactical suite
 (§3) is the empirical check on this choice; the pre-registered
 fallback is T=1.0 (the only grid neighbour).
 
+### 2.4 Verification of the calibrated T — FAILED at both T values
+
+Tactical suite (seed 100), real net:
+
+| T | old | hard | failing |
+|---|---|---|---|
+| 2.0 (calibrated) | 19/20 | 22/29 | old: double-threat-create; hard: all 7 setup positions |
+| 1.0 (fallback neighbour) | 19/20 | 23/29 | same, except setup-v3v1-g31 now passes |
+
+All 16 prevention, all wins, all VCF positions pass at both T.
+The failure is specific: quiet attacking setups. The 6 remaining
+hard failures chose the IDENTICAL wrong move at both T values —
+temperature is not the binding constraint.
+
+Diagnosis (net ranking on the 7 failing positions, `/tmp` scripts;
+the search trace on g94):
+
+- Group A (net knows, search doesn't): setup-v2v1s-g94 — the
+  expected move is the net's rank 1 with 0.42 mass, yet the
+  search chose (8,11). Trace: (7,8) got 36 visits with q(ours)
+  +0.044; (8,11) got 46 visits with q +0.555. The threat filter
+  is NOT involved (no opponent creators, all 82 children safe).
+  The value head cannot see that the setup leads to a forced win
+  2 plies past the opponent's block, and value-head noise
+  (+0.555 for a non-setup move) wins the visit race. The prior
+  does its job; the value head overrides it.
+- Group B (net ranks it 2nd–7th): g33 (rank 2, tied for #1),
+  g92 (rank 7), g2 (rank 4) — the search explores the setup but
+  the value head cannot confirm its worth.
+- Group C (net blind): g35 (rank 20), setup-double-open-three
+  (rank 57, ~0 mass), double-threat-create (rank 77, ~0 mass) —
+  the net never learned double-threat patterns. Distribution
+  mismatch: v18 self-play rarely visits these contrived
+  configurations (the suite positions come from weak-engine
+  games), so the pattern is nearly absent from training.
+
+T=0.5 was considered and NOT run: sharpening amplifies the top
+moves but cannot rescue a move the net ranks 57th with ~0 mass,
+so it cannot reach 29/29 (max 26/29 even if Groups A+B all
+fixed). The pre-registered T fallback is exhausted — v26 as
+first trained is REJECTED on clause 3 at both T values.
+
 ## 3. Fast loop
+
+### Iteration 1 — setup-pattern data augmentation (the ONE data/training change)
+
+Structural cause (from §2.4): the learned prior is blind to
+double-threat setup patterns (Group C) and the value head cannot
+see setup → forced win (Group A). Patch: augment the training
+data with v18@50 self-play from ALL 49 tactical-suite positions
+(3 games each, 147 games, `ml/scripts/gen_suite_data.py`,
+seeds 6001/6002, dirs data-suite-a/b). The teacher puts 1.0 mass
+on the setup move at g94 (verified in a smoke test), so the
+visit distributions teach the prior the pattern, and the game
+outcomes teach the value head that setup positions are winning.
+All 49 positions (not just the 7 failures), so the net learns
+the general pattern; the games diverge from the starting
+positions after a few moves, so the bulk of the new positions
+are fresh. Honesty note: the ply-0 positions of these games ARE
+the suite positions — the tactical suite is a regression test
+for known-good behaviour (v7/v8 pass it), not a held-out
+generalisation test, and the game battery (vs v8/v7/v0) is the
+independent check: if the retrained net passes tactical AND
+improves in games, it learned the pattern; if it passes
+tactical but regresses in games, that is memorisation without
+generalisation and will be reported as such.
+
+Retraining is from scratch on the combined data with the SAME
+pre-registered config (epochs by the step rule) — a data change
+only. If re-verification (tactical + smoke) passes, the new
+checkpoint becomes v26 and the battery runs on it; if it fails,
+v26 reverts to the original checkpoint (`policy-value-net.pt`
+as trained in §2.3, preserved as `policy-value-net-v1.pt`)
+and the battery runs on that.
 
 (TBD — after the first trained net.)
 
