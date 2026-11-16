@@ -556,7 +556,65 @@ in the gap-three breadth v22 still demotes for Black.
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
-(TBD.)
+[NOTE: the first run was killed by a runtime restart at 44/100
+games (27W-13L-4D, partial JSON backed up to
+`~/workspace/b8h2-logs/batch-v22-vs-v0-partial.json`, not
+committed). The re-run started IN FULL from game 0 with the same
+seeds and reproduces the 44-game prefix identically (verified: 0
+mismatches in moves and winners across all 44 games, including
+identical W/L/D at the 6- and 34-game marks).]
+
+**v22 beats v0: 61W-30L-9D, win rate 0.6550, 95% CI [0.5577,
+0.7409]**, 4235.8 s. File:
+`research/iterations/batch-v22-vs-v0.json` (seeds 100/200). Per
+colour: as Black **43W-0L-7D (0.9300)** — ZERO losses as Black;
+as White 18W-30L-2D (0.3800). The aggregate (0.6550) matches the
+pre-registered prediction (≈0.66) but through the OPPOSITE colour
+mechanism: Black far exceeded the prediction (0.93 vs the
+predicted ≈0.72 — v20's level) while White fell below it (0.38
+vs the predicted ≈0.60 — v14's level). The conditional demotion
+did NOT restore White against greedy play — White is WORSE than
+v20's (0.45, 27 losses) — and it made Black nearly unbeatable.
+Mean game length 74.42 plies (min 21, max 225); wins mean 75.9
+plies, losses mean 26.3 — v22 wins very slow grinds and loses
+fast races, the familiar pattern in its extreme form. 90 distinct
+lines. Loss classifier: 30/30 losses via open four (all as
+White, since Black lost 0), **0 missed blocks**, 166 threatened
+turns in losses, **0 clean missed preventions** — defence is
+still solved.
+
+**Decomposition (clean: each comparison changes exactly one
+thing).** v14 (no demotion): Black 0.60, White 0.60. v20 (demote
+both): Black 0.72, White 0.45. v22 (demote Black only): Black
+0.93, White 0.38. So demoting BLACK's breadth (v14 → v22) is
+worth **+0.33 for Black and −0.22 for White**; demoting WHITE's
+breadth on top (v22 → v20) is worth **−0.21 for Black and +0.07
+for White**. v22's condition is the best of the three tested
+combinations vs v0 (0.655 > v14's 0.60 > v20's 0.585) — but the
+colour asymmetry is now EXTREME (0.93/0.38, a 0.55 gap, wider
+than v20's 0.27). The mechanism for White's −0.22 is the
+theirs-term demotion: at White-to-move leaves, Black's gap-three
+breadth is demoted, so White UNDER-FEARS Black's threats — the
+same mechanism as fast-loop games 7/9 (§2.2), now measured at
+battery scale against greedy play, where Black's gap threes
+convert most directly. And White's own full breadth (the
+"restored counterplay vocabulary") does not save it: White's
+gap-three breadth is phantom at the positions that matter (games
+7/9), so counting it fully makes White overvalue its own
+gap-rich positions while under-fearing Black's. The design's
+premise — "White's gap-three breadth is signal" — is WRONG in
+aggregate against greedy play: it is signal only as the
+OPPONENT's breadth (Black fearing White's counterplay is worth
++0.21 for Black), not as White's own. The open follow-up is
+demoting Black's gap threes ONLY in the ours term (when Black is
+to move), never in the theirs term — White would fear Black's
+gap threes fully. Untested; batch 9.
+
+The non-transitivity sharpens by colour: v22 beats v0 as Black
+(0.93) and loses to v0 as White (0.38), while v7 beats v0 in both
+colours (0.74/0.59) and v22 beats v7 in both colours (0.58/0.58).
+The ladder (§3.6) measures the consequence directly, since its
+heuristic anchor IS v0.
 
 ### 3.5 Tactical suites — FINAL BATTERY (re-run on the final engine)
 
