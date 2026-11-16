@@ -495,9 +495,31 @@ only wall-clock time.) Classifier: 16/16 losses via open
 four, 0 missed blocks, 0 clean missed preventions in 64
 threatened turns (losses). Defence still solved.
 
-### 3.3 Head-to-head vs v0
+### 3.3 Head-to-head vs v0 — 91W-9L-0D, 0.9100 (tie-break costs games vs v0, all as Black)
 
-(TODO)
+`research/iterations/batch-v23-vs-v0.json` (100 games, normal
+rules, seeds 100/200, 2021.4 s): **v23 91W-9L-0D, win rate
+0.9100, 95% CI [0.8377, 0.9519]** — aggregates recomputed from
+the raw records. Split: as Black **41W-9L-0D (0.820)**, as
+White **50W-0L-0D (1.000)** — all 9 losses are as Black
+(games 4, 14, 26, 48, 64, 66, 76, 94, 96). v18 scored
+96W-2L-2D (0.9700, CI [0.9155, 0.9897]) on the same seeds: as
+Black 46W-2L-2D (0.94), as White 50W-0L (1.000). **The
+tie-break costs v23 ~5 games/100 against v0, entirely as
+Black; White is identical (perfect).** v18's 0.9700 lies
+outside v23's 95% CI, so this is not obviously noise — and it
+is consistent with the §2.2 misfires (both Black positions,
+q gap 0.016 = gradient noise). Mechanism hypothesis:
+against a weak opponent the positions are less sharp, so
+root ties are more often between moves whose q gap is noise
+rather than terminal signal, and the tie-break converts a
+50/50 RNG pick into a deterministic pick on that noise. (This
+match was interrupted once by a runtime restart, at 72/100
+games; the re-run with the same seeds reproduced the saved
+72-game partial EXACTLY — all records identical, verified —
+and only the remaining 28 games are new.) Classifier: 9/9
+losses via open four, 0 missed blocks, 0 clean missed
+preventions in 51 threatened turns (losses).
 
 ### 3.4 Swap-rule head-to-head vs v7
 
