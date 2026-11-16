@@ -1,8 +1,11 @@
 # Iteration 26 — v26: learned policy prior + joint value net (ML batch 1, H3)
 
-**Status: IN PROGRESS — pre-registration (§1) written BEFORE any eval.
-Teacher port (v16/v18) verified; data generation pending sizing
-measurements.** Comparison target is v8 (the ML-track reference and
+**Status: REJECTED — battery complete 2026-11-16. v26 passes 1 of 4
+ML-bar clauses (clause 4 only): vs v8 0.2000, ladder Elo −240.8,
+tactical 20/20 + 26/29. The learned prior cannot replace the v1
+prior: White collapses completely against greedy attackers (0W/50
+vs v0, 1W/50 vs v8) while tying v7 overall (0.51). v8 remains the
+ML champion.** Comparison target is v8 (the ML-track reference and
 champion). This is the H3 workstream of ML batch 1 (H1 is v24, the
 rollout-leaf distillation; H2 is v25, the completed 10k retrain);
 work happens on branch `research/ml-batch-1-h3` in the
@@ -448,12 +451,146 @@ fast-loop match vs v7 is skipped as redundant with the battery's
 
 ## 4. Validation battery
 
-(TBD — after the first trained net.)
+**Recovery note.** The original H3 worker was killed by a runtime
+restart drain mid-battery (vs-v8 at 14/100 games). A recovery worker
+re-ran the vs-v8 battery from scratch with the same seeds (100/200)
+— the fresh run reproduced the killed run's first 14 games EXACTLY
+(14/14 identical records, move lists included). A second VM
+replacement then killed the vs-v7 battery at 74/100; its re-run
+reproduced all 74 games exactly (74/74). Both re-runs used
+`selfplay_batch.py`, the script the original worker used (not
+`fast_loop_match.py` — the battery log header and 10-game progress
+lines identify it). A third VM replacement hit during the loss
+classification; no battery data was lost (all JSONs flush per game
+and were committed per match). Ladder + tactical pushes initially
+failed on transient proxy errors and were retried at the end.
 
-## 4. Validation battery
+v26 = v2 checkpoint at T=1.0, registry values throughout, seeds
+100/200 for every match. Checkpoint identity verified by md5:
+`ml/runs/ml1-h3/best.pt` = `policy-value-net.pt` =
+`policy-value-net-v2.pt` (a2b1eab0aa61284a28c51790212189b6); the v1
+checkpoint is preserved as `policy-value-net-v1.pt`
+(94e3661533ef600ffbf9268b7cda0273).
 
-(TBD — after the fast loop.)
+### Clause 1 — head-to-head vs v8: FAIL
+
+20W-80L-0D, win rate **0.2000**, 95% CI [0.1334, 0.2888]
+(`batch-v26-vs-v8.json`, 3,815s). As Black 19W/50, as White **1W/50**.
+The CI excludes 0.50 decisively.
+
+### Clause 2 — ladder Elo: FAIL
+
+Ladder Elo **−240.8** [−422.7, −58.9] vs v8's 0.0 — the whole
+interval is below the bar (`ladder-v26.json`, 20 games/opponent,
+mcts_sims=100, seed 100). vs random 20W-0L (1.0000); vs heuristic
+4W-16L (0.2000; as Black 4W-6L, as White 0W-10L); vs mcts 4W-16L
+(0.2000; as Black 1W-9L, as White 3W-7L).
+
+### Clause 3 — tactical: FAIL (re-run confirms §3)
+
+20/20 old + **26/29** hard at --seed 100
+(`eval_tactical_full.py`, full dispatch; `tactical-v26.json`).
+The same 3 failures as §3, with the same chosen moves: g92 (chose
+(5,4), expected (9,6)), g94 (chose (8,11), expected (7,8)), g35
+(chose (11,8), expected (11,7)). All prevention, win, and VCF
+positions pass.
+
+### Clause 4 — test suites: PASS
+
+ml pytest **259 passed, 1 skipped, 2 xfailed** (the known v7
+regression xfails), **0 failures** (417.7s); npm test **55/55**;
+`tsc --noEmit` clean. Logs in `ml/runs/ml1-h3/battery-{pytest,
+npm-test,tsc}.log`.
+
+### Secondary head-to-heads (pre-registered)
+
+- **vs v7: 51W-49L-0D, 0.5100, CI [0.4135, 0.6058]**
+  (`batch-v26-vs-v7.json`, 2,836s) — dead even; the CI includes
+  0.50. As Black 18W/50, as White **33W/50**.
+- **vs v0: 13W-84L-3D, 0.1450, CI [0.0891, 0.2271]**
+  (`batch-v26-vs-v0.json`, 1,007s). As Black 13W/50 (3 draws), as
+  White **0W/50** — v26 wins no game as White against the frozen
+  baseline. The 20-game smoke (3W-17L, 0W-10L as White) is
+  confirmed at full scale.
+- **Swap vs v7 (tempo judge, balanced placement, seed 11):
+  39W-61L-0D, 0.3900, CI [0.3002, 0.4880]**
+  (`batch-v26-vs-v7-swap.json`, 2,097s). As Black 22W/50, as White
+  17W/50. The second player chose Black in 76/100 games.
+
+### Non-transitivity — recorded prominently
+
+v26 ties v7 (0.51) but loses badly to v8 (0.20) and to v0 (0.145)
+— while v7 beats v0 0.665 and v8 beats v0 0.545. The ordering is
+not transitive: v26 ≈ v7 > v0 > v26, and v8 > v26 while v26 ≈ v7.
+The colour splits are the mechanism: v26-as-White scores 0.66 vs
+v7-as-Black but 0.02 vs v8-as-Black and 0.00 vs v0-as-Black, while
+v26-as-Black is roughly consistent (0.38 vs v8, 0.36 vs v7, 0.29
+vs v0). v26's White game collapses specifically against
+greedy/attacking Black play (v0's crude greed, v8's v1-prior
+attack), while v7-as-Black's gradient-leaf play lets v26's White
+survive and counter. Under swap rules v26 loses to v7 (0.39)
+although it ties in normal rules — the swap rule takes away the
+colour assignment v26's White game exploited.
+
+### Loss classification (battery scale)
+
+`classify_batch_losses.py` on the two 100-game batteries:
+vs v0 — 84 losses, **84 via open four, 0 missed blocks, 0 clean
+missed preventions in 523 threatened turns**; vs v8 — 80 losses,
+**80 via open four, 0 missed blocks, 0 clean missed preventions
+in 270 threatened turns**. Defence is solved at battery scale; the
+losses are positional — v26 lets the opponent build multiple
+simultaneous threats, exactly the §3 fast-loop diagnosis. No new
+failure mode appeared in the battery, and no battery loss changed
+anything: no patches remained in scope (the ONE data/training
+change was used in iteration 1; T exhausted; α fixed; sims a
+closed lever).
 
 ## 5. Verdict
 
-(TBD)
+**REJECTED — v26 passes 1 of 4 ML-bar clauses (clause 4 only).**
+v8 remains the ML-track champion; v26 is not merged to master.
+
+What the battery establishes:
+
+1. **The v1 prior is load-bearing and a lossy imitation does not
+   reproduce it.** v26 (0.20 vs v8, Elo −240.8) is far below v8
+   (Elo 0.0) despite training on the strongest teacher in the
+   program (v18) with a better value signal than v8's. The v1
+   prior's explicit defensive/preventive scoring does work the
+   net (top-1 teacher agreement 0.34) cannot: v26 loses 0.145 to
+   the frozen baseline it was supposed to surpass. H3's
+   AlphaZero-style design fails at this scale (24k positions,
+   16ch/2-block net) — the prior replacement, not the value head,
+   is the regression.
+2. **The value head, not the prior, is the binding constraint for
+   tactical setups.** After suite augmentation the prior ranks
+   the setup move 1st on all three remaining failures (g92 mass
+   0.29), yet the search still picks another move — the value
+   head cannot confirm the setup line even when handed the right
+   move. Fixing the value signal (H1's distillation) is the
+   prerequisite for any future prior work.
+3. **White is the catastrophic colour, but only against greedy
+   attackers.** 0W/50 vs v0 and 1W/50 vs v8 as White, against
+   33W/50 vs v7 — the failure is opponent-style-dependent, not a
+   uniform White weakness. White must prevent constantly, and
+   prevention is exactly what the learned prior does worst.
+4. **Suite augmentation works as a pattern fix, not a strength
+   fix.** It moved the net's ranks from 57/77 to 1 on the
+   double-threat patterns and bought 23→26/29, but the battery
+   shows no corresponding game-strength gain (the smoke was 0.15
+   after augmentation, the battery 0.145 vs v0). Memorisation
+   without generalisation, as the §3 honesty note warned to
+   check for.
+5. **Determinism held across VM replacements.** Both killed
+   batteries reproduced exactly on re-run (14/14, 74/74) —
+   the harness is reproducible, and the numbers above are the
+   numbers.
+
+**Checkpoint for the coordinator:** the final v26 checkpoint is
+`ml/runs/ml1-h3/best.pt` in this worktree
+(= `policy-value-net.pt` = `policy-value-net-v2.pt`, md5
+a2b1eab0aa61284a28c51790212189b6), run at the registry values
+(T=1.0, α=0.25, 100 sims). It is gitignored data; the coordinator
+needs this file (or an identical copy) to verify on the merged
+tree.
