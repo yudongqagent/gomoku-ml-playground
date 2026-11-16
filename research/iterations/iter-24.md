@@ -202,18 +202,31 @@ v7 ~42 s/game (smoke: 23 s/game), v18 ~150–200 s/game (smoke:
 positions — below the 40k target, covered by the §1.1 stopping
 rule (train on what exists; the battery is the verdict).
 
-**Rebalancing rule (pre-committed 2026-11-15 ~21:45 PST, before
-it triggers):** post-restart, v18 runs at ~339 s/game (2-game
-sample, CPU-starved at ~20%) while v7 runs at ~42 s/game. v18
-positions are the stronger distribution (closest to inference)
-and the scarcest; v7 positions past ~400 games have diminishing
-value. So: **when the v7 batch reaches 400 games, stop it and let
-the v18 batch run solo for the remaining generation time** (it
-should roughly double its CPU share). Game counts are aims under
-the stopping rule, so this rebalances the mix toward the stronger
-source without changing any pre-registered design parameter. If
-v7 has not reached 400 by the cutoff, both simply stop at the
-cutoff.
+**Rebalancing rule (pre-committed 2026-11-15 ~21:45 PST, then
+CANCELLED ~21:50 PST — see below):** post-restart, v18 ran at
+~339 s/game (2-game sample, CPU-starved at ~20%) while v7 ran at
+~42 s/game. v18 positions are the stronger distribution (closest
+to inference) and the scarcest; v7 positions past ~400 games have
+diminishing value. So: **when the v7 batch reaches 400 games, stop
+it and let the v18 batch run solo for the remaining generation
+time** (it should roughly double its CPU share). Game counts are
+aims under the stopping rule, so this rebalances the mix toward
+the stronger source without changing any pre-registered design
+parameter. If v7 has not reached 400 by the cutoff, both simply
+stop at the cutoff.
+
+**Cancellation (~21:50 PST, before the rule triggers, before any
+training/eval):** the 339 s/game figure was a noisy 2-game sample
+— v18's post-restart pace over 7 games is ~163 s/game, and v7's
+effective pace is ~35 s/game. Projected to the cutoff WITHOUT
+intervention: v7 ~600 games (~18k positions), v18 ~141 games
+(~5.9k), random 5.6k → ~29.5k total at mix 61/20/19, very close
+to the pre-registered 60/25/15. WITH the rule: ~24.5k total at
+49/28/23 — the rule would trade ~5k total positions for ~1k v18
+positions (v7 yields ~3.3x more positions per CPU-second). The
+no-intervention outcome matches the pre-registration better on
+both total and mix, so the rule is cancelled and both batches run
+to the cutoff untouched.
 
 **Battery runbook** (validation seeds 100/200 throughout; run
 after the α sweep sets the registry `value_weight`):
