@@ -190,6 +190,34 @@ TODO — fill in when generation completes: game counts, position
 counts per source, label histogram (±1 vs gradient), holdout
 counts, variety check result, elapsed times.
 
+**Variety check (done 2026-11-15 ~21:05 PST, first 15 v7 games):
+14 distinct first-5-ply prefixes in 15 games** (most common prefix
+shared by 2 games) — RNG tie-break variety is ample; NO opening
+randomisation added.
+
+**Pace under contention** (siblings H2/H3 running; load ~3.5–5.7):
+v7 ~42 s/game (smoke: 23 s/game), v18 ~150–200 s/game (smoke:
+89.5 s/game). At the 6h cutoff (~03:00 PST) the expected yield is
+~500 v7 games + ~120 v18 games + 100 random games ≈ 26k quiet
+positions — below the 40k target, covered by the §1.1 stopping
+rule (train on what exists; the battery is the verdict).
+
+**Battery runbook** (validation seeds 100/200 throughout; run
+after the α sweep sets the registry `value_weight`):
+```
+# Clause 1: vs v8, 100 games
+fast_loop_match.py --version-a 24 --opponent v8 --games 100 --seed-a 100 --seed-b 200 --out research/iterations/batch-v24-vs-v8.json
+# Clause 2: ladder (20 games/opponent, mcts_sims 100)
+eval_version.py --version 24 --ladder-games 20
+# Clause 3: tactical, both suites, seed 100
+eval_tactical_full.py --version 24 --suite both --seed 100
+# Clause 4: ml pytest + npm test + tsc
+# Secondary: vs v7, vs v0, swap vs v7 (defaults: balanced/tempo, seeds 100/200)
+fast_loop_match.py --version-a 24 --opponent v7 --games 100 --seed-a 100 --seed-b 200 --out research/iterations/batch-v24-vs-v7.json
+fast_loop_match.py --version-a 24 --opponent v0 --games 100 --seed-a 100 --seed-b 200 --out research/iterations/batch-v24-vs-v0.json
+selfplay_batch.py --engine-a v24 --engine-b v7 --games 100 --swap-rule --out research/iterations/batch-v24-vs-v7-swap.json
+```
+
 ## 3. Training (actuals)
 
 TODO — fill in when training completes: final train/val loss,
