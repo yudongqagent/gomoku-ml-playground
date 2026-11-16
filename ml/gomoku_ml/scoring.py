@@ -206,6 +206,22 @@ ENGINE_VERSIONS: dict[int, dict] = {
     18: {"name": "scoring-v18", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both"},
+    # v26 (iteration 26, ML batch 1): H3 — v8's engine shape (PUCT
+    # MCTS, 100 sims, exact terminal leaf cases, v3's root threat
+    # check) with a LEARNED policy prior + a joint policy+value net
+    # as the leaf (see gomoku_ml.mcts_policy and
+    # research/iterations/iter-26.md). The "policy_checkpoint" key
+    # makes ScoringPlayer dispatch to PolicyValueMCTS. The
+    # checkpoint path is relative to the repo root (gitignored data
+    # under ml/runs/); the GOMOKU_V26_CHECKPOINT env var overrides
+    # it. "prior_temperature" is the pre-registered offline
+    # calibration (iter-26.md §1.3); GOMOKU_V26_TEMPERATURE
+    # overrides it (used by the temperature smoke sweep only — the
+    # battery runs the registry value).
+    26: {"name": "scoring-v26", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "policy_checkpoint": "ml/runs/ml1-h3/policy-value-net.pt",
+         "prior_temperature": 1.0},
 }
 
 # --- weights --------------------------------------------------------------
@@ -766,8 +782,36 @@ class ScoringPlayer:
         self.rng = np.random.default_rng(seed)
         self._mcts = None
         if self.mcts:
+            policy_ckpt = ENGINE_VERSIONS[version].get("policy_checkpoint")
             value_ckpt = ENGINE_VERSIONS[version].get("value_checkpoint")
-            if value_ckpt is not None:
+            if policy_ckpt is not None:
+                # Learned-prior MCTS (v26): lazy import, mcts_policy
+                # imports this module (via mcts_heuristic). The path
+                # is relative to the repo root unless absolute; the
+                # GOMOKU_V26_CHECKPOINT env var overrides it, and
+                # GOMOKU_V26_TEMPERATURE overrides the registry's
+                # prior_temperature (smoke sweep only).
+                from .mcts_policy import PolicyValueMCTS
+
+                path = os.environ.get("GOMOKU_V26_CHECKPOINT") or policy_ckpt
+                if not os.path.isabs(path):
+                    repo_root = os.path.dirname(
+                        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    )
+                    path = os.path.join(repo_root, path)
+                temp = os.environ.get("GOMOKU_V26_TEMPERATURE")
+                temperature = (
+                    float(temp)
+                    if temp is not None
+                    else ENGINE_VERSIONS[version].get("prior_temperature", 1.0)
+                )
+                self._mcts = PolicyValueMCTS(
+                    checkpoint_path=path,
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    rng=self.rng,
+                    prior_temperature=temperature,
+                )
+            elif value_ckpt is not None:
                 # Learned-value MCTS (v8): lazy import, mcts_value
                 # imports this module (via mcts_heuristic). The path
                 # is relative to the repo root unless absolute; the
