@@ -537,6 +537,16 @@ recorded in the docstring). Verified with a hand-truncated
 v0-vs-v0 swap partial (resumed from game 1, completed 2 games,
 prior W/L/D preserved).
 
+**Secondary — vs v0, 100 games: 58W-38L-4D, win rate 0.6000,
+CI [0.5020, 0.6906].** Beats the frozen baseline outright (CI
+lower bound just above 0.50), better than v8's 0.545. Colour
+split is extreme: Black 36W-10L-4D (0.760), White 22W-28L-0D
+(0.440) — v24 LOSES as White to the baseline heuristic. The
+White weakness recurs everywhere (ladder White 1-9 vs mcts,
+4-5-1 vs heuristic). **VM replacement #4 (2026-11-16 ~19:30
+UTC):** killed after 88 games (51W-34L-3D); relaunched, resumed
+from game 88 (RNG restart recorded in the JSON).
+
 TODO — clause-by-clause verdicts table.
 
 ## 7. Verdict
