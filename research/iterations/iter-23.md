@@ -471,9 +471,29 @@ gap is a measurement artefact, not an engine defect: no
 root rule can change a 79-vs-16 non-tie, and the chosen move
 wins. Counting it as a pass, v23 would be 29/29.
 
-### 3.2 Head-to-head vs v7
+### 3.2 Head-to-head vs v7 — 75W-16L-9D, 0.7950 (CLAUSE 1 PASSES)
 
-(TODO)
+`research/iterations/batch-v23-vs-v7.json` (100 games, normal
+rules, seeds 100/200, 7654.1 s): **v23 75W-16L-9D, win rate
+0.7950, 95% CI [0.7057, 0.8625]** — aggregates recomputed from
+the raw records (match the script's printed summary exactly).
+Split: as Black **42W-5L-3D (0.870)**, as White 33W-11L-6D
+(0.720). Clause 1 requires the CI lower bound > 0.50; 0.7057 >
+0.50, so **clause 1 PASSES**. v23 slightly outperforms v18's
+73W-18L-9D (0.7750) — +2 wins, within noise, and in the
+direction that matters: the tie-break did NOT cost games at
+battery scale. The fast-loop misfires (§2.2) were noise-level,
+as hypothesised — the tie-break's game-strength effect is
+~neutral, exactly as §1.2 pre-registered. All 9 draws are
+225-ply full-board marathons. (This match was interrupted
+TWICE by runtime restarts, at 3/100 and at 98/100 games; each
+re-run with the same seeds reproduced the saved partial
+EXACTLY — all records identical, verified at both 3 and 98
+games — and only the remaining games are new. Determinism
+verified twice, no data integrity issue; the restarts cost
+only wall-clock time.) Classifier: 16/16 losses via open
+four, 0 missed blocks, 0 clean missed preventions in 64
+threatened turns (losses). Defence still solved.
 
 ### 3.3 Head-to-head vs v0
 
