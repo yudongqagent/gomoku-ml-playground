@@ -188,6 +188,34 @@ ENGINE_VERSIONS: dict[int, dict] = {
     8: {"name": "scoring-v8", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100,
         "value_checkpoint": "ml/runs/b3-h2/value-net.pt"},
+    # v18 (iteration 18, batch 7): H1 — v16's 2-PLY ROLLOUT leaf
+    # applied as Black too (see gomoku_ml.mcts_heuristic and
+    # research/iterations/iter-18.md). The rollout function, the v1
+    # rollout policy (with open-four priority), the gradient-
+    # evaluated rollout end and the v1 gradient are v16's,
+    # byte-identical; only the dispatch changed (no colour gate).
+    # As White, v18 IS v16 exactly. Sims (100), c_puct (1.5),
+    # priors and root decision are v7 unchanged. No threat check.
+    # Registered here (ML batch 1 H1) ONLY so the standard harness
+    # can run v18 self-play (a distillation data source) and verify
+    # the ported leaf; v18 itself lives on research/batch-7, and
+    # versions 9-17 are NOT registered on this branch.
+    18: {"name": "scoring-v18", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both"},
+    # v24 (iteration 24, ML batch 1): H1 — v8's PUCT MCTS with the
+    # value net DISTILLED from v18's 2-ply rollout leaf (see
+    # research/iterations/iter-24.md). The ONLY differences from
+    # v8 are the checkpoint (trained on rollout-leaf labels from
+    # v7/v18 self-play + random playouts, value-only loss) and the
+    # swept α (``value_weight`` — set to the α-sweep winner; the
+    # 0.25 here is v8's default until the sweep runs). Search,
+    # priors, sims, threat check, terminal cases: v8 unchanged, so
+    # the battery is a clean A/B of the distilled net.
+    24: {"name": "scoring-v24", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml1-h1/value-net.pt",
+         "value_weight": 0.25},
 }
 
 # --- weights --------------------------------------------------------------
@@ -766,6 +794,7 @@ class ScoringPlayer:
                     checkpoint_path=path,
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
                     rng=self.rng,
+                    value_weight=ENGINE_VERSIONS[version].get("value_weight"),
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.

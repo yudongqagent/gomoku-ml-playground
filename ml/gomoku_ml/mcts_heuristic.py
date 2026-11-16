@@ -56,6 +56,7 @@ import numpy as np
 
 from . import game
 from . import kernel_numpy
+from . import kernel_v1
 from . import scoring
 
 # Temperature for the prior softmax over log1p(v1 scores). A
@@ -104,6 +105,24 @@ _GRADIENT_DEVELOPING = 100
 _GRADIENT_DEVELOPING_WEIGHT = 0.25
 _GRADIENT_SCALE = 4.0
 _GRADIENT_CAP = 0.2
+
+# --- v14/v16/v18 v1-kernel gradient + 2-ply rollout leaf ---------------------
+# PORTED VERBATIM from research/batch-7 (batch 5 H3 / batch 6 H2 /
+# batch 7 H1; see research/iterations/iter-14.md, iter-16.md,
+# iter-18.md) for ML batch 1 H1: the v18 rollout leaf is the
+# distillation target, and v18 self-play is a data source. The
+# functions below are byte-identical in logic to the batch-7
+# versions (verified by cross-check, see research/iterations/
+# iter-24.md §0); only the module docstring attribution differs.
+# The v1 thresholds/scale are v14's (iter-14 §1): strong = a move
+# creating a four or an open three (v1 attack >= 4000); developing
+# = half-open three (400) or open two (80) (80 <= attack < 4000);
+# scale 7.5 re-derived from the v1 breadth-difference distribution
+# (std 4.09); the cap (0.2) is UNCHANGED.
+_GRADIENT_V1_STRONG = 4000
+_GRADIENT_V1_DEVELOPING = 80
+_GRADIENT_V1_SCALE = 7.5
+_ROLLOUT_PLIES = 2
 
 
 class _Node:
@@ -208,9 +227,184 @@ def _gradient_leaf_value(board: np.ndarray, player: int) -> float:
     return _attack_gradient(board, player)
 
 
+def _breadth_v1(attack: np.ndarray, empty_mask: np.ndarray) -> float:
+    """Attack breadth of one side from v1 attack scores: the count
+    of its strong moves (v1 attack >= 4000: four/open-three makers)
+    plus 0.25 per developing move (v1 attack in [80, 4000):
+    half-open-three / open-two makers), over empty cells only.
+    Same form as :func:`_breadth`, with the v1 pattern-class
+    thresholds (see ``_GRADIENT_V1_STRONG``). Ported verbatim from
+    research/batch-7 (v14, batch 5 H3)."""
+    s = attack[empty_mask]
+    strong = int(np.count_nonzero(s >= _GRADIENT_V1_STRONG))
+    developing = int(
+        np.count_nonzero((s >= _GRADIENT_V1_DEVELOPING) & (s < _GRADIENT_V1_STRONG))
+    )
+    return strong + _GRADIENT_DEVELOPING_WEIGHT * developing
+
+
+def _attack_gradient_v1(board: np.ndarray, player: int) -> float:
+    """Breadth-gradient leaf value in (-0.2, 0.2) for ``player`` to
+    move in a quiet position, from the v1 kernel's attack-only
+    scores for both colours (one ``attack_v1_both`` call):
+    ``0.2 * tanh((breadth_v1(ours) - breadth_v1(theirs)) / 7.5)``.
+    Antisymmetric under colour swap. Same form as
+    :func:`_attack_gradient`, with the v1 thresholds and the
+    re-derived scale (7.5); the 0.2 cap is unchanged (see
+    ``_GRADIENT_CAP``). Ported verbatim from research/batch-7
+    (v14, batch 5 H3)."""
+    black, white = kernel_v1.attack_v1_both(board)
+    mask = board == game.EMPTY
+    if player == game.BLACK:
+        ours, theirs = black, white
+    else:
+        ours, theirs = white, black
+    diff = _breadth_v1(ours, mask) - _breadth_v1(theirs, mask)
+    return _GRADIENT_CAP * math.tanh(diff / _GRADIENT_V1_SCALE)
+
+
+# --- v16 2-ply rollout leaf (batch 6, H2) — ported verbatim from
+# research/batch-7; see iter-16.md §1 for the design rationale.
+# The rollout policy per ply (player P to move): a winning move
+# wins (terminal +1); >= 2 opponent winning moves loses (terminal
+# -1); exactly 1 opponent winning move is blocked (forced); else
+# the argmax over empty cells of P's v1 total score (own v1 attack
+# + opponent's v1 attack at the square — v1's full-value defence,
+# broken-four aware — from one ``attack_v1_both`` call, up to the
+# double-threat bonus, which v1's defence term omits). FAST-LOOP
+# PATCHES (iter-16 §2.1/§2.2), both included: the v1 rollout
+# policy (the v0 policy's opponent never prevents broken-four
+# creations) and open-four priority (an own open-four creation
+# must not lose the argmax to a defensive block). 2 plies, not 1
+# (the save's value comes from OUR next move) and not 4 (the
+# crude attack-argmax policy blunders at that depth — false
+# terminal losses for 3 of 10 saving moves). The final value is
+# v14's symmetric v1 gradient (scale 7.5, cap +/-0.2) at the
+# rollout's end; terminal values are exact throughout.
+def _rollout_move(board: np.ndarray, player: int) -> tuple[int, float | None]:
+    """One rollout ply for ``player`` to move. Returns ``(move,
+    terminal)`` where ``terminal`` is the value for ``player`` when
+    the ply ends the game (+1: ``player`` has a winning move; -1:
+    the opponent has >= 2 winning moves; 0.0: the board is full)
+    and None when the game continues after ``move``. Policy: win if
+    possible, block a single opponent winning move (forced), else
+    the argmax over empty cells of ``player``'s v1 total score (own
+    v1 attack + opponent's v1 attack at the square — v1's
+    full-value defence, broken-four aware — from one
+    ``attack_v1_both`` call, up to the double-threat bonus, which
+    v1's defence term omits; ties by lowest flat index —
+    deterministic). FAST-LOOP PATCH (iter-16 §2.1): the
+    pre-registered policy used the v0 kernel's attack-only argmax,
+    whose opponent never prevents broken-four creations."""
+    wins = scoring._winning_moves(board, player)
+    if wins:
+        return wins[0], 1.0
+    opp_wins = scoring._winning_moves(board, -player)
+    if len(opp_wins) >= 2:
+        return -1, -1.0
+    if len(opp_wins) == 1:
+        return opp_wins[0], None
+    black, white = kernel_v1.attack_v1_both(board)
+    if player == game.BLACK:
+        own, opp = black, white
+    else:
+        own, opp = white, black
+    empty = board == game.EMPTY
+    if not empty.any():
+        return -1, 0.0
+    # FAST-LOOP PATCH (iter-16 §2.2): an own open-four creation
+    # (own v1 attack >= OPEN_FOUR = 200_000) leaves >= 2 winning
+    # moves — a forced win — and must not lose the argmax to a
+    # defensive block. In fast-loop game 9, Black's (6,3) (own
+    # 200080, an open four) lost to (6,8) (total 200422: a block of
+    # one White four) by 332 points; (6,8) loses the game, (6,3)
+    # wins it outright, and the rollout leaf hallucinated a White
+    # win (+1.000) for a losing move. This sits after the forced
+    # block above (an opponent four on the board must be answered
+    # first — otherwise the opponent wins immediately) and before
+    # the argmax. No non-forcing combination reaches 200_000 (the
+    # next-largest bonus is DOUBLE_OPEN_THREE_BONUS = 50_000), so
+    # the threshold is exact.
+    masked_own = own.copy()
+    masked_own[~empty] = -1
+    if masked_own.max() >= scoring.OPEN_FOUR:
+        return int(np.argmax(masked_own)), None
+    total = own + opp
+    total[~empty] = -1
+    return int(np.argmax(total)), None
+
+
+def _blend_rollout_terminal(
+    term: float, board: np.ndarray, player: int
+) -> float:
+    """Blend a rollout-found terminal value with the symmetric v1
+    gradient at the terminal position (v19, batch 7 H2 — see
+    ``research/iterations/iter-19.md`` §1). Ported verbatim from
+    research/batch-7 so :func:`_rollout_leaf_value` is whole; ML
+    batch 1 H1 uses ``blend=False`` only (v18's leaf)."""
+    if term == 0.0:
+        return 0.0
+    return max(-1.0, min(1.0, term + _attack_gradient_v1(board, player)))
+
+
+def _rollout_leaf_value(
+    board: np.ndarray, player: int, blend: bool = False
+) -> float:
+    """v16 White leaf value: v7's terminal-aware values for terminal
+    positions; for quiet positions, roll out exactly 2 plies
+    (opponent reply + our reply, :func:`_rollout_move`) and evaluate
+    the symmetric v1 gradient at the resulting position. A win/loss
+    reached inside the rollout returns the exact terminal value
+    (sign-adjusted to ``player``'s perspective: after an even number
+    of plies the player to move is ``player`` again) — or, with
+    ``blend=True`` (v19), the terminal blended with the v1 gradient
+    at the terminal position (:func:`_blend_rollout_terminal`),
+    sign-adjusted the same way. At the rollout's END, only
+    wins/losses (+/-1) are terminal: a must-block (-0.25 — the
+    opponent holds exactly one winning move) is a position to
+    evaluate with the gradient, not a game end.
+    FAST-LOOP PATCH (iter-16 §2.1): treating a rollout-found
+    must-block as an exact -0.25 lets a quiet move borrow a forcing
+    move's value (in fast-loop game 7, (11,9) scored +0.25 because
+    the rollout plays White's forcing (12,0) on ply 2, tying the
+    real forcing move (12,0) whose +0.25 is a FACT about the
+    position, not a prediction under the 1-ply rollout policy). The
+    must-block at the START (the real position) keeps v7's exact
+    -0.25 — only the rollout's end is gradient-evaluated. The board
+    is not mutated (the rollout plays on a copy). Ported verbatim
+    from research/batch-7 (v16, batch 6 H2; v18, batch 7 H1, uses
+    this same function for both colours)."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    cur = board.copy()
+    p = player
+    for i in range(_ROLLOUT_PLIES):
+        move, term = _rollout_move(cur, p)
+        if term is not None:
+            if blend:
+                term = _blend_rollout_terminal(term, cur, p)
+            return term if i % 2 == 0 else -term
+        cur = game.apply_move(cur, move, p)
+        p = -p
+    # 2 plies: p == player again. Only a win/loss ends the rollout
+    # game; a must-block here is gradient-evaluated (see above).
+    if scoring._winning_moves(cur, p):
+        return _blend_rollout_terminal(1.0, cur, p) if blend else 1.0
+    if len(scoring._winning_moves(cur, -p)) >= 2:
+        return _blend_rollout_terminal(-1.0, cur, p) if blend else -1.0
+    return _attack_gradient_v1(cur, p)
+
+
 _LEAF_FUNCTIONS = {
     "terminal": _terminal_leaf_value,
     "gradient": _gradient_leaf_value,
+    # v18 (batch 7 H1): the 2-ply rollout leaf for BOTH colours —
+    # the same function v16 uses as White, with no colour gate.
+    # v18-as-White IS v16 exactly. Ported for ML batch 1 H1 (the
+    # distillation target and a data source); v18 itself lives on
+    # research/batch-7.
+    "rollout2_v1_both": _rollout_leaf_value,
 }
 
 
@@ -221,6 +415,9 @@ class HeuristicMCTS:
     ``leaf_mode="gradient"`` is v7: quiet leaves get the attack
     breadth gradient (:func:`_gradient_leaf_value`); terminal
     values are identical in both modes.
+    ``leaf_mode="rollout2_v1_both"`` is v18: quiet leaves get the
+    2-ply rollout leaf (:func:`_rollout_leaf_value`) for BOTH
+    colours (ported from research/batch-7 for ML batch 1 H1).
     """
 
     def __init__(
