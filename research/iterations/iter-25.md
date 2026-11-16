@@ -503,6 +503,26 @@ not memmap I/O); ~28,650 steps total, ETA ~3 h if the rate
 holds, sooner as sibling jobs finish. Failed attempt 1 dir
 preserved at `ml/runs/ml1-h2-value-10k-attempt1-oom/`.
 
+**Attempt 2 killed by VM replacement** (2026-11-16 ~15:27 UTC,
+uptime reset to 0) at step 17,170 / epoch 3 (of 5). Completed
+epochs: **epoch 1** loss 5.7011 / policy 4.7508 / value 0.9502
+/ internal-val 5.5526 (1,739 s — slow start, heavy contention
++ cold cache); **epoch 2** loss 5.4806 / policy 4.5995 /
+value 0.8811 / internal-val 5.4291 (596 s — rate improved as
+siblings finished). `best.pt` = epoch 2 (step 11,460, val
+5.4291 < 5.5526), with optimizer state. **Resume:** same run
+dir, `--resume .../checkpoints/best.pt --epochs 3` (the
+documented resume semantics: 3 ADDITIONAL epochs, cosine
+schedule spans the full 5 epochs via schedule_epochs=5).
+Note the resume re-seeds the batch-order RNG, so resumed
+epochs 3–5 use different batch orders than an uninterrupted
+run would — same data, same schedule, valid 5-epoch run.
+The epoch-2 best.pt was copied aside to
+`ml/runs/ml1-h2/best-epoch2.pt` BEFORE resuming, because the
+resumed run resets best_val_loss and would overwrite best.pt
+at epoch 3 regardless; the pre-registered selection stays
+between the final run's best.pt and final.pt.
+
 (TBD — final epoch losses, val losses, best.pt epoch,
 holdout accuracies (honest holdout: best.pt + final.pt, full +
 no-history; clean subset: v25 net + v8; leaky v8 holdout,
