@@ -402,6 +402,71 @@ extreme (Black 7-2-1, White 2-7-1). All four CIs overlap, so the
 sweep selects α but proves nothing — the 100-game battery is
 the verdict, as pre-registered.
 
+**Fast loop iteration 1** (10 games each, seeds 1001/2001, α=1.0):
+- vs v0: **3W-7L (0.30)**, CI [0.108, 0.603]. As Black 2-3, as
+  White 1-4. v24 won the three long games (89, 94, 151 plies) and
+  lost all seven short ones (25–58 plies).
+- vs v7: **2W-7L-1D (0.25)**, CI [0.081, 0.558].
+- Loss classification (both loops): all 14 losses via open four;
+  **0 missed blocks, 0 clean missed preventions** (48 threatened
+  turns vs v0, 18 vs v7). Defence as measured is clean — the
+  losses are positional drift into unstoppable open fours, not
+  blundered blocks.
+- Games 1 and 9 vs v0 are near-identical (first 23 plies the
+  same): v24 as White walks into the same loss twice. Board
+  reading of game 1 (HYPOTHESIS, pending workup verification):
+  Black's 21.e8 creates a four (e8-f8-g8-h8, winning move d8)
+  AND a diagonal three (e8-f7-g6) in one move; White must block
+  d8, then Black's 23.d9 is an open four and 25.h5 wins
+  (d9-e8-f7-g6-h5). The 1-ply threat check cannot see it (e8
+  leaves only ONE winning move, so it is not a "creator"), and
+  the exact 1-ply enumeration confirms White's moves at plies 18
+  (f9) and 20 (i10) each left Black with 0 winning moves and 0
+  threat moves — the failure is 3–4 plies deep, where the
+  100-sim search with small noisy net values does not propagate
+  the loss back to the root. workup_loss (same-engine playout
+  oracle) running to verify THE losing move.
+
+**Workup verdict — game 1 vs v0 (VERIFIED):** workup_loss
+(v24-vs-v0 playouts, seeds 0/1/2, last 4 White turns) finds all
+4 turns qualify (actual move loses 3/3 playouts) and exactly ONE
+turn with a saving move: **ply 19 — the actual i10 loses 3/3,
+d9 saves 2/3 ([-1,+1,+1])**. THE losing move is White's 20th
+move, i10 instead of d9. My hand hypothesis (e8 saves) is
+REFUTED: e8 loses 3/3 at both ply 17 and ply 19. At ply 17 no
+tested alternative saves. At ply 21 (forced d8) and ply 23
+(open four live) nothing saves, as expected. Raw:
+`ml/runs/ml1-h1/workup-v24-v0-g1.json`.
+
+**Root-cause diagnostic (ply 19, 100 sims):** v24's root ranks
+i10 (14 visits, q +0.077) above d9 (6 visits, q +0.033) — the
+search does not see d9's preventive value. **v7 makes the SAME
+miss** (i10 16 visits q +0.078; d9 7 visits q +0.064): the
+net's ranking AGREES with the exact gradient leaf's ranking.
+v8 plays d9 (11 visits) but only via visit dynamics — its q
+ranks i10 (+0.535) far above d9 (+0.154). So the d9 miss is a
+shared search-horizon limitation (100-sim PUCT + visit-based
+root choice cannot propagate a 3–4 ply preventive value), NOT
+a distillation failure: the net faithfully reproduces the
+leaf's judgment, and the leaf itself cannot see the tactic.
+More training would move the net TOWARD the exact leaf — which
+also misses d9 — so retraining cannot fix this class. The
+vs-v7 short loss (game 5, 15 plies) is the same class by a
+different route: at ply 11 Black already holds FOUR threat
+moves and the best White reply leaves TWO live — distributed
+drift, no single losing move (exact enumeration).
+
+**Fast-loop STOP after iteration 1:** no patchable weakness
+class for v24 within H1's design space. The found class
+(missed 3–4 ply preventive moves) is shared with v7 and would
+need search-side changes (more sims, deeper threat check, VCF
+at root) that alter v8/v7 equally and lie outside "v8's search
++ distilled net". α is NOT re-opened: the sweep selected 1.0
+vs v8 (the bar reference) and 10 fast-loop games do not
+override a pre-registered selection. Proceeding to validation
+at α=1.0; the battery measures the vs-v0/v7 weakness at full
+sample.
+
 ## 6. Validation battery
 
 **Clause 4 (test suites) — run early, while the sweep runs:**
