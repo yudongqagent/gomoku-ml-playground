@@ -710,9 +710,44 @@ iterations without a patch would only find more instances
 of the same unpatchable categories. The 100-game battery is
 the verdict. (Iterations 2–4 not run — "up to 4".)
 
-## 5. v25 evaluation (FULL VALIDATION BATTERY — final v25 only) (TBD)
+## 5. v25 evaluation (FULL VALIDATION BATTERY — final v25 only)
 
-(TBD — tactical, h2h vs v8 / v0 / v7, swap vs v7, ladder.)
+### 5.1 Tactical (final α=0.25, `--seed 100`, 2026-11-16)
+
+`eval_tactical_full.py --version 25 --suite both --seed 100`:
+**old 20/20, hard 29/29 — perfect.** (Re-run on the final
+tree; identical to the pre-sweep run, as expected — the
+registry value did not change.) **Clause 3: PASS.**
+
+### 5.2 Ladder (20 games/opponent, `--seed 100`, 2026-11-16)
+
+`eval_version.py --version 25 --ladder-games 20 --mcts-sims
+100 --seed 100` (16.5 min):
+
+| opponent | v25 | v8 (reference) |
+|---|---|---|
+| random | 20W-0L-0D (1.000) | 20W-0L-0D (1.000) |
+| heuristic | 7W-12L-1D (0.375) | 10W-10L-0D (0.500) |
+| mcts | 10W-10L-0D (0.500) | 6W-14L-0D (0.300) |
+| **ladder Elo** | **−88.7** (interval [−241.1, 63.6]) | **0.0** |
+
+**Clause 2: FAIL** — ladder Elo −88.7 is not strictly
+higher than v8's 0.0. The Elo estimate is driven by the
+heuristic leg (the anchor), where v25 scores 0.375 vs v8's
+0.50. Non-transitivity in plain sight: v25 beats the ladder
+MCTS much more often than v8 does (10-10 vs 6-14) but loses
+to the plain heuristic more often (7-12-1 vs 10-10). The
+retrained net's edge over v8 is opponent-dependent — it
+does not transfer to the heuristic anchor.
+
+### 5.3 h2h vs v8 / v0 (RUNNING since 2026-11-16 ~20:37 UTC)
+
+100-game matches, seeds 100/200, in parallel (PIDs 6890 /
+6897). (TBD — results.)
+
+### 5.4 h2h vs v7 + swap vs v7 (TBD)
+
+### 5.5 Clause-4 re-verification (TBD)
 
 ## 6. Bar check (v25 vs v8) (TBD)
 
