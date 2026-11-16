@@ -295,6 +295,25 @@ for completion; it exits when the parent exits. Early rate:
 under contention (1033 -> 646/hr), so ETA is ~6-8.7 h
 (completion ~02:45-05:30 PST Mon 2026-11-16).
 
+**VM replacement (~05:20 UTC 2026-11-16, leg 1 killed).** The VM
+was replaced 42 min into leg 1 (uptime reset; parent PID 13807
+and all workers killed outright, no graceful exit). 564 games
+were orphaned in `.parallel-13807-*/worker*/`; 0 lost. The
+recovery path worked as designed: relaunching the same command
+shape with the **seed-2 config**
+(`ml/configs/ml1-h2-selfplay-resume2.yaml` — fresh seed per the
+§1.1 rule, since seed 1's stream prefix is now on disk)
+recovered all 564 orphans ("recovered 564 orphaned shard(s)",
+numbered game4350–game4913) and resumed at 4,914/10,000,
+generating 5,086 more. Note: the recovery's manifest rebuild
+(opening all 4,914 shards) took ~2 min of wall time under
+sibling contention before the first log line appeared — the
+parent is not stuck, just throttled (~11% CPU). Seed split of
+the final dataset: shards 0–4349 seed 0 (1,449 unique), shards
+4350–4913 seed 1 (564 games), shards 4914–9999 seed 2 (5,086
+games). Launch log: `ml/runs/ml1-h2/10k-completion-launch2.log`;
+parent PID 1838; waiter relaunched against the new PID.
+
 **Clause-4 interim (before the battery):** npm test 55/55,
 tsc clean (fresh `npm ci`); targeted ml pytest green
 (`test_mcts_value` + `test_scoring` 52 passed,
