@@ -121,9 +121,12 @@ stay exact.
   positions). Restarted with FRESH seeds/dirs (5003 → data-a2,
   138 games; 5004 → data-b2, 134 games) — a same-seed restart
   would replay identical games and duplicate shards (generation
-  is fully deterministic given the seed). Target stays 300 games
-  total; train time merges data-a + data-b + data-a2 + data-b2
-  (+ H1's games if ready, §1.1).
+  is fully deterministic given the seed). SECOND restart (VM
+  replaced again ~07:25 UTC): 168 games survived (a 12, b 16, a2
+  64, b2 76); restarted with fresh seeds/dirs (5005 → data-a3,
+  74 games; 5006 → data-b3, 58 games). Target stays 300 games
+  total; train time merges data-a + data-b + data-a2 + data-b2 +
+  data-a3 + data-b3 (+ H1's games if ready, §1.1).
 - **H1 reuse:** H1 (running in parallel) is generating v18
   self-play games with full move lists under `ml/runs/ml1-h1/`.
   If H1's games exist AND are available before H3's training
