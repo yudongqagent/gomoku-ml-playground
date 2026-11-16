@@ -560,8 +560,80 @@ Black attack of its own. Non-transitivity check: v24 ≈ v8
 ordering v7 > v24 ≈ v8 > v0 is transitive, no bad
 non-transitivity. (Swap match vs v7 still to come.)
 
-TODO — clause-by-clause verdicts table.
+**Secondary — swap vs v7, 100 games (tempo judge, balanced
+placement): 32W-66L-2D, win rate 0.3300, CI [0.2456, 0.4269].**
+A clear loss, much worse than freestyle (0.445) — the swap
+format amplifies v7's edge. Splits: as Black 18W-31L-1D
+(0.370), as White 14W-35L-1D (0.290); as opener (v24 places
+the 3 stones) 13W-36L-1D (0.270), as second (v24 picks the
+colour) 19W-30L-1D (0.390) — v24 loses both roles, worse as
+opener, so its opening placements are the weaker side of the
+swap game. The tempo judge picked Black for the second player
+in 68/100 games. **VM replacement #5 (2026-11-16 ~21:29 UTC):**
+killed after 49 games (13W-34L-2D); relaunched, the new
+selfplay_batch auto-resume picked it up from game 49 (RNG
+restart recorded in the JSON) and finished it.
+
+**Clause 4 (test suites) — re-run on the final tree:**
+code changed after the first green run (sweep_alpha.py,
+fast_loop_match.py, selfplay_batch.py auto-resume patches;
+scoring.py registry), so all suites were re-run at the end:
+ml pytest **239 passed, 1 skipped, 2 xfailed, 0 failed**;
+npm test **55/55 passed**; tsc `--noEmit` **clean**. **Clause 4
+PASS.** (Log: `ml/runs/ml1-h1/pytest-final.log`.)
+
+### Battery verdicts
+
+| Clause | Test | Result | Verdict |
+|---|---|---|---|
+| 1 | vs v8, 100 games | 47W-44L-9D, 0.5150, CI [0.4183, 0.6106] | **FAIL** (CI lower bound < 0.50) |
+| 2 | Ladder Elo (20 games/opponent) | 52.5 ([−96.9, 201.9]) vs v8's 0.0 | **PASS** |
+| 3 | Tactical, `--seed 100` | 20/20 old, 29/29 hard | **PASS** |
+| 4 | Test suites | pytest 239 passed / 1 skipped / 2 xfailed / 0 failed; npm 55/55; tsc clean | **PASS** |
+
+Secondaries: vs v0 58W-38L-4D (0.6000, CI [0.5020, 0.6906]);
+vs v7 44W-55L-1D (0.4450, CI [0.3514, 0.5426]); swap vs v7
+32W-66L-2D (0.3300, CI [0.2456, 0.4269]).
 
 ## 7. Verdict
 
-TODO.
+**v24 is REJECTED — it does not pass all 4 clauses.**
+It passes 3 of 4 (ladder Elo, tactical, suites) but fails
+clause 1: vs v8 0.5150 with a Wilson CI lower bound of 0.4183,
+not > 0.50. v8 stays the ML champion; v24 does not replace it.
+
+What v24 establishes:
+- Distilling the v18 rollout leaf into a value net WORKS as
+  distillation: pooled in-distribution holdout sign accuracy
+  0.7766 vs v8's 0.504 on the same rollout labels, and the net
+  plays at v8's level (0.515 h2h, ladder Elo 52.5 vs 0.0).
+  But distillation alone does not BEAT v8 — the H1 hypothesis
+  (a better value signal ⇒ a better engine) is not confirmed
+  at the 100-game level. The distilled net is a faithful copy
+  of the rollout leaf, and the rollout leaf's value function
+  is only as good as v8's learned one at 100 sims.
+- α=1.0 (full weight) wins the sweep — the opposite of
+  v8/v11's lesson — because the distilled values are small
+  (mean|v| ~0.06) and well-calibrated, leaving little
+  magnitude for the optimizer's curse to exploit.
+- The fast loop found ONE verified losing move (White's i10
+  instead of d9, vs-v0 game 1, ply 19 — saves 2/3 in
+  same-engine playouts) and the root-cause diagnostic showed
+  v7 makes the SAME miss: a shared 100-sim search-horizon
+  limit, not a distillation failure. No patch was made (none
+  exists inside H1's design space); the fix needs search-side
+  changes (more sims, deeper threat check, VCF at root).
+- v24's White is weak against everyone (~0.44–0.49 vs v0, v7,
+  and the ladder MCTS at 1-9); its Black edge over v0 (0.76)
+  is about exploiting weak defence, not a strong attack.
+- Under swap rules v24 collapses vs v7 (0.330 vs 0.445
+  freestyle), worse as opener (0.270) than as colour-picker
+  (0.390) — opening placement is a weakness the freestyle
+  battery never sees.
+- The sweep's 0.65 (20 games) did not reproduce at 100 games
+  (0.515) — the standing small-sample lesson, again.
+
+Checkpoint: `ml/runs/ml1-h1/value-net.pt` (epoch 15, val loss
+0.0617). Iteration log: this file. Battery JSONs:
+`research/iterations/batch-v24-vs-{v8,v0,v7}.json`,
+`batch-v24-vs-v7-swap.json`, `ladder-v24.json`.
