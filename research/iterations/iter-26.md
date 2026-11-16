@@ -93,11 +93,21 @@ stay exact.
   net the forcing moves directly. The value target is the game
   outcome from the player-to-move perspective (+1/-1/0).
 - **Diversity:** the played move is SAMPLED from the visit
-  distribution (temperature 1) for plies 0–9, then greedy
+  distribution (temperature 1) for plies 0–3, then greedy
   (most-visited) — AlphaZero-style early exploration, so the
   openings (and the value targets) are not all one line. The
   POLICY TARGET is always the full visit distribution regardless
-  of how the move was sampled.
+  of how the move was sampled. AMENDMENT (before training, from
+  data-generation observation — not from any eval): the
+  pre-registered range was plies 0–9, but the first 10 games
+  showed sampled blunders ending games in 9 and 19 plies (mean
+  ~30 plies/game vs ~66 for greedy v18-vs-v18) — sampling past
+  ply 3 lets a weak move meet a real threat and get punished
+  immediately, overweighting the opening and starving middlegame
+  coverage. Plies 0–3 are threat-free (no four can exist yet), so
+  sampling there diversifies the opening without the blunder
+  cost. The 10 games generated under plies 0–9 were DISCARDED
+  (shard dirs wiped) so the dataset is homogeneous.
 - **Dataset size: 300 games** (set from the §2.0 measurement:
   v18@50 self-play ≈ 33s/game wall under contention, ~55
   plies/game → ≈ 16,500 positions; ~2–3 wall-hours with 2
