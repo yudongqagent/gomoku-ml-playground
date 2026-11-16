@@ -743,7 +743,26 @@ does not transfer to the heuristic anchor.
 ### 5.3 h2h vs v8 / v0 (RUNNING since 2026-11-16 ~20:37 UTC)
 
 100-game matches, seeds 100/200, in parallel (PIDs 6890 /
-6897). (TBD — results.)
+6897). **VM replacement killed both at ~21:28 UTC** (vs v8
+at 47/100, vs v0 at 56/100); relaunched 21:29 UTC (PIDs
+1686/1695), same seeds — deterministic replay reproduces
+the flushed games. Partial results at the kill (NOT the
+verdict — the full 100 games are):
+
+| match | partial | win rate |
+|---|---|---|
+| vs v8 | 47 games: 20W-26L-1D | 0.436 |
+| vs v0 | 56 games: 16W-36L-4D | 0.321 |
+
+Both partials are well below the sweep's 20-game numbers
+at the same α=0.25 (vs v8 0.575, vs v0 0.55, seeds
+1001/2001). The CIs overlap (sweep 20-game CIs are wide),
+so this is consistent with the sweep's small samples
+flattering v25 — the battery is the verdict, and it is
+trending toward v25 LOSING to both. If the full 100 games
+confirm it, the 10k retrain did not produce a stronger
+engine than v8 — the "more data" hypothesis is refuted
+for this recipe. (TBD — final 100-game results.)
 
 ### 5.4 h2h vs v7 + swap vs v7 (TBD)
 

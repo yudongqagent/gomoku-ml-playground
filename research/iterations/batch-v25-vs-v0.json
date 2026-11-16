@@ -1,0 +1,54 @@
+{
+  "engine_a": "scoring-v25",
+  "engine_b": "v0",
+  "games": 100,
+  "games_played": 1,
+  "complete": false,
+  "swap_rule": false,
+  "placement": null,
+  "placement_seed": null,
+  "judge": null,
+  "seed_a": 100,
+  "seed_b": 200,
+  "wins": 1,
+  "losses": 0,
+  "draws": 0,
+  "win_rate": 1.0,
+  "win_rate_ci_95": [
+    0.2065,
+    1.0
+  ],
+  "elapsed_seconds": 14.2,
+  "records": [
+    {
+      "game": 0,
+      "moves": [
+        112,
+        97,
+        111,
+        113,
+        81,
+        96,
+        100,
+        98,
+        95,
+        128,
+        83,
+        127,
+        109,
+        67,
+        110,
+        108,
+        80,
+        82,
+        65,
+        50,
+        125
+      ],
+      "a_colour": "black",
+      "winner": "black",
+      "winner_is_a": true,
+      "plies": 21
+    }
+  ]
+}
