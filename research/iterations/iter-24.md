@@ -378,6 +378,17 @@ TODO — sweep results, registry α update, fast loops.
 
 ## 6. Validation battery
 
+**Clause 4 (test suites) — run early, while the sweep runs:**
+- ml pytest: **239 passed, 1 skipped, 2 xfailed, 0 failed**
+  (19:04 wall under contention; log
+  `ml/runs/ml1-h1/pytest-full.log`). Targeted subset
+  (scoring/mcts_value/mcts_heuristic) also green: 69 passed,
+  1 xfailed.
+- npm test: **55 passed (55)**; tsc `--noEmit`: clean.
+- Clause 4 is green; it will be re-run at the end if any code
+  changes after this point (fast-loop patches would trigger a
+  re-run).
+
 TODO — clause-by-clause verdicts table.
 
 ## 7. Verdict
