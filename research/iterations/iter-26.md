@@ -241,6 +241,26 @@ net with 0.0625 top-1 teacher agreement); calibration picked
 T=0.5 on the throwaway net (v1 median top-1 0.0741, teacher
 0.1224) — the real calibration runs after real training.
 
+### 2.2 Dataset (final, at training start)
+
+- H3's own generation: **300 v18@50 self-play games → 15,134
+  positions** (visit-distribution policy targets; value split
+  6,026 losses / 2,925 draws / 6,183 wins; teacher median top-1
+  mass 0.1429). Survived two VM replacements (28 + 168 games kept
+  across restarts; fresh seeds per restart, §1.1).
+- H1 reuse (pre-registered decision point = training start):
+  H1's `games-v18.json` held **172 v18@50 games** at training
+  start → converted with `convert_h1_games.py` to **8,317
+  positions** (1-hot policy targets — H1's format carries no
+  visit distributions; same teacher, same sims). Included.
+- **Total training set: 23,451 positions** (15,134 visit-dist +
+  8,317 1-hot). Val split 5% (1,173 positions, seed 0).
+  Epochs by the pre-registered step rule: round(6500×64/22,278)
+  = **19 epochs** (~6,631 steps). Periodic checkpoints every 5
+  epochs + `--resume` support added to `train_policy.py` (VM
+  replacements hit ~every 2h during generation; a crash loses at
+  most 5 epochs, and best.pt is copied aside before any resume).
+
 ## 3. Fast loop
 
 (TBD — after the first trained net.)

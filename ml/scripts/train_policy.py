@@ -44,7 +44,12 @@ def main() -> int:
     parser.add_argument("--out", required=True,
                         help="destination path for the best checkpoint")
     parser.add_argument("--epochs", type=int, default=None,
-                        help="override the pre-registered step rule")
+                        help="override the pre-registered step rule "
+                        "(on resume: ADDITIONAL epochs from the checkpoint)")
+    parser.add_argument("--resume", default=None,
+                        help="checkpoint .pt to resume from (weights + "
+                        "optimiser; the cosine schedule still spans the "
+                        "full run via schedule_epochs)")
     args = parser.parse_args()
 
     # Single-threaded torch: measured 0.57 s/step vs 2.73 s/step
@@ -74,6 +79,19 @@ def main() -> int:
     print(f"model: resnet 16ch/2blk, {model.num_parameters()} params",
           file=sys.stderr, flush=True)
     ckpt_dir = os.path.dirname(os.path.abspath(args.out))
+    optimizer = None
+    start_step = start_epoch = 0
+    if args.resume:
+        import torch as _torch
+
+        optimizer = _torch.optim.AdamW(
+            model.parameters(), lr=1e-3, weight_decay=1e-4)
+        payload = train.load_checkpoint(
+            args.resume, model, optimizer, device="cpu")
+        start_step = int(payload.get("step", 0))
+        start_epoch = int(payload.get("epoch", 0))
+        print(f"resumed from {args.resume} (step {start_step}, "
+              f"epoch {start_epoch})", file=sys.stderr, flush=True)
     summary = train.train(
         model, planes, policy, value,
         epochs=epochs, batch_size=BATCH_SIZE, lr=1e-3,
@@ -81,6 +99,9 @@ def main() -> int:
         policy_weight=1.0, value_weight=1.0,
         augmentation=True, val_fraction=VAL_FRACTION,
         device="cpu", checkpoint_dir=ckpt_dir,
+        checkpoint_every_epochs=5,
+        optimizer=optimizer, start_step=start_step,
+        start_epoch=start_epoch, schedule_epochs=start_epoch + epochs,
         seed=SEED,
     )
     print(f"best val loss: {summary['best_val_loss']:.4f}",
