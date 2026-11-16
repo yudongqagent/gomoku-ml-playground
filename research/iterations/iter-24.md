@@ -186,9 +186,32 @@ both and the full-weight case.
 
 ## 2. Data generation (actuals)
 
-TODO — fill in when generation completes: game counts, position
-counts per source, label histogram (±1 vs gradient), holdout
-counts, variety check result, elapsed times.
+**Final (cutoff 11:00 UTC = 03:00 PST, per the §1.1 stopping rule;
+three VM reboots during the run, jobs relaunched each time —
+resumable output lost only the in-progress game each time):**
+
+| Source | Games | Plies | Avg plies/game | Quiet positions | ±1 labels | Gradient labels | Held-out games |
+|---|---|---|---|---|---|---|---|
+| v7 self-play (50 sims, seeds 50000+) | 488 / 600 | 25,277 | 51.8 | 21,595 (19,545 train / 2,050 holdout) | 824 (3.8%) | 20,771 | 48 |
+| v18 self-play (50 sims, seeds 60000+) | 229 / 250 | 11,511 | 50.3 | 9,932 (9,142 train / 790 holdout) | 504 (5.1%) | 9,428 | 22 |
+| Random playouts (seeds 70000+) | 100 / 100 | 11,009 | 110.1 | 5,700 (5,162 train / 538 holdout) | 1,626 (28.5%) | 4,074 | 10 |
+| **Total** | **817** | **47,797** | | **37,227 (33,849 train / 3,378 holdout)** | **2,954 (7.9%)** | **34,273** | **80** |
+
+Train mix 58/27/15 (v7/v18/random) — almost exactly the
+pre-registered 60/25/15. Labeling took 576 s (v7) + 238 s (v18)
++ 372 s (random, earlier, under generation contention). Note the
+label skew: engine games are only ~4–5% rollout-terminal ±1
+(most quiet positions are gradient-valued in ±0.2), while random
+positions are 28.5% ±1 (tactically wild — many forced wins
+within 2 plies). The net must learn fine distinctions inside
+±0.2 for the bulk of positions; the ±1 subset is small but
+high-signal.
+
+Games files (full move lists, H3-reusable):
+`ml/runs/ml1-h1/games-v7.json`, `ml/runs/ml1-h1/games-v18.json`,
+`ml/runs/ml1-h1/games-random.json`. Shards:
+`ml/runs/ml1-h1/data/{v7,v18,random}/` (train) and
+`ml/runs/ml1-h1/data/{v7,v18,random}-holdout/` (every 10th game).
 
 **Variety check (done 2026-11-15 ~21:05 PST, first 15 v7 games):
 14 distinct first-5-ply prefixes in 15 games** (most common prefix
