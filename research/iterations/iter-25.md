@@ -529,10 +529,66 @@ no-history; clean subset: v25 net + v8; leaky v8 holdout,
 labelled), checkpoint selection, the winner copied to
 `ml/runs/ml1-h2/value-net.pt`.)
 
-## 3. Leaf cost measurement (TBD)
+**Training COMPLETE 2026-11-16 16:07 UTC** (resumed run:
+epochs 3–5, ~38 min). Final losses — epoch 3: loss 5.3471 /
+policy 4.5347 / value 0.8124 / val 5.3398 (1,192 s); epoch 4:
+5.2527 / 4.4937 / 0.7590 / val 5.3074 (565 s); epoch 5:
+5.2771 / 4.5199 / 0.7572 / val 5.2980 (527 s). Internal val
+loss fell monotonically across all 5 epochs
+(5.5526 → 5.4291 → 5.3398 → 5.3074 → 5.2980), so best.pt =
+epoch 5 = final.pt (verified: identical weights, step 28,650).
 
-(TBD — per-leaf net eval cost, per-move cost at 100 sims,
-`bench_value_leaf.py` numbers.)
+**Holdout (evaluated 2026-11-16, `ml/runs/ml1-h2/
+holdout-{honest,clean,leaky}.json`):**
+
+| set | net | full-planes sign acc | no-history sign acc |
+|---|---|---|---|
+| honest (324 games, 13,485 pos) | v25 best.pt | 0.5720 | 0.5607 |
+| honest | v25 final.pt | 0.5720 (identical weights) | 0.5607 |
+| clean, neither trained on (180 games, 7,468 pos) | v25 best.pt | 0.5775 | 0.5599 |
+| clean | v8 | 0.5577 | 0.5707 |
+| v8's leaky holdout (435 games, 18,446 pos) | v25 best.pt | 0.6891 (LEAKY for v25 too, ~90%) | 0.5731 |
+| v8's leaky holdout | v8 (published) | 0.7165 | 0.6278 |
+
+**Reading.** The clean-subset comparison (the only honest
+v8-vs-v25 one) is MIXED: v25 wins full-planes (+0.0198) but
+LOSES no-history (−0.0108, MSE 1.133 vs v8's 0.987). The
+leaf sees search-path history at depth ≥ 2 and zeroed history
+at depth < 2, so both measures matter — and on balance 2.24x
+unique data did NOT clearly improve the value signal. v8's
+published 0.7165/0.6278 was inflated by leakage (its holdout
+duplicates sat in its training set); v25's honest 0.5720 /
+0.5607 is the number to compare against future honest
+holdouts, not against v8's leaky one. **Checkpoint selection
+(§1.2): best.pt and final.pt are identical weights → tie →
+best.pt**, copied to `ml/runs/ml1-h2/value-net.pt`. The played
+strength (battery) is the verdict — holdout is diagnostic.
+
+## 3. Leaf cost measurement (2026-11-16, `ml/runs/ml1-h2/leaf-bench.json`)
+
+`bench_value_leaf.py --checkpoint ml/runs/ml1-h2/value-net.pt
+--positions 20 --leaf-samples 200 --sims 100`: per-leaf net eval
+mean 7.17 ms / median 2.01 ms / p95 65.9 ms (range 1.24–94.6 ms);
+per-move at 100 sims mean 2,233 ms / median 2,187 ms / p95
+2,893 ms; net leaf evals per move mean 80.7 (18–99). Same
+architecture as v8 (16ch/2 blocks), so the leaf cost is the same
+by construction — v8's per-move mean was 5.8 s under heavier
+contention; the difference is contention, not the net.
+
+### 3.1 Pre-sweep tactical (α=0.25 placeholder, `--seed 100`)
+
+`eval_tactical_full.py --version 25 --suite both --seed 100`:
+**old 20/20, hard 29/29 — perfect.** The retrained net does not
+break tactics. (winning-quiet-setup-2 passed with the listed
+(10,10); the batch-8 suite-list gap about (9,7) does not bite
+here.) The battery re-runs tactical on the FINAL α (§5).
+
+### 3.2 α sweep (RUNNING since 2026-11-16 16:14 UTC)
+
+Grid {1.0, 0.5, 0.25, 0.125} × 20 games vs v0 and vs v8
+(seeds 1001/2001), both sweeps in parallel (PIDs 5632/5682).
+Selection (§1.4): highest COMBINED win rate over the 40 games;
+ties toward LARGER α. (TBD — sweep results, selected α.)
 
 ## 4. Fast loop (TBD)
 
