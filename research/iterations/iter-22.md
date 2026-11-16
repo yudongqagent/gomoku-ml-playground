@@ -618,20 +618,167 @@ heuristic anchor IS v0.
 
 ### 3.5 Tactical suites — FINAL BATTERY (re-run on the final engine)
 
-(TBD.)
+**v22: 20/20 old + 29/29 hard** (full-dispatch driver,
+`ml/scripts/eval_tactical_full.py`, `--seed 100`, run on the
+final engine after the battery). Identical to the pre-battery run
+(§3.2) and to v7's scores. The conditional demotion costs no
+tactical accuracy: every forced win, block, prevention, setup,
+and VCF sequence is still found. **Clause 3 PASSES.**
 
 ### 3.6 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
 
-(TBD.)
+**Ladder Elo: 147.2, interval [-13.2, 307.6]** (anchors:
+random=-800, heuristic=0; relative to this ladder only).
+Per-opponent (20 games each, seed 100):
+- vs random: 20W-0L-0D (1.0000; as Black 10W-0L-0D, as White
+  10W-0L-0D).
+- vs heuristic (= v0): 14W-6L-0D (0.7000, CI [0.4810, 0.8545];
+  as Black 10W-0L-0D, as White 4W-6L-0D).
+- vs mcts: 5W-15L-0D (0.2500, CI [0.1119, 0.4687]; as Black
+  3W-7L-0D, as White 2W-8L-0D).
+Log: `~/workspace/b8h2-logs/ladder-v22.log` (not committed).
+**Clause 2 FAILS** (147.2 < v7's 190.8; the interval includes
+190.8, so the shortfall is not statistically established, but the
+clause requires the estimate to be strictly higher and it is
+not). v22's Elo is above v20's (88.7) and v14's (-34.9) — the
+vs-heuristic result (0.70, Black 10-0) reflects §3.4's Black
+strength — but the vs-mcts result (0.25) is the binding
+constraint, and it is the WORST vs-mcts of any v1-leaf version
+(v14: 0.55, v20: 0.65, v17: ~0.50; even v7 itself scores 0.40
+against the ladder MCTS). v22 loses to the terminal-leaf MCTS
+in BOTH colours (Black 0.30, White 0.20), while v20-as-Black
+beat it 9-1. The mechanism is NOT diagnosed: the leading
+hypothesis is the full theirs-term — v22 counts the opponent's
+gap-three breadth at full weight, so against the terminal-leaf
+MCTS's forcing play (which creates gap-three-rich positions
+without respecting them, since its leaf has no gradient) v22
+over-fears and plays passively — but this is a hypothesis,
+stated as such, not a verified mechanism. It needs its own
+forensics (a batch-9 question): the ladder MCTS is the one
+opponent v22 is clearly worse than v20 against, and the ladder
+Elo is where that cost is priced.
 
 ### 3.7 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
 
-(TBD.)
+**v22 vs v7 under the swap rule: 51W-44L-5D, win rate 0.5350,
+95% CI [0.4378, 0.6296]**, 4531.1 s. File:
+`research/iterations/batch-v22-vs-v7-swap.json` (balanced
+placement, placement seed 11, tempo judge, seeds 100/200). Per
+colour: as Black 28W-18L-4D (0.6000), as White 23W-26L-1D
+(0.4700) — White under swap (0.47) is above v20's (0.39) but
+still below 0.50, the same White weakness as §3.4 in milder
+form. The tempo judge picked Black for the second player in
+76/100 games (White 24/100), identical to v20's split; winners
+overall: Black 54, White 41, draws 5. v22 as the opener: 23W-24L-
+3D; as the second player (choosing colour): 28W-20L-2D — v22
+does better choosing than opening. Mean game length 51.29 plies
+(min 17, max 225); wins mean 46.5, losses mean 37.1. 98 distinct
+lines. Loss classifier: 44/44 losses via open four, **0 missed
+blocks**, 169 threatened turns in losses, **0 clean missed
+preventions** — defence is solved. **No swap edge** (0.5350, CI
+includes 0.50). v22's swap result sits between v20's (0.49) and
+v14's (0.64): the conditional demotion recovers about half of
+the swap edge the global demotion cost, consistent with §3.3 —
+under swap, where the empty-board opening advantage is removed
+and the midgame leaf is measured directly, the Black-only
+demotion is worth ~4.5 games per 100 over the global demotion
+but still ~10.5 games short of the undemoted v1 leaf.
 
 ## 4. Bar check (v22 vs v7)
 
-(TBD.)
+| Clause | Requirement | v22 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v7 | ≥100 games, win rate > 0.50 with Wilson 95% CI lower > 0.50 | 54W-38L-8D, 0.5800, CI [0.4821, 0.6720] | **FAIL** |
+| 2. Ladder Elo | strictly higher than v7's 190.8 | 147.2, interval [-13.2, 307.6] | **FAIL** |
+| 3. Tactical | ≥ v7's 20/20 old + 29/29 hard | 20/20 + 29/29 | PASS |
+| 4. Test suites | ml pytest + npm test + tsc green | 340 passed / 7 skipped / 40 xfailed; npm 55/55; tsc clean | PASS |
+
+**v22 is REJECTED (2/4).** v7 remains the reference; master is
+untouched. v22's vs-v0 record (61W-30L-9D, 0.6550) is the best of
+any v1-leaf version (v14: 0.60, v20: 0.585) but with the most
+extreme colour split in the program: Black 0.93 (0 losses) and
+White 0.38 (30 losses). Swap vs v7: 0.5350, no edge (v14: 0.64,
+v20: 0.49).
 
 ## 5. What this means
 
-(TBD.)
+**The condition worked in aggregate and failed in its premise.**
+v22's aggregate vs v0 (0.6550) matches the pre-registered
+prediction (≈0.66) — but the colour mechanism is the opposite of
+the prediction. Black did not merely recover to v20's 0.72; it
+became nearly unbeatable (0.93, ZERO losses in 50 games). White
+did not recover to v14's 0.60; it fell to 0.38, worse than v20's
+0.45. The decomposition (§3.4) is the iteration's sharpest
+result: demoting Black's breadth is worth +0.33 for Black and
+−0.22 for White; demoting White's breadth (on top) is worth
+−0.21 for Black and +0.07 for White. So the design's premise —
+"White's gap-three breadth is signal" — is WRONG in aggregate
+against greedy play. White's gap-three breadth is signal only
+as the OPPONENT's breadth: Black fearing White's counterplay
+fully is worth +0.21 for Black. As White's OWN breadth, it is
+phantom: counting it fully makes White overvalue its own
+gap-rich positions (fast-loop games 7/9: 18 and 13 gap-three
+makers, the top 1.5% of the distribution) while the theirs-term
+demotion makes White under-fear Black's threats. Both errors
+point the same way — White over-optimistic — and the battery
+prices them at 30 White losses.
+
+**Against the searching opponent, the condition balanced the
+colours but bought nothing net.** v22 vs v7 is 0.58/0.58 — the
+first perfectly symmetric split of any v1-leaf version (v14:
+0.72/0.48; v20: 0.61/0.53) — but the aggregate (0.58) is below
+v14's 0.60 and only 1 game per 100 above v20's 0.57. The swap
+result (0.535, between v20's 0.49 and v14's 0.64) says the same
+thing: under swap, where the midgame leaf is measured directly,
+the Black-only demotion recovers about half of what the global
+demotion cost, and no more. And the ladder exposes a new cost
+nobody predicted: v22 collapses against the terminal-leaf MCTS
+(0.25, the worst of any v1-leaf version), which caps the ladder
+Elo at 147.2 despite the strong vs-heuristic result (0.70,
+Black 10-0).
+
+**What changed because of a specific loss:** the shared 28-ply
+Black loss line (batch-v14-vs-v0 game 2) produced v20's
+mechanism, and v20's battery produced v22's condition — the
+colour split (Black 0.72 / White 0.45) is the result v22 was
+designed around. The fast loop's two engine-swap-verified White
+losses (fl2-g7 ply 17, fl2-g9 ply 19) showed the condition's
+cost side before the battery did: White's gap-three breadth is
+phantom at saturated positions, and v22 falls for it where v20
+does not. The battery confirmed the cost at scale (White 0.38)
+and revealed the benefit's true size (Black 0.93). The
+regression tests pin all of it: v22 plays the winning save at
+fl1-g6-ply28 (where v20 played the drawing save), misses the
+save at bl-ply12 (where v20 plays it — the theirs-term working
+as designed and costing Black), and misses both fast-loop saves
+(xfails).
+
+**What is closed / what is open.** The colour-conditional
+demotion as tested (Black's breadth demoted in BOTH terms) is now
+measured: it is the best v1-leaf combination vs v0 and a wash vs
+v7, and it is REJECTED on clauses 1–2. The condition's two terms
+are now separately priced, which opens the precise follow-up:
+demote Black's gap threes ONLY in the ours term (when Black is
+to move), never in the theirs term — White would fear Black's
+gap threes fully, which should repair White's −0.22 without
+touching Black's +0.33. Untested; batch 9. Also open: White
+gap-saturation (saturation-conditional demotion, or kill-square
+dedup — count distinct gap squares instead of makers, IF the
+makers share kill-squares, unverified); and the vs-mcts collapse
+forensics (why the full theirs-term loses to the terminal-leaf
+MCTS in both colours). The v1 kernel itself remains exact and
+reusable; the leaf's defect was never in the kernel's arithmetic
+but in what the breadth formula counts as a threat — and now,
+in whose breadth it counts it.
+
+**Non-transitivity (prominent, as required):** v22 > v7 in both
+colours (0.58/0.58) but v22 < v0 as White (0.38), while v7 > v0
+in both colours (0.74/0.59); v22 > v0 as Black (0.93) but v22 <
+ladder-MCTS in both colours (0.30/0.20), while v20 > ladder-MCTS
+(0.65) and v7 < ladder-MCTS (0.40). Ladder Elo ordering: v7
+(190.8) > v22 (147.2) > v20 (88.7) > v17 (-17.4) > v14 (-34.9).
+The ladder and the h2h orderings disagree (v22 has the best
+vs-v0 record of any v1-leaf version but a middling ladder Elo,
+because the ladder's MCTS anchor is the opponent v22 is worst
+against), which is the program's standing non-transitivity, now
+extended to v22.
