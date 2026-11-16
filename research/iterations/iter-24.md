@@ -269,6 +269,37 @@ selfplay_batch.py --engine-a v24 --engine-b v7 --games 100 --swap-rule --out res
 
 ## 3. Training (actuals)
 
+**Interrupt and recovery (2026-11-16):** the original training run
+(started 11:19:22 UTC, config `ml/configs/ml1-h1.yaml`, 15 epochs,
+33,849 samples) was killed by a runtime restart drain at **epoch 6,
+step 2810 (11:27:06 UTC)** — no `interrupted.pt` was written (the
+SIGTERM handler never ran). Epoch val losses before death: e1
+0.07863, e2 0.07912, e3 0.08157, e4 **0.07251** (best), e5 0.07403;
+train loss fell 0.0797 → 0.0705 over epochs 1–5.
+
+**Resume decision: RESUME from `best.pt`, do not restart.** Verified
+before resuming: `best.pt` loads cleanly (step 2012, epoch 4,
+ResNet 16ch/2 blocks, 126,586 params, optimiser state present, all
+48 tensors finite) and `ml/scripts/train.py --resume` restores
+weights + optimiser + step with the cosine schedule continuing
+exactly (`schedule_epochs = start_epoch + epochs`). A restart would
+cost only ~20 min of compute, but resume loses nothing and keeps
+the pre-registered 15-epoch plan exact: resume with `--epochs 11`
+(15 − 4 completed). Two resume flaws handled explicitly:
+(1) `train()` resets `best_val_loss` to None on resume, so the
+first resumed epoch would overwrite `best.pt` even if worse than
+epoch 4's 0.07251 — the epoch-4 checkpoint is backed up at
+`checkpoints/best-epoch4.pt` and the final best is chosen by
+comparing the resumed run's best val loss against 0.07251;
+(2) per-epoch checkpoints were off (`checkpoint_every_epochs: 0`),
+so a second crash would lose up to ~6 epochs — resumed with a
+config copy `ml/configs/ml1-h1-resume.yaml` that differs ONLY in
+`checkpoint_every_epochs: 1` (crash-recovery only; no training-math
+change). Original run-dir config snapshotted at
+`ml/runs/ml1-h1-train/config-original.yaml`; pre-resume metrics at
+`metrics-pre-resume.jsonl`. Resumed 2026-11-16 ~11:30 UTC into the
+same run dir (metrics append).
+
 TODO — fill in when training completes: final train/val loss,
 epochs run, best checkpoint (step/epoch), checkpoint path.
 
