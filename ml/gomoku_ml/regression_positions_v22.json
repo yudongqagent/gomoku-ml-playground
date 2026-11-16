@@ -1,0 +1,194 @@
+{
+ "version": 22,
+ "description": "Critical positions from iteration 22 (batch 8, H2): fast-loop iteration 2 vs v7 losses with ENGINE-SWAP-VERIFIED saves (the v1-vs-v1 walk-back oracle nominated 5 losing moves; engine-swap continuation with fresh v22 vs fresh v7 confirmed 2 and withdrew 3 \u2014 see iter-22.md \u00a72.2). v22 misses both saves (xfails): White gap-three saturation \u2014 the gap-rich loser is preferred over the save because White gap-three breadth counts fully in v22.",
+ "positions": [
+  {
+   "id": "fl2-g7-ply17",
+   "source": "fast-loop iteration 2 vs v7, game 7, ply 17",
+   "black": [
+    [
+     7,
+     7
+    ],
+    [
+     7,
+     5
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     8,
+     4
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     6,
+     8
+    ],
+    [
+     9,
+     5
+    ],
+    [
+     4,
+     10
+    ]
+   ],
+   "white": [
+    [
+     9,
+     7
+    ],
+    [
+     7,
+     6
+    ],
+    [
+     5,
+     5
+    ],
+    [
+     4,
+     8
+    ],
+    [
+     9,
+     3
+    ],
+    [
+     4,
+     7
+    ],
+    [
+     6,
+     5
+    ],
+    [
+     8,
+     6
+    ]
+   ],
+   "to_move": "white",
+   "expected": [
+    [
+     5,
+     9
+    ],
+    [
+     3,
+     11
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     4,
+     6
+    ]
+   ],
+   "note": "v22 plays (6,10); White holds 18 gap-three makers after it (p99.7 of the distribution) vs 14 after the save; v20/v14 play (5,9); swap-verified: save wins +18, control loses +29"
+  },
+  {
+   "id": "fl2-g9-ply19",
+   "source": "fast-loop iteration 2 vs v7, game 9, ply 19",
+   "black": [
+    [
+     7,
+     7
+    ],
+    [
+     7,
+     5
+    ],
+    [
+     8,
+     6
+    ],
+    [
+     9,
+     7
+    ],
+    [
+     6,
+     4
+    ],
+    [
+     5,
+     5
+    ],
+    [
+     3,
+     3
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     8,
+     7
+    ],
+    [
+     8,
+     8
+    ]
+   ],
+   "white": [
+    [
+     5,
+     7
+    ],
+    [
+     7,
+     6
+    ],
+    [
+     9,
+     5
+    ],
+    [
+     10,
+     8
+    ],
+    [
+     5,
+     3
+    ],
+    [
+     7,
+     3
+    ],
+    [
+     4,
+     4
+    ],
+    [
+     6,
+     5
+    ],
+    [
+     10,
+     7
+    ]
+   ],
+   "to_move": "white",
+   "expected": [
+    [
+     8,
+     9
+    ]
+   ],
+   "note": "v22 plays (8,5) 35 visits vs save 32; White holds 13 gap-three makers after it (p98.5) vs 10 after the save; v20/v7 play (8,9); swap-verified: save wins +64, control loses +11"
+  }
+ ]
+}
