@@ -410,6 +410,44 @@ already failed — the battery measures clauses 1–2 (game
 strength vs v8/v7/v0, ladder Elo) and the swap match. The v1
 checkpoint is preserved as `policy-value-net-v1.pt`.
 
+### Iteration 2 — verification smoke vs v0: 3W-17L-0D (0.1500)
+
+20 games, seeds 1001/2001, `fast-v26-vs-v0-smoke.json`. v26
+wins 3 as Black, **0 as White** (loses 7 as Black, 10 as White).
+Games are short (many exactly 25 plies — v26 is crushed early).
+For reference v8's vs-v0 is 0.545. The smoke FAILS (≥0.50
+required) and its CI [0.0524, 0.3604] excludes 0.50 decisively.
+
+Loss analysis (`classify_losses.py`): 17 losses, **all via open
+four, 0 missed blocks, 0 clean missed preventions** in 108
+threatened turns. v26's defence is solved — it blocks when it
+can and prevents when a safe move exists. It loses because its
+positional play lets v0 build multiple simultaneous threats:
+game 1 (traced) — Black's ply-20 (7,8) creates a double threat
+(diagonal + row open threes); the trace shows 0/90 root children
+safe (three creators), so the filter correctly gives up and the
+search plays a random attacking move. The position was lost
+several plies earlier, when v26 chased its own (blocked) attack
+while Black built intersecting threats.
+
+Root cause (structural, not a bug): the weak value head (MSE
+0.61, α=0.25) cannot evaluate threat buildups 2–3 plies out,
+and the learned prior — a lossy imitation of v18 (top-1
+agreement 0.34) — does not steer preventively the way the v1
+prior's explicit defensive scoring does. v8 passes tactical and
+beats v0 because its v1 prior carries the tactics AND the
+prevention; v26 replaced the prior with a net that does neither
+reliably on out-of-distribution positions (v0's weak play creates
+positions v18's self-play never visits). Worst as White (0–10):
+White must prevent constantly, and prevention is v26's weakest
+suit. No patch remains in scope (the ONE data/training change is
+used; T is exhausted; α is fixed; more sims is a closed lever),
+so iteration 2 is diagnostic only — the separate 10-game
+fast-loop match vs v7 is skipped as redundant with the battery's
+100-game vs-v7 match.
+
+## 4. Validation battery
+
 (TBD — after the first trained net.)
 
 ## 4. Validation battery
