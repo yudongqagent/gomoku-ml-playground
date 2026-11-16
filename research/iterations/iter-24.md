@@ -202,6 +202,19 @@ v7 ~42 s/game (smoke: 23 s/game), v18 ~150–200 s/game (smoke:
 positions — below the 40k target, covered by the §1.1 stopping
 rule (train on what exists; the battery is the verdict).
 
+**Rebalancing rule (pre-committed 2026-11-15 ~21:45 PST, before
+it triggers):** post-restart, v18 runs at ~339 s/game (2-game
+sample, CPU-starved at ~20%) while v7 runs at ~42 s/game. v18
+positions are the stronger distribution (closest to inference)
+and the scarcest; v7 positions past ~400 games have diminishing
+value. So: **when the v7 batch reaches 400 games, stop it and let
+the v18 batch run solo for the remaining generation time** (it
+should roughly double its CPU share). Game counts are aims under
+the stopping rule, so this rebalances the mix toward the stronger
+source without changing any pre-registered design parameter. If
+v7 has not reached 400 by the cutoff, both simply stop at the
+cutoff.
+
 **Battery runbook** (validation seeds 100/200 throughout; run
 after the α sweep sets the registry `value_weight`):
 ```
