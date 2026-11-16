@@ -561,14 +561,90 @@ weakness seen vs v0 (§3.3). The mcts matchup also fell, 14W-6L
 6W-4L; the mcts result does not enter the Elo point estimate,
 but it is the same tie-break-cost story on a third opponent.
 
-### 3.6 Test suites (clause 4)
+### 3.6 Test suites (clause 4) — all green (CLAUSE 4 PASSES)
 
-(TODO)
+- ml pytest (full suite, main repo venv): **279 passed, 7
+  skipped, 11 xfailed, 0 failures** in 175.6 s. The 11 xfails
+  are the expected known-failure positions (v23's regression
+  file: fl1-g0-ply12, fl2-g7-ply9, tact-winning-quiet-setup-2,
+  fl2-g6-ply23, fl2-g8-ply23, plus v18/v16 inherited xfails).
+- npm test: **55 passed (4 files), 0 failures**.
+- `tsc --noEmit`: **exit 0, clean**.
+- `git diff bf866f7 -- ml/gomoku_ml/baseline.py`: **0 lines** —
+  the frozen baseline is untouched.
+Clause 4 PASSES.
 
 ## 4. Bar check (v23 vs v7)
 
-(TODO)
+| Clause | Requirement | v23 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v7 | ≥100 games, win rate > 0.50, Wilson 95% CI lower > 0.50 | 75W-16L-9D, 0.7950, CI [0.7057, 0.8625] | **PASS** |
+| 2. Ladder Elo | strictly > v7's 190.8, identical counts/opponents | 511.5 [203.9, 819.1] | **PASS** |
+| 3. Tactical | ≥ v7's 20/20 old + 29/29 hard | 20/20 old + 28/29 hard | **FAIL** |
+| 4. Test suites | ml pytest, npm test, tsc all green | 279 passed / 55 passed / tsc clean | **PASS** |
+
+**v23 is REJECTED — 3/4.** It fails the bar on clause 3
+alone, by exactly one position: winning-quiet-setup-2, the
+suite-list gap pre-registered in §1.2 (chosen (9,7) wins 3/3
+under v7-vs-v7; the position is not a visit-tie — 79 vs 16 —
+so no tie-break rule can flip it). The tie-break did exactly
+what it was designed to do: it recovered all 3 q-compression
+tie failures (25/29 → 28/29), and the mechanism check (§1.3)
+confirmed the rule fires correctly on each. The remaining
+failure is a property of the suite list, not of the engine.
 
 ## 5. What this means
 
-(TODO)
+**The q-aware visit-tie break works as a tactical-recovery
+mechanism and costs games as a strength lever — the two
+effects are separable and both are real.** Tactical: 25/29 →
+28/29, recovering exactly the 3 pre-registered tie positions
+and nothing else, with no regressions. Game strength vs v18:
+
+- vs v7: 75W-16L-9D (0.7950) vs v18's 73W-18L-9D (0.7750) —
+  +2 wins, within noise, direction favourable.
+- swap vs v7: 69W-25L-6D (0.7200) vs 61W-35L-4D (0.6300) —
+  +8 wins, driven entirely by White (0.54 → 0.78); CIs
+  overlap, so suggestive, not conclusive.
+- vs v0: 91W-9L-0D (0.9100) vs 96W-2L-2D (0.9700) — −5 wins,
+  entirely as Black; v18's 0.9700 lies outside v23's CI.
+- ladder: Elo 511.5 vs 636.4 — the drop is exactly one
+  heuristic game (a Black draw became a Black loss); vs mcts
+  also fell 14W-6L → 11W-9L.
+
+The pattern is consistent: the tie-break helps where q gaps
+carry terminal signal (sharp tactical positions, White under
+swap) and hurts where they are gradient noise (Black against
+weak opponents — v0, the ladder heuristic, the ladder MCTS).
+The fast loop found the same misfire class twice (§2.2: q gap
+0.016, both Black, both verified losing moves with verified
+saves the engine cannot reach). **Non-transitivity is now
+explicit in the program's own data:** v23 > v18 vs v7 and
+under swap, but v18 > v23 vs v0 and on the ladder — the
+tie-break's sign flips with the opponent, so no single
+"v23 vs v18" strength statement is true.
+
+**What changed because of a specific loss:** nothing was
+patched. The fast loop (40 games, 2 iterations) found three
+verified losing moves (fl1-g4: distributed drift, no verified
+save; fl2-g6/g8: verified saves exist but no root rule can
+promote them — the best saves hold ≤6 visits and lower q).
+All three are recorded as regression xfails. The q-gap
+THRESHOLD (apply the tie-break only when the q gap exceeds
+~0.05–0.1) is the recorded next-iteration candidate: it
+preserves all 3 tactical fixes (gaps ≥0.130) and converts the
+§2.2 misfires (gap 0.016) back to RNG coin flips — but it is
+fit to n=1 and does not fix those positions, so it is a
+hypothesis for a future version, not a patch made here.
+v23-as-batteried is v23-as-pre-registered.
+
+**Recommendation:** the tie-break as specified is not a net
+win — it trades 3 tactical positions for ~5 games/100 vs weak
+opponents and 125 ladder Elo. The threshold variant is the
+only principled next step for this lever, and it should be
+tested as its own pre-registered version (v24 candidate). The
+suite-list gap (winning-quiet-setup-2) deserves a suite fix,
+not an engine fix: the expected list should include (9,7),
+which wins 3/3 under v7-vs-v7 — but that is a suite change,
+outside this version's scope, and must not be made to rescue
+a version's clause-3 score.
