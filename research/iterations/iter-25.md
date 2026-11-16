@@ -605,6 +605,30 @@ exactly (verify: α=0.25 vs v0 must show 8W-6L at game 14,
 α=0.5 vs v8 4W-8L at game 12). (TBD — final sweep results,
 selected α.)
 
+**Second VM replacement 2026-11-16 ~19:29 UTC** killed the
+rest sweeps. vs-v0 rest had COMPLETED (α=0.25 11W-9L-0D
+0.550, α=0.125 8W-11L-1D 0.425). vs-v8 rest had flushed
+α=0.5 (7W-10L-3D, 0.425) and α=0.25 (10W-7L-3D, 0.575);
+α=0.125 was at 19/20 (10W-8L-1D) when killed. **Determinism
+verified:** the rest arms reproduced the killed partials
+exactly — α=0.25 vs v0 8W-6L at game 14 ✓, α=0.5 vs v8
+4W-8L at game 12 ✓, α=0.125 vs v8 10W-8L-1D at game 19 ✓.
+Final arm (α=0.125 vs v8) relaunched 19:31 UTC (PID 1684),
+~18 min. (TBD — final arm result, merged sweep, selected α.)
+
+Sweep results so far (7 of 8 arms):
+
+| α | vs v0 (20 games) | vs v8 (20 games) | combined (40 games) |
+|---|---|---|---|
+| 1.0 | 0.250 (5W-15L) | 0.500 (10W-10L) | 0.375 |
+| 0.5 | 0.600 (10W-6L-4D) | 0.425 (7W-10L-3D) | 0.5125 |
+| 0.25 | 0.550 (11W-9L) | 0.575 (10W-7L-3D) | **0.5625** |
+| 0.125 | 0.425 (8W-11L-1D) | pending (10W-8L-1D at 19/20) | ≤ 0.50 |
+
+α=0.25 already leads combined (0.5625) and cannot be caught
+by α=0.125 (max 0.50). α=1.0 is bad vs v0 (0.25) as in v8's
+sweep — full weight still hurts.
+
 ## 4. Fast loop (TBD)
 
 (TBD — up to 4 iterations × (10 games vs v8 + 10 games vs v0),
