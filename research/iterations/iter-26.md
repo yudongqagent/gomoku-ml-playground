@@ -365,6 +365,51 @@ v26 reverts to the original checkpoint (`policy-value-net.pt`
 as trained in §2.3, preserved as `policy-value-net-v1.pt`)
 and the battery runs on that.
 
+### Iteration 1 — results
+
+Augmentation data: 147 games → **872 positions** (mean ~6
+plies/game; no draws; teacher median top-1 0.6327 — the peaked
+setup signal). Retrained from scratch on 24,323 positions, 18
+epochs (~6,516 steps): best val loss **3.9191** (epoch 18) vs
+v1's 4.2188; policy loss 3.13 (vs 3.34); value loss 0.61 (vs
+0.65). Teacher top-1 agreement 0.3355 (vs 0.2745). Checkpoint
+`policy-value-net-v2.pt` (promoted to `policy-value-net.pt`).
+
+The prior learned the patterns: double-open-three rank 57→1
+(mass 0.73, value +0.98), double-threat-create rank 77→1 (mass
+0.97, value +1.00), g92 rank 7→1, g33 rank 2→1, g35 rank 20→5.
+But g94 REGRESSED (rank 1→7) and g2 is unchanged (rank 4) —
+retraining from scratch reshuffles the weights, and the suite
+positions are only 3.6% of the data.
+
+Tactical (seed 100), v2 checkpoint:
+
+| T | old | hard | failing |
+|---|---|---|---|
+| 2.0 (re-calibrated) | 20/20 | 24/29 | g92, g33, g94, g2, g35 |
+| 1.0 | 20/20 | 26/29 | g92, g94, g35 |
+| 0.5 | 20/20 | 24/29 | g92, g94, g2, g35 + winning-quiet-setup-2 (regressed) |
+
+Re-calibration on v2 again picks T=2.0 (gap 0.0048), but the
+tactical suite prefers T=1.0 (26 vs 24). T=0.5 is worse — the
+too-sharp prior over-commits to wrong #1 moves (the v13 failure
+mode in miniature). All three fallback values are exhausted;
+**clause 3 FAILS at v2's best (20/20 + 26/29)**. The remaining
+3 failures are all value-head overrides: the prior ranks the
+setup move 1st (g92, mass 0.29) yet the search still picks
+another move — the value head cannot confirm the setup line
+even when the prior hands it the right move. The value head,
+not the prior, is now the binding constraint, and it is not
+fixable within this workstream's remaining scope (the ONE
+data/training change is used; α=0.25 is fixed by the
+pre-registration; more sims is a closed lever).
+
+**v26 = v2 checkpoint at T=1.0** (best tactical, best val loss,
+best teacher agreement). It goes to the battery with clause 3
+already failed — the battery measures clauses 1–2 (game
+strength vs v8/v7/v0, ladder Elo) and the swap match. The v1
+checkpoint is preserved as `policy-value-net-v1.pt`.
+
 (TBD — after the first trained net.)
 
 ## 4. Validation battery

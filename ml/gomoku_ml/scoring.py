@@ -221,7 +221,7 @@ ENGINE_VERSIONS: dict[int, dict] = {
     26: {"name": "scoring-v26", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "policy_checkpoint": "ml/runs/ml1-h3/policy-value-net.pt",
-         "prior_temperature": 2.0},
+         "prior_temperature": 1.0},
 }
 
 # --- weights --------------------------------------------------------------
