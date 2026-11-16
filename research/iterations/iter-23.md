@@ -540,9 +540,26 @@ from White (+11 wins as White, −3 as Black). Classifier:
 25/25 losses via open four, 0 missed blocks, 0 clean missed
 preventions in 133 threatened turns (losses).
 
-### 3.5 Ladder
+### 3.5 Ladder — Elo 511.5 (CLAUSE 2 PASSES)
 
-(TODO)
+`ml/scripts/eval_version.py --version 23 --ladder-games 20
+--mcts-sims 100 --seed 100` (identical counts/opponents to v7's
+ladder; full output `research/iterations/ladder-v23.json`): vs
+random 20W-0L-0D (1.0000), vs heuristic 19W-1L-0D (0.9500; as
+Black 9W-1L, as White 10W-0L), vs mcts 11W-9L-0D (0.5500; as
+Black 7W-3L, as White 4W-6L). **Ladder Elo 511.5, interval
+[203.9, 819.1]** — strictly higher than v7's 190.8, so **clause
+2 PASSES**, and even the lower bound (203.9) clears v7's point
+estimate. But v23 is 125 Elo BELOW v18's 636.4 [240.3, 1032.5],
+and the drop is traceable to exactly one game: the ladder Elo
+estimate is computed from the heuristic matchup alone (the
+random matchup saturates at 1.0 and contributes no estimate),
+and v23's 0.9500 (19W-1L) vs v18's 0.9750 (19W-0L-1D) is one
+Black draw turned into a Black loss — the same Black-side
+weakness seen vs v0 (§3.3). The mcts matchup also fell, 14W-6L
+(0.70) → 11W-9L (0.55), losing as White (4W-6L) after v18's
+6W-4L; the mcts result does not enter the Elo point estimate,
+but it is the same tie-break-cost story on a third opponent.
 
 ### 3.6 Test suites (clause 4)
 
