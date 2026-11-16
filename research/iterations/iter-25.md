@@ -298,8 +298,10 @@ under contention (1033 -> 646/hr), so ETA is ~6-8.7 h
 **Clause-4 interim (before the battery):** npm test 55/55,
 tsc clean (fresh `npm ci`); targeted ml pytest green
 (`test_mcts_value` + `test_scoring` 52 passed,
-`test_split_holdout` 3 passed); full ml pytest running at
-launch time — result recorded in §6 when it lands.
+`test_split_holdout` 3 passed); full ml pytest **246 passed, 1
+skipped, 2 xfailed, 0 failures** in 13:24 (run under self-play
+contention; the 2 xfails are the known v7 regression xfails).
+Clause 4 is re-verified on the final tree after the battery.
 Code path verified identical to the B1 legs: `ml/scripts/
 selfplay.py`, `ml/gomoku_ml/selfplay.py`, `mcts.py`,
 `encoding.py`, `architectures.py`, `game.py` are byte-identical
