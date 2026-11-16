@@ -41,9 +41,41 @@ from . import augment
 from .model import GomokuNet
 
 
+_MMAP_FILES = ("planes.npy", "policy.npy", "values.npy")
+
+
+def _load_mmap_bundle(data_dir: str) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    """Load a memmap bundle built by ``ml/scripts/build_mmap_bundle.py``.
+
+    Returns ``(planes, policy, values)`` as read-only memmaps when
+    ``data_dir`` contains all three bundle files, else ``None``.
+    Raises ``ValueError`` on a partial bundle (never silently mix a
+    bundle with ``.npz`` shards).
+    """
+    present = [f for f in _MMAP_FILES if os.path.exists(os.path.join(data_dir, f))]
+    if not present:
+        return None
+    if len(present) != len(_MMAP_FILES):
+        raise ValueError(
+            f"partial memmap bundle in {data_dir}: found {present}, "
+            f"expected {_MMAP_FILES}"
+        )
+    return tuple(
+        np.load(os.path.join(data_dir, f), mmap_mode="r") for f in _MMAP_FILES
+    )
+
+
 def load_shards(data_dirs: list[str]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Load all ``.npz`` shards under the given directories (recursive)
     and concatenate them into (planes, policy, value) arrays.
+
+    When a single data directory contains a memmap bundle
+    (``planes.npy``/``policy.npy``/``values.npy``, built by
+    ``ml/scripts/build_mmap_bundle.py``), the bundle is returned as
+    read-only memmaps instead — same content, same order, ~200 MB of
+    anonymous memory instead of the full dataset size. The training
+    loop indexes the returned arrays lazily (see ``train``), so a
+    memmap never materialises a full in-RAM copy.
 
     Peak memory is ~1x the data size, not ~2x: the outputs are
     pre-allocated from a shapes-only first pass (``np.load`` is lazy
@@ -56,6 +88,10 @@ def load_shards(data_dirs: list[str]) -> tuple[np.ndarray, np.ndarray, np.ndarra
     ~6.2 GB peak exceeded this VM's cell limit (OOM-killed 2026-11-16
     — see ``research/iterations/iter-25.md`` §2.4).
     """
+    if len(data_dirs) == 1:
+        bundle = _load_mmap_bundle(data_dirs[0])
+        if bundle is not None:
+            return bundle
     paths: list[str] = []
     for d in data_dirs:
         paths.extend(
@@ -217,8 +253,14 @@ def train(
     perm_all = rng.permutation(n)
     n_val = int(round(n * val_fraction)) if val_fraction > 0 else 0
     val_idx, train_idx = perm_all[:n_val], perm_all[n_val:]
-    x_tr, p_tr, z_tr = planes[train_idx], policy_targets[train_idx], values[train_idx]
-    n_tr = len(x_tr)
+    # Lazy indexing: batches index the full arrays via train_idx
+    # (``planes[train_idx[idx]]``) instead of materialising 95%
+    # copies (``planes[train_idx]``). Same batches, same order, same
+    # RNG stream — but no ~2.9 GB copy at 10k-game scale, and a
+    # memmap input is never pulled fully into RAM. The per-batch
+    # fancy index returns a fresh writable copy (augmentation and
+    # torch.from_numpy both need one).
+    n_tr = len(train_idx)
 
     steps_per_epoch = max(1, (n_tr + batch_size - 1) // batch_size)
     if schedule_epochs is not None:
@@ -258,15 +300,16 @@ def train(
                 interrupted = True
                 break
             idx = perm[i : i + batch_size]
-            batch_planes = x_tr[idx]
-            batch_policy = p_tr[idx]
+            gidx = train_idx[idx]
+            batch_planes = planes[gidx]
+            batch_policy = policy_targets[gidx]
             if augmentation:
                 batch_planes, batch_policy = augment.random_augment_batch(
                     batch_planes, batch_policy, rng
                 )
             x = torch.from_numpy(np.ascontiguousarray(batch_planes)).to(device_t)
             pt = torch.from_numpy(np.ascontiguousarray(batch_policy)).to(device_t)
-            z = torch.from_numpy(z_tr[idx]).to(device_t).unsqueeze(1)
+            z = torch.from_numpy(values[gidx]).to(device_t).unsqueeze(1)
             current_lr = lr_at(step, epoch)
             for group in optimizer.param_groups:
                 group["lr"] = current_lr

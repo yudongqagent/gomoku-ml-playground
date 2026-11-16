@@ -59,3 +59,88 @@ def test_load_shards_matches_concatenate(tmp_path):
 def test_load_shards_empty_dir_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
         load_shards([str(tmp_path)])
+
+
+def test_load_shards_mmap_bundle_matches_npz(tmp_path):
+    # A memmap bundle built from shards loads the same arrays as the
+    # shards themselves (same content, same order) — as memmaps.
+    import subprocess
+    import sys
+
+    rng = np.random.default_rng(1)
+    src = tmp_path / "shards"
+    src.mkdir()
+    for i, n in enumerate((4, 6)):
+        np.savez_compressed(
+            src / f"game{i:04d}.npz",
+            planes=rng.random((n, 8, 15, 15), dtype=np.float32),
+            policy=rng.random((n, 225), dtype=np.float32),
+            value=rng.random(n, dtype=np.float32),
+        )
+    bundle = tmp_path / "bundle"
+    script = (
+        __file__.rsplit("/tests/", 1)[0] + "/scripts/build_mmap_bundle.py"
+    )
+    result = subprocess.run(
+        [sys.executable, script, "--data", str(src), "--out", str(bundle)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    p_npz, pol_npz, v_npz = load_shards([str(src)])
+    p_mm, pol_mm, v_mm = load_shards([str(bundle)])
+    assert isinstance(p_mm, np.memmap)
+    assert np.array_equal(p_mm, p_npz)
+    assert np.array_equal(pol_mm, pol_npz)
+    assert np.array_equal(v_mm, v_npz)
+
+
+def test_load_shards_partial_bundle_raises(tmp_path):
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    np.save(str(bundle / "planes.npy"), np.zeros((2, 8, 15, 15), dtype=np.float32))
+    with pytest.raises(ValueError, match="partial memmap bundle"):
+        load_shards([str(bundle)])
+
+
+def test_train_memmap_matches_ram(tmp_path):
+    # Training on memmap-backed arrays produces the identical loss
+    # history as training on the same arrays in RAM (the lazy-index
+    # refactor must not change the math).
+    import torch
+
+    from gomoku_ml.architectures import build_architecture
+    from gomoku_ml.train import train
+
+    rng = np.random.default_rng(2)
+    n = 128
+    planes = rng.random((n, 8, 15, 15), dtype=np.float32)
+    policy = rng.random((n, 225), dtype=np.float32)
+    policy /= policy.sum(axis=1, keepdims=True)
+    values = rng.choice(np.array([-1.0, 1.0], dtype=np.float32), size=n)
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    np.save(str(bundle / "planes.npy"), planes)
+    np.save(str(bundle / "policy.npy"), policy)
+    np.save(str(bundle / "values.npy"), values)
+    p_mm, pol_mm, v_mm = load_shards([str(bundle)])
+
+    kwargs = dict(
+        epochs=1,
+        batch_size=32,
+        lr=0.001,
+        val_fraction=0.1,
+        seed=0,
+        augmentation=True,
+        log_every=1000,
+    )
+    torch.manual_seed(0)
+    model_ram = build_architecture("resnet", {"channels": 8, "blocks": 1})
+    summary_ram = train(model_ram, planes, policy, values, **kwargs)
+    torch.manual_seed(0)
+    model_mm = build_architecture("resnet", {"channels": 8, "blocks": 1})
+    summary_mm = train(model_mm, p_mm, pol_mm, v_mm, **kwargs)
+    # Identical math — compare everything except wall-clock seconds.
+    hist_ram = [{k: v for k, v in e.items() if k != "seconds"} for e in summary_ram["history"]]
+    hist_mm = [{k: v for k, v in e.items() if k != "seconds"} for e in summary_mm["history"]]
+    assert hist_ram == hist_mm
