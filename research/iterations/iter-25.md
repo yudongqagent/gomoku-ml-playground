@@ -475,13 +475,39 @@ Manifest: `ml/runs/ml1-h2-10k/split-manifest.json`.
 Train samples ≈ 384k (9,004 × ~42.7); val ≈ 13.8k positions;
 val-clean ≈ 7.7k positions.
 
-### 2.4 Training (TBD)
+### 2.4 Training (attempt 2 RUNNING since 2026-11-16 14:31 UTC)
 
-(TBD — training completion time, final/val loss, holdout
-accuracy for best.pt / final.pt on the honest holdout (full +
-no-history), on the clean subset (v25 net AND v8 checkpoint),
-on v8's original leaky holdout (labelled), checkpoint selection,
-comparison with v8's net.)
+Config `ml/configs/ml1-h2-train-10k.yaml` (v8's recipe, §1.3),
+run dir `ml/runs/ml1-h2-value-10k/`, 385,982 samples, 5 epochs,
+batch 64, lr 0.002 cosine, warmup 20, wd 1e-4, augmentation on,
+internal val_fraction 0.05. **Attempt 1 OOM-killed** (2026-11-16
+14:19 UTC, ~30 s after `run_started`, no traceback, no
+checkpoint): the in-RAM load held 3.2 GB while host
+MemAvailable swung to 1.26 GB (another tenant's job); the
+process was the largest on the host and the OOM killer took
+it. (Host memory swings wildly — MemAvailable 326 MB → 6.6 GB
+→ 1.26 GB → 6.8 GB within ~30 min — so this was not a
+one-off.) **Fix (committed):** (1) `load_shards` pre-allocates
+outputs (peak ~1x data, not ~2x — the old concatenate peak
+was ~6.2 GB); (2) a memmap bundle
+(`ml/scripts/build_mmap_bundle.py` → `ml/runs/ml1-h2-10k/
+data-mmap/`, 3.1 GB on disk) loaded with `mmap_mode='r'`;
+(3) `train()` indexes batches lazily via `train_idx` instead
+of materialising 95% copies. Training math is UNCHANGED
+(test: RAM vs memmap loss history bit-identical except
+wall-clock seconds; bundle spot-verified row-exact against
+shards #0 and #5000). Attempt 2 RSS ~0.5 GB (vs 3.2 GB) and
+trains. Rate ~2.4 steps/s under sibling contention (load
+avg ~4.3; iowait ~3% — the bottleneck is CPU starvation,
+not memmap I/O); ~28,650 steps total, ETA ~3 h if the rate
+holds, sooner as sibling jobs finish. Failed attempt 1 dir
+preserved at `ml/runs/ml1-h2-value-10k-attempt1-oom/`.
+
+(TBD — final epoch losses, val losses, best.pt epoch,
+holdout accuracies (honest holdout: best.pt + final.pt, full +
+no-history; clean subset: v25 net + v8; leaky v8 holdout,
+labelled), checkpoint selection, the winner copied to
+`ml/runs/ml1-h2/value-net.pt`.)
 
 ## 3. Leaf cost measurement (TBD)
 
