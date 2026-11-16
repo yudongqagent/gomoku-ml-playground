@@ -480,6 +480,18 @@ sample.
   changes after this point (fast-loop patches would trigger a
   re-run).
 
+**Clause 3 (tactical) — PASS:** `eval_tactical_full.py --version
+24 --suite both --seed 100`: **old suite 20/20, hard suite 29/29**
+(log `ml/runs/ml1-h1/tactical-v24.log`). Includes
+winning-quiet-setup-2 (chose (10,10), in the expected list) —
+the suite-list gap that sank v23's clause 3 is not an issue for
+v24. Expected: v24 shares v8's search, threat check, and exact
+terminal handling; tactical positions are 1–2 ply tactics the
+search handles regardless of the leaf net.
+
+**Clause 1 (vs v8, 100 games) — RUNNING** (seeds 100/200,
+`research/iterations/batch-v24-vs-v8.json`).
+
 TODO — clause-by-clause verdicts table.
 
 ## 7. Verdict
