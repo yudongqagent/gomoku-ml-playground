@@ -498,7 +498,23 @@ driver: saved games stand, remaining games continue with fresh
 players, RNG restart recorded as `resumed_from_game`); the
 match was relaunched with the same command and resumes from
 game 12. The 100 games remain 100 fair games vs v8 at seeds
-100/200 with alternating colours.
+100/200 with alternating colours. **VM replacement #3
+(2026-11-16 ~17:28 UTC):** the resumed run was killed after 94
+games (46W-40L-8D, wr 0.5319); relaunched again with the same
+command, resuming from game 94 (second RNG restart — the final
+JSON records only the latest `resumed_from_game`, so both
+restarts, at games 12 and 94, are recorded here).
+
+**Clause 1 (vs v8, 100 games) — FAIL:** **47W-44L-9D, win rate
+0.5150, Wilson 95% CI [0.4183, 0.6106].** The win rate clears
+0.50 but the CI lower bound (0.418) does not — clause 1 requires
+both. Colour split is balanced (Black 24W-20L-6D, 0.540; White
+23W-24L-3D, 0.490). The sweep's α=1.0 win rate of 0.65 over 20
+games did NOT reproduce at 100 games — the standing lesson
+again (v11's sweep 0.575 vs 100-game 0.435): small-sample
+smokes mislead. v24 is statistically indistinguishable from v8
+in strength; the distilled net matches v8's net but does not
+beat it head-to-head.
 
 TODO — clause-by-clause verdicts table.
 
