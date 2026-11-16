@@ -188,6 +188,24 @@ ENGINE_VERSIONS: dict[int, dict] = {
     8: {"name": "scoring-v8", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100,
         "value_checkpoint": "ml/runs/b3-h2/value-net.pt"},
+    # v25 (iteration 25, ML batch 1): H2 — v8's ValueMCTS with the
+    # value net RETRAINED on the completed 10,000-shard B1 dataset
+    # (see research/iterations/iter-25.md). Search, leaf structure
+    # and the 2-ply threat check at the root are v8's, unchanged —
+    # the only intended difference is the training data, plus the
+    # re-swept α ("value_weight", from the §1.4 sweep grid; the
+    # registry value below is the sweep's winner — 0.25 is the
+    # PLACEHOLDER, v8's value, until the sweep runs; see iter-25
+    # §1.4/§1.7). The checkpoint path is relative to the repo root
+    # (gitignored data under ml/runs/); the GOMOKU_V25_CHECKPOINT
+    # env var overrides it. NOTE: the existing 4,350 shards contain
+    # only 1,449 unique games (same-seed resume replays — iter-25
+    # §2.1); the completion leg used a fresh seed (1).
+    25: {"name": "scoring-v25", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml1-h2/value-net.pt",
+         "value_checkpoint_env": "GOMOKU_V25_CHECKPOINT",
+         "value_weight": 0.25},
 }
 
 # --- weights --------------------------------------------------------------
@@ -750,13 +768,18 @@ class ScoringPlayer:
         if self.mcts:
             value_ckpt = ENGINE_VERSIONS[version].get("value_checkpoint")
             if value_ckpt is not None:
-                # Learned-value MCTS (v8): lazy import, mcts_value
+                # Learned-value MCTS (v8, v25): lazy import, mcts_value
                 # imports this module (via mcts_heuristic). The path
                 # is relative to the repo root unless absolute; the
-                # GOMOKU_V8_CHECKPOINT env var overrides it.
-                from .mcts_value import ValueMCTS
+                # per-version env var (default GOMOKU_V8_CHECKPOINT)
+                # overrides it. Each version sweeps its own α
+                # ("value_weight", default 0.25 = v8's value).
+                from .mcts_value import VALUE_WEIGHT, ValueMCTS
 
-                path = os.environ.get("GOMOKU_V8_CHECKPOINT") or value_ckpt
+                env_key = ENGINE_VERSIONS[version].get(
+                    "value_checkpoint_env", "GOMOKU_V8_CHECKPOINT"
+                )
+                path = os.environ.get(env_key) or value_ckpt
                 if not os.path.isabs(path):
                     repo_root = os.path.dirname(
                         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -766,6 +789,9 @@ class ScoringPlayer:
                     checkpoint_path=path,
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
                     rng=self.rng,
+                    value_weight=ENGINE_VERSIONS[version].get(
+                        "value_weight", VALUE_WEIGHT
+                    ),
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.

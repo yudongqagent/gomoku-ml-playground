@@ -97,6 +97,10 @@ class ValueMCTS(HeuristicMCTS):
         sims / c_puct / rng: as :class:`HeuristicMCTS` (100 / 1.5 by
             default, matching v6 and the ladder MCTS).
         device: torch device string (CPU here; there is no GPU).
+        value_weight: shrink applied to the net value in quiet
+            positions (batch 4 H3, v11 — per-version α; default
+            ``VALUE_WEIGHT`` = 0.25, v8's swept value, so v8 is
+            unchanged). Terminal cases are exact and unaffected.
     """
 
     def __init__(
@@ -107,8 +111,10 @@ class ValueMCTS(HeuristicMCTS):
         c_puct: float = 1.5,
         rng: np.random.Generator | None = None,
         device: str = "cpu",
+        value_weight: float = VALUE_WEIGHT,
     ) -> None:
         super().__init__(sims=sims, c_puct=c_puct, rng=rng)
+        self.value_weight = float(value_weight)
         # Batch-3 merge fix: H1's HeuristicMCTS sets ``self._leaf_value``
         # to a module-level leaf function in __init__; that instance
         # attribute shadows this class's leaf method, so the net leaf
@@ -225,8 +231,9 @@ class ValueMCTS(HeuristicMCTS):
             _logits, value = self.net(x)
         self.leaf_net_evals += 1
         # Fast-loop iteration 2: shrink the net value toward the
-        # terminal value (0 here) — see VALUE_WEIGHT.
-        return float(value[0, 0].item()) * VALUE_WEIGHT
+        # terminal value (0 here) — see VALUE_WEIGHT; the instance
+        # value_weight lets each version sweep its own α (v11).
+        return float(value[0, 0].item()) * self.value_weight
 
     def _run_one(
         self,

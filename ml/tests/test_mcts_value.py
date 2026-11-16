@@ -215,3 +215,62 @@ def test_v8_env_override_and_missing_checkpoint(tmp_path, monkeypatch):
 
     with pytest.raises(FileNotFoundError):
         scoring.get_player(8, seed=0)
+
+
+def test_value_weight_default_is_v8_shrink(tmp_path):
+    # Default value_weight is VALUE_WEIGHT (0.25): v8's behaviour is
+    # unchanged by the per-version α (batch 4 H3, v11; reused by v25).
+    from gomoku_ml.mcts_value import VALUE_WEIGHT
+
+    mcts = _value_mcts(tmp_path)
+    assert mcts.value_weight == VALUE_WEIGHT == 0.25
+
+
+def test_value_weight_scales_quiet_leaf(tmp_path):
+    # The instance value_weight scales the quiet leaf value; the
+    # terminal cases stay exact whatever α is.
+    from gomoku_ml import encoding
+
+    board = _board_with([(7, 7), (8, 8)], [(7, 9), (9, 9)])
+    ckpt = _random_net_checkpoint(tmp_path)
+    full = ValueMCTS(checkpoint_path=ckpt, sims=10, value_weight=1.0)
+    half = ValueMCTS(checkpoint_path=ckpt, sims=10, value_weight=0.5)
+    v_full = full._leaf_value(board, game.BLACK)
+    v_half = half._leaf_value(board, game.BLACK)
+    assert v_half == pytest.approx(v_full * 0.5)
+    planes = encoding.encode(board, game.BLACK, None, None)
+    with torch.no_grad():
+        _logits, direct = full.net(torch.from_numpy(planes).unsqueeze(0))
+    assert v_full == pytest.approx(float(direct[0, 0].item()))
+    # Terminal cases ignore α.
+    win_board = _board_with([(7, 7), (7, 8), (7, 9), (7, 10)], [(3, 3)])
+    assert full._leaf_value(win_board, game.BLACK) == 1.0
+    assert half._leaf_value(win_board, game.BLACK) == 1.0
+
+
+def test_v25_registered_and_dispatches_with_own_alpha(tmp_path, monkeypatch):
+    # v25 (ML batch 1 H2) dispatches to ValueMCTS with its own
+    # checkpoint path, env override and α from the registry.
+    ckpt = _random_net_checkpoint(tmp_path)
+    monkeypatch.setitem(scoring.ENGINE_VERSIONS[25], "value_checkpoint", ckpt)
+    monkeypatch.setitem(scoring.ENGINE_VERSIONS[25], "value_weight", 0.5)
+    v25 = scoring.get_player(25, seed=0)
+    assert v25.name == "scoring-v25"
+    assert v25.mcts is True
+    assert isinstance(v25._mcts, ValueMCTS)
+    assert v25._mcts.sims == 100
+    assert v25._mcts.checkpoint_path == ckpt
+    assert v25._mcts.value_weight == 0.5
+    # v8 still gets the default α (0.25) — the registry change does
+    # not leak across versions.
+    monkeypatch.setitem(scoring.ENGINE_VERSIONS[8], "value_checkpoint", ckpt)
+    v8 = scoring.get_player(8, seed=0)
+    assert v8._mcts.value_weight == 0.25
+
+
+def test_v25_env_override(tmp_path, monkeypatch):
+    monkeypatch.setenv("GOMOKU_V25_CHECKPOINT", str(tmp_path / "nope.pt"))
+    import pytest
+
+    with pytest.raises(FileNotFoundError):
+        scoring.get_player(25, seed=0)
