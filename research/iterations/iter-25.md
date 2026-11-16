@@ -762,9 +762,31 @@ flattering v25 — the battery is the verdict, and it is
 trending toward v25 LOSING to both. If the full 100 games
 confirm it, the 10k retrain did not produce a stronger
 engine than v8 — the "more data" hypothesis is refuted
-for this recipe. (TBD — final 100-game results.)
+for this recipe.
 
-### 5.4 h2h vs v7 + swap vs v7 (TBD)
+**FINAL (2026-11-16 22:55 UTC) — the partials were confirmed:**
+
+| match (100 games, seeds 100/200) | v25 | win rate (95% CI) |
+|---|---|---|
+| vs v8 | 42W-54L-4D | **0.4400 [0.3467, 0.5377]** |
+| vs v0 | 30W-66L-4D | **0.3200 [0.2367, 0.4166]** |
+
+**Clause 1: FAIL** — vs v8 win rate 0.44 < 0.50, CI lower
+bound 0.347 < 0.50. v25 loses to v8 outright over 100
+games. And vs v0, v25 (0.32) is far worse than v8 was
+(0.545 over 100 games). The sweep's 20-game samples
+flattered v25 badly — the battery is the verdict, and it
+refutes the "more data" hypothesis for this recipe:
+2.24× unique self-play games produced a WEAKER engine,
+not a stronger one. (Colour splits and per-game records in
+`batch-v25-vs-v8.json` / `batch-v25-vs-v0.json`.)
+
+### 5.4 h2h vs v7 + swap vs v7 (RUNNING since 2026-11-16 ~22:57 UTC)
+
+100-game freestyle vs v7 (fast_loop_match, PIDs 8851) and
+100-game swap vs v7 (selfplay_batch, balanced placement,
+placement-seed 11, tempo judge, PID 8858), seeds 100/200,
+in parallel. (TBD — results.)
 
 ### 5.5 Clause-4 re-verification (TBD)
 
