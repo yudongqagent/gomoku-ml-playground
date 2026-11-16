@@ -205,6 +205,11 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml1-h2/value-net.pt",
          "value_checkpoint_env": "GOMOKU_V25_CHECKPOINT",
+         # value_weight 0.25: swept 2026-11-16 (grid {1.0, 0.5, 0.25,
+         # 0.125} x 20 games vs v0 and vs v8, seeds 1001/2001).
+         # Combined winner: 0.5625 over 40 games (vs v0 0.55, vs v8
+         # 0.575). Per-opponent: vs v0 best 0.5 (0.60), vs v8 best
+         # 0.25 (0.575). See research/iterations/iter-25.md §3.2.
          "value_weight": 0.25},
 }
 

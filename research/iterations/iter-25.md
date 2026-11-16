@@ -616,18 +616,26 @@ exactly — α=0.25 vs v0 8W-6L at game 14 ✓, α=0.5 vs v8
 Final arm (α=0.125 vs v8) relaunched 19:31 UTC (PID 1684),
 ~18 min. (TBD — final arm result, merged sweep, selected α.)
 
-Sweep results so far (7 of 8 arms):
+**Sweep COMPLETE 2026-11-16 19:52 UTC.** Final arm α=0.125 vs
+v8 → 10W-8L-2D (0.55); game 20 was a draw. Merged files:
+`research/iterations/sweep-v25-vs-v0.json` and
+`sweep-v25-vs-v8.json` (all 4 arms each, complete: true).
+Rest files (`-rest`, `-rest2`) kept as the audit trail.
 
 | α | vs v0 (20 games) | vs v8 (20 games) | combined (40 games) |
 |---|---|---|---|
 | 1.0 | 0.250 (5W-15L) | 0.500 (10W-10L) | 0.375 |
 | 0.5 | 0.600 (10W-6L-4D) | 0.425 (7W-10L-3D) | 0.5125 |
 | 0.25 | 0.550 (11W-9L) | 0.575 (10W-7L-3D) | **0.5625** |
-| 0.125 | 0.425 (8W-11L-1D) | pending (10W-8L-1D at 19/20) | ≤ 0.50 |
+| 0.125 | 0.425 (8W-11L-1D) | 0.550 (10W-8L-2D) | 0.4875 |
 
-α=0.25 already leads combined (0.5625) and cannot be caught
-by α=0.125 (max 0.50). α=1.0 is bad vs v0 (0.25) as in v8's
-sweep — full weight still hurts.
+**Selected α = 0.25** (highest combined win rate, §1.4 rule;
+per-opponent winners: vs v0 0.5, vs v8 0.25). The registry
+already had 0.25 as the placeholder, so no value change —
+the comment now records the sweep. α=1.0 is bad vs v0 (0.25)
+as in v8's sweep — full weight still hurts. Note the
+opponent-dependence: α=0.5 is best vs v0 but second-worst
+vs v8; α=0.25 is the only arm above 0.50 against BOTH.
 
 ## 4. Fast loop (TBD)
 
