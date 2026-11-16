@@ -547,6 +547,19 @@ White weakness recurs everywhere (ladder White 1-9 vs mcts,
 UTC):** killed after 88 games (51W-34L-3D); relaunched, resumed
 from game 88 (RNG restart recorded in the JSON).
 
+**Secondary — vs v7, 100 games: 44W-55L-1D, win rate 0.4450,
+CI [0.3514, 0.5426].** Loses to the heuristic bar (fast loop
+said 0.25; the battery is kinder but still a clear loss).
+Colour split INVERTED vs the v0 match: Black 20W-30L-0D
+(0.400), White 24W-25L-1D (0.490). v24's White is roughly
+constant (~0.44–0.49) against v0 and v7 alike; its Black swings
+from 0.76 (vs v0) to 0.40 (vs v7) — the Black edge over v0 is
+about exploiting the baseline's weak defence, not a strong
+Black attack of its own. Non-transitivity check: v24 ≈ v8
+(0.515) > v0 (0.600 / v8's 0.545), v7 > v24 (0.445) — the
+ordering v7 > v24 ≈ v8 > v0 is transitive, no bad
+non-transitivity. (Swap match vs v7 still to come.)
+
 TODO — clause-by-clause verdicts table.
 
 ## 7. Verdict
