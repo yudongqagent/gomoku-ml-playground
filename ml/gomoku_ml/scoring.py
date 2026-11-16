@@ -188,6 +188,24 @@ ENGINE_VERSIONS: dict[int, dict] = {
     8: {"name": "scoring-v8", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100,
         "value_checkpoint": "ml/runs/b3-h2/value-net.pt"},
+    # v16 (iteration 16, batch 6): H2 — v7 + a White-only 2-ply
+    # rollout leaf (see gomoku_ml.mcts_heuristic._rollout_leaf_value
+    # and research/iterations/iter-16.md). Ported from
+    # research/batch-7 for ML batch 1 (teacher for H1/H3): as Black
+    # v16 IS v7 exactly; as White quiet leaves roll out 2 plies
+    # under a v1-policy rollout and evaluate the symmetric v1
+    # gradient at the resulting position.
+    16: {"name": "scoring-v16", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1"},
+    # v18 (iteration 18, batch 7): H1 — v16's 2-ply rollout leaf
+    # applied as Black too (leaf_mode "rollout2_v1_both"). Ported
+    # from research/batch-7 for ML batch 1 (teacher for H1/H3):
+    # the heuristic track's strength champion (h2h vs v7 0.775,
+    # ladder Elo 636.4). As White v18 IS v16 exactly.
+    18: {"name": "scoring-v18", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both"},
 }
 
 # --- weights --------------------------------------------------------------
