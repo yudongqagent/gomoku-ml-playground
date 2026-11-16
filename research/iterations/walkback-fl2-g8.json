@@ -1,0 +1,387 @@
+{
+  "game": 8,
+  "a_colour": "black",
+  "plies": 30,
+  "turns": [
+    {
+      "ply": 28,
+      "actual": [
+        9,
+        10
+      ],
+      "actual_outcomes": [
+        "loss",
+        "loss",
+        "loss"
+      ],
+      "actual_loses_all_seeds": true,
+      "alternatives": [
+        {
+          "move": [
+            4,
+            10
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            5,
+            7
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            5,
+            11
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            6,
+            9
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            3,
+            7
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        }
+      ]
+    },
+    {
+      "ply": 26,
+      "actual": [
+        8,
+        3
+      ],
+      "actual_outcomes": [
+        "loss",
+        "loss",
+        "loss"
+      ],
+      "actual_loses_all_seeds": true,
+      "alternatives": [
+        {
+          "move": [
+            5,
+            7
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            5,
+            11
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            7,
+            10
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            3,
+            7
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            6,
+            9
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            5,
+            6
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        }
+      ]
+    },
+    {
+      "ply": 24,
+      "actual": [
+        8,
+        12
+      ],
+      "actual_outcomes": [
+        "loss",
+        "loss",
+        "loss"
+      ],
+      "actual_loses_all_seeds": true,
+      "alternatives": [
+        {
+          "move": [
+            4,
+            8
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            3,
+            7
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            9,
+            13
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            5,
+            10
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            5,
+            7
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        }
+      ]
+    },
+    {
+      "ply": 22,
+      "actual": [
+        5,
+        5
+      ],
+      "actual_outcomes": [
+        "loss",
+        "loss",
+        "loss"
+      ],
+      "actual_loses_all_seeds": true,
+      "alternatives": [
+        {
+          "move": [
+            5,
+            7
+          ],
+          "outcomes": [
+            "win",
+            "draw",
+            "draw"
+          ],
+          "saves": true
+        },
+        {
+          "move": [
+            5,
+            10
+          ],
+          "outcomes": [
+            "draw",
+            "draw",
+            "draw"
+          ],
+          "saves": true
+        },
+        {
+          "move": [
+            7,
+            4
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        },
+        {
+          "move": [
+            3,
+            7
+          ],
+          "outcomes": [
+            "win",
+            "draw",
+            "win"
+          ],
+          "saves": true
+        },
+        {
+          "move": [
+            10,
+            7
+          ],
+          "outcomes": [
+            "win",
+            "win",
+            "win"
+          ],
+          "saves": true
+        },
+        {
+          "move": [
+            5,
+            11
+          ],
+          "outcomes": [
+            "loss",
+            "loss",
+            "loss"
+          ],
+          "saves": false
+        }
+      ]
+    },
+    {
+      "ply": 20,
+      "actual": [
+        8,
+        5
+      ],
+      "actual_outcomes": [
+        "draw",
+        "draw",
+        "draw"
+      ],
+      "actual_loses_all_seeds": false,
+      "alternatives": []
+    },
+    {
+      "ply": 18,
+      "actual": [
+        5,
+        13
+      ],
+      "actual_outcomes": [
+        "loss",
+        "loss",
+        "draw"
+      ],
+      "actual_loses_all_seeds": false,
+      "alternatives": []
+    },
+    {
+      "ply": 16,
+      "actual": [
+        10,
+        8
+      ],
+      "actual_outcomes": [
+        "loss",
+        "loss",
+        "draw"
+      ],
+      "actual_loses_all_seeds": false,
+      "alternatives": []
+    },
+    {
+      "ply": 14,
+      "actual": [
+        8,
+        9
+      ],
+      "actual_outcomes": [
+        "win",
+        "win",
+        "win"
+      ],
+      "actual_loses_all_seeds": false,
+      "alternatives": []
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 """Tests for the heuristic-prior MCTS (v6, batch 2 H2; v7, batch 3 H1;
-v14, batch 5 H3; v16, batch 6 H2; v19, batch 7 H2; v18, batch 7 H1; v21, batch 8 H1)."""
+v14, batch 5 H3; v16, batch 6 H2; v19, batch 7 H2; v18, batch 7 H1; v21, batch 8 H1; v23, batch 8 H3)."""
 
 import math
 
@@ -1215,6 +1215,26 @@ def _synthetic_root(specs):
     return root
 
 
+# --- v23 (batch 8, H3): q-aware visit-tie break ---------------------------
+# Pre-registered rule (iter-23.md §1.1): on an exact top-visit tie
+# at the root, break it by correctly-signed q (our-q = -child.q);
+# if q also ties exactly, fall back to v18's RNG/first choice on
+# the q-tied subset. A unique visit leader is untouched.
+
+
+def _root_with_children(specs):
+    """Fabricate a root node: ``specs`` is a list of
+    (move, visit_count, value_sum) in dict-insertion order."""
+    root = _Node(1.0)
+    root.children = {}
+    for move, visits, value_sum in specs:
+        child = _Node(0.1)
+        child.visit_count = visits
+        child.value_sum = value_sum
+        root.children[move] = child
+    return root
+
+
 def test_root_decision_default_is_visits():
     mcts = HeuristicMCTS()
     assert mcts.root_decision == "visits"
@@ -1449,3 +1469,75 @@ def test_v12_choose_move_deterministic_for_same_seed():
     assert a.choose_move(board, game.BLACK) == b.choose_move(
         board, game.BLACK
     )
+
+
+def test_v23_registered_and_dispatches_to_rollout_mcts_with_tie_break():
+    v23 = scoring.get_player(23, seed=0)
+    assert v23.name == "scoring-v23"
+    assert v23.mcts is True
+    assert v23._mcts is not None
+    assert v23._mcts.sims == 100
+    assert v23._mcts.leaf_mode == "rollout2_v1_both"
+    assert v23._mcts.tie_break_q is True
+    # v18 and v7 are unchanged (tie-break off by default).
+    v18 = scoring.get_player(18, seed=0)
+    assert v18._mcts.leaf_mode == "rollout2_v1_both"
+    assert v18._mcts.tie_break_q is False
+    v7 = scoring.get_player(7, seed=0)
+    assert v7._mcts.tie_break_q is False
+
+
+def test_v23_tie_break_picks_highest_our_q():
+    # Three children tie at 3 visits. child.q is the OPPONENT's
+    # perspective, so our-q = -child.q: move 101 (value_sum -3.0,
+    # q -1.0, our-q +1.0) beats 100 (our-q +0.583) and 102
+    # (our-q +0.667) — even though 101 is not first in dict order.
+    root = _root_with_children([(100, 3, -1.75), (101, 3, -3.0), (102, 3, -2.0)])
+    mcts = HeuristicMCTS(sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True)
+    assert mcts._pick_root_move(root) == 101
+    # Without the flag (v18 behaviour, no RNG) the same root
+    # returns the first tied child — the flag is the only change.
+    mcts18 = HeuristicMCTS(sims=10, leaf_mode="rollout2_v1_both")
+    assert mcts18._pick_root_move(root) == 100
+
+
+def test_v23_q_tie_falls_back_to_rng_subset():
+    # Moves 100 and 102 tie at 3 visits AND at our-q +0.583
+    # (value_sum -1.75 each); move 101 ties on visits but holds
+    # worse our-q (+0.333). The fallback must choose between 100
+    # and 102 only — never 101.
+    root = _root_with_children([(100, 3, -1.75), (101, 3, -1.0), (102, 3, -1.75)])
+    mcts = HeuristicMCTS(
+        sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+        rng=np.random.default_rng(0),
+    )
+    for _ in range(20):
+        assert mcts._pick_root_move(root) in (100, 102)
+    # With no RNG the fallback is the first q-tied child in dict
+    # order (100), not the first visit-tied child overall — here
+    # they coincide, so rebuild with the worse-q move first.
+    root2 = _root_with_children([(101, 3, -1.0), (100, 3, -1.75), (102, 3, -1.75)])
+    mcts_no_rng = HeuristicMCTS(sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True)
+    assert mcts_no_rng._pick_root_move(root2) == 100
+
+
+def test_v23_unique_visit_leader_untouched():
+    # The visit leader (4 visits) holds the WORST our-q — v23
+    # must still play it: the rule fires only on exact ties.
+    root = _root_with_children([(100, 4, -0.5), (101, 3, -3.0), (102, 3, -2.0)])
+    mcts = HeuristicMCTS(sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True)
+    assert mcts._pick_root_move(root) == 100
+    # A 1-visit gap is NOT a tie either.
+    root2 = _root_with_children([(100, 4, -0.5), (101, 3, -3.0)])
+    assert mcts._pick_root_move(root2) == 100
+
+
+def test_v23_choose_move_deterministic_for_same_seed():
+    # Same seed, same board, same move — the tie-break consumes
+    # RNG only on exact q ties, so determinism holds.
+    board = _board_with(
+        [(7, 7), (6, 7), (8, 7), (7, 6)], [(7, 8), (6, 8), (8, 8), (7, 5)]
+    )
+    v23a = scoring.get_player(23, seed=0)
+    v23b = scoring.get_player(23, seed=0)
+    assert v23a.choose_move(board, game.BLACK) == v23b.choose_move(board, game.BLACK)
