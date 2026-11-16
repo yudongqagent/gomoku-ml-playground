@@ -1,7 +1,7 @@
 # Iteration 21 — v21: v18 + blend (rollout leaf both colours + blended terminals) (batch 8, H1)
 
-**Status: IN PROGRESS — pre-registration (§1) written before any eval;
-implementation not yet run.** Comparison target is v7 (the batch-8
+**Status: COMPLETE — battery done, 3/4 clauses; REJECTED on clause 3
+(tactical 26/29) alone.** Comparison target is v7 (the batch-8
 reference). This is the H1 workstream of batch 8 (H2 is v22, the
 conditional gap-three demotion; H3 is v23, the q-aware visit-tie
 break); work happens on branch `research/batch-8-h1` in the
@@ -319,7 +319,8 @@ all tie/RNG or suite-list cases, and a root rule is CLOSED.
 
 ## 2. Loss analysis for iteration 21
 
-(TODO — the fast-loop worked games ARE the loss analysis.)
+(The fast-loop worked games in §2.1–§2.2 ARE the loss analysis;
+§2.5 aggregates. No patches were made — see §2.2.)
 
 ### 2.1 Fast-loop iteration 1 — 10 games vs v7 + 10 games vs v0 (pre-patch engine)
 
@@ -482,13 +483,229 @@ this iteration — v21-as-batteried is v21-as-pre-registered.
 
 ## 3. v21 evaluation
 
-(TODO — battery on the FINAL version, pre-registered seeds
-100/200 throughout §1.1.)
+Battery on the FINAL v21 (no patches were made in the fast loop, so
+v21-as-batteried IS v21-as-pre-registered — §2.5), pre-registered
+seeds 100/200 throughout (§1.1). The battery survived two runtime
+restarts: the first worker's vs-v7 run was killed at 81/100 games
+(55W-14L-12D, 7139.9 s) and the replacement worker's vs-v0 run at
+40/100 (38W-2L-0D, 1223.0 s); both matches were re-run from scratch
+with the identical pre-registered seeds and the flushed prefixes
+verified game-for-game before proceeding (vs-v7: 81/81 identical,
+0 mismatches; vs-v0: 40/40 identical, 0 mismatches — the batch-7
+restart practice). Verification logs:
+`research/iterations/battery-v21-chain.log` (stage 1) and
+`battery-v21-chain2.log` (stage 2).
+
+### 3.1 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
+
+**v21 beats v7: 67W-20L-13D, win rate 0.7350, 95% CI
+[0.6410, 0.8116]**, 8918.9 s. File:
+`research/iterations/batch-v21-vs-v7.json` (seeds 100/200).
+Per colour: as Black 40W-6L-4D (0.8400), as White 27W-14L-9D
+(0.6300). Mean game length 67.63 plies (min 19, max 225).
+Winners Black 54, White 33, draws 13. Loss classifier
+(`ml/scripts/classify_batch_losses.py`): 20/20 losses via open
+four, **0 missed blocks**, 107 threatened turns in
+losses, **1 clean missed prevention (0.9%)** — defence is
+solved; v21's losses are v7 out-attacking it in the open-four
+race, not defensive blunders. **Clause 1 PASSES** (0.7350 >
+0.50, CI lower bound 0.6410 > 0.50) — the second-best h2h vs v7
+in the program (v18: 0.7750, CI [0.6839, 0.8458]; the two CIs
+overlap substantially, so v21 and v18 are statistically
+indistinguishable head-to-head). The colour splits tell the
+story: as Black v21 is 0.84, IDENTICAL to v18's Black split —
+the blend costs Black nothing — while as White v21 is 0.63,
+essentially v16's/v18's White 0.64 and 11 points BELOW v19's
+0.74. v21-as-White IS v19's leaf, so the White gain did NOT
+reproduce at battery scale: the v19 White 0.74 looks like the
+high end of its own noise band (n=50 per colour, ±~13 points at
+95%), with RNG-stream divergence (stateful players across
+alternating-colour games; v21's Black leaf changes the stream)
+supplying the rest. The fast loop's 0.7250 (40 games) predicted
+the battery's 0.7350 well.
+
+### 3.2 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
+
+**v21 beats v0: 95W-2L-3D, win rate 0.9650, 95% CI
+[0.9085, 0.9871]**, 1988.4 s. File:
+`research/iterations/batch-v21-vs-v0.json` (seeds 100/200).
+Per colour: as Black 45W-2L-3D (0.9300), as White 50W-0L-0D
+(1.0000) — a perfect White split. Mean game length 48.96 plies
+(min 22, max 225). Winners Black 45, White 52, draws 3. Loss
+classifier: 2/2 losses via open four, **0 missed blocks**, 7
+threatened turns in losses, **1 clean missed prevention** —
+14.3% of a 7-turn denominator, i.e. one turn in a two-loss
+match; all-games count is 4 clean missed preventions in 2
+games. No colour-split inversion of the v7 kind (v7 scored
+LOWER vs v0 than vs v1): v21 scores higher against the weaker
+v0 (0.9650) than against v7 (0.7350), as expected. Essentially
+identical to v18's 0.9700 (96W-2L-2D) — one draw instead of one
+win — and second only to v12's perfect 100-0 in the program.
+
+### 3.3 Tactical suites — FINAL BATTERY
+
+Full-dispatch driver (`ml/scripts/eval_tactical_full.py`,
+`player.choose_move`, `--seed 100`, the battery protocol).
+Old 20-position suite: **v21 20/20**. Hard suite (29
+positions): **v21 26/29** (prevention 14/16, setup 7/7,
+winning 1/2, vcf 4/4), failing exactly g12 (chose (7,3)),
+g45 (chose (10,4)) and winning-quiet-setup-2 (chose (9,7)).
+File: `research/iterations/batch-v21-tactical.json`. This is
+byte-identical to the §1.3 pre-fast-loop diagnostic — no
+patches were made, so the battery re-run reproduces it exactly,
+which is also a determinism check on the protocol. All three
+of v18's Black q-compression ties are fixed at seed 100 (g26
+chose (8,4), g79 chose (7,9), v1bl-g2 chose (7,5)) — the blend
+does what it was designed to do on Black's side — but v21
+inherits v19's two White failures (g12 inert, g45 regressed)
+plus the suite-list gap, for 26/29: one better than v18's
+25/29, one worse than v19's 27/29, inside the pre-registered
+26–28/29 range. **Clause 3 FAILS** (26/29 < v7's 29/29) — the
+only failing clause.
+
+### 3.4 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
+
+vs random 20W-0L-0D (1.0000, CI [0.8389, 1.0000]; as Black
+10W-0L-0D, as White 10W-0L-0D); vs heuristic 19W-0L-1D (0.9750,
+CI [0.7995, 0.9974]; as Black 9W-0L-1D, as White 10W-0L-0D); vs
+mcts 12W-8L-0D (0.6000, CI [0.3866, 0.7812]; as Black 8W-2L-0D,
+as White 4W-6L-0D). **Elo 636.4, interval [240.3, 1032.5]** —
+IDENTICAL to v18's estimate and interval, because the Elo is
+driven by the vs-heuristic matchup and both versions score
+0.975 there (19W-0L-1D). **Clause 2 PASSES** (636.4 > v7's
+190.8 at identical game counts and opponents; even the lower
+bound 240.3 clears v7's 190.8). Run time ~895 s; EVAL_JSON
+saved to `research/iterations/ladder-v21.json` (full log:
+`research/iterations/ladder-v21.log`). The script's tactical
+probe line (20/20 old) was disregarded per the brief (it
+bypasses the MCTS dispatch); tactical is §3.3's full-dispatch
+20/20 + 26/29. v21 is the second version ever to beat the
+ladder MCTS outright (v18: 14W-6L; v21: 12W-8L), with the same
+familiar colour pattern (8-2 as Black, 4-6 as White): against
+a searching opponent, v21-as-White still cannot create the
+attack — the White gap that v19's battery split briefly seemed
+to close.
+
+### 3.5 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
+
+**67W-27L-6D, win rate 0.7000, CI [0.6041, 0.7811]**, 3293.6 s
+(secondary metric, not the bar). File:
+`research/iterations/batch-v21-vs-v7-swap.json` (seeds 100/200).
+As Black 37W-10L-3D (0.7700); as White 30W-17L-3D (0.6300).
+second_colour Black 76 / White 24 — the same deterministic
+split as every tempo-judge swap on these placements; v21's win
+rate is 0.6974 when the second player chose Black and 0.7083
+when White, so the choice itself does not drive the result.
+Opener A (v21 opens) 0.6300 vs opener B (v7 opens) 0.7700 —
+this mirrors the colour split, since when v21 opens, v7
+chooses Black 38/50 times and v21 plays White. Winners Black
+54, White 40, draws 6. Plies mean 58.40 (min 19, max 225).
+Loss classifier: 27/27 losses via open four, **0 missed
+blocks**, 128 threatened turns in losses, **1 clean missed
+prevention (0.8%)**. v21's swap edge over v7 IS established
+(CI lower 0.6041) — unlike v7's 0.57 over v1, whose CI
+included 0.50 — and at 0.7000 it is the third-strongest swap
+result in the program (v17 0.74, v19 0.73) and 7 points above
+v18's 0.6300 (CIs overlap, so the ordering vs v18 is not
+established, but the direction favours the blend under swap
+rules: from a balanced 3-stone start, the blended Black leaf
+holds its edge where v18's gave some back).
+
+### 3.6 Pooled defence and transitivity
+
+Pooled across the three 100-game battery matches: 49 losses,
+**49/49 via open four, 0 missed blocks**, 3 clean missed
+preventions in 242 threatened turns in losses (1.2%). Defence
+remains solved. **Ordering is transitive — no
+non-transitivity:** v21 beats v7 (0.7350 normal, 0.7000 swap)
+and v0 (0.9650), and v7 beats v0 (0.6650). v21 also scores
+higher against the weaker opponent, so there is no v7-style
+colour-split inversion either.
 
 ## 4. Bar check (v21 vs v7)
 
-(TODO)
+| Clause | Requirement | v21 result | Verdict |
+|---|---|---|---|
+| 1. Head-to-head vs v7 | >= 100 games, win rate > 0.50, Wilson 95% CI lower bound > 0.50 | 100 games: 67W-20L-13D, 0.7350, CI [0.6410, 0.8116] | **PASS** |
+| 2. Ladder Elo | strictly higher than v7's 190.8, identical games/opponents | 636.4 (interval [240.3, 1032.5]), vs v7's 190.8; lower bound 240.3 also clears 190.8 | **PASS** |
+| 3. Tactical | pass rate >= v7's (20/20 old + 29/29 hard) | old 20/20 = v7's 20/20; hard 26/29 vs v7's 29/29 (fails g12, g45, winning-quiet-setup-2) | **FAIL** |
+| 4. Test suites | ml pytest + npm test + tsc green | ml pytest 290 passed, 7 skipped, 15 xfailed, 0 failures; npm test 55/55; tsc clean; baseline.py unchanged vs master | **PASS** |
+
+**Verdict: v21 is REJECTED — 3/4 clauses.** It passes clauses
+1, 2 and 4 decisively and fails clause 3 alone (26/29 hard),
+exactly like v18 (25/29) before it. Nothing is pushed to
+master from this workstream; the branch
+`research/batch-8-h1` holds the full record.
 
 ## 5. What this means
 
-(TODO)
+**The combination works as designed — on Black.** The blend
+fixed all three of v18's Black q-compression visit-ties at the
+battery protocol (g26, g79, v1bl-g2 all pass at seed 100, two
+of them by genuine visit-allocation changes confirmed in the
+§1.3 mechanism check, not RNG luck), and game strength holds
+at v18's level: h2h vs v7 0.7350 vs v18's 0.7750 (CIs overlap
+heavily), ladder Elo IDENTICAL at 636.4, vs v0 0.9650 vs
+0.9700, swap 0.7000 vs 0.6300 (directionally better). v21-as-
+Black is 0.84 vs v7, identical to v18's Black split — the
+blend costs Black nothing and buys the three tie fixes.
+
+**But the blend's White-side failures come along for the
+ride, and they are the same mechanism in reverse.** v21
+inherits v19's g12 (blend inert — terminal-position gradients
+align with the terminal and the clamp pins everything) and
+g45 (blend REGRESSES — softening the losing move (10,4) from q
+−1.000 to −0.932 lets its 3× prior advantage earn the tying
+visit) exactly, plus the winning-quiet-setup-2 suite-list gap
+(the chosen (9,7) wins 3/3 under v7-vs-v7; the suite, not the
+engine, is arguably wrong there — but the bar is the bar, and
+changing the suite retroactively is a coordinator decision,
+not a unilateral edit). 26/29 sits between v18's 25/29 and
+v19's 27/29, inside the pre-registered 26–28/29 range. The
+blend spreads q among losing lines, and spreading cuts both
+ways: on Black it converts ties into wins; on White it creates
+the tie that loses g45. A leaf-level value change cannot tell
+"counterplay that saves the game" from "counterplay that loses
+more slowly" — that was iter-19's verdict on the blend as a
+general mechanism, and v21 confirms it from the other side:
+the blend is now doubly bounded. **The blend as a mechanism
+is CLOSED** — v21 was the last untested combination, and it
+lands exactly where the two parents' failures predicted.
+
+**The White split is a noise lesson.** v21-as-White IS v19's
+leaf, yet its White split vs v7 came in at 0.63 against v19's
+battery 0.74. Either v19's 0.74 was the high end of its own
+noise band, or RNG-stream divergence moved it, or both — at
+n=50 per colour (±~13 points at 95%) the two numbers are not
+distinguishable. Do not over-read n=50 colour splits in either
+direction; the headline 100-game numbers are the verdict, and
+there v21 (0.7350) and v18 (0.7750) are also not
+distinguishable. The honest summary of v21 vs v18: a lateral
+move on the bar (both fail clause 3 alone), one tactical
+position better (26 vs 25), game strength statistically
+identical, swap directionally better.
+
+**What changed because of a specific loss: nothing was
+patched.** The fast loop (§2) found no patchable weakness
+class in 40 games across 2 iterations: the three losses were
+all White games with no verified losing move (one forced
+loss/distributed drift with refuted oracle nominations, one
+distributed drift with no nominated move at all, one noisy
+beyond-horizon twin choice where the blend changed nothing).
+v21-as-batteried IS v21-as-pre-registered. The twin-choice
+weakness class (fl2-g7-ply9) is recorded as a regression xfail
+for future work, not dropped.
+
+**What remains open.** The q-compression visit-tie problem is
+now H3's (v23, the q-aware tie-break) to solve — it is the
+only open route to 29/29 for this lineage, since the leaf
+cannot discriminate among losing lines by value alone and the
+root rule was CLOSED only for q-based decisions, not for a
+tie-break that uses q as a secondary signal. Separately, the
+winning-quiet-setup-2 suite-list gap deserves a coordinator
+decision: if (9,7) genuinely wins, the suite should list it,
+and v21/v18/v19 would each gain a point — but that decision
+must be made once, for the program, not per version. Finally,
+the ladder MCTS remains the honest measuring stick for White:
+v21-as-White loses 4-6 to it, the same gap every version since
+v6 has shown, and no leaf change in batches 5–8 has closed it.
