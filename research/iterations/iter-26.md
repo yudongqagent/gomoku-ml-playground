@@ -72,7 +72,12 @@ stay exact.
   `mcts_heuristic.py` + the scoring.py registrations; the rollout
   function is byte-identical to v16's, including both fast-loop
   patches; the port is verified by `test_kernel_v1.py` (0
-  mismatches vs fixtures) and the existing MCTS tests).
+  mismatches vs fixtures), the existing MCTS tests, AND a direct
+  cross-check against the batch-7 worktree:
+  `ml/scripts/verify_rollout_port.py` (H1's script, copied in)
+  evaluated `_rollout_leaf_value` on H1's deterministic
+  401-position set — **401/401 agree bit-for-bit with b7's values,
+  0 mismatches**).
 - **Teacher sims: 50** (not the battery's 100 — a speed/strength
   tradeoff for data generation; the teacher's strength comes
   mostly from the rollout leaf, and the policy targets are the
