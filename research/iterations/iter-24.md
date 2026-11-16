@@ -490,7 +490,15 @@ terminal handling; tactical positions are 1–2 ply tactics the
 search handles regardless of the leaf net.
 
 **Clause 1 (vs v8, 100 games) — RUNNING** (seeds 100/200,
-`research/iterations/batch-v24-vs-v8.json`).
+`research/iterations/batch-v24-vs-v8.json`). **VM replacement
+#2 (2026-11-16 ~15:27 UTC):** the first run was killed after 12
+games (5W-6L-1D, wr 0.4583); the per-game flush saved all 12.
+`fast_loop_match.py` now auto-resumes (same pattern as the sweep
+driver: saved games stand, remaining games continue with fresh
+players, RNG restart recorded as `resumed_from_game`); the
+match was relaunched with the same command and resumes from
+game 12. The 100 games remain 100 fair games vs v8 at seeds
+100/200 with alternating colours.
 
 TODO — clause-by-clause verdicts table.
 
