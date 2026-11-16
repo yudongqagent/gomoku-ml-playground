@@ -637,10 +637,78 @@ as in v8's sweep — full weight still hurts. Note the
 opponent-dependence: α=0.5 is best vs v0 but second-worst
 vs v8; α=0.25 is the only arm above 0.50 against BOTH.
 
-## 4. Fast loop (TBD)
+## 4. Fast loop (iteration 1 — STOPPED: no patchable defect)
 
-(TBD — up to 4 iterations × (10 games vs v8 + 10 games vs v0),
-losing-move workups, patches, regression positions.)
+### 4.1 Iteration 1 (2026-11-16 19:53–20:14 UTC, seeds 1001/2001)
+
+10 games vs v8: **4W-3L-3D (0.55)**. 10 games vs v0:
+**5W-5L-0D (0.50)**. Records:
+`research/iterations/fast-v25-vs-v8-iter1.json`,
+`fast-v25-vs-v0-iter1.json`. (Same seeds as the sweep's
+α=0.25 arms, so these are the sweep's first 10 games per
+opponent — with move records, which the sweep did not save.)
+
+Losing moves found with `ml/scripts/find_losing_moves.py`
+(VCF solver `evaluate.forces_win`, depth 4 attacker moves;
+a losing move is the first v25 move after which the opponent
+forces a win AND a saving reply exists — verified by
+enumerating v25's near-move replies at that ply):
+
+| match | game | v25 | plies | losing move (ply) | saving moves | verdict |
+|---|---|---|---|---|---|---|
+| vs v8 | 2 | Black | 66 | (9,11) @60 | 0 | already lost before ply 60 (positional) |
+| vs v8 | 6 | Black | 36 | (7,3) @32 | 0 | already lost (positional) |
+| vs v8 | 9 | White | 83 | (5,11) @77 | 5: (5,2) (5,3) (6,3) (6,4) (7,4) | **genuine blunder** |
+| vs v0 | 0 | Black | 28 | (4,8) @24 | 0 | already lost (positional) |
+| vs v0 | 1 | White | 23 | (4,5) @15 | 1: (8,5) | **genuine blunder** |
+| vs v0 | 5 | White | 41 | (5,9) @27 | 2: (10,12) (11,13) | **genuine blunder** |
+| vs v0 | 7 | White | 25 | (8,9) @17 | 0 | already lost (positional) |
+| vs v0 | 8 | Black | 58 | (10,10) @42 | 6: (4,12) (5,12) (6,12) (8,12) (4,13) (5,13) | **genuine blunder** |
+
+4 of 8 losses have a genuine blunder; 4 were already lost
+by the time a depth-4 VCF moment arrived (positional
+decline, no single tactical blunder). The 4 blunders were
+analysed with `analyse_critical.py` (heuristic MCTS view)
+and `ml/scripts/v25_root_stats.py` (v25's own ValueMCTS
+root stats, 100 sims, seed 0; our-perspective q = −child.q
+per the PUCT code):
+
+* **v8-g9 @77 (5,11) vs save (5,2):** quiet position (no
+  creators either side). v25's root: actual v=7, our-q
+  +0.008; saving v=4, our-q −0.146. **The net prefers the
+  losing move by 0.154 in our-q** — a genuine value-net
+  positional error. (The heuristic gradient agrees with the
+  net here: +0.037 for the actual vs +0.012 for the save;
+  only the prior favours the save, 0.061 vs 0.027.) No code
+  patch fixes a net's positional judgment — it needs
+  retraining.
+* **v0-g1 @15 (4,5) vs save (8,5):** both moves v1 rank 1–2
+  (scores 200169 vs 200113). v25's root: visits tied 12–12,
+  our-q −0.146 vs −0.142 (0.004 apart). **A coin flip that
+  went wrong — noise, not a systematic error.**
+* **v0-g5 @27 (5,9) vs save (10,12):** the save is a
+  FORCING counter-attack (creates a four-threat), v1 rank 6.
+  v25's root: actual v=12, our-q −0.099; saving v=5, our-q
+  −0.071. The net's q is RIGHT (prefers the save) but the
+  heuristic prior (0.115 vs 0.037) overwhelms it in visit
+  allocation. **Prior problem, shared with the heuristic
+  track** — patching `_priors` is heuristic-track work and
+  would invalidate the α sweep.
+* **v0-g8 @42 (10,10) vs save (4,12):** the save is a quiet
+  defensive move, v1 rank 41/104, prior 0.006 — **never
+  visited (0 visits) by either search.** Prior/exploration
+  blind spot, same category as v0-g5.
+
+### 4.2 Decision: stop the fast loop after iteration 1
+
+No patchable defect within H2's remit: the one net error
+(v8-g9) needs retraining, not a patch; the two prior blind
+spots (v0-g5, v0-g8) are shared heuristic-track code whose
+change would invalidate the sweep; v0-g1 is noise; the other
+4 losses are positional with no single blunder. Further
+iterations without a patch would only find more instances
+of the same unpatchable categories. The 100-game battery is
+the verdict. (Iterations 2–4 not run — "up to 4".)
 
 ## 5. v25 evaluation (FULL VALIDATION BATTERY — final v25 only) (TBD)
 
