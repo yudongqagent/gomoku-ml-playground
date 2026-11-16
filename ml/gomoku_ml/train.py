@@ -43,21 +43,51 @@ from .model import GomokuNet
 
 def load_shards(data_dirs: list[str]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Load all ``.npz`` shards under the given directories (recursive)
-    and concatenate them into (planes, policy, value) arrays."""
-    planes_list, policy_list, value_list = [], [], []
+    and concatenate them into (planes, policy, value) arrays.
+
+    Peak memory is ~1x the data size, not ~2x: the outputs are
+    pre-allocated from a shapes-only first pass (``np.load`` is lazy
+    — reading ``.shape`` does not read array data) and filled shard
+    by shard, instead of building per-shard lists and calling
+    ``np.concatenate`` (which holds the lists AND the copy alive at
+    once). Same return contract as before (same arrays, same order,
+    same dtypes — the dtypes come from the first shard). This matters
+    at 10k-game scale: the v25 training load is ~3.1 GB, and the old
+    ~6.2 GB peak exceeded this VM's cell limit (OOM-killed 2026-11-16
+    — see ``research/iterations/iter-25.md`` §2.4).
+    """
+    paths: list[str] = []
     for d in data_dirs:
-        for path in sorted(glob.glob(os.path.join(d, "**", "*.npz"), recursive=True)):
-            with np.load(path) as z:
-                planes_list.append(z["planes"])
-                policy_list.append(z["policy"])
-                value_list.append(z["value"])
-    if not planes_list:
+        paths.extend(
+            sorted(glob.glob(os.path.join(d, "**", "*.npz"), recursive=True))
+        )
+    if not paths:
         raise FileNotFoundError(f"no .npz shards found under {data_dirs}")
-    return (
-        np.concatenate(planes_list),
-        np.concatenate(policy_list),
-        np.concatenate(value_list),
-    )
+    total = 0
+    plane_shape = policy_shape = value_shape = None
+    plane_dtype = policy_dtype = value_dtype = None
+    for path in paths:
+        with np.load(path) as z:
+            total += z["planes"].shape[0]
+            if plane_shape is None:
+                plane_shape = z["planes"].shape[1:]
+                policy_shape = z["policy"].shape[1:]
+                value_shape = z["value"].shape[1:]
+                plane_dtype = z["planes"].dtype
+                policy_dtype = z["policy"].dtype
+                value_dtype = z["value"].dtype
+    planes = np.empty((total,) + plane_shape, dtype=plane_dtype)
+    policy = np.empty((total,) + policy_shape, dtype=policy_dtype)
+    values = np.empty((total,) + value_shape, dtype=value_dtype)
+    offset = 0
+    for path in paths:
+        with np.load(path) as z:
+            n = z["planes"].shape[0]
+            planes[offset : offset + n] = z["planes"]
+            policy[offset : offset + n] = z["policy"]
+            values[offset : offset + n] = z["value"]
+            offset += n
+    return planes, policy, values
 
 
 def save_checkpoint(

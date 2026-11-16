@@ -400,10 +400,80 @@ library files — `kernel_numpy.py`, `mcts_heuristic.py`,
 ~7,099 unique), policy/value sanity, winner split, game-length
 stats.)
 
-### 2.3 Holdout split (TBD)
+**Dataset COMPLETE 2026-11-16 13:54 UTC** ("done. 10000 shards
+in .../data"). Final leg: 217 games in 1,437.5 s (543/hr
+including the merge + manifest rebuild). Total wall clock for
+the completion: ~17 h across 6 legs and 5 VM replacements
+(04:38–13:54 UTC); 0 games lost to any replacement (every
+orphaned shard recovered).
 
-(TBD — split manifest: train/val game counts and sample counts,
-clean-subset size, excluded-duplicate count.)
+**Verification (all 10,000 shards read, 2026-11-16):**
+
+* Shard count: 10,000. Total samples: **427,255** (manifest
+  agrees exactly).
+* Shapes: 0 bad (every shard planes `[T, 8, 15, 15]`, policy
+  `[T, 225]`, value `[T]`, moves `[T]`, T = game length).
+* Policy rows: 0 bad — every row sums to 1 (atol 1e-4).
+* Value targets: 0 bad — all in {-1, 1}; +1 216,280 (50.6%),
+  -1 210,975 (49.4%), 0 draws.
+* Game length: mean 42.7 plies, min 11, max 105, median 41.
+* Winners: Black 5,305 (53.1%), White 4,695 (46.9%), draws 0.
+
+**The unique-game count is 3,244, NOT ~7,099 — the fresh-seed
+fix was insufficient, and the mechanism is now proven.** The
+completion added only 1,795 genuinely new unique games
+(3,244 − 1,449), not 5,650. Multiplicity: {1x: 493, 2x: 965,
+3x: 555, 4x: 707, 5x: 203, 6x: 178, 7x: 143}. The cause is the
+worker-seed rule in `ml/gomoku_ml/selfplay.py:989`: worker w
+seeds its RNG with `seed + w`, so config seeds 1 apart share 3
+of 4 worker RNG streams. Consecutive legs (seeds 1, 2, 3, 4,
+5, 6) replayed each other's worker streams:
+
+* Every new-leg segment is internally 100% unique (S1 564/564,
+  S2 1021/1021, S3 1138/1138, S4 1342/1342, S5 1368/1368, S6
+  217/217) — the generator is fine within a leg; only S0 (the
+  four seed-0 B1 legs) has internal duplicates.
+* Cross-segment overlap follows the shared-worker-seed pattern
+  EXACTLY: every pair with NO shared worker seed has ZERO
+  shared games (S0×S4, S0×S5, S0×S6, S1×S5, S1×S6, S2×S6 —
+  all 0), and every pair WITH shared worker seeds overlaps
+  heavily (S0×S1 417, S2×S3 775, S3×S4 885, S4×S5 992), with
+  magnitude scaling in the number of shared worker seeds.
+* The 4-game smoke test did NOT catch this: with 1 game per
+  worker the batching pattern differs from the 8-concurrent
+  production pattern, so the RNG interleaving differs and the
+  smoke games were fresh. A smoke is only valid at production
+  concurrency and game counts.
+
+**Consequences.** (1) The "more data" test is now 3,244 unique
+games (2.24x v8's 1,449), not 4.9x — still a real scale-up,
+and the shard count is 10,000 as assigned. The retrain
+proceeds on the completed dataset as pre-registered; the
+unique count is what the generator produced, and regenerating
+5,650 games with spaced seeds (~9+ h) is not justified for
+this version. (2) The dedup-aware holdout (§1.2) is now
+essential, not just prudent: with multiplicity up to 7x, a
+shard-index holdout would leak catastrophically. (3) RULE for
+future legs (recorded for the program): space resume config
+seeds **≥ workers apart** (e.g. 0, 4, 8, 12, … for 4 workers),
+or seed workers with a hash of (seed, w) that does not collide
+across nearby seeds. (4) A dedup-train variant (one copy per
+unique game) is a legitimate follow-up experiment — NOT this
+version, which trains v8-style on all non-holdout shards
+(§1.2/§1.3 as pre-registered).
+
+### 2.3 Holdout split (COMPLETE 2026-11-16 ~14:05 UTC)
+
+`ml/scripts/split_holdout_unique.py` (deterministic, §1.2 rule):
+10,000 shards / 3,244 unique games → **train 9,004 shards
+(2,920 unique games)**, **val 324 shards (324 unique games,
+honest holdout)**, **val-clean 180 shards** (holdout games
+first occurring at index ≥4350 — neither net trained on
+them), **val-v8-leaky 435 shards** (v8's original holdout).
+996 shards excluded (all copies of holdout games).
+Manifest: `ml/runs/ml1-h2-10k/split-manifest.json`.
+Train samples ≈ 384k (9,004 × ~42.7); val ≈ 13.8k positions;
+val-clean ≈ 7.7k positions.
 
 ### 2.4 Training (TBD)
 
