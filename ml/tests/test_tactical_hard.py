@@ -51,15 +51,11 @@ silently pass here):
 Known limitation (same narrowness as the v1 suite's VCF positions):
 the checks verify wins by consecutive fours (depth 3) and by 2-ply
 setup. A move winning by a longer, non-VCF route would not be
-listed. One such move IS now known: on winning-quiet-setup-2,
-(9, 7) wins 3/3 under v7-vs-v7 playouts (iter-23 §1.2/§3.1) but is
-neither a 2-ply setup nor a VCF first move, so the exactness check
-below cannot verify it. The batch-9 suite correction
-(research/batch-9 @ 0ee51d8) added (9, 7) to that position's
-expected list on the playout evidence; the exactness test carries
-a documented exception for exactly that one move (see
-``_PLAYOUT_VERIFIED_EXTRA``) and still requires exact equality
-everywhere else.
+listed. One such move is now known: (9, 7) on
+winning-quiet-setup-2 wins 3/3 under v7-vs-v7 playouts (iter-23
+§3, batch-8 H3) — the batch-9 suite correction (commit 0ee51d8)
+added it to the expected list, and the exactness check below
+allows it via ``PLAYOUT_VERIFIED_MOVES``.
 """
 
 import os
@@ -75,20 +71,23 @@ HARD_SUITE_PATH = os.path.join(
 # v1's recorded score on this suite (ScoringPlayer version=1, seed=0),
 # the clause-3 reference for batch-2 versions. See
 # research/iterations/tactical-suite-v2.md. Stable across seeds 0, 1, 2.
-# 13, not 12: the batch-9 suite correction added (9, 7) to
-# winning-quiet-setup-2's expected list, and v1 plays (9, 7) there
-# (verified position-level, seed 0) — the count change is exactly
-# that one position.
 V1_PASSED = 13
+# v1 passes 13/29, not the 12 recorded before the batch-9 suite
+# correction: v1 plays (9, 7) at winning-quiet-setup-2, which the
+# correction (commit 0ee51d8) added to the expected list — so v1
+# now passes a position it used to fail. The suite still
+# discriminates (13 < 29).
 SUITE_TOTAL = 29
 
-# Expected moves that are NOT verifiable by the exact oracles below
-# but are listed on playout evidence: position id -> set of (x, y).
-# winning-quiet-setup-2 (9, 7): wins 3/3 under v7-vs-v7 (iter-23
-# §1.2/§3.1); added by the batch-9 suite correction (0ee51d8). The
-# exactness test requires that the listed set exceed the exact set
-# by EXACTLY these moves — any other extra listed move still fails.
-_PLAYOUT_VERIFIED_EXTRA = {
+# Playout-verified longer-route winning moves (batch-9 suite
+# correction, commit 0ee51d8): moves that win by a longer, non-VCF
+# route and are therefore not found by the setup/VCF computation
+# in test_hard_suite_expected_moves_are_exact, but are verified
+# winning by engine playouts. winning-quiet-setup-2 (9, 7): wins
+# 3/3 under v7-vs-v7 (iter-23 §3, batch-8 H3); the suite list was
+# incomplete, not the engine wrong. The exactness check allows
+# these listed moves in addition to the computed setup+VCF set.
+PLAYOUT_VERIFIED_MOVES = {
     "winning-quiet-setup-2": {(9, 7)},
 }
 
@@ -367,25 +366,13 @@ def test_hard_suite_expected_moves_are_exact():
             expected = {game.xy_to_move(x, y)
                         for x, y in pos["expect"]["moves"]}
             good = (set(_setup_moves(board, to_move))
-                    | set(_vcf_first_moves(board, to_move)))
-            # The exact set must be fully listed, and the listed
-            # set may exceed it ONLY by the documented
-            # playout-verified extras for this position (see
-            # _PLAYOUT_VERIFIED_EXTRA) — any other extra is still
-            # a failure, so the test keeps its drift-catching
-            # value.
-            extra = _PLAYOUT_VERIFIED_EXTRA.get(pid, set())
-            extra_moves = {game.xy_to_move(x, y) for x, y in extra}
-            assert good <= expected, (
+                    | set(_vcf_first_moves(board, to_move))
+                    | {game.xy_to_move(x, y)
+                       for x, y in PLAYOUT_VERIFIED_MOVES.get(pid, set())})
+            assert good == expected, (
                 f"{pid}: winning moves (setup + VCF) are "
                 f"{sorted(game.move_to_xy(m) for m in good)}, listed "
                 f"{sorted(game.move_to_xy(m) for m in expected)}"
-            )
-            assert expected - good == extra_moves, (
-                f"{pid}: listed moves exceed the exact winning set "
-                f"by {sorted(game.move_to_xy(m) for m in expected - good)}, "
-                f"documented extras are "
-                f"{sorted(game.move_to_xy(m) for m in extra_moves)}"
             )
         elif pos["category"] == "vcf":
             assert pos["expect"]["type"] == "vcf"
