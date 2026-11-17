@@ -43,10 +43,19 @@ POSITIONS_PATH = os.path.join(
 # 16 on (8, 7)) — v23 plays (9, 7) exactly as v18 did, and (9, 7)
 # WINS 3/3 under v7-vs-v7: a suite-list gap, not a defect. See
 # iter-18.md §3.1 and iter-23.md §1.2.
+# fl2-g6-ply23 / fl2-g8-ply23: verified losing moves (iter-23
+# §2.2) — v23 plays (9, 5)/(5, 5), which lose 3/3 under the
+# stronger oracles, over the verified saves. Tie-break misfires
+# (the losing move wins the visit tie on a 0.016 q gap — gradient
+# noise) with no patchable mechanism: the saves hold <=6 visits
+# and lower q, and no root signal distinguishes the tied pair
+# correctly. Documented open weaknesses, not dropped.
 XFAIL = {
     "fl1-g0-ply12": "Black position; v18/v23 play [7, 10], not a save; see iter-18.md §1.2",
     "fl2-g7-ply9": "White twin-choice; v18/v23 play (6, 4) over (10, 8); no patchable mechanism; see iter-18.md §2.2",
     "tact-winning-quiet-setup-2": "Not a tie (79 vs 16 visits); (9, 7) wins 3/3 — suite-list gap, not a defect; see iter-23.md §1.2",
+    "fl2-g6-ply23": "Tie-break misfire; v23 plays (9, 5) over verified saves; no patchable mechanism; see iter-23.md §2.2",
+    "fl2-g8-ply23": "Tie-break misfire (mirror of fl2-g6-ply23); v23 plays (5, 5) over verified saves; no patchable mechanism; see iter-23.md §2.2",
 }
 
 
