@@ -188,6 +188,256 @@ ENGINE_VERSIONS: dict[int, dict] = {
     8: {"name": "scoring-v8", "defence_weight": 1.0, "threat_check": False,
         "mcts": True, "mcts_sims": 100,
         "value_checkpoint": "ml/runs/b3-h2/value-net.pt"},
+    # v9 (iteration 9, batch 4): H1 — v7's PUCT MCTS with the ROOT
+    # DECISION changed: most-visited, with ties broken by the v1
+    # PRIOR instead of the seeded RNG ("tie-prior"; see
+    # gomoku_ml.mcts_heuristic._choose_root_child and
+    # research/iterations/iter-9.md). Everything else is v7
+    # unchanged (gradient leaf, 100 sims, c_puct 1.5). Four
+    # variants were pre-registered and smoked 20 games vs v7
+    # (seeds 300/400): pure q 0.20 (tactical 22/29), tie-q 0.45,
+    # blend 0.30 (tactical 26/29), tie-prior 0.675 — the winner.
+    # The q variants failed because iter-7 §2.6's "q prefers the
+    # saving move" was SIGN-INVERTED (raw child q is the
+    # opponent's value; correctly signed, q prefers the LOSING
+    # move — see iter-9.md §1.0). The prior is the only signal
+    # that preferred the saving moves in §2.6, and it wins the
+    # smoke while keeping tactical 29/29.
+    9: {"name": "scoring-v9", "defence_weight": 1.0, "threat_check": False,
+        "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+        "root_decision": "tie-prior"},
+    # v12 (iteration 12, batch 5): H1 — v7's PUCT MCTS with the
+    # ROOT DECISION changed to "tie-prior-forcing": most-visited,
+    # ties broken by forcing-ness first (moves creating a four),
+    # then the v1 prior (see gomoku_ml.mcts_heuristic.
+    # _choose_root_child and research/iterations/iter-12.md).
+    # Targets iter-9 §2.6's failure mode: v1's 1-ply score
+    # undervalues forcing counter-threats (~20k) against
+    # occupying a creator (~204k), so tie-prior prefers blocking
+    # one of two creators over forcing. Honest limit (iter-12
+    # §1.0): the §2.6 position does NOT verify as a single losing
+    # move — the rule is a hypothesis to test at match scale, not
+    # a verified fix. Everything else is v7 unchanged (gradient
+    # leaf, 100 sims, c_puct 1.5).
+    12: {"name": "scoring-v12", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+         "root_decision": "tie-prior-forcing"},
+    # v13 (iteration 13, batch 5): H2 — White focus (see
+    # gomoku_ml.mcts_white / mcts_v13 and
+    # research/iterations/iter-13.md). Base is v7's PUCT MCTS
+    # (capped attack-gradient leaf) + v3's 2-ply threat check at
+    # the root, with the White sims count chosen by the §1.2
+    # sweep (100: White 0.775 vs v0, the peak; 50 -> 0.525,
+    # 150 -> 0.55, 200 -> 0.00). The "white_temp" key makes
+    # ScoringPlayer dispatch to V13MCTS (the White prior
+    # temperature lives there): 2.0 is v7's default — the §1b
+    # temperature sweep REFUTED flattening (White 0.775 at 2.0,
+    # 0.05 at 3.0, 0.00 at 4.0 vs v0), so v13 ships at 2.0,
+    # and the (6,8) opening book was refuted too (0.55 vs the
+    # 0.775 control). Versions 9-12 are the parallel
+    # batch-4/batch-5 workstreams'.
+    13: {"name": "scoring-v13", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+         "white_sims": 100, "white_temp": 2.0},
+    # v14 (iteration 14, batch 5): H3 — v7's PUCT MCTS with the
+    # gradient leaf's input scores ported from the v0 kernel to
+    # the v1 5-window scorer (see gomoku_ml.kernel_v1 and
+    # research/iterations/iter-14.md). The ONLY difference from
+    # v7 is the quiet-leaf gradient: same breadth form, same
+    # +/-0.2 cap, but the breadth counts come from v1 attack
+    # scores (broken-four-aware) with the v1 thresholds
+    # (strong >= 4000, developing [80, 4000)) and the re-derived
+    # tanh scale 7.5. Terminal values are identical to v7's.
+    14: {"name": "scoring-v14", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1"},
+    # v15 (iteration 15, batch 6): H1 — v7's PUCT MCTS with an
+    # UNNORMALIZED prior floor of 0.005 (see
+    # gomoku_ml.mcts_heuristic._priors and
+    # research/iterations/iter-15.md). Batch 5's recurring failure
+    # was saving moves starved at 2-6 visits while the loser held
+    # 7-12; no root-decision rule fixes a move the search never
+    # visits. The floor (chosen by the pre-registered sweep in
+    # iter-15 §1.2/§2.1: F0.005 beat C2.0 on the vs-v7 transfer
+    # cells, 0.5875 vs 0.4500) raises below-floor priors to 0.005
+    # WITHOUT renormalization — Step 0 measured that
+    # renormalization shrinks the very moves the floor is meant to
+    # lift (a 0.027 save becomes 0.020 at floor 0.01), because the
+    # tail's added mass dominates with ~93 candidates. Above-floor
+    # moves keep their exact v7 priors, so the sharp prior is
+    # preserved where it matters; a floor is not flattening (v13's
+    # temperature probe: flattening is catastrophic). Everything
+    # else is v7 unchanged: 100 sims, c_puct 1.5, capped +/-0.2
+    # attack-gradient leaf, win/block scans, most-visited root
+    # child.
+    15: {"name": "scoring-v15", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient",
+         "prior_floor": 0.005},
+    # v16 (iteration 16, batch 6): H2 — v7's PUCT MCTS with a
+    # WHITE-ONLY 2-PLY ROLLOUT leaf (see
+    # gomoku_ml.mcts_heuristic._rollout_leaf_value and
+    # research/iterations/iter-16.md). When the engine plays White,
+    # quiet leaves are valued by rolling out exactly 2 plies
+    # (opponent reply + our reply, win/block/attack-argmax policy)
+    # and evaluating the symmetric v1-kernel gradient at the
+    # resulting position — the leaf horizon extends past the forcing
+    # exchange, where White's counterplay value lives (iter-13 §2.2:
+    # correctly-signed q prefers the losing block over the quiet
+    # counterplay save in 4/5 White critical positions, because the
+    # save's value materialises several plies out). Terminal values
+    # are exact throughout the rollout. When the engine plays Black,
+    # v16 IS v7 exactly, so the Black games are a built-in control.
+    # Sims (100), c_puct (1.5), priors and root decision are v7
+    # unchanged. The v1 kernel is v14's exact port (0 mismatches).
+    # Two earlier v16 candidates were measured and refuted before
+    # pre-registration (iter-16 §1.1): a White asymmetric gradient
+    # (0/5 v13/v14 saves at the search level, saturates) and a
+    # symmetric must-block gradient term (regressed v7 from 4/5 to
+    # 1/5 saves on its own regression positions). No threat check
+    # (minimal, isolable change; iter-13 measured it as worth
+    # ~nothing vs v7). Versions 9-15 are the parallel batch-4/5/6
+    # workstreams'.
+    16: {"name": "scoring-v16", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1"},
+    # v17 (iteration 17, batch 6): H3 — THE COMBINATION (see
+    # gomoku_ml.mcts_v17 and research/iterations/iter-17.md).
+    # v7's PUCT MCTS + v12's tie-prior-forcing root rule +
+    # v14's v1-kernel gradient leaf (gradient_v1) + v13's 2-ply
+    # threat check at the root. Each component passed 3/4 in
+    # batch 5 and failed a different clause (v12: clause 1,
+    # 0.4950; v13: clause 1, 0.5250; v14: clause 2, Elo -34.9);
+    # v17 tests whether they combine to 4/4. 100 sims in both
+    # colours (the sims optimum, iter-13 §2.1), c_puct 1.5,
+    # sharp v1 priors. The "v17" key makes ScoringPlayer
+    # dispatch to V17MCTS (a HeuristicMCTS subclass — WhiteMCTS
+    # cannot carry the combination: it hard-codes
+    # leaf_mode="gradient" and bypasses _choose_root_child).
+    # Versions 15-16 are the parallel batch-6 workstreams'.
+    17: {"name": "scoring-v17", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "v17": True},
+    # v18 (iteration 18, batch 7): H1 — v16's 2-PLY ROLLOUT leaf
+    # applied as Black too (see gomoku_ml.mcts_heuristic and
+    # research/iterations/iter-18.md). The rollout function, the v1
+    # rollout policy (with open-four priority), the gradient-
+    # evaluated rollout end and the v1 gradient are v16's,
+    # byte-identical; only the dispatch changed (no colour gate).
+    # As White, v18 IS v16 exactly, so the White games are a
+    # built-in control. Sims (100), c_puct (1.5), priors and root
+    # decision are v7 unchanged. No threat check (minimal, isolable
+    # change). Version 17 is the parallel batch-6 H3 workstream's.
+    18: {"name": "scoring-v18", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both"},
+    # v20 (iteration 20, batch 7): H3 — v14's v1-kernel gradient
+    # leaf with GAP-THREE makers demoted from the strong tier to
+    # the developing tier (see gomoku_ml.mcts_heuristic
+    # _gradient_v1_gap_leaf_value and research/iterations/
+    # iter-20.md). The v1 scorer counts a gap three (XX_X) as an
+    # open three (4006), but a gap three is killable by a single
+    # opponent move occupying the gap while a true open three
+    # cannot be killed in one move — and greedy 1-ply play finds
+    # the gap block automatically. Gap-three breadth is phantom
+    # against greedy play: it steers v14 into cluster play and
+    # away from forcing moves (verified causally in iter-20 §2.0:
+    # 6/6 engine-swap continuations flip a v14 Black loss to v0).
+    # The v0 kernel filters true open-three makers (v0 >= 1000)
+    # from gap-three makers (v0 < 1000); broken-four makers stay
+    # strong (a broken four forces a block exactly like a straight
+    # four). Tanh scale 5.5 (re-derived by v7's rule from the
+    # demoted distribution, iter-20 §1.1); cap ±0.2 unchanged.
+    # Everything else is v14 unchanged (100 sims, c_puct 1.5,
+    # sharp v1 priors, plain most-visited root). Versions 18-19
+    # are the parallel batch-7 workstreams'.
+    20: {"name": "scoring-v20", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1_gap"},
+    # v22 (iteration 22, batch 8): H2 — v14's v1-kernel gradient
+    # leaf with gap-three makers demoted ONLY in BLACK's breadth
+    # (see gomoku_ml.mcts_heuristic
+    # _gradient_v1_gap_black_leaf_value and research/iterations/
+    # iter-22.md). v20's GLOBAL demotion traded Black for White
+    # (vs v0: Black 0.72, White 0.45): gap-three breadth is
+    # phantom for the initiative-holder (Black moves first and
+    # holds the tempo) but signal for White's counterplay. Black's
+    # breadth uses v20's demoted breadth; White's uses v14's
+    # undemoted breadth. Tanh scale re-derived by v7's rule from
+    # the conditional distribution (iter-22 §1.1); cap ±0.2
+    # unchanged. Everything else is v14 unchanged. Version 21 is
+    # the parallel batch-8 workstream's (H1, v18+blend).
+    22: {"name": "scoring-v22", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1_gap_black"},
+    # v23 (iteration 23, batch 8): H3 — v18 + a Q-AWARE VISIT-TIE
+    # BREAK at the root (see gomoku_ml.mcts_heuristic.HeuristicMCTS
+    # ``tie_break_q`` and research/iterations/iter-23.md). When two
+    # or more root children share the maximum visit count, break
+    # the tie by correctly-signed q (our-q = -child.q); if q also
+    # ties exactly, fall back to v18's RNG/first choice on the
+    # q-tied subset. A unique visit leader is untouched. The leaf
+    # (v18's rollout leaf, both colours), priors, sims (100),
+    # c_puct (1.5) and win/block scans are v18 unchanged — the
+    # tie-break is the ONLY change. Narrow, mechanism-specific
+    # clause-3 recovery for rollout-leaf engines: v18's three hard
+    # tactical failures are q-compression visit-ties where the leaf
+    # KNOWS the answer (chosen -1.000 vs expected +0.250) but
+    # cannot convert it into visits. This does NOT reopen the
+    # CLOSED q-based root-decisions lever (pure q was catastrophic
+    # at 0.20; v9's tie-by-q smoked 0.45 on the v0/v1 leaf) — on
+    # the rollout leaf, q-compression makes ties far more frequent
+    # and the failure mode is documented. Versions 19-22 are the
+    # parallel batch-7/8 workstreams'.
+    23: {"name": "scoring-v23", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True},
+    # v27 (iteration 27, batch 9): H1 — v23 + a THRESHOLD on the
+    # q-gap tie-break (see gomoku_ml.mcts_heuristic.HeuristicMCTS
+    # ``tie_break_q_threshold`` and research/iterations/iter-27.md).
+    # The tie-break fires ONLY when the top our-q exceeds the
+    # second-highest DISTINCT our-q among the visit-tied children
+    # by strictly more than 0.05; below the threshold the choice is
+    # v18's (RNG over ALL tied children). Threshold selected by the
+    # pre-registered rule (iter-27 §1.2/§1.5): both sweep values
+    # (0.05, 0.10) passed the tactical gate 20/20 + 29/29 and
+    # scored IDENTICAL 39W-0L-1D (0.9875) in the 40-game vs-v0
+    # sweep, so the tie rule selected the smaller threshold (0.05).
+    # The temporary sweep entries (90/91) were removed on
+    # registration. Everything else is v23 unchanged: 100 sims,
+    # c_puct 1.5, v1 priors, rollout leaf both colours.
+    27: {"name": "scoring-v27", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05},
+    # v28 (iteration 28, batch 9): H2 — v14's v1-kernel gradient
+    # leaf with gap-three makers demoted ONLY in BLACK's breadth
+    # and ONLY in the OURS term (see gomoku_ml.mcts_heuristic
+    # _gradient_v1_gap_ours_leaf_value and research/iterations/
+    # iter-28.md). v22's Black-only demotion in BOTH terms priced
+    # at +0.33 Black / -0.22 White vs v0: the +0.33 is an
+    # ours-term effect (Black's own breadth), the -0.22 a
+    # theirs-term effect (White under-fearing Black's threats).
+    # At Black-to-move leaves v28 IS v22 (Black's own breadth
+    # demoted); at White-to-move leaves v28 IS v14 (nothing
+    # demoted — White fears Black's gap threes fully). Tanh scale
+    # re-derived by v7's rule from the v28 breadth-difference
+    # distribution, both parities pooled (iter-28 §1.1); cap ±0.2
+    # unchanged. Everything else is v14 unchanged. Versions 24-26
+    # are ML batch 1's, 27 and 29 the parallel batch-9
+    # workstreams' (H1 q-gap threshold, H3 v22 forensics).
+    28: {"name": "scoring-v28", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1_gap_ours"},
+    # v29 (iteration 29, batch 9): H3 — Phase-2 fallback (see
+    # research/iterations/iter-29.md §1.2, §2.5): v18's 2-ply
+    # rollout leaf in both colours PLUS a VCF-at-root check
+    # (gomoku_ml.mcts_heuristic _vcf_root_move): an offensive VCF
+    # start is played immediately, and a defensive VCF prevention
+    # is played when the opponent holds a VCF start; otherwise the
+    # engine is exactly v18. Phase 1's forensics found no
+    # patchable mechanism in v22's vs-mcts collapse (0 missed
+    # blocks, 0 missed forced wins, 6 horizon losses, 1
+    # v22-specific root-decision miss, 5 shared search-horizon
+    # misses with no exact signature), so the fallback triggered.
+    # 100 sims, c_puct 1.5, sharp v1 priors, most-visited root.
+    29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "vcf_root": True},
 }
 
 # --- weights --------------------------------------------------------------
@@ -749,7 +999,40 @@ class ScoringPlayer:
         self._mcts = None
         if self.mcts:
             value_ckpt = ENGINE_VERSIONS[version].get("value_checkpoint")
-            if value_ckpt is not None:
+            white_sims = ENGINE_VERSIONS[version].get("white_sims")
+            white_temp = ENGINE_VERSIONS[version].get("white_temp")
+            if ENGINE_VERSIONS[version].get("v17"):
+                # v17: the combination (lazy import, mcts_v17
+                # imports this module via mcts_heuristic).
+                from .mcts_v17 import V17MCTS
+
+                self._mcts = V17MCTS(
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    rng=self.rng,
+                )
+            elif white_temp is not None:
+                # v13: WhiteMCTS + White prior temperature (lazy
+                # import, mcts_v13 imports this module via
+                # mcts_white/mcts_heuristic).
+                from .mcts_v13 import V13MCTS
+
+                self._mcts = V13MCTS(
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    white_sims=white_sims,
+                    white_temp=white_temp,
+                    rng=self.rng,
+                )
+            elif white_sims is not None:
+                # Colour-asymmetric MCTS (v10 port, v13): lazy import,
+                # mcts_white imports this module (via mcts_heuristic).
+                from .mcts_white import WhiteMCTS
+
+                self._mcts = WhiteMCTS(
+                    sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    white_sims=white_sims,
+                    rng=self.rng,
+                )
+            elif value_ckpt is not None:
                 # Learned-value MCTS (v8): lazy import, mcts_value
                 # imports this module (via mcts_heuristic). The path
                 # is relative to the repo root unless absolute; the
@@ -773,8 +1056,18 @@ class ScoringPlayer:
 
                 self._mcts = HeuristicMCTS(
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
+                    c_puct=ENGINE_VERSIONS[version].get("c_puct", 1.5),
+                    prior_floor=ENGINE_VERSIONS[version].get("prior_floor", 0.0),
                     leaf_mode=ENGINE_VERSIONS[version].get("leaf_mode", "terminal"),
+                    root_decision=ENGINE_VERSIONS[version].get(
+                        "root_decision", "visits"
+                    ),
+                    vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
                     rng=self.rng,
+                    tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
+                    tie_break_q_threshold=ENGINE_VERSIONS[version].get(
+                        "tie_break_q_threshold", 0.0
+                    ),
                 )
 
     def score_move(self, board: np.ndarray, move: int, player: int) -> int:

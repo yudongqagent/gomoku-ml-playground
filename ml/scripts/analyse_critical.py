@@ -63,11 +63,15 @@ def _describe(board, move, player) -> dict:
     }
 
 
-def _root_stats(board, player, leaf_mode, sims, seed=0):
+def _root_stats(board, player, leaf_mode, sims, seed=0,
+                prior_floor=0.0, c_puct=1.5):
     """Run the MCTS search manually and return root children stats:
-    {move: (visits, q, prior)} plus the chosen move."""
+    {move: (visits, q, prior)} plus the chosen move. ``prior_floor``
+    / ``c_puct`` (v15, batch 6 H1) select the exploration variant;
+    the defaults reproduce v7/v6."""
     mcts = HeuristicMCTS(sims=sims, rng=np.random.default_rng(seed),
-                         leaf_mode=leaf_mode)
+                         leaf_mode=leaf_mode, prior_floor=prior_floor,
+                         c_puct=c_puct)
     root = _Node(1.0)
     for _ in range(sims):
         mcts._run_one(root, board.copy(), player, None)
@@ -90,6 +94,10 @@ def main() -> int:
     parser.add_argument("--save", required=True,
                         help="saving move as X,Y")
     parser.add_argument("--sims", type=int, default=100)
+    parser.add_argument("--prior-floor", type=float, default=0.0,
+                        help="also report gradient-leaf stats with "
+                        "this prior floor (v15)")
+    parser.add_argument("--c-puct", type=float, default=1.5)
     args = parser.parse_args()
 
     with open(args.batch_json, encoding="utf-8") as f:
@@ -139,6 +147,20 @@ def main() -> int:
         stats, best = _root_stats(board, player, leaf_mode, args.sims)
         top = sorted(stats.items(), key=lambda kv: -kv[1][0])[:5]
         print(f"  MCTS[{leaf_mode}] top-5 by visits: "
+              + ", ".join(f"{_xy(m)} v={v} q={q} p={p}"
+                          for m, (v, q, p) in top))
+        for label, m in (("actual", actual), ("saving", save)):
+            v, q, p = stats[m]
+            print(f"    {label} {_xy(m)}: visits={v}, q={q}, prior={p}")
+        print(f"    chosen (most visited): "
+              f"{[_xy(m) for m in best]}")
+    if args.prior_floor > 0.0:
+        # v15: gradient leaf + prior floor (c_puct as given).
+        stats, best = _root_stats(
+            board, player, "gradient", args.sims,
+            prior_floor=args.prior_floor, c_puct=args.c_puct)
+        top = sorted(stats.items(), key=lambda kv: -kv[1][0])[:5]
+        print(f"  MCTS[gradient+floor{args.prior_floor}] top-5 by visits: "
               + ", ".join(f"{_xy(m)} v={v} q={q} p={p}"
                           for m, (v, q, p) in top))
         for label, m in (("actual", actual), ("saving", save)):

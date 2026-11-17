@@ -1,0 +1,214 @@
+{
+ "version": 14,
+ "description": "Critical positions from the v14 fast loop (iteration 1, vs v0). Each is a verified losing move and the oracle-verified saving move instead (see research/iterations/iter-14.md \u00a72). No patch was made: iteration 1 found no new patchable weakness class, so all three are documented xfails \u2014 open weaknesses for the next batch.",
+ "positions": [
+  {
+   "id": "fl1-g1-ply9",
+   "source": "fastloop1-v14-vs-v0.json game 1, ply 9",
+   "black": [
+    [
+     7,
+     7
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     5,
+     5
+    ],
+    [
+     7,
+     6
+    ],
+    [
+     8,
+     6
+    ]
+   ],
+   "white": [
+    [
+     5,
+     7
+    ],
+    [
+     9,
+     9
+    ],
+    [
+     4,
+     4
+    ],
+    [
+     7,
+     4
+    ]
+   ],
+   "to_move": "white",
+   "expected": [
+    [
+     5,
+     6
+    ]
+   ],
+   "played_before_patch": [
+    9,
+    6
+   ],
+   "note": "White to move, Black holds exactly 2 creators: (5,6) and (9,6). BOTH are blocks that kill all Black creators; v1 scores within 62 points (200169 vs 200107). Oracle: (9,6) loses 3/3, (5,6) draws 3/3. Both the v0 and v1 gradients prefer the losing block (+0.061/+0.121 vs +0.025/+0.046), and v7 plays it too \u2014 no signal in the engine separates the two blocks. Not patchable within the leaf design."
+  },
+  {
+   "id": "fl1-g3-ply13",
+   "source": "fastloop1-v14-vs-v0.json game 3, ply 13",
+   "black": [
+    [
+     7,
+     7
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     5,
+     5
+    ],
+    [
+     7,
+     6
+    ],
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     8
+    ],
+    [
+     6,
+     7
+    ]
+   ],
+   "white": [
+    [
+     5,
+     7
+    ],
+    [
+     9,
+     9
+    ],
+    [
+     4,
+     4
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     9,
+     6
+    ],
+    [
+     5,
+     9
+    ]
+   ],
+   "to_move": "white",
+   "expected": [
+    [
+     6,
+     5
+    ]
+   ],
+   "played_before_patch": [
+    6,
+    9
+   ],
+   "note": "White to move, Black holds exactly 2 creators: (6,5) and (6,9). BOTH are blocks that kill all Black creators; v1 scores within 1920 points (204087 vs 200167). Oracle: (6,9) loses 3/3, (6,5) draws 3/3. Both gradients prefer the losing block (+0.119/+0.174 vs +0.072/+0.146); v7 plays it too. Same class as fl1-g1-ply9."
+  },
+  {
+   "id": "fl1-g9-ply15",
+   "source": "fastloop1-v14-vs-v0.json game 9, ply 15",
+   "black": [
+    [
+     7,
+     7
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     5,
+     5
+    ],
+    [
+     7,
+     6
+    ],
+    [
+     8,
+     6
+    ],
+    [
+     6,
+     8
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     8,
+     9
+    ]
+   ],
+   "white": [
+    [
+     5,
+     7
+    ],
+    [
+     9,
+     9
+    ],
+    [
+     4,
+     4
+    ],
+    [
+     7,
+     9
+    ],
+    [
+     9,
+     6
+    ],
+    [
+     5,
+     9
+    ],
+    [
+     6,
+     9
+    ]
+   ],
+   "to_move": "white",
+   "expected": [
+    [
+     4,
+     6
+    ]
+   ],
+   "played_before_patch": [
+    5,
+    10
+   ],
+   "note": "White to move, quiet position (Black holds 0 creators). The saving move (4,6) is v1 rank 6 (prior 0.044) and wins 3/3 by oracle; the played (5,10) is v1 rank 1 and loses 3/3. The v1 gradient PREFERS the save (+0.064 vs +0.046) \u2014 the leaf is right \u2014 but the search starves it (3 visits vs 15) and its q is noisy (-0.060). Exploration weakness, same class as v7 fl1-g3-ply23; no leaf patch fixes it."
+  }
+ ]
+}
