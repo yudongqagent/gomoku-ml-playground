@@ -352,6 +352,24 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # the parallel batch-8 workstream's (H1, v18+blend).
     22: {"name": "scoring-v22", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1_gap_black"},
+    # v28 (iteration 28, batch 9): H2 — v14's v1-kernel gradient
+    # leaf with gap-three makers demoted ONLY in BLACK's breadth
+    # and ONLY in the OURS term (see gomoku_ml.mcts_heuristic
+    # _gradient_v1_gap_ours_leaf_value and research/iterations/
+    # iter-28.md). v22's Black-only demotion in BOTH terms priced
+    # at +0.33 Black / -0.22 White vs v0: the +0.33 is an
+    # ours-term effect (Black's own breadth), the -0.22 a
+    # theirs-term effect (White under-fearing Black's threats).
+    # At Black-to-move leaves v28 IS v22 (Black's own breadth
+    # demoted); at White-to-move leaves v28 IS v14 (nothing
+    # demoted — White fears Black's gap threes fully). Tanh scale
+    # re-derived by v7's rule from the v28 breadth-difference
+    # distribution, both parities pooled (iter-28 §1.1); cap ±0.2
+    # unchanged. Everything else is v14 unchanged. Versions 24-26
+    # are ML batch 1's, 27 and 29 the parallel batch-9
+    # workstreams' (H1 q-gap threshold, H3 v22 forensics).
+    28: {"name": "scoring-v28", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1_gap_ours"},
 }
 
 # --- weights --------------------------------------------------------------
