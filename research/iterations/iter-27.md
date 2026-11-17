@@ -232,19 +232,46 @@ seeds 1001/2001, 1002/2002, ... (iteration k uses 1000+k /
 
 ### 1.3 Mechanism check (post-implementation, pre-sweep)
 
-After implementation and before any sweep game, v27 is run on
-the 4 tactical positions (fresh-seed-0 root dumps) and on the
-full tactical suites at `--seed 100` at both τ, plus the two
-fl2-g6/g8 misfire positions across several seeds. This is an
-implementation check, not pre-registration evidence and not an
-eval — it verifies the dispatch does what §1 says it does. In
-particular: at τ=0.05 and τ=0.10 the three tie fixes must fire
-(gaps 0.417/0.417/0.130 all above both thresholds); at the
-fl2-g6/g8 positions the rule must NOT fire (gap 0.016 below both
-thresholds) and the choice must be RNG over the tied pair — so
-across seeds the saving move should appear ~50% of the time, and
-a seed-0 pass there is a coin flip that landed well, NOT evidence
-the position is fixed.
+After implementation and before any sweep game, v27 was run on
+the 4 tactical positions (fresh-seed-0 root dumps,
+`/tmp/dump_v27_mechanism.py`) and on the full tactical suites at
+`--seed 100` at both τ, plus the two fl2-g6/g8 misfire positions
+across seeds 0–9. This is an implementation check, not
+pre-registration evidence and not an eval — it verifies the
+dispatch does what §1 says it does.
+
+**Root dumps reproduce iter-18 §3.1 / iter-23 §1.3 exactly**
+(same ties, same q values, same priors — the search is unchanged;
+only the final selection differs). A first version of the dump
+script mixed up the two JSON formats (tactical positions use int
+`to_move`, regression positions use `"black"`/`"white"` strings)
+and dumped the wrong player to move; the fixed script reproduces
+the documented states:
+
+| Position | Root state (fresh seed 0) | Gap | τ=0.05 | τ=0.10 |
+|---|---|---|---|---|
+| prev-v1v0s-g26 | 4-way tie at 3 visits; expected our-q −0.5833, losers −1.000 | 0.4167 | FIRES → (9,4) EXPECTED | FIRES → (9,4) EXPECTED |
+| prev-v1v1s-g79 | 7-way tie at 3 visits; expected our-q −0.5833, losers −1.000 | 0.4167 | FIRES → (7,9) EXPECTED | FIRES → (7,9) EXPECTED |
+| prev-v1bl-g2 | 2-way tie at 8 visits; expected (7,5) our-q −0.5938 vs (7,9) −0.7244 | 0.1306 | FIRES → (7,5) EXPECTED | FIRES → (7,5) EXPECTED |
+| winning-quiet-setup-2 | NOT a tie: 79 visits on (9,7) | — | (9,7), as v23 | (9,7), as v23 |
+
+**Misfire positions (fl2-g6/g8 ply23):** the 2-way tie at 8
+visits has gap 0.0155 at both positions (the documented 0.016).
+v23 (τ=0.0) fires and picks the LOSING move at all 10 seeds
+(10/10 (9,5) / (5,5) — deterministic-wrong, as documented).
+v27 at BOTH τ does not fire and picks the saving move 7/10 seeds
+((8,10)/(6,10) 7 times, the loser 3 times, identical picks at
+τ=0.05 and τ=0.10) — the coin flip the hypothesis predicts
+(7/10 vs a 50% expectation is within noise: P(X≥7) ≈ 0.17 for
+Bin(10, 0.5)). A seed-0 pass on these positions is a coin flip
+that landed well, NOT evidence the position is fixed — and the
+v27 regression file records them accordingly (see §2).
+
+**Full suites at `--seed 100`: both τ score 20/20 old + 29/29
+hard**, with the three tie fixes choosing (8,4), (6,7), (7,5)
+— identical choices to v23's port verification. Both thresholds
+pass the tactical gate (§1.2 rule 1); the selection rule now
+goes to the 40-game vs-v0 sweep matches.
 
 ### 1.4 Battery (the verdict — pre-registered seeds and commands)
 
