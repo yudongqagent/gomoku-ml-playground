@@ -13,9 +13,11 @@ from gomoku_ml.mcts_heuristic import (
     _attack_gradient,
     _attack_gradient_v1,
     _attack_gradient_v1_gap,
+    _attack_gradient_v1_gap_black,
     _breadth_v1,
     _breadth_v1_gap,
     _gradient_leaf_value,
+    _gradient_v1_gap_black_leaf_value,
     _gradient_v1_gap_leaf_value,
     _gradient_v1_leaf_value,
     _priors,
@@ -600,6 +602,155 @@ def test_v20_registered_and_dispatches_to_gap_mcts():
     v7 = scoring.get_player(7, seed=0)
     assert v7._mcts.leaf_mode == "gradient"
     # v7 is unchanged (gradient leaf).
+    v7 = scoring.get_player(7, seed=0)
+    assert v7._mcts.leaf_mode == "gradient"
+
+
+def test_gradient_v1_gap_black_leaf_matches_terminal_leaf_on_terminal_positions():
+    # The v22 leaf is IDENTICAL to the terminal leaf on every
+    # non-quiet position, by construction — same as v7/v14/v20.
+    board = _board_with([(7, 7), (7, 8), (7, 9), (7, 10)], [(3, 3)])
+    assert _gradient_v1_gap_black_leaf_value(board, game.BLACK) == 1.0
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 7), (5, 8)])
+    assert _gradient_v1_gap_black_leaf_value(board, game.BLACK) == -1.0
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 8), (5, 9)])
+    assert _gradient_v1_gap_black_leaf_value(board, game.BLACK) == -0.25
+
+
+def test_attack_gradient_v1_gap_black_zero_on_empty_board():
+    board = game.empty_board()
+    assert _attack_gradient_v1_gap_black(board, game.BLACK) == 0.0
+    assert _attack_gradient_v1_gap_black(board, game.WHITE) == 0.0
+    assert _gradient_v1_gap_black_leaf_value(board, game.BLACK) == 0.0
+
+
+def test_attack_gradient_v1_gap_black_antisymmetric_player_swap_and_bounded():
+    # Antisymmetric under PLAYER swap (Black to move vs White to
+    # move on the same board) — the property MCTS needs — and
+    # strictly inside (-0.2, 0.2). Deliberately NOT antisymmetric
+    # under colour swap: Black's breadth is demoted, White's is
+    # not (iter-22 §1).
+    rng = np.random.default_rng(0)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    gb = _attack_gradient_v1_gap_black(board, game.BLACK)
+    gw = _attack_gradient_v1_gap_black(board, game.WHITE)
+    assert gb == -gw
+    assert -0.2 < gb < 0.2
+    assert -0.2 < gw < 0.2
+
+
+def test_attack_gradient_v1_gap_black_demotes_only_black():
+    # The mechanism position (iter-20 §2.0, ply 10): after Black's
+    # cluster four (9,7) [row, col] = (x7, y9), Black holds 6
+    # three-tier moves — 4 gap-three makers and 2 true open-three
+    # makers. v22's gradient for White to move must use Black's
+    # DEMOTED breadth (15.25, as in v20) and White's UNDEMOTED
+    # breadth — while v20's uses the demoted breadth for both
+    # sides. The two gradients therefore differ exactly by the
+    # demotion of White's gap-three makers (at v20's scale 5.5
+    # vs v22's scale 7.0 the tanh inputs differ too, so the test
+    # compares the breadth inputs, not the final values).
+    from gomoku_ml import kernel_numpy, kernel_v1
+    from gomoku_ml.mcts_heuristic import _GRADIENT_V1_GAP_BLACK_SCALE
+
+    assert _GRADIENT_V1_GAP_BLACK_SCALE == 7.0
+    board = _battery_line_ply10_board()
+    board = game.apply_move(board, 9 * 15 + 7, game.BLACK)
+    b1, w1 = kernel_v1.attack_v1_both(board)
+    b0, w0 = kernel_numpy.attack_both(board)
+    mask = board == game.EMPTY
+    # Black's breadth: demoted (15.25, the v20 value — the
+    # cluster four leaves 4 gap-three makers).
+    assert _breadth_v1_gap(b1, b0, mask) == 15.25
+    # White's breadth: v22 uses the UNDEMOTED v1 breadth.
+    white_full = _breadth_v1(w1, mask)
+    white_demoted = _breadth_v1_gap(w1, w0, mask)
+    assert white_full >= white_demoted
+    # v22's gradient for White to move is the capped tanh of
+    # (White full - Black demoted) at scale 7.0.
+    expected = 0.2 * math.tanh(
+        (white_full - 15.25) / _GRADIENT_V1_GAP_BLACK_SCALE
+    )
+    assert _attack_gradient_v1_gap_black(board, game.WHITE) == expected
+    # And for Black to move it is the negation (player-swap
+    # antisymmetry), NOT the colour-swapped value: swapping the
+    # colours of the stones would change which side is demoted.
+    assert _attack_gradient_v1_gap_black(board, game.BLACK) == -expected
+
+
+def test_v22_breadth_diff_is_v20_diff_plus_white_gap_threes():
+    # Identity: v22's breadth difference equals v20's PLUS 0.75
+    # per White gap-three maker (White's breadth is undemoted in
+    # v22, demoted in v20; Black's is demoted in both). Checked on
+    # the ply-10 board after the cluster four (White to move) and
+    # on a random mid-game board, for both players to move. The
+    # gradient values differ by the tanh scale too (7.0 vs 5.5),
+    # so this test compares the breadth differences directly.
+    from gomoku_ml import kernel_numpy, kernel_v1
+
+    def _gap3(a1, a0, mask):
+        s1 = a1[mask]
+        s0 = a0[mask]
+        three = (s1 >= 4000) & (s1 < 20000)
+        return int(np.count_nonzero(three & (s0 < 1000)))
+
+    def _diffs(board, player):
+        b1, w1 = kernel_v1.attack_v1_both(board)
+        b0, w0 = kernel_numpy.attack_both(board)
+        mask = board == game.EMPTY
+        if player == game.BLACK:
+            o1, t1, o0, t0 = b1, w1, b0, w0
+        else:
+            o1, t1, o0, t0 = w1, b1, w0, b0
+        d20 = _breadth_v1_gap(o1, o0, mask) - _breadth_v1_gap(t1, t0, mask)
+        bb = _breadth_v1_gap(b1, b0, mask)
+        wb = _breadth_v1(w1, mask)
+        d22 = (bb - wb) if player == game.BLACK else (wb - bb)
+        return d20, d22, _gap3(w1, w0, mask)
+
+    board = _battery_line_ply10_board()
+    board = game.apply_move(board, 9 * 15 + 7, game.BLACK)
+    for player in (game.BLACK, game.WHITE):
+        d20, d22, gap3_white = _diffs(board, player)
+        # White is "theirs" for Black to move (sign -) and "ours"
+        # for White to move (sign +).
+        sign = -1 if player == game.BLACK else 1
+        assert d22 == pytest.approx(
+            d20 + sign * 0.75 * gap3_white
+        )
+
+    rng = np.random.default_rng(0)
+    board = game.empty_board()
+    cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+    rng.shuffle(cells)
+    for i, (x, y) in enumerate(cells[:24]):
+        board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+    for player in (game.BLACK, game.WHITE):
+        d20, d22, gap3_white = _diffs(board, player)
+        sign = -1 if player == game.BLACK else 1
+        assert d22 == pytest.approx(
+            d20 + sign * 0.75 * gap3_white
+        )
+
+
+def test_v22_registered_and_dispatches_to_gap_black_mcts():
+    v22 = scoring.get_player(22, seed=0)
+    assert v22.name == "scoring-v22"
+    assert v22.mcts is True
+    assert v22._mcts is not None
+    assert v22._mcts.sims == 100
+    assert v22._mcts.leaf_mode == "gradient_v1_gap_black"
+    # v20 is unchanged (both-sides gap-demoted leaf, scale 5.5).
+    v20 = scoring.get_player(20, seed=0)
+    assert v20._mcts.leaf_mode == "gradient_v1_gap"
+    # v14 is unchanged (v1-kernel gradient leaf, scale 7.5).
+    v14 = scoring.get_player(14, seed=0)
+    assert v14._mcts.leaf_mode == "gradient_v1"
+    # v7 is unchanged (v0-kernel gradient leaf).
     v7 = scoring.get_player(7, seed=0)
     assert v7._mcts.leaf_mode == "gradient"
 
