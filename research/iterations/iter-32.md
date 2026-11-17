@@ -375,7 +375,67 @@ implementation of §2.
 
 ## 5. Battery
 
-TODO — battery, filled in when run.
+Validation seeds 100/200; ladder seed 100, 20 games/opponent, mcts_sims=100;
+swap 100 games vs v7, balanced placement, placement_seed 11, tempo judge.
+The battery chain was killed by runtime restarts three times (during the
+vs-v8 leg at 82 games, during the vs-v7 leg at 20 games, and once more
+during the vs-v7 leg after the relaunch); the match drivers' auto-resume
+saved every completed game — the only losses were the single in-progress
+game at each kill. The ladder (no auto-resume in `eval_version.py`)
+completed in the relaunched chain before the third restart, so it was not
+re-run.
+
+### 5.1 Results
+
+| Leg | Result | Win rate | Wilson 95% CI | Per-colour (v32) | Distinct lines |
+|---|---|---|---|---|---|
+| Tactical (both suites, seed 100) | 20/20 old + 29/29 hard | — | — | — | — |
+| vs v8 (clause 1) | 37W-63L-0D | 0.3700 | [0.2818, 0.4678] | Black 20W-30L (0.400); White 17W-33L (0.340) | 23/100 |
+| Ladder (clause 2) | Elo −70.4 | — | [−221.1, 80.2] | vs heuristic Black 6-4 / White 2-8; vs mcts Black 7-3 / White 2-8 | — |
+| vs v0 | 61W-37L-2D | 0.6200 | [0.5221, 0.7090] | Black 35W-15L (0.700); White 26W-22L-2D (0.540) | 47/100 |
+| vs v7 | 28W-67L-5D | 0.3050 | [0.2234, 0.4011] | Black 18W-31L-1D (0.370); White 10W-36L-4D (0.240) | 70/100 |
+| Swap vs v7 | TODO | | | | |
+
+All aggregates recomputed independently from the raw JSONs (W/L/D recount,
+Wilson CI, per-colour splits, distinct lines) — every number matches the
+stored driver values exactly (script: `~/workspace/ml2h3-logs/recompute.py`,
+kept outside the repo).
+
+Clause 3 (tactical): **PASS** — 20/20 + 29/29, run twice with identical
+results. Clause 4 (suites): re-run on the final tree — TODO.
+
+Clause 1: **FAILS decisively** — 0.3700 vs v8, CI entirely below 0.50.
+The offensive VCF check makes the value engine strictly WORSE against its
+own base: v32 loses to v8 in both colours (0.400 / 0.340), and only 23
+distinct lines in 100 games show how often the two engines collapse onto
+the same lines — where they diverge, the check's move is usually the
+wrong one. Black won 53/100 games.
+
+Clause 2: **FAILS** — ladder Elo −70.4 < 0.0 (v8's). vs random 20W-0L;
+vs heuristic 8W-12L (0.40); vs mcts 9W-11L (0.45). White collapses 2-8
+against both the heuristic and the MCTS ladder opponents — the same White
+weakness v8 shows, not fixed by the check.
+
+Secondary legs: vs v0 0.6200 beats v0 outright (CI lower 0.5221) and is
+better than v8's 0.545 — the check helps against the weak opponent, whose
+threats are real and whose defence cannot refute a VCF start. vs v7 0.3050
+is far below v24's 0.445 vs v7: the check hurts more against stronger
+opponents. Non-transitive in the same direction as v4/v5: v32 > v0 more
+convincingly than v8 does, yet v32 < v8 decisively.
+
+### 5.2 VCF fires in the battery (post-battery analysis)
+
+TODO — `replay_vcf_fires.py` on all four battery legs (fire rate + cost
+profile in real games); `classify_losses.py` on the battery legs; the
+misfire-hypothesis test on the vs-v8 losses (§5.3).
+
+### 5.3 The misfire hypothesis
+
+TODO — working hypothesis: `starts_forced_win` over-reports (some "VCF
+starts" do not convert against real defence), and playing them immediately
+forfeits the search's better move. Test on the vs-v8 battery losses: find
+check fires in losses, and check whether v8's search would have played a
+different move there and whether the check's move was actually winning.
 
 ## 6. Verdict
 
