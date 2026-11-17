@@ -411,6 +411,75 @@ patchable class, the loop stops. No regression positions added:
 neither loss yields a verified losing move with a verified save
 the engine could be patched to play.
 
+### 2.2 Fast-loop iteration 2 — 10 games vs v7 + 10 games vs v0 (LOOP STOPS)
+
+**Batches:** `research/iterations/fastloop2-v27-vs-v7.json`
+(seeds v27=1002 / v7=2002) and
+`research/iterations/fastloop2-v27-vs-v0.json` (seeds v27=1002 /
+v0=2002). **vs v7: 7W-2L-1D, win rate 0.7500, CI [0.4422,
+0.9191]**, 686.7 s — identical to iteration 1. Split: as Black
+4W-1L (0.80), as White 3W-1L-1D (0.70). **vs v0: 10W-0L-0D, win
+rate 1.0000, CI [0.7225, 1.0000]**, 250.8 s. Classifier (both
+batches): 2/2 losses via open four, 0 missed blocks, 0 clean
+missed preventions in 7 threatened turns (losses). Defence
+still solved.
+
+**Game 9 (White, 29 plies) has NO patchable losing move.**
+Its walk-back (`research/iterations/walkback-fl2-g9.json`)
+nominates nothing: the actual never loses 3/3 with a saving
+alternative (ply 27/25 lose 3/3 with 0 saves; every earlier ply
+fails to lose at all seeds). Distributed drift.
+
+**Game 2 (Black, 34 plies) nominates ply 22 — and the
+verification refutes it, with one finding worth recording.**
+The v1 oracle says actual (5,0) loses 3/3 with three saves
+((6,2), (6,7), (5,1), all drawing 3/3). Under v7-vs-v7
+(`/tmp/verify_fl1_g1.py`'s `run_oracle`, corrected ply
+convention): actual (5,0) [1,1,1] (Black loses 3/3 — confirmed
+losing), but (6,2) [1,1,1] and (6,7) [1,1,1] ALSO lose 3/3 —
+the v1 oracle's draws were wrong — and (5,1) is [1,1,−1],
+saving at only 1/3 seeds: a split, not a verified save.
+
+**The threshold FIRED at ply 22 — and it did not matter.** The
+root (fresh seed 0) has a 2-way tie at 8 visits between (5,0)
+(our-q −0.1605) and (6,2) (our-q −0.3086): gap 0.1481 > τ=0.05,
+so the tie-break fires and picks (5,0). Both tied moves lose
+3/3 under v7-vs-v7, so the choice between them is outcome-free.
+Two lessons: (a) a "signal-sized" gap (0.1481, above the 0.130
+tactical minimum) does NOT guarantee the higher-q move saves —
+in real games it can separate two losers; the gap-size
+separation holds for the tactical positions, where the gaps
+reflect exact terminal values, but a large gap in a murky
+midgame is not the same evidence. (b) The only move with any
+saving signal, (5,1) (wins 1/3), holds 7 visits — one short of
+the tie — with the HIGHEST our-q (−0.1429). No root rule can
+promote a 7-visit move over 8-visit leaders; that is the CLOSED
+q-based root-decisions lever, and 1/3 is too weak to record
+even as a regression xfail. No patch.
+
+**No patchable weakness class in this iteration either — the
+fast loop STOPS here (2 iterations)** per the pre-commitment
+in §2.1 (two consecutive barren iterations, 40 games). v27's
+only losses in the loop are four distributed-drift games (two
+per iteration) plus one threshold-fire between two losers; the
+battery is the verdict on whether the threshold costs or saves
+games at scale.
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
+
+### 2.5 Aggregate counts (secondary)
+
+Fast-loop totals (2 iterations, 40 games): vs v7 14W-4L-2D
+(0.7500); vs v0 20W-0L-0D (1.0000). Colour splits vs v7: as
+Black 8W-1L-1D (0.85), as White 6W-3L-1D (0.65). Fast-loop
+defence: 4/4 losses via open four, 0 missed blocks, 0 clean
+missed preventions (15 threatened turns in losses). Defence
+remains solved. No patches were made in this iteration —
+v27-as-batteried is v27-as-pre-registered (τ=0.05, selected by
+the §1.2 rule).
+
 ## 3. v27 evaluation
 
 (TODO — battery on the FINAL version only.)
