@@ -598,9 +598,70 @@ the same two fixes at merge (H1/H2 will hit the same
 failures on the same base). After the fixes the ml suite is
 green (see §5).
 
-### 3.4 Fast loop
+### 3.4 Fast loop — the defensive check HURTS (verified mechanism)
 
-TODO — filled in when the fast loop runs.
+**vs v0 (seeds 1031/2031, 4 games — leg killed early, see below):
+2W-2L-0D.** Both losses as White (games 1 and 3, both 29
+plies); both wins as Black (games 0 and 2, 131 and 103
+plies). Defence stayed solved (classify_losses: 2/2 via open
+four, 0 missed blocks, 0 clean missed preventions in 13
+threatened turns). Control screen — **v18 at the SAME seeds:
+9W-0L-1D (0.9500)**, winning both games v29 lost as White
+(game 1 in 22 plies, game 3 in 42). v29 is substantially
+weaker than its own base vs v0.
+
+**The mechanism (2 verified instances).** In both White
+losses the defensive check overrode the search at ply 9, and
+the override was the losing move:
+
+| Game | Ply | Check played | Search played | Check playout | Search playout |
+|---|---|---|---|---|---|
+| 1 | 9 | (5,5) | (9,5) | loses 3/3 | WINS 3/3 |
+| 3 | 9 | (5,5) | (5,9) | loses 3/3 | WINS 3/3 |
+
+(Verified with `targeted_playout.py`, v29-vs-v0, seeds 0/1/2;
+the workup found no saves in the last 4 turns of game 1, so
+the loss was decided at ply 9.) The positions are the same
+motif: Black holds exactly TWO VCF starts — the two squares
+White must choose between — and White has no VCF start of its
+own, so the defensive branch fires. Both candidate
+preventions leave Black with IDENTICAL exact threat profiles
+(0 VCF starts, 0 creators, 2 setups, same sets) — the exact
+analysis cannot distinguish them. The v1 priors differ by
+**3e-6** (0.20661768 vs 0.20661458 — noise: both moves occupy
+a Black threat square, so their 1-ply scores are similar by
+construction). The check picks the higher-prior one — and it
+loses 3/3, while the other wins 3/3. The search (v18) picks
+the winning one in both games.
+
+**Diagnosis.** The pre-registered selection rule (highest v1
+prior among preventions) has no discriminative power when
+preventions are near-tied on prior — and near-ties are the
+COMMON case, because preventions occupy the opponent's
+threat squares. The search evaluates the resulting positions
+via rollouts and CAN distinguish a winning prevention from a
+losing one; the check bypasses it. The flaw is in the DESIGN
+(the selection rule), not the implementation — there is no
+patch within the pre-registered design (choosing among
+preventions by search would be a different design,
+VCF-filtered search, not the pre-registered VCF-override).
+This also explains the colour split: as White (defending
+Black's initiative) the defensive check fires more often, so
+White pays the prior-noise coin flip more often; as Black
+v29 won both games (including game 0, where v18 only drew).
+
+**Speed (fast-loop finding).** The VCF check averages ~7s
+per move in real games vs v0 (game 1: 99.5s over 14 White
+turns, max 27.8s) — 4x the bench mean (1.65s on v7
+self-play positions), because the no-prevention full scans
+dominate. The subset + ordering optimization (§3.1) cuts the
+no-fire checks ~1.6x (ply 25: 27.79s → 18.89s). Even so, a
+100-game battery leg projects to ~3h. The vs-v0 leg was
+killed after 4 games (~26 min) to analyse the losses rather
+than burn VM time on a version already shown weaker than its
+base; the vs-v7 fast loop (below) is the clause-1 screen.
+
+**vs v7 (seeds 1032/2032):** TODO — running.
 
 ## 4. Battery (TODO — filled in when the battery runs)
 
