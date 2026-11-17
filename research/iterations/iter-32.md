@@ -422,7 +422,9 @@ kept outside the repo; the swap leg recomputed the same way, plus
 opener/picker splits and distinct openings).
 
 Clause 3 (tactical): **PASS** — 20/20 + 29/29, run twice with identical
-results. Clause 4 (suites): re-run on the final tree — TODO.
+results. Clause 4 (suites): **PASS** — ml pytest 405 passed, 1 skipped,
+58 xfailed, 0 failed; npm test 55/55; tsc clean (all run on the
+final tree).
 
 Clause 1: **FAILS decisively** — 0.3700 vs v8, CI entirely below 0.50.
 The offensive VCF check makes the value engine strictly WORSE against its
@@ -575,7 +577,7 @@ corrected one.
 | 1. Head-to-head vs v8 | Win rate > 0.50, Wilson 95% CI lower > 0.50 | 37W-63L-0D, 0.3700, CI [0.2818, 0.4678] | **FAIL** |
 | 2. Ladder Elo | > v8's 0.0 | −70.4, interval [−221.1, 80.2] | **FAIL** |
 | 3. Tactical | ≥ v8's 20/20 + 29/29 | 20/20 old + 29/29 hard (corrected suite, seed 100) | **PASS** |
-| 4. Test suites | ml pytest, npm test, tsc all green | TODO — run on the final tree | TODO |
+| 4. Test suites | ml pytest, npm test, tsc all green | pytest 405 passed, 1 skipped, 58 xfailed, 0 failed; npm 55/55; tsc clean | **PASS** |
 
 Secondary legs: vs v0 61W-37L-2D (0.6200, CI [0.5221,
 0.7090]) — better than v8's 0.545; vs v7 28W-67L-5D (0.3050,
