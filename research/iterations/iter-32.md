@@ -249,9 +249,129 @@ on cost grounds (§1.4), and none is needed.
 
 ## 4. Fast loop
 
-TODO — 10 games vs v0 (seeds 1035/2035), 10 vs v8 (seeds
-1036/2036), loss workups, the d9 diagnostic (§1.2), the
-defensive-inclusion decision (§1.1).
+### 4.0 The d9 diagnostic (§1.2)
+
+`ml/scripts/diag_d9.py` reconstructs v24's vs-v0 game 1 ply-19
+position (White to move; actual i10 loses 3/3, d9 saves 2/3):
+
+- White holds 2 four-creators, **0 VCF starts** — the offensive
+  check cannot fire, as predicted (§1.2).
+- Black holds **12 VCF starts** — the defensive check WOULD fire
+  (and, run as a diagnostic, plays d9, the save).
+- **v32 plays d9 anyway** — via the search, not the check — and
+  **v8 plays d9 too** (iter-24 §5 already noted v8 plays d9 "via
+  visit dynamics"). The i10 miss was v24/v7's, not v8's: there
+  is nothing for the check to catch here, and the diagnostic
+  does NOT trigger the defensive-inclusion rule (§1.1 — one
+  position, and the rule needs ≥2 verified fast-loop losses
+  plus a validated VCF-filtered search).
+- Side observation: `starts_forced_win` reports 12 Black VCF
+  starts at a position that is NOT lost (d9 saves 2/3) — the
+  iter-29 §2.3 caveat again (the VCF definition does not model
+  defender counter-threats beyond the next move).
+
+### 4.1 Legs
+
+**vs v0 (seeds 1035/2035): 4W-5L-1D (0.4500, CI [0.2014,
+0.7263]) in 498s.** As Black 3-2, as White 1-3-1. Defence
+solved (5/5 losses via open four, 0 missed blocks, 0 clean
+missed preventions in 26 threatened turns).
+
+**vs v8 (seeds 1036/2036): 5W-5L-0D (0.5000, CI [0.2366,
+0.7634]).** As Black 1-4, as White 4-1 (White won 8/10 games
+overall). Defence solved (5/5 via open four, 0 missed blocks,
+0 clean missed preventions in 19 threatened turns).
+
+**Sample duplication (both legs).** The fast-loop samples are
+heavily duplicated: the vs-v8 leg has only **4 distinct games
+in 10** (games 0/3/4 identical; games 1/2/5/7/8 identical —
+the same lines with colours swapped), and the vs-v0 leg has
+**7 distinct in 10** (games 1/5/9 identical; games 6/8
+identical). The effective sample is far smaller than 10 games
+per leg, and the win rates are very noisy — the battery is
+the verdict, as always. The duplicates also show the two
+engines play IDENTICALLY on the shared lines: where the
+check fired, v8's search found the same VCF move anyway
+(proven by the colour-swapped duplicates), so on these lines
+the check changed no move — it only skipped the search. The
+check's value-add, if any, must come from positions where the
+search MISSES the VCF start, which the fast loop did not
+produce as a distinct loss.
+
+### 4.2 VCF fires in real games
+
+`ml/scripts/replay_vcf_fires.py` re-runs the check at every
+v32 turn of the recorded games (0 mismatches both legs — the
+recorded move equals the check's move whenever it fired,
+validating the port end-to-end in real games):
+
+| Leg | Checked turns | Fires | Fire rate | Check time median / p90 / max / mean |
+|---|---|---|---|---|
+| vs v0 | 243 | 7 | 2.9% | 98ms / 514ms / 6.2s / 261ms |
+| vs v8 | 109 | 5 | 4.6% | 13ms / 104ms / 198ms / 40ms |
+
+Pooled: **12 fires, all in games v32 won; none in the 10
+losses or the draw.** Every one of v32's 9 fast-loop wins
+featured at least one VCF fire. The in-game check cost is
+heavier than the quiet-position bench (§3) — real games reach
+creator-rich positions the bench does not — but still far
+below v29's profile (max 6.2s vs 36s). The fires cluster in
+the endgame (e.g. game 3 vs v0: 4 consecutive fires at plies
+75–81 closing out a won game), i.e. the check converts wins
+the position already holds.
+
+### 4.3 Loss workups
+
+All 10 losses worked up — 6 DISTINCT losses (duplicates
+collapsed: vs-v8 g0=g4, g2=g8; vs-v0 g1=g5=g9). Each workup:
+last 4 v32 turns, top-5 1-ply + VCF + deep-sims alternatives,
+seeds 0/1/2. Raw JSONs in `~/workspace/ml2h3-logs/
+workup-v32-*.json`. (The first workup batch was killed by a
+runtime restart that wiped /tmp; the workups were re-run from
+the committed fast-loop JSONs — v8-g0 and v8-g2 reproduced
+exactly, confirming the pre-restart findings.)
+
+| Loss | v32 | Plies | Verified save (playout) | VCF prevention? |
+|---|---|---|---|---|
+| vs-v8 g0 (=g4) | B | 34 | ply 26 (11,6) 3/3 | **YES** — White held exactly 2 VCF starts, (11,6) and (7,10); BOTH remove all White VCF starts. The defensive check picks the save by prior (0.1219 vs 0.1162) — a 0.0057 gap, not noise-level, but the two preventions are indistinguishable to the exact analysis |
+| vs-v8 g2 (=g8) | B | 24 | ply 16 (6,8) 3/3 | NO — White held 0 VCF starts at ply 16; a horizon save with no exact signature |
+| vs-v8 g9 | W | 25 | none in window | horizon loss |
+| vs-v0 g1 (=g5=g9) | W | 25 | none in window | horizon loss |
+| vs-v0 g2 | B | 28 | none in window | horizon loss |
+| vs-v0 g4 | B | 34 | ply 26 (8,5) 3/3 | NO — and the opposite of a prevention: White held SIX VCF starts; the save (8,5) leaves FOUR live, while BOTH exact preventions lose 3/3 (the actual (11,10) and the check's pick (10,9), prior 0.0512 vs 0.0510) |
+
+Three findings:
+
+1. **Only ONE distinct VCF-prevention save exists** (v8-g0's
+   (11,6)). The defensive-inclusion rule (§1.1) needs ≥2.
+2. **v0-g4 refutes the prevention concept itself, not just the
+   prior pick.** White's six "VCF starts" do not convert
+   against real defence: the saving move ignores four of them,
+   and both exact preventions lose. `starts_forced_win`
+   over-reports forced wins (iter-29 §2.3's caveat, in extreme
+   form) — so a defensive check that restricts to preventions
+   would pick a losing move here, whether it chooses by prior
+   OR by search (the prevention pool's tested members both lose
+   3/3). The batch-10 direction (VCF-filtered search) fails at
+   this position too, for a reason no selection rule fixes:
+   the pool itself is wrong.
+3. **No patchable weakness class.** The two non-VCF saves
+   (v8-g2's (6,8), v0-g4's (8,5)) have no exact signature a
+   rule could reproduce; the three horizon losses have no save
+   at all; the single VCF-prevention save cannot carry a
+   design change (and the check that would play it is the
+   verified-flawed one). Fast loop STOPS after iteration 1.
+
+### 4.4 Defensive-inclusion decision (§1.1)
+
+**The defensive check stays OFF. v32 ships offensive-only.**
+
+Condition 1 fails (1 VCF-prevention save, need ≥2), and
+v0-g4 shows the second condition's premise is false as well:
+even a search-chosen prevention would lose there. The
+offensive-only design stands as pre-registered. No code
+changes from the fast loop — the battery runs on the
+implementation of §2.
 
 ## 5. Battery
 
