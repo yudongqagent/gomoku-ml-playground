@@ -666,7 +666,52 @@ again. The §1.3 no-signal rule does not apply (0.5 vs 1.0
 differ by 4 wins). All CIs overlap, so the sweep selects α
 but proves nothing — the 100-game battery is the verdict.
 
-**Fast loop iteration 2** (mixed form, α=0.5; TODO).
+**Fast loop iteration 2** (mixed form, α=0.5; 10 games each,
+seeds 1001/2001, 2026-11-17 ~12:34 PST):
+- vs v8: **7W-3L-0D (0.70)**, CI [0.3963, 0.8927]. As Black 5-0,
+  as White 2-3. **Registry verification:** these 10 games replay
+  the mixed sweep's α=0.5 games 0–9 EXACTLY — the registry α=0.5
+  path works on the mixed form too.
+- vs v0: **5W-3L-2D (0.60)**, CI [0.3128, 0.8324]. As Black
+  2W-1L-2D, as White 3W-2L. The patch worked in play: vs v0 went
+  0.25 → 0.60 and vs v8 0.50 → 0.70 (10 games each — small
+  samples, but the direction matches the holdout improvement).
+- Loss classification: **6 losses, 6 via open four, 0 missed
+  blocks, 0 clean missed preventions in 32 threatened turns.**
+  Defence clean again.
+- Losing moves (`find_losing_moves.py`; raw
+  `ml/runs/ml2-h2/losing-moves-iter2.txt`): **5 of 6 losses
+  were already lost** at the first VCF moment (positional
+  decline). **ONE genuine blunder: vs-v0 game 3 (White, 29
+  plies), ply 23 — (3,9), with 2 saving moves** ((7,5), (8,5)).
+
+**Workup verdict — vs-v0 game 3, ply 23 (VERIFIED):** this
+blunder is a DIFFERENT mechanism from iter1's saturation. The
+mixed net DISCRIMINATES here: its raw values are +0.729
+(actual) vs +0.734/+0.738 (saves) — still high (residual
+threat-saturation: the position has Black threats), but the
+leaf short-circuit gives the saves leaf +0.250 ours-perspective
+vs the actual's -0.365. And the SEARCH's q is RIGHT: the saves
+have better our-q (-0.105, -0.089) than the actual (-0.180).
+But the actual wins ON VISITS (8 vs 7 and 6) because its v1
+prior (0.1247) is 3x the saves' (0.0396) — **the heuristic
+prior overwhelms the net's correct q in visit allocation, and
+the most-visited root choice follows the prior.** This is the
+same category as v25's v0-g5 blunder: a PRIOR problem in
+shared heuristic-track code (`_priors`), whose change would
+alter v8/v7 equally and invalidate the α sweep — NOT patchable
+within H2's remit (v31 = v8's search + distilled net).
+
+**Fast-loop STOP after iteration 2:** no patchable weakness
+class for v31 within H2's design space. The one genuine
+blunder is a shared-prior issue; the other 5 losses are
+positional with no single blunder; the residual threat
+saturation (net still fires +0.73 at threat-heavy positions)
+is a teacher-horizon / B1-label-conflict limit that would need
+a different teacher, outside this workstream. Further
+iterations without a patch would only find more instances of
+the same unpatchable categories. Proceeding to validation on
+the FINAL v31 (mixed form, α=0.5); the battery is the verdict.
 
 ## 6. Validation battery
 
