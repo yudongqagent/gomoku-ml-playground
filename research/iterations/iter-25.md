@@ -781,22 +781,120 @@ refutes the "more data" hypothesis for this recipe:
 not a stronger one. (Colour splits and per-game records in
 `batch-v25-vs-v8.json` / `batch-v25-vs-v0.json`.)
 
-### 5.4 h2h vs v7 + swap vs v7 (RUNNING since 2026-11-16 ~22:57 UTC)
+### 5.4 h2h vs v7 + swap vs v7 (COMPLETE 2026-11-16 23:56 UTC)
 
-100-game freestyle vs v7 (fast_loop_match, PIDs 8851) and
-100-game swap vs v7 (selfplay_batch, balanced placement,
-placement-seed 11, tempo judge, PID 8858), seeds 100/200,
-in parallel. (TBD — results.)
+100-game freestyle vs v7: **37W-58L-5D (0.3950, 95% CI
+[0.3048, 0.4930])**. 100-game swap vs v7 (balanced
+placement, placement-seed 11, tempo judge): **33W-63L-4D
+(0.3500, 95% CI [0.2636, 0.4475])**. v25 loses to v7 in
+both formats (expected — v7 is the heuristic bar-passer —
+but the margins are wide).
+
+### 5.5 Colour splits — v25's White play is the failure mode
+
+| match | total | as Black | as White | Black−White gap |
+|---|---|---|---|---|
+| vs v8 | 0.440 | **0.730** (35W-12L-3D) | **0.150** (7W-42L-1D) | 0.58 |
+| vs v0 | 0.320 | 0.450 (21W-26L-3D) | 0.190 (9W-40L-1D) | 0.26 |
+| vs v7 | 0.395 | 0.550 (26W-21L-3D) | 0.240 (11W-37L-2D) | 0.31 |
+| swap vs v7 | 0.350 | 0.410 (19W-28L-3D) | 0.290 (14W-35L-1D) | 0.12 |
+
+v25's White play is catastrophically weak in every match
+(0.15–0.29), while its Black play is decent-to-strong —
+it even beats v8 0.73 as Black. The overall loss to v8 is
+ENTIRELY a White problem. Comparison on the common
+opponent (vs v0, 100 games each): v8 Black 0.640 / White
+0.450; v25 Black 0.450 / White 0.190 — v25 is worse in
+both colours, but the White collapse (−0.26) is much
+bigger than the Black drop (−0.19). Hypothesis (not
+proven): the training data is Black-skewed (Black wins
+53.1%), so the net sees mostly Black-win positions and
+evaluates White positions poorly — too pessimistically
+and/or with too little discrimination between good and bad
+White moves, so the search cannot find saving defences.
+3 of the 4 fast-loop blunders (§4) were v25 as White.
+The next ML iteration should check the net's White
+evaluation directly (e.g., holdout sign-accuracy split by
+side to move) and consider colour-balanced training.
+
+### 5.6 Clause-4 re-verification (final tree, 2026-11-17 ~00:00 UTC)
+
+* ml pytest: **252 passed, 1 skipped, 2 xfailed, 0 failures**
+  (151.5 s). (Up from 246 at the interim check — the 6 new
+  `test_load_shards.py` tests.)
+* npm test: **55 passed (55), 4 test files passed (4)**.
+* tsc `--noEmit`: **clean** (exit 0, no output).
+
+**Clause 4: PASS.**
 
 ### 5.5 Clause-4 re-verification (TBD)
 
-## 6. Bar check (v25 vs v8) (TBD)
+## 6. Bar check (v25 vs v8)
 
 | Clause | Requirement | v25 | Verdict |
 |---|---|---|---|
-| 1. h2h vs v8 (100 games) | win rate > 0.50, Wilson 95% CI lower > 0.50 | TBD | TBD |
-| 2. Ladder Elo | strictly > v8's 0.0 (identical counts/opponents) | TBD | TBD |
-| 3. Tactical | old 20/20 AND hard 29/29 | TBD | TBD |
-| 4. Test suites | ml pytest, npm test, tsc green | TBD | TBD |
+| 1. h2h vs v8 (100 games) | win rate > 0.50, Wilson 95% CI lower > 0.50 | 0.4400, CI [0.3467, 0.5377] | **FAIL** |
+| 2. Ladder Elo | strictly > v8's 0.0 (identical counts/opponents) | −88.7 (interval [−241.1, 63.6]) | **FAIL** |
+| 3. Tactical | old 20/20 AND hard 29/29 | 20/20 + 29/29 | **PASS** |
+| 4. Test suites | ml pytest, npm test, tsc green | pytest 252 passed / 1 skipped / 2 xfailed, 0 failures; npm 55/55; tsc clean | **PASS** |
 
-## 7. What this means (TBD)
+**v25 is REJECTED (fails clauses 1 and 2). v8 stays the ML
+champion.** v25 passes tactical and the test suites, but it
+loses to v8 outright over 100 games and its ladder Elo is
+below v8's.
+
+## 7. What this means
+
+**The 10k retrain refuted the "more data" hypothesis for
+this recipe.** v25 trained on 2.24× v8's unique games
+(3,244 vs 1,449) with the identical recipe — and played
+WORSE: 0.44 vs v8 (clause 1 fail), ladder Elo −88.7
+(clause 2 fail), 0.32 vs v0 (v8: 0.545). The holdout
+foreshadowed it: on the clean subset (games neither net
+trained on), v25's no-history sign accuracy was slightly
+WORSE than v8's (0.5599 vs 0.5707) despite the extra data.
+More weak-self-play data did not fix the value signal —
+it may have hurt, via the duplicate skew (games weighted
+up to 7×) and/or overfitting to the weak self-play
+distribution. This confirms the standing lesson (data
+quality > quantity at this scale) with a controlled
+experiment: same generator, same recipe, more data, worse
+engine.
+
+**The failure is specific, not general: White play
+collapsed.** v25 beats v8 0.73 as Black and loses 0.15 as
+White. The net's White evaluation is the prime suspect
+(§5.5) — the next ML iteration should measure the net's
+accuracy by side to move and try colour-balanced training
+before scaling data further.
+
+**Two durable program findings came out of H2 regardless
+of the rejection:**
+1. The B1 parallel generator's worker-seed rule (`seed +
+   w`) makes consecutive resume seeds replay each other's
+   streams — the "10k dataset" is 3,244 unique games, and
+   v8's "4,350" was 1,449. Future legs must space seeds ≥
+   workers apart. (§2.2)
+2. Training at 10k-game scale needs the memmap path:
+   the in-RAM load OOM-kills on this VM, and the
+   pre-allocated loader + memmap bundle + lazy-index train
+   loop (all tested, math bit-identical) make it robust.
+   (§2.4)
+
+**What changed because of a specific loss:** nothing was
+patched — the fast loop (§4) found 4 solver-verified
+blunders but no patchable defect within H2's remit (1 net
+judgment error needing retraining, 2 heuristic-prior blind
+spots shared with the heuristic track, 1 tie/noise). The
+blunder analysis did produce the White-collapse
+investigation that the colour splits then confirmed at
+battery scale.
+
+**Checkpoint:** `ml/runs/ml1-h2/value-net.pt` (best.pt =
+final.pt, epoch 5, identical weights). The epoch-2
+checkpoint is preserved at `ml/runs/ml1-h2/best-epoch2.pt`.
+The training data bundle is at `ml/runs/ml1-h2-10k/
+data-mmap/` (memmap) with the split manifest at
+`ml/runs/ml1-h2-10k/split-manifest.json`; the source 10k
+dataset is at
+`~/workspace/projects/gomoku-b3-b1/ml/runs/b3-b1-10k/data/`.
