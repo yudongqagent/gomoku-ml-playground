@@ -465,7 +465,18 @@ launch failed — the `&` backgrounded the `cd` too, so the
 redirect resolved against /home/hatch; relaunched with the
 `cd` inside a subshell. The vs-v0 sweep was unaffected.)
 
-(TBD — sweep results, selected α.)
+**VM replacement killed the vs-v8 sweep 2026-11-17 ~11:36 UTC**
+(uptime reset). Completed arms (flushed, saved): vs v0 ALL
+FOUR arms (sweep complete); vs v8 α=1.0, 0.5, 0.25. Partial
+arm lost: vs v8 α=0.125 at 12/20 (7W-5L-0D). **Rest sweep
+relaunched 11:36 UTC** (PID 1679) with the remaining alpha
+only — vs v8 {0.125}, same seeds — output to
+`sweep-v30-vs-v8-rest.json`, to be merged with the flushed
+arms afterwards. The sweep is seeded, so the re-run arm
+reproduces the lost partial games exactly (verify: α=0.125
+vs v8 must show 7W-5L at game 12).
+
+(TBD — final arm result, merged sweep, selected α.)
 
 ## 4. Fast loop (TBD)
 
