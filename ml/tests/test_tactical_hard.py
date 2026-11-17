@@ -51,7 +51,11 @@ silently pass here):
 Known limitation (same narrowness as the v1 suite's VCF positions):
 the checks verify wins by consecutive fours (depth 3) and by 2-ply
 setup. A move winning by a longer, non-VCF route would not be
-listed. No such move is known on any suite position.
+listed. One such move is now known: (9, 7) on
+winning-quiet-setup-2 wins 3/3 under v7-vs-v7 playouts (iter-23
+§3, batch-8 H3) — the batch-9 suite correction (commit 0ee51d8)
+added it to the expected list, and the exactness check below
+allows it via ``PLAYOUT_VERIFIED_MOVES``.
 """
 
 import os
@@ -67,11 +71,25 @@ HARD_SUITE_PATH = os.path.join(
 # v1's recorded score on this suite (ScoringPlayer version=1, seed=0),
 # the clause-3 reference for batch-2 versions. See
 # research/iterations/tactical-suite-v2.md. Stable across seeds 0, 1, 2.
-# Batch-9 suite correction (commit 0ee51d8): v1 passes 13/29, not
-# 12 — v1 chooses (9,7) on winning-quiet-setup-2, which the
-# correction added to the expected list (verified live 2026-11-16).
 V1_PASSED = 13
+# v1 passes 13/29, not the 12 recorded before the batch-9 suite
+# correction: v1 plays (9, 7) at winning-quiet-setup-2, which the
+# correction (commit 0ee51d8) added to the expected list — so v1
+# now passes a position it used to fail. The suite still
+# discriminates (13 < 29).
 SUITE_TOTAL = 29
+
+# Playout-verified longer-route winning moves (batch-9 suite
+# correction, commit 0ee51d8): moves that win by a longer, non-VCF
+# route and are therefore not found by the setup/VCF computation
+# in test_hard_suite_expected_moves_are_exact, but are verified
+# winning by engine playouts. winning-quiet-setup-2 (9, 7): wins
+# 3/3 under v7-vs-v7 (iter-23 §3, batch-8 H3); the suite list was
+# incomplete, not the engine wrong. The exactness check allows
+# these listed moves in addition to the computed setup+VCF set.
+PLAYOUT_VERIFIED_MOVES = {
+    "winning-quiet-setup-2": {(9, 7)},
+}
 
 
 def _load():
@@ -348,18 +366,9 @@ def test_hard_suite_expected_moves_are_exact():
             expected = {game.xy_to_move(x, y)
                         for x, y in pos["expect"]["moves"]}
             good = (set(_setup_moves(board, to_move))
-                    | set(_vcf_first_moves(board, to_move)))
-            if pid == "winning-quiet-setup-2":
-                # Batch-9 suite correction (commit 0ee51d8): (9,7)
-                # is a playout-verified winning move (wins 3/3
-                # under v7-vs-v7, iter-23 §3 — a suite-list gap,
-                # not an engine defect) that the setup ∪ VCF exact
-                # definitions do not capture: it wins by a quiet
-                # double-threat two plies out, not by an immediate
-                # creator or a consecutive-four sequence. The
-                # expected list includes it; the exact check
-                # verifies everything else.
-                good = good | {game.xy_to_move(9, 7)}
+                    | set(_vcf_first_moves(board, to_move))
+                    | {game.xy_to_move(x, y)
+                       for x, y in PLAYOUT_VERIFIED_MOVES.get(pid, set())})
             assert good == expected, (
                 f"{pid}: winning moves (setup + VCF) are "
                 f"{sorted(game.move_to_xy(m) for m in good)}, listed "
