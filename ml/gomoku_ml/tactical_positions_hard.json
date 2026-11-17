@@ -3260,7 +3260,7 @@
       "id": "winning-quiet-setup-2",
       "name": "Quiet setup \u2014 the 58k double three is a decoy",
       "category": "winning",
-      "description": "Hand-constructed: the highest 1-ply moves here are double-open-three decoys \u2014 (9,7) scores 58,167 but its threats are gap-threes whose extensions give only single-ended fours, so White stops them. The winning moves are the quiet (7,7) (open three plus the armed double-four square (10,10)), (8,7) and (8,9) (2-ply setups), and (10,10) itself, which forces a win by consecutive fours. Expected moves are exactly the verified winning moves (2-ply setups plus VCF first moves).",
+      "description": "Hand-constructed: the highest 1-ply moves here are double-open-three decoys \u2014 (9,7) scores 58,167 and its threats are gap-threes whose extensions give only single-ended fours, so the original analysis held that White stops them. That analysis was wrong: (9,7) was verified winning (3/3 under v7-vs-v7, iter-23; 6/6 under v18-vs-v18 with v18 defending, batch-9 suite correction) and is now an expected move. The winning moves are the quiet (7,7) (open three plus the armed double-four square (10,10)), (8,7) and (8,9) (2-ply setups), (9,7), and (10,10) itself, which forces a win by consecutive fours. Expected moves are exactly the verified winning moves (2-ply setups, VCF first moves, and (9,7), verified by playouts against v7 and v18 defence).",
       "black": [
         [
           13,
@@ -3332,6 +3332,10 @@
           [
             8,
             9
+          ],
+          [
+            9,
+            7
           ],
           [
             10,
