@@ -466,23 +466,32 @@ replay-v32-vs-*.json`.
 | Leg | Checked turns | Scan turns | Fires | Fire rate | Check time median / p90 / max / mean | Fires in W / L / D |
 |---|---|---|---|---|---|---|
 | vs v8 | 1099 | 257 | 38 | 3.5% | 68.1ms / 206.0ms / 971.0ms / 91.3ms | 38 / 0 / 0 |
-| vs v0 | TODO | TODO | TODO | TODO | TODO | TODO |
-| vs v7 | TODO | TODO | TODO | TODO | TODO | TODO |
-| Swap vs v7 | TODO | TODO | TODO | TODO | TODO | TODO |
-| **Pooled** | TODO | TODO | TODO | TODO | TODO | TODO |
+| vs v0 | 1851 | 461 | 140 | 7.6% | 76.5ms / 634.6ms / 22.7s / 351.6ms | 140 / 0 / 0 |
+| vs v7 | 2118 | 462 | 55 | 2.6% | 23.2ms / 68.4ms / 10.9s / 78.0ms | 55 / 0 / 0 |
+| Swap vs v7 | 1629 | 366 | 49 | 3.0% | 17.3ms / 63.8ms / 3.5s / 49.2ms | 49 / 0 / 0 |
+| **Pooled** | 6697 | 1546 | 282 | 4.2% | — / — / 22.7s / ~149ms | 282 / 0 / 0 |
 
-Cost profile (vs-v8 leg): the in-game check is heavier than
-the quiet-position bench (§3: median 14.5ms, mean 43.9ms, max
+The pattern is total: **all 282 fires across all four legs
+occurred in games v32 won; zero in losses or draws — and on
+every leg, the games containing a fire are EXACTLY v32's win
+games** (vs v8: 37/37; vs v0: 61/61; vs v7: 28/28; swap:
+28/28). The check fires only where the position already holds
+a forced win, and it converts every one. The fire rate tracks
+opponent weakness (7.6% vs v0, 2.6–3.5% vs v7/v8/swap):
+against v0, v32 reaches winning positions most often and
+fires repeatedly in endgame VCF sequences (e.g. vs-v0 game 38:
+6 consecutive fires, plies 44–54).
+
+Cost profile: the in-game check is heavier than the
+quiet-position bench (§3: median 14.5ms, mean 43.9ms, max
 279ms) — real games reach creator-rich positions the bench
-does not — but still ~18x cheaper than v29's on mean (91ms vs
-1.65s) with the tail gone (max 971ms vs 36s). The fire rate
-(3.5%) matches the bench (6%) and the fast loop (4.6% vs v8):
-the offensive-only check fires rarely, and only where the
-position already holds a forced win. Fires by colour (vs v8):
-Black 21, White 17. The fires cluster on the repeated lines —
-(6,9) Black at ply 22, (6,5) White at ply 21, (6,8) White at
-ply 31 — the same three VCF starts recurring across the 23
-distinct lines.
+does not — and the tail is NOT gone: max 22.7s (vs v0, long
+messy games) and 10.9s (vs v7). The pooled mean (~149ms,
+turn-weighted) is still ~11x cheaper than v29's 1.65s, and
+the medians stay low (17–77ms), but the §3 bench understated
+the tail badly: cost is opponent-dependent (mean 352ms vs v0,
+78ms vs v7, 49ms swap, 91ms vs v8). Fires by colour (pooled):
+Black 164, White 118.
 
 Loss classification (`classify_losses.py` on the three
 freestyle legs): **167 losses, 167 via open four, 0 missed
@@ -516,8 +525,14 @@ better move. **REFUTED for the vs-v8 leg, on three tests:**
    changed the played move at only 11/1099 checked turns
    (1.0%), all on one line, all won. (Script:
    `~/workspace/ml2h3-logs/v8_search_at_fires.py`.)
-   Counterfactual TODO: `targeted_playout.py` on v8-g6 ply 22,
-   (6,9) vs (10,9) — does the search's move also win?
+   Counterfactual (`targeted_playout.py` on v8-g6 ply 22):
+   the check's (6,9) wins 3/3 in playouts AND the search's
+   (10,9) wins 3/3 — the exact analysis is identical after
+   either move (0 opponent VCF starts, 2 creators). So the
+   check changed the OUTCOME of zero vs-v8 games: at 27/38
+   fire positions the search plays the same move, and at the
+   other 11 (one line) the search's different move wins
+   equally.
 
 So why 0.37 vs v8, if the check changed 1% of moves and
 caused zero losses? The answer is line collapse. The vs-v8
@@ -538,7 +553,11 @@ fires only where the search already finds the win — the
 check-caused regression. The check's value-add, if any, must
 come from positions where the search MISSES the VCF start;
 the battery produced exactly one such distinct position (the
-(6,9)/(10,9) line), and the check's move won there.
+(6,9)/(10,9) line), and the search's move wins there too
+(3/3 playouts) — so even that one position was not a genuine
+save. The misfire hypothesis is refuted in both directions:
+the check neither loses games (0 fires in losses) nor wins
+games the search would lose (0 outcome changes vs v8).
 
 Note the tension with §5.1's draft reading ("where they
 diverge, the check's move is usually the wrong one"): the
@@ -577,12 +596,14 @@ What v32 establishes:
   game-strength gain the check was designed for (§0: catching
   horizon misses) did not materialise — the battery produced
   exactly one distinct position where the search missed a VCF
-  start, and the check's move won there, but one line cannot
-  carry a 100-game match.
-- **The check is cheap.** Mean 91ms, max 971ms in real games
-  (§5.2) — ~18x cheaper than v29's, no tail. Cost was never
-  the problem; the lever simply has no strength to give the
-  value engine.
+  start, and the search's move wins there too (3/3 playouts),
+  so the check changed the outcome of zero vs-v8 games.
+- **The check is cheap on average, with a tail.** Pooled
+  mean ~149ms in real games (§5.2) — ~11x cheaper than
+  v29's 1.65s — but the max hit 22.7s once (vs v0,
+  creator-rich long games) and 10.9s vs v7, far above the
+  §3 bench's 279ms max. Cost was never the binding problem;
+  the lever simply has no strength to give the value engine.
 - **The defensive check stays CLOSED.** The fast loop (§4.4)
   produced one VCF-prevention save against the ≥2 required,
   and v0-g4 showed a prevention pool both of whose members
