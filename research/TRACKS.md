@@ -57,7 +57,7 @@ the heuristic. The work continues autonomously; he runs nothing.
   ladder Elo 0.0, vs v0 0.545, vs v1 0.48, tactical 20/20 + 29/29.
   It is the best net-using version by both Elo and vs-v0 (v11: Elo
   0.0, vs v0 0.435; Colab longrun MobileNet: Elo −400.0; CPU round 2
-  ResNet: Elo −400.0). Lives on master (`bf866f7`); its checkpoint is
+  ResNet: Elo −400.0). Lives on master (`17d08db`); its checkpoint is
   gitignored data at `ml/runs/b3-h2/value-net.pt` (present in the main
   worktree; copy it into any worktree that needs to run v8).
 - **ML track's own bar** (same 4-clause shape, reference v8):
@@ -70,26 +70,38 @@ the heuristic. The work continues autonomously; he runs nothing.
 ## Daily cross-track measurement
 
 - **What:** the current strength champion of each track plays a
-  40-game normal-rules match (alternating colours, 100 sims — the
-  program standard, just fewer games than the 100-game battery).
-  40 games keeps the daily check to roughly an hour of CPU while the
-  gap is large; a full 100-game match runs whenever a champion
-  changes in either track.
-- **How:** `ml/scripts/fast_loop_match.py --version-a <H> --opponent
-  v<M> --games 40 --seed-a <date-seed> --seed-b <date-seed+10000>
-  --out <cross-track dir>/YYYY-MM-DD.json`, run in the worktree that
-  holds the heuristic champion's code, with the ML champion's
-  checkpoint copied in. Seeds are date-derived (YYYYMMDD) so each
-  day's games are fresh, never the validation battery's seeds
-  (100/200) or the fast loop's (1001/2001).
+  40-game match under the official swap rule (opener places 3
+  stones, second player picks a side, White plays move 4; tempo
+  judge; balanced placement), 100 sims — the program standard,
+  just fewer games than the 100-game battery. From 2026-11-17 the
+  daily match uses swap rules (Yudong's direction 2026-11-16:
+  apply the official rules so White gets a real chance); the
+  2026-11-16 match was the last normal-rules one. 40 games keeps
+  the daily check to roughly an hour of CPU while the gap is
+  large; a full 100-game match runs whenever a champion changes
+  in either track.
+- **How:** `ml/scripts/selfplay_batch.py --engine-a v<H>
+  --engine-b v<M> --games 40 --swap-rule --placement balanced
+  --placement-seed <date-seed> --judge tempo --seed-a <date-seed>
+  --seed-b <date-seed+10000> --out <cross-track
+  dir>/YYYY-MM-DD.json`, run in the worktree that holds the
+  heuristic champion's code, with the ML champion's checkpoint
+  copied in. Seeds are date-derived (YYYYMMDD) so each day's
+  games and openings are fresh, never the validation battery's
+  seeds (100/200) or the fast loop's (1001/2001).
 - **Results:** `~/workspace/goals/gomoku-ml-playground/hidden_files/cross-track/`
   (JSON per day + this file's log below). The daily cron (`gomoku-cross-track-daily`,
   ~08:37 PST) runs the match and reports the result to Yudong in the
   Gomoku side chat.
 - **Reading the number:** with the current gap (heuristic Elo 636.4
   vs ML Elo 0.0) the heuristic side should win the large majority.
-  The number to watch is the trend: the ML track's win rate climbing
-  toward 0.50 is the signal that the model is catching up.
+  Under swap rules the colour advantage is neutralised per game by
+  the swap choice, so the win rate is a cleaner strength signal
+  than under normal rules (where Black's advantage dominates the
+  variance — Black won 31/40 in the last normal-rules daily
+  match). The number to watch is the trend: the ML track's win
+  rate climbing toward 0.50 is the signal that the model is
+  catching up.
 
 ## Batch pattern
 
@@ -124,4 +136,4 @@ the heuristic. The work continues autonomously; he runs nothing.
 | Date | Heuristic | ML | Score (H–ML) | Win rate (H) | Notes |
 |------|-----------|----|--------------|--------------|-------|
 | 2026-11-15 | v18 | v8 | 7–3 (10 games) | 0.70 [0.397, 0.892] | Setup probe: v18 as Black 4–1, as White 3–2; CI includes 0.50 (n=10 too small for a verdict); ~126s/game → daily 40-game match ≈1.4h; not a daily measurement |
-| 2026-11-16 | v18 | v8 | 22–16–2 (40 games) | 0.575 [0.422, 0.715] | Daily #1: v18 as Black 17–2–1, as White 5–14–1; Black won 31/40; CI still includes 0.50 (n=40 can't prove the edge alone); ML win rate 0.425 vs probe 0.30 (within noise) |
+| 2026-11-16 | v18 | v8 | 22–16–2 (40 games) | 0.575 [0.422, 0.715] | Daily #1 (NORMAL rules — last one; series switches to swap from 2026-11-17): v18 as Black 17–2–1, as White 5–14–1; Black won 31/40; CI still includes 0.50 (n=40 can't prove the edge alone); ML win rate 0.425 vs probe 0.30 (within noise) |
