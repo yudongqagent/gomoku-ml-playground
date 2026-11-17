@@ -793,8 +793,105 @@ missed preventions in 588 threatened turns).
 
 ## 4. Bar check (v28 vs v7)
 
-(TBD.)
+**REJECTED — 2 of 4 clauses pass.**
+
+| Clause | Requirement | v28 result | Verdict |
+|---|---|---|---|
+| 1. Head-to-head vs v7 | win rate > 0.50, Wilson 95% CI lower bound > 0.50 | 53W-39L-8D, 0.5700, CI [0.4722, 0.6627] | **FAIL** — CI lower bound 0.4722 < 0.50 |
+| 2. Ladder Elo | > 190.8 (v7) | -34.9, interval [-183.3, 113.6] | **FAIL** — below v7; interval does not reach 190.8 |
+| 3. Tactical | ≥ 20/20 + 29/29 on the corrected suite | 20/20 + 29/29 | **PASS** |
+| 4. Suites green | ml pytest, npm test, tsc | pytest 346 passed / 7 skipped / 48 xfailed, 0 failed; npm 55/55; tsc clean | **PASS** |
+
+Secondary metrics: vs v0 52W-43L-5D, 0.5450, CI [0.4475,
+0.6391] (Black 0.83, White 0.26); swap vs v7 50W-44L-6D,
+0.5300, CI [0.4329, 0.6249] (Black 0.64, White 0.42). v28 does
+not beat v18 on either champion metric (h2h-vs-v7 0.775, ladder
+Elo 636.4), so it is not a strength champion either. v7 stays
+the bar reference; v18 stays the heuristic strength champion.
 
 ## 5. What this means
 
-(TBD.)
+**The hypothesis is refuted — and the mechanism is the exact
+opposite of the prediction.** v28 was designed to keep v22's
+Black edge while fixing White: demote Black's gap threes only
+in the ours term, on the theory that the theirs-term demotion
+was what hurt White. The battery prices each term separately
+(each comparison changes exactly one thing):
+
+| Version | Demotion | Black vs v0 | White vs v0 |
+|---|---|---|---|
+| v14 | none | 0.60 | 0.60 |
+| v20 | both colours, both terms | 0.72 | 0.45 |
+| v22 | Black, both terms | 0.93 | 0.38 |
+| v28 | Black, ours term only | 0.83 | 0.26 |
+
+The ours-term demotion alone (v14 → v28) is +0.23 Black /
+**−0.34 White**; the theirs-term demotion on top (v28 → v22)
+is +0.10 Black / **+0.12 White**. The theirs-term demotion
+HELPS White — it was compensating for the ours-term demotion's
+damage, not causing it. Removing it (v28) leaves White with
+the worst White score of any v1-leaf version (0.26 vs v0;
+0.42 under swap; 1W-9L as White in the ladder's vs-heuristic
+leg). The pre-registered refutation (White ≤ 0.45) triggered
+decisively.
+
+**The durable finding is about leaf coherence, not about gap
+threes.** v28's leaf is the first INCOHERENT leaf in the
+program: it breaks player-swap antisymmetry WITHIN a game —
+at White-to-move leaves White's own breadth is counted fully
+while Black's breadth at Black-to-move leaves is demoted, so
+the same board is valued differently depending on whose turn
+the leaf sits at, and the MCTS backups mix the two valuations
+along a single line. (v16's colour gate is per-game, so v16's
+leaf is coherent within a game; the v16 precedent cited in §1
+does NOT cover per-leaf conditioning — that was the design's
+blind spot.) The battery prices that incoherence at White
+0.26. The best explanation — stated as a hypothesis, not
+proven — is that White's search under-fears Black's replies
+(Black looks weak at Black-to-move leaves) while over-fearing
+Black at its own turns (full Black breadth in the theirs
+term), so White plays into Black's threats. The untested
+complement — Black-only demotion in the THEIRS term only —
+would be the controlled follow-up: it predicts Black ≈ v14
+with White ≈ v22-or-better, and it would isolate whether the
+damage is the ours-term demotion itself or the incoherence.
+But given the ours-term demotion alone costs White −0.34,
+the gap-three demotion lever is now priced in all four
+combinations and should be considered CLOSED as a strength
+lever: no combination of (colour × term) demotion beats v14
+in aggregate vs v0 (v14 0.60, v20 0.585, v22 0.655, v28
+0.545 — only v22's 0.655 beats v14, and it does so entirely
+through Black 0.93 while White collapses).
+
+**Three secondary findings, all durable:**
+
+1. **v22's vs-mcts collapse does NOT reproduce** (§3.6):
+   v28 beats the ladder MCTS 13-7 (0.65) where v22 lost 5-15
+   (0.25). That refutes iter-22's leading hypothesis (the full
+   theirs-term over-fear): v28 counts MORE opponent breadth at
+   full weight than v22, yet wins. The collapse tracks the
+   theirs-term demotion itself — the difference between v22
+   and v28 is ONLY the White-to-move leaves. This constrains
+   H3's v29 forensics to the theirs-term demotion.
+2. **Non-transitivity, again**: v28 beats v7 in both colours
+   (0.57/0.57) yet loses to v0 as White (0.26) while v7 beats
+   v0 in both colours. The ladder Elo (-34.9) and the h2h
+   (0.57) disagree because they weight different opponents —
+   the bar's two-clause structure is doing real work here.
+3. **The fast loop found nothing to patch, correctly.** The
+   one engine-swap-confirmed losing move (fl1-g7-ply15) is
+   played by ALL engines (v28/v22/v20/v14/v7) — a shared
+   100-sim horizon value error, not a v28 defect. The loop
+   stopped per rule after two iterations with no patch, and
+   the battery then confirmed the design itself was the
+   problem, not any single move. The loop's job is to find
+   patchable defects; a design-level refutation is a battery
+   verdict, and the battery delivered it.
+
+**What changed because of a specific loss: nothing.** No patch
+was made at any point — the fast loop's only confirmed losing
+move is shared by every engine in the program, and patching
+it would have been patching the 100-sim horizon, not v28.
+The version that was battery-tested is the version that was
+pre-registered, modulo the scale (8.0, set by Step 0's
+measured distribution before any eval).
