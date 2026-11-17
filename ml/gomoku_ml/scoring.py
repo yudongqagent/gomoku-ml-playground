@@ -459,6 +459,29 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "value_checkpoint": "ml/runs/ml2-h1/value-net.pt",
          "value_checkpoint_env": "GOMOKU_V30_CHECKPOINT",
          "value_weight": 0.5},
+    # v32 (iteration 32, ML batch 2): H3 — v8's ValueMCTS + learned
+    # value leaf PLUS an OFFENSIVE-ONLY VCF-at-root check (see
+    # gomoku_ml.mcts_value.ValueMCTS ``vcf_root`` /
+    # ``vcf_defensive`` and research/iterations/iter-32.md §1.1):
+    # an offensive VCF start (evaluate.starts_forced_win, depth 3)
+    # is played immediately after the win/block scans, before the
+    # search; otherwise the engine is exactly v8. The check is
+    # v29's _vcf_root_move step 1, ported to ValueMCTS (whose
+    # choose_move overrides the parent's, so v29's hook does not
+    # reach it). The defensive step is OFF by pre-registration:
+    # v29's defensive check is a verified flaw (it picks
+    # preventions by prior noise — iter-29 §3.4), and the only
+    # permitted defensive design is a VCF-filtered search
+    # (preventions chosen by the search, not the prior), which the
+    # fast loop must validate first. v8 is already 29/29 tactical,
+    # so the value here is game strength (catching horizon misses),
+    # not tactical. 100 sims, c_puct 1.5, VALUE_WEIGHT 0.25, the
+    # v8 checkpoint. Versions 30-31 are the parallel ML batch 2
+    # workstreams' (H1 dedup+balance retrain, H2 bigger value net).
+    32: {"name": "scoring-v32", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/b3-h2/value-net.pt",
+         "vcf_root": True, "vcf_defensive": False},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1077,6 +1100,10 @@ class ScoringPlayer:
                     rng=self.rng,
                     value_weight=ENGINE_VERSIONS[version].get(
                         "value_weight", VALUE_WEIGHT
+                    ),
+                    vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
+                    vcf_defensive=ENGINE_VERSIONS[version].get(
+                        "vcf_defensive", False
                     ),
                 )
             else:
