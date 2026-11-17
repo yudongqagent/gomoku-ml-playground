@@ -250,21 +250,24 @@ ENGINE_VERSIONS: dict[int, dict] = {
     23: {"name": "scoring-v23", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "tie_break_q": True},
-    # TEMPORARY v27 sweep candidates (batch 9, H1 — see
-    # research/iterations/iter-27.md §1.2): v23 + a threshold on
-    # the q-gap tie-break. Version 90 is tau=0.05, version 91 is
-    # tau=0.10. These exist ONLY so the standard drivers can run
-    # the pre-registered sweep; both entries are REMOVED when v27
-    # is registered with the threshold the selection rule picks.
-    # They are not versions and must never be batteried as such.
-    90: {"name": "scoring-v27-tau005", "defence_weight": 1.0,
-         "threat_check": False, "mcts": True, "mcts_sims": 100,
+    # v27 (iteration 27, batch 9): H1 — v23 + a THRESHOLD on the
+    # q-gap tie-break (see gomoku_ml.mcts_heuristic.HeuristicMCTS
+    # ``tie_break_q_threshold`` and research/iterations/iter-27.md).
+    # The tie-break fires ONLY when the top our-q exceeds the
+    # second-highest DISTINCT our-q among the visit-tied children
+    # by strictly more than 0.05; below the threshold the choice is
+    # v18's (RNG over ALL tied children). Threshold selected by the
+    # pre-registered rule (iter-27 §1.2/§1.5): both sweep values
+    # (0.05, 0.10) passed the tactical gate 20/20 + 29/29 and
+    # scored IDENTICAL 39W-0L-1D (0.9875) in the 40-game vs-v0
+    # sweep, so the tie rule selected the smaller threshold (0.05).
+    # The temporary sweep entries (90/91) were removed on
+    # registration. Everything else is v23 unchanged: 100 sims,
+    # c_puct 1.5, v1 priors, rollout leaf both colours.
+    27: {"name": "scoring-v27", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
          "tie_break_q_threshold": 0.05},
-    91: {"name": "scoring-v27-tau010", "defence_weight": 1.0,
-         "threat_check": False, "mcts": True, "mcts_sims": 100,
-         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
-         "tie_break_q_threshold": 0.10},
 }
 
 # --- weights --------------------------------------------------------------

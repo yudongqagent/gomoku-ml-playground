@@ -767,22 +767,25 @@ def test_v27_top_q_group_falls_back_to_rng_subset_when_firing():
         assert mcts._pick_root_move(root) in (100, 102)
 
 
-def test_v27_sweep_candidates_registered():
-    # TEMPORARY sweep entries (iter-27 §1.2): removed when v27 is
-    # registered with the selected threshold.
-    v90 = scoring.get_player(90, seed=0)
-    assert v90.name == "scoring-v27-tau005"
-    assert v90._mcts.leaf_mode == "rollout2_v1_both"
-    assert v90._mcts.tie_break_q is True
-    assert v90._mcts.tie_break_q_threshold == 0.05
-    v91 = scoring.get_player(91, seed=0)
-    assert v91.name == "scoring-v27-tau010"
-    assert v91._mcts.tie_break_q_threshold == 0.10
+def test_v27_registered_with_selected_threshold():
+    # v27 = v23 + threshold 0.05, selected by the pre-registered
+    # rule (iter-27 §1.2/§1.5: both sweep values tied at
+    # 39W-0L-1D vs v0, so the tie rule picked the smaller one).
+    # The temporary sweep entries (90/91) are gone.
+    v27 = scoring.get_player(27, seed=0)
+    assert v27.name == "scoring-v27"
+    assert v27._mcts.leaf_mode == "rollout2_v1_both"
+    assert v27._mcts.tie_break_q is True
+    assert v27._mcts.tie_break_q_threshold == 0.05
+    assert v27._mcts.sims == 100
+    for temp in (90, 91):
+        with pytest.raises(ValueError):
+            scoring.get_player(temp, seed=0)
     # Same seed, same board, same move — the threshold consumes
     # RNG only where v18/v23 would, so determinism holds.
     board = _board_with(
         [(7, 7), (6, 7), (8, 7), (7, 6)], [(7, 8), (6, 8), (8, 8), (7, 5)]
     )
-    a = scoring.get_player(90, seed=0)
-    b = scoring.get_player(90, seed=0)
+    a = scoring.get_player(27, seed=0)
+    b = scoring.get_player(27, seed=0)
     assert a.choose_move(board, game.BLACK) == b.choose_move(board, game.BLACK)

@@ -299,6 +299,44 @@ are unaffected) and `ml/gomoku_ml/scoring.py` gains ONLY the
 function, and v23's dispatch are checked out unchanged from
 `research/batch-8-h3`. `baseline.py` is frozen and untouched.
 
+### 1.5 Threshold selection — sweep results (the pre-registered rule applied)
+
+**Tactical gate (§1.2 rule 1):** both τ pass — 20/20 old + 29/29
+hard at `--seed 100`, identical choices to v23's port
+verification (g26 → (8,4), g79 → (6,7), v1bl-g2 → (7,5),
+winning-quiet-setup-2 → (9,7)). Both eligible.
+
+**40-game vs-v0 sweep (seeds 3001/4001, alternating colours,
+100 sims; aggregates recomputed from the raw records, matching
+the drivers' headers exactly):**
+
+| τ | Result | Win rate | 95% CI | As Black | As White | Time |
+|---|---|---|---|---|---|---|
+| 0.05 | 39W-0L-1D | 0.9875 | [0.8909, 0.9987] | 19W-0L-1D (0.975) | 20W-0L (1.000) | 1505.2 s |
+| 0.10 | 39W-0L-1D | 0.9875 | [0.8909, 0.9987] | 19W-0L-1D (0.975) | 20W-0L (1.000) | 1307.1 s |
+
+The two thresholds are INDISTINGUISHABLE on the sweep: identical
+W/L/D and identical colour splits (the single draw in each is a
+225-ply full-board game). Only 8/40 games are move-for-move
+identical between the two matches — the thresholds DO diverge in
+play (games 0–5 identical, then the RNG streams desync after a
+differently-resolved tie) — but the divergence changes no
+outcome at this sample size. **Per the pre-registered tie rule
+(§1.2 rule 3: rates within 1 game → the smaller threshold),
+v27 = τ 0.05.** The temporary sweep entries (90/91) were removed
+on registration. Sweep artefacts:
+`research/iterations/sweep-tau005-vs-v0.json`,
+`research/iterations/sweep-tau010-vs-v0.json`.
+
+**What the sweep does and does not show.** Zero losses in 80
+combined sweep games vs v0 (v23's battery: 9 losses/100, all as
+Black) is consistent with the hypothesis — the threshold
+removes the Black-side misfire class — but the sweep seeds differ
+from the battery seeds and n=40 cannot measure a 0.91→0.97
+shift precisely. The 100-game battery is the verdict. v27's own
+tactical (post-registration): 20/20 old + 29/29 hard at
+`--seed 100`, as expected.
+
 ## 2. Loss analysis for iteration 27
 
 (TODO — the fast-loop worked games ARE the loss analysis.)
