@@ -97,6 +97,20 @@ class ValueMCTS(HeuristicMCTS):
         sims / c_puct / rng: as :class:`HeuristicMCTS` (100 / 1.5 by
             default, matching v6 and the ladder MCTS).
         device: torch device string (CPU here; there is no GPU).
+        vcf_root: enable the VCF-at-root check (v32, ML batch 2
+            H3): an offensive VCF start is played immediately,
+            before the search — the same hook as v29's in
+            :class:`HeuristicMCTS`, which this class's overridden
+            :meth:`choose_move` would otherwise bypass. False (the
+            default) is v8 behaviour exactly.
+        vcf_defensive: include the defensive VCF-prevention step
+            of :meth:`HeuristicMCTS._vcf_root_move`. False (the
+            default) is v32's pre-registered offensive-only design
+            (see ``research/iterations/iter-32.md`` §1.1): v29's
+            defensive check is a verified flaw (it picks
+            preventions by prior noise — iter-29 §3.4), so it is
+            OFF unless the fast loop validates a VCF-filtered
+            search. Only meaningful with ``vcf_root=True``.
     """
 
     def __init__(
@@ -107,8 +121,15 @@ class ValueMCTS(HeuristicMCTS):
         c_puct: float = 1.5,
         rng: np.random.Generator | None = None,
         device: str = "cpu",
+        vcf_root: bool = False,
+        vcf_defensive: bool = False,
     ) -> None:
-        super().__init__(sims=sims, c_puct=c_puct, rng=rng)
+        super().__init__(sims=sims, c_puct=c_puct, rng=rng, vcf_root=vcf_root)
+        # The parent's vcf_root flag is stored but the parent's
+        # choose_move is overridden below, so the hook is applied
+        # explicitly there (with the defensive step gated by
+        # vcf_defensive — False is v32's offensive-only design).
+        self.vcf_defensive = vcf_defensive
         # Batch-3 merge fix: H1's HeuristicMCTS sets ``self._leaf_value``
         # to a module-level leaf function in __init__; that instance
         # attribute shadows this class's leaf method, so the net leaf
@@ -155,10 +176,14 @@ class ValueMCTS(HeuristicMCTS):
         :meth:`HeuristicMCTS.choose_move` (the search loop is
         replicated here because the parent returns only the chosen
         move, and the safety filter needs the root children's visit
-        counts to pick the best SAFE move). After the search: if
-        the opponent has creators (moves leaving them >= 2 winning
-        moves — see :func:`gomoku_ml.scoring._opponent_creators`),
-        the choice is restricted to safe moves
+        counts to pick the best SAFE move). With ``vcf_root`` (v32)
+        an offensive VCF start is played immediately after the
+        win/block scans, before the search — the parent's hook does
+        not apply because this method overrides the parent's. After
+        the search: if the opponent has creators (moves leaving them
+        >= 2 winning moves — see
+        :func:`gomoku_ml.scoring._opponent_creators`), the choice
+        is restricted to safe moves
         (:func:`gomoku_ml.scoring._move_is_safe`); if no root
         child is safe, the most-visited move is played anyway
         (best effort, as in v3). With no creators the choice is
@@ -175,6 +200,16 @@ class ValueMCTS(HeuristicMCTS):
             return -1
         if len(cands) == 1:
             return cands[0]
+        # VCF-at-root (v32, offensive-only by default): a forced
+        # win the 100-sim search misses is played immediately.
+        # Same position as v29's hook in the parent's choose_move
+        # (after the win/block scans, before the search).
+        if self.vcf_root:
+            vcf_move = self._vcf_root_move(
+                board, player, defensive=self.vcf_defensive
+            )
+            if vcf_move is not None:
+                return vcf_move
         root = _Node(1.0)
         for _ in range(self.sims):
             self._run_one(root, board, player, None)

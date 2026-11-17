@@ -1037,7 +1037,7 @@ class HeuristicMCTS:
         return _rollout_leaf_value(board, player)
 
     def _vcf_root_move(
-        self, board: np.ndarray, player: int
+        self, board: np.ndarray, player: int, defensive: bool = True
     ) -> int | None:
         """VCF-at-root check (v29, batch 9 H3 — see
         ``research/iterations/iter-29.md`` §1.2). Returns the move
@@ -1048,11 +1048,17 @@ class HeuristicMCTS:
            depth 3 — the tactical suite's own VCF definition) is
            played immediately, highest v1 prior first (ties: lowest
            flat move index — deterministic, no RNG).
-        2. **Defensive VCF prevention.** If any opponent
-           four-creating move starts a forced win for the opponent,
-           play the highest-prior candidate move after which the
-           opponent has NO VCF-starting move (re-checked on the
-           resulting board); if none exists, fall through.
+        2. **Defensive VCF prevention** (skipped when
+           ``defensive=False`` — v32, ML batch 2 H3, is
+           offensive-only: v29's defensive check is a verified
+           flaw, picking preventions by prior noise — see
+           ``research/iterations/iter-29.md`` §3.4 and
+           ``research/iterations/iter-32.md`` §1.1). If any
+           opponent four-creating move starts a forced win for the
+           opponent, play the highest-prior candidate move after
+           which the opponent has NO VCF-starting move
+           (re-checked on the resulting board); if none exists,
+           fall through.
         The depth-3 VCF definition is exact, not heuristic — the
         check fires only on a genuinely forced win (by consecutive
         fours). Note the forensics caveat (iter-29 §2.3):
@@ -1104,6 +1110,11 @@ class HeuristicMCTS:
         # holds a VCF start on the current board (the gate that
         # keeps this cheap in quiet positions: the per-candidate
         # loop below runs only under a live VCF threat).
+        # Skipped entirely when defensive=False (v32's
+        # offensive-only check — the defensive step is v29's
+        # verified flaw, iter-29 §3.4).
+        if not defensive:
+            return None
         opp = evaluate.four_creating_moves(board, -player)
         opp_vcf = [
             m

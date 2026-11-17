@@ -215,3 +215,109 @@ def test_v8_env_override_and_missing_checkpoint(tmp_path, monkeypatch):
 
     with pytest.raises(FileNotFoundError):
         scoring.get_player(8, seed=0)
+
+
+# --- v32 (ML batch 2, H3): offensive-only VCF at root on the v8 base ---
+# See research/iterations/iter-32.md §1.1 (pre-registered design).
+
+
+def _tactical_position(suite, pid):
+    import os
+
+    from gomoku_ml import evaluate
+
+    if suite == "hard":
+        suite = os.path.join(
+            os.path.dirname(evaluate.__file__),
+            "tactical_positions_hard.json",
+        )
+    data = evaluate.load_tactical_suite(suite)
+    pos = next(p for p in data["positions"] if p["id"] == pid)
+    return evaluate.board_from_position(pos), pos["to_move"], pos
+
+
+def test_v32_registered_and_offensive_only(tmp_path, monkeypatch):
+    ckpt = _random_net_checkpoint(tmp_path)
+    monkeypatch.setitem(scoring.ENGINE_VERSIONS[32], "value_checkpoint", ckpt)
+    v32 = scoring.get_player(32, seed=0)
+    assert v32.name == "scoring-v32"
+    assert v32.mcts is True
+    assert isinstance(v32._mcts, ValueMCTS)
+    assert v32._mcts.sims == 100
+    assert v32._mcts.checkpoint_path == ckpt
+    assert v32._mcts.vcf_root is True
+    assert v32._mcts.vcf_defensive is False
+    # v8 is unchanged (no VCF check).
+    monkeypatch.setitem(scoring.ENGINE_VERSIONS[8], "value_checkpoint", ckpt)
+    v8 = scoring.get_player(8, seed=0)
+    assert v8._mcts.vcf_root is False
+    assert v8._mcts.vcf_defensive is False
+
+
+def test_v32_offensive_vcf_fires_on_vcf_positions(tmp_path):
+    # Old-suite VCF positions: the offensive check plays the
+    # forced-win start directly (no search) — the same moves
+    # v29's check plays (iter-29 §3.1 smoke test).
+    mcts = _value_mcts(tmp_path, sims=100)
+    mcts.vcf_root = True
+    for pid, expected_xy in (("vcf-1", (8, 3)), ("vcf-2", (8, 5))):
+        board, to_move, _pos = _tactical_position(None, pid)
+        move = mcts._vcf_root_move(board, to_move, defensive=False)
+        assert move is not None, f"{pid}: offensive VCF did not fire"
+        assert game.move_to_xy(move) == expected_xy, pid
+
+
+def test_v32_offensive_only_defensive_step_absent(tmp_path):
+    # v18's three hard-suite prevention positions: the defensive
+    # check fires there (v29 plays a prevention), but v32's
+    # offensive-only check must NOT fire — those are defensive
+    # preventions, which the offensive step cannot play. This
+    # pins the pre-registered offensive-only design (§1.1): the
+    # defensive step is absent, not merely unused.
+    mcts = _value_mcts(tmp_path, sims=100)
+    for pid in ("prev-v1v0s-g26", "prev-v1v1s-g79", "prev-v1bl-g2"):
+        board, to_move, _pos = _tactical_position("hard", pid)
+        assert mcts._vcf_root_move(board, to_move, defensive=False) is None, pid
+        # Control: the defensive step DOES fire on these positions.
+        assert mcts._vcf_root_move(board, to_move, defensive=True) is not None, pid
+
+
+def test_v32_falls_through_to_v8_where_check_does_not_fire(tmp_path):
+    # Where the check does not fire, v32 IS v8 exactly (same
+    # leaf, same priors, same search, same threat check). Low
+    # sims to keep the test fast; both engines share one random
+    # checkpoint and seed. Sparse boards (8 stones over the full
+    # board): dense random boards are creator-rich and the check
+    # fires on them, so they are not fall-through positions.
+    ckpt = _random_net_checkpoint(tmp_path)
+    rng = np.random.default_rng(11)
+    checked = 0
+    for _trial in range(8):
+        board = game.empty_board()
+        cells = [(x, y) for y in range(15) for x in range(15)]
+        rng.shuffle(cells)
+        for i, (x, y) in enumerate(cells[:8]):
+            board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+        v32 = ValueMCTS(
+            checkpoint_path=ckpt, sims=20, vcf_root=True,
+            rng=np.random.default_rng(0),
+        )
+        if v32._vcf_root_move(board, game.WHITE, defensive=False) is not None:
+            continue  # check fired — not a fall-through position
+        v8 = ValueMCTS(
+            checkpoint_path=ckpt, sims=20, rng=np.random.default_rng(0)
+        )
+        assert v32.choose_move(board, game.WHITE) == v8.choose_move(
+            board, game.WHITE
+        )
+        checked += 1
+    assert checked >= 2, "too few fall-through positions sampled"
+
+
+def test_v32_choose_move_does_not_mutate_board(tmp_path):
+    board, to_move, _pos = _tactical_position(None, "vcf-1")
+    before = board.copy()
+    mcts = _value_mcts(tmp_path, sims=20)
+    mcts.vcf_root = True
+    mcts.choose_move(board, to_move)
+    assert np.array_equal(board, before)
