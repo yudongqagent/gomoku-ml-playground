@@ -491,6 +491,72 @@ sample) is satisfied by that completeness. **Phase 1
 concludes: no patchable mechanism found. Phase 2 (§1.2)
 triggers.**
 
+### 2.6 Addendum — H2's v28 result refines the verdict (received 2026-11-16)
+
+After §2.5 was written, H2 (v28) completed with a controlled
+result that bears directly on the collapse mechanism: **v28
+— v22 with the theirs-term demotion REMOVED (ours-term
+demotion only) — BEATS the ladder MCTS 13-7 (0.65) at the
+SAME ladder seeds where v22 lost 5-15 (0.25).** The only
+difference between v22 and v28 is the White-to-move leaves
+(the theirs term: Black's gap-three breadth demoted in v22,
+full value in v28). Same seeds, same warm-up legs, one
+variable changed — the collapse tracks the theirs-term
+demotion.
+
+**Correction to §2.5.** My verdict that the iter-22 §3.6
+hypothesis (the full theirs-term makes v22 over-fear and play
+passively) is "NOT supported" was TOO STRONG, and H2's result
+refutes it as stated. The error: my evidence was 1-ply (leaf
+values at the root of the losing positions) plus root dumps
+at 6 positions. The theirs-term demotion acts on WHITE-to-move
+leaves DEEP in the tree — the values backed up from nodes
+where Black is the opponent — which a 1-ply root comparison
+cannot see. At the 6 verified losing positions the 1-ply
+leaves agreed and v14 made the same search moves, so the
+theirs-term demotion was not the deciding factor AT THOSE
+POSITIONS — but H2's aggregate shows it is the deciding
+factor across the ladder matchup. The two findings are
+compatible: the mechanism operates at positions (and in
+games) my 12-loss corpus did not isolate, via deep-tree
+value distortion rather than root 1-ply mis-ranking.
+
+**Refined mechanism.** The theirs-term demotion makes
+White-to-move leaves undervalue Black's gap-three breadth —
+i.e. v22 systematically underestimates Black's attacking
+potential when Black is the opponent. Against the forcing
+ladder MCTS (which creates and converts threats relentlessly),
+that underestimation is fatal: v22-as-White (and White nodes
+in v22-as-Black's tree) plays too optimistically, missing the
+cumulative threat until the open four lands. Removing the
+theirs-term demotion (v28) restores proper threat assessment
+and flips the matchup. (Caveat: 20-game samples; the CIs —
+v22 [0.11, 0.47], v28 ≈ [0.43, 0.82] — barely overlap, so
+this is strong controlled evidence, not proof.)
+
+**What stands and what changes.**
+- STANDS: the fresh-seed variance (§2.1 — v22 14-6 at
+  1029/2029) and the duplicate lines (3 of 15 losses are
+  repeats). The collapse has TWO components: a real
+  theirs-term effect (H2's controlled comparison) AND seed
+  variance (my fresh-seed result). Neither alone explains
+  0.25: the theirs-term demotion loads the dice, and the
+  ladder seed draw rolled low.
+- STANDS: the Phase 2 trigger. The "patch" for the
+  theirs-term mechanism IS v28 — H2's version, not this
+  workstream's. There remains no patchable mechanism WITHIN
+  v22 that H3 could implement as v29 without duplicating H2:
+  my per-position classes (§2.5) still hold (VCF-prevention:
+  1 instance; search-horizon: no single reproducing patch),
+  and H2's result is an aggregate controlled comparison, not
+  per-position verified saves at my 6 losing positions.
+- CHANGES: §2.5's "NOT supported" verdict on the iter-22
+  hypothesis is withdrawn and replaced by the refined
+  mechanism above. The forensics' headline finding is now:
+  the v22-vs-mcts collapse is driven by the theirs-term
+  demotion distorting White-to-move leaf values, amplified by
+  an unfavorable seed draw and duplicate lines.
+
 ## 3. Patch / fallback (v29)
 
 ### 3.0 v18 port verification
@@ -585,18 +651,22 @@ not caused by any v29 change):
 1. `test_hard_suite_expected_moves_are_exact`: the test's
    exact definition of "winning" (setup ∪ VCF) does not
    capture (9,7), which wins by a quiet double-threat two
-   plies out (playout-verified 3/3, iter-23 §3). Fixed with
-   a documented per-position exception: the exact check
-   still verifies every other position.
+   plies out (playout-verified 3/3, iter-23 §3).
 2. `test_hard_suite_v1_baseline_reproduces`: v1 now passes
    13/29, not 12 — v1 chooses (9,7) on
    winning-quiet-setup-2 (verified live). `V1_PASSED`
    updated 12 → 13.
 
-Both fixes are in this branch; the coordinator should apply
-the same two fixes at merge (H1/H2 will hit the same
-failures on the same base). After the fixes the ml suite is
-green (see §5).
+H3 first fixed both with an inline per-position exception;
+the coordinator then directed all workstreams to take H2's
+canonical fix instead (commit `a3c4f73` on
+`research/batch-9-h2`: `V1_PASSED` 12 → 13 plus an
+extensible `PLAYOUT_VERIFIED_MOVES` dict and a docstring
+update), taken verbatim via `git checkout
+origin/research/batch-9-h2 -- ml/tests/test_tactical_hard.py`
+and verified 4/4 passing. All three workstreams now carry
+the identical fix, so the merge is clean. After the fix the
+ml suite is green (see §5).
 
 ### 3.4 Fast loop — the defensive check HURTS (verified mechanism)
 
