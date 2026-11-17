@@ -360,6 +360,22 @@ step 3294 — LR 0.00180 at step 3410 vs 0.00178 at the kill).
 Post-resume pace ~0.9 s/step (contention easing); ~13,030 steps
 remain.
 
+**Second interrupt and resume (2026-11-17 13:37 UTC):** another
+VM replacement killed training at step 12,580 / epoch 8.
+Completed epochs since the resume: **epoch 3** train 0.0206 /
+val 0.0176 (1,019 s), **epoch 4** 0.0158 / 0.0163 (839 s),
+**epoch 5** 0.0147 / 0.0131 (1,005 s), **epoch 6** 0.0126 /
+0.0123 (1,452 s), **epoch 7** 0.0117 / 0.0120 (1,719 s) — val
+loss still decreasing monotonically, flattening after epoch 5.
+`best.pt` verified (step 11529, epoch 7, all 72 tensors finite,
+optimiser state present) and backed up to
+`ml/runs/ml2-h2/best-epoch7.pt` (val 0.0120 — the standing best
+to beat). Resumed 13:38 UTC with `--resume .../best.pt
+--epochs 3` (3 ADDITIONAL epochs, completing the 10-epoch plan;
+cosine schedule continues from step 11529, LR 0.00040 at step
+11600). ~4,941 steps remain, ETA ~45–60 min at the recent
+~15–25 min/epoch pace.
+
 TODO — fill in when training completes: final train/val loss,
 epochs run, best checkpoint (step/epoch), checkpoint path.
 
