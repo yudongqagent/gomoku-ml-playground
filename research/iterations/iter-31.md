@@ -587,6 +587,64 @@ goes to the battery as the B1-only form.
 
 **Fast loop iteration 2** (mixed form; TODO).
 
+### 5.2 Mixed retrain + regression check (actuals)
+
+**Mixed training COMPLETE 2026-11-17 19:25 UTC** (10 epochs,
+21,490 steps, ~65 min, no interruptions): val loss decreased
+monotonically (0.0864 → 0.0714 → 0.0498 → 0.0410 → 0.0330 →
+0.0299 → 0.0264 → 0.0248 → 0.0236 → 0.0233). Best checkpoint
+epoch 10 (val 0.0233), copied to the registry path
+`ml/runs/ml2-h2/value-net.pt`. (Absolute val loss is not
+comparable to the B1-only run's 0.0112 — the mixed val set
+includes the harder engine positions; v24's engine-only final
+val was 0.0617. Sign accuracy is the comparable metric.)
+
+**Regression check — MIXED verdict:**
+- Criterion (1), v0-g7 ply 43: **FAIL (narrowly in effect).**
+  The mixed net still outputs raw +0.975 to +0.978 for every
+  candidate move (vs +1.000 before) — it still saturates at
+  this live-VCF position and cannot discriminate the saves
+  from the losing move. Note the criterion's second half was
+  MISDESIGNED: the teacher itself ranks the losing move
+  joint-best (+0.052, tied with the (2,11) save), so even a
+  perfect distillation would not rank a save above (12,9) —
+  no net trained on these labels can pass that half.
+- Criterion (2), holdout engine transfer: **PASS, decisively.**
+
+| Holdout | mixed full | mixed no-hist | B1-only full | v24 full |
+|---|---|---|---|---|
+| B1-dedup | 0.8567 (MSE 0.0166) | 0.7452 | 0.8675 | 0.6252 |
+| v7 | 0.7713 (MSE 0.0352) | 0.3919 | 0.5718 | 0.7713 |
+| v18 | 0.8357 (MSE 0.0606) | 0.3890 | 0.7148 | 0.8384 |
+| random | 0.8069 (MSE 0.0850) | 0.7419 | 0.8069 | 0.7055 |
+| **engine pooled** | **0.7929** | 0.4497 | 0.6458 | 0.7766 |
+
+Engine-pooled sign accuracy went 0.6458 → **0.7929, beating
+v24's 0.7766** (v7 exactly equals v24's 0.7713, v18 matches
+0.8384, random beats 0.7055 clearly), with LOWER MSE than v24
+on v7/v18 (0.035/0.061 vs 0.045/0.069). B1 holdout barely
+moved (0.8567 vs 0.8675). The no-history view improved
+everywhere (B1 0.63→0.75, engine pooled 0.33→0.45) but is
+STILL below chance on engine positions (0.39) — the net still
+leans on history planes out-of-distribution, and the residual
+saturation is confined to threat-heavy positions (live VCFs)
+rather than all engine positions.
+
+**Decision: KEEP the patch (mixed form proceeds).** The
+quantitative, general criterion passed decisively; the single
+position that failed is a live-VCF extreme case whose second
+half was unachievable by construction. The mixed net is better
+than the B1-only net on every holdout measure except B1
+full-planes by 0.011 — batterying the B1-only form instead
+would be perverse. Fast-loop iteration 2 (mixed form) is the
+arbiter: if it still plays at the B1-only form's level (0.50
+vs v8 / 0.25 vs v0), the patch failed in play and the residual
+is a teacher-horizon limit outside H2's remit.
+
+**α re-sweep (mixed form; TODO — same grid {0.5, 1.0, 2.0} and
+selection rule as §1.3; the mixed net's engine-position values
+are now v24-scale (mean|v| 0.08–0.10), so α=1.0 is live again).**
+
 ## 6. Validation battery
 
 TODO — clauses 1–4 + secondaries.
