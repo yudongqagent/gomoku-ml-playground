@@ -80,6 +80,7 @@ import math
 import numpy as np
 
 from . import game
+from . import evaluate
 from . import kernel_numpy
 from . import kernel_v1
 from . import scoring
@@ -788,17 +789,54 @@ def _rollout_move(board: np.ndarray, player: int) -> tuple[int, float | None]:
     return int(np.argmax(total)), None
 
 
-def _rollout_leaf_value(board: np.ndarray, player: int) -> float:
+def _blend_rollout_terminal(
+    term: float, board: np.ndarray, player: int
+) -> float:
+    """Blend a rollout-found terminal value with the symmetric v1
+    gradient at the terminal position (v19, batch 7 H2 — see
+    ``research/iterations/iter-19.md`` §1).
+
+    ``term`` is ±1 from ``player``'s perspective at ``board`` (the
+    position where the rollout reached the terminal — the position
+    BEFORE the winning move is played; the terminal is a prediction
+    that the player to move there wins, not a finished game). The
+    blend is ``clamp(term + g, -1, 1)`` where ``g`` is the v1
+    gradient at that position for ``player``. The gradient's ±0.2
+    cap bounds the shift, so a blended rollout loss lands in
+    [-1.0, -0.8] and a blended rollout win in [0.8, 1.0]: the
+    terminal's dominance over quiet leaves (±0.2) and the
+    must-block (-0.25) is preserved, and the blend reorders ONLY
+    among lines that share a terminal outcome — precisely the set
+    v16's raw terminals flatten (iter-16 §3.1: in creator-rich
+    positions nearly every quiet leaf returns -1.000, so the search
+    cannot rank defences it knows are all losing). The clamp is the
+    predictions-never-exceed-facts rule: a rollout win must not
+    outrank an exact win at the leaf start (+1.0), nor a rollout
+    loss sink below an exact loss (-1.0). A draw (term 0.0, board
+    full) is returned unchanged — a full board has no empty cells,
+    so its gradient is 0 anyway.
+    """
+    if term == 0.0:
+        return 0.0
+    return max(-1.0, min(1.0, term + _attack_gradient_v1(board, player)))
+
+
+def _rollout_leaf_value(
+    board: np.ndarray, player: int, blend: bool = False
+) -> float:
     """v16 White leaf value: v7's terminal-aware values for terminal
     positions; for quiet positions, roll out exactly 2 plies
     (opponent reply + our reply, :func:`_rollout_move`) and evaluate
     the symmetric v1 gradient at the resulting position. A win/loss
     reached inside the rollout returns the exact terminal value
     (sign-adjusted to ``player``'s perspective: after an even number
-    of plies the player to move is ``player`` again). At the
-    rollout's END, only wins/losses (+/-1) are terminal: a must-block
-    (-0.25 — the opponent holds exactly one winning move) is a
-    position to evaluate with the gradient, not a game end.
+    of plies the player to move is ``player`` again) — or, with
+    ``blend=True`` (v19), the terminal blended with the v1 gradient
+    at the terminal position (:func:`_blend_rollout_terminal`),
+    sign-adjusted the same way. At the rollout's END, only
+    wins/losses (+/-1) are terminal: a must-block (-0.25 — the
+    opponent holds exactly one winning move) is a position to
+    evaluate with the gradient, not a game end.
     FAST-LOOP PATCH (iter-16 §2.1): treating a rollout-found
     must-block as an exact -0.25 lets a quiet move borrow a forcing
     move's value (in fast-loop game 7, (11,9) scored +0.25 because
@@ -816,15 +854,17 @@ def _rollout_leaf_value(board: np.ndarray, player: int) -> float:
     for i in range(_ROLLOUT_PLIES):
         move, term = _rollout_move(cur, p)
         if term is not None:
+            if blend:
+                term = _blend_rollout_terminal(term, cur, p)
             return term if i % 2 == 0 else -term
         cur = game.apply_move(cur, move, p)
         p = -p
     # 2 plies: p == player again. Only a win/loss ends the rollout
     # game; a must-block here is gradient-evaluated (see above).
     if scoring._winning_moves(cur, p):
-        return 1.0
+        return _blend_rollout_terminal(1.0, cur, p) if blend else 1.0
     if len(scoring._winning_moves(cur, -p)) >= 2:
-        return -1.0
+        return _blend_rollout_terminal(-1.0, cur, p) if blend else -1.0
     return _attack_gradient_v1(cur, p)
 
 
@@ -908,6 +948,11 @@ class HeuristicMCTS:
     most-visited, ties by RNG), ``"q"``, ``"tie-q"``, ``"blend"``,
     ``"tie-prior"``, ``"tie-prior-forcing"`` — see
     :meth:`_choose_root_child`.
+    ``vcf_root`` (v29, batch 9 H3) enables the VCF-at-root check
+    (:meth:`_vcf_root_move`): before the search, an offensive VCF
+    start is played immediately, and a defensive VCF prevention
+    is played when the opponent holds a VCF start. False (the
+    default) is v18 behaviour exactly.
     """
 
     def __init__(
@@ -920,6 +965,7 @@ class HeuristicMCTS:
         root_decision: str = "visits",
         tie_break_q: bool = False,
         tie_break_q_threshold: float = 0.0,
+        vcf_root: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
             leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
@@ -945,6 +991,7 @@ class HeuristicMCTS:
         self.root_decision = root_decision
         self.tie_break_q = tie_break_q
         self.tie_break_q_threshold = tie_break_q_threshold
+        self.vcf_root = vcf_root
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -989,6 +1036,100 @@ class HeuristicMCTS:
         not). v18-as-White IS v16 exactly."""
         return _rollout_leaf_value(board, player)
 
+    def _vcf_root_move(
+        self, board: np.ndarray, player: int
+    ) -> int | None:
+        """VCF-at-root check (v29, batch 9 H3 — see
+        ``research/iterations/iter-29.md`` §1.2). Returns the move
+        to play, or None to fall through to the MCTS search.
+
+        1. **Offensive VCF.** Among our four-creating moves, any
+           that starts a forced win (``evaluate.starts_forced_win``,
+           depth 3 — the tactical suite's own VCF definition) is
+           played immediately, highest v1 prior first (ties: lowest
+           flat move index — deterministic, no RNG).
+        2. **Defensive VCF prevention.** If any opponent
+           four-creating move starts a forced win for the opponent,
+           play the highest-prior candidate move after which the
+           opponent has NO VCF-starting move (re-checked on the
+           resulting board); if none exists, fall through.
+        The depth-3 VCF definition is exact, not heuristic — the
+        check fires only on a genuinely forced win (by consecutive
+        fours). Note the forensics caveat (iter-29 §2.3):
+        ``starts_forced_win`` does not model defender multi-move
+        counter-threats, so a reported VCF start can fail to
+        convert in real play — the battery is the verdict on
+        whether the check helps or misfires.
+
+        Implementation note (NOT a design change): both steps test
+        moves in (prior desc, flat index asc) order and return the
+        FIRST success, which is exactly the pre-registered
+        selection rule (highest prior, ties lowest index). The
+        defensive step additionally tests only the opponent's
+        ORIGINAL four-creators on each resulting board (our move
+        can only remove the opponent's four-creators — it adds
+        our stone, never an opponent stone — so the four-creators
+        after our move are a subset of the original set, and
+        ``starts_forced_win`` returns False for a move that no
+        longer creates a four there), VCF starts first (a VCF
+        start on the original board usually still forces a win
+        after our move, so ``any`` short-circuits on the first
+        test for non-preventions). Both are pure reordering /
+        subset reasoning — the selected move is identical to
+        testing every four-creator on every resulting board
+        (verified: identical moves on all 7 smoke-test positions
+        and all 14 White turns of fast-loop game 1 vs v0; the
+        only exception is the already-lost 2+-opponent-wins case,
+        where the game is lost whatever the check returns). The
+        naive test-all implementation took **38.7s** for one
+        defensive check on hard-suite position prev-v1v1s-g79
+        (profiled: 51,109 ``winning_moves`` calls via the
+        ``forces_win`` recursion); the early exit + subset +
+        ordering is 8–13x faster on the three prevention
+        positions (g79: 38.68s → 4.98s; g26: → 2.01s; v1bl-g2:
+        → 2.21s) with IDENTICAL moves. These change only how
+        many moves are tested and in what order, never which move
+        is selected.
+        """
+        # 1. Offensive VCF — test in selection order, first VCF
+        # start wins (identical to testing all and taking the max).
+        ours = evaluate.four_creating_moves(board, player)
+        if ours:
+            priors = _priors(board, player, self.prior_floor)
+            ours.sort(key=lambda m: (-priors.get(m, 0.0), m))
+            for m in ours:
+                if evaluate.starts_forced_win(board, player, m, depth=3):
+                    return m
+        # 2. Defensive VCF prevention — only when the opponent
+        # holds a VCF start on the current board (the gate that
+        # keeps this cheap in quiet positions: the per-candidate
+        # loop below runs only under a live VCF threat).
+        opp = evaluate.four_creating_moves(board, -player)
+        opp_vcf = [
+            m
+            for m in opp
+            if evaluate.starts_forced_win(board, -player, m, depth=3)
+        ]
+        if not opp_vcf:
+            return None
+        priors = _priors(board, player, self.prior_floor)
+        cands = sorted(
+            scoring._candidate_moves(board),
+            key=lambda m: (-priors.get(m, 0.0), m),
+        )
+        # Test only the opponent's ORIGINAL four-creators (subset
+        # property, see the docstring), VCF starts first.
+        vcf_set = set(opp_vcf)
+        ordered = opp_vcf + [m for m in opp if m not in vcf_set]
+        for c in cands:
+            b2 = game.apply_move(board, c, player)
+            if not any(
+                evaluate.starts_forced_win(b2, -player, m, depth=3)
+                for m in ordered
+            ):
+                return c
+        return None
+
     def choose_move(self, board: np.ndarray, player: int) -> int:
         # Immediate win (any winning move wins).
         wins = scoring._winning_moves(board, player)
@@ -1004,6 +1145,11 @@ class HeuristicMCTS:
             return -1
         if len(cands) == 1:
             return cands[0]
+        # VCF-at-root (v29): forced wins the 100-sim search misses.
+        if self.vcf_root:
+            vcf_move = self._vcf_root_move(board, player)
+            if vcf_move is not None:
+                return vcf_move
         root = _Node(1.0)
         for _ in range(self.sims):
             self._run_one(root, board, player, None)
@@ -1057,6 +1203,121 @@ class HeuristicMCTS:
         if self.rng is not None:
             return int(self.rng.choice(best))
         return best[0]
+
+    def _choose_root_child(
+        self,
+        root: _Node,
+        board: np.ndarray | None = None,
+        player: int | None = None,
+    ) -> int:
+        """Pick the root move by this instance's root-decision rule
+        (v9, batch 4 H1; v12, batch 5 H1; see
+        ``research/iterations/iter-9.md`` §1 and
+        ``research/iterations/iter-12.md`` §1).
+
+        Every rule considers only VISITED children (visit_count >=
+        1): an unvisited child's q is undefined (0.0 by convention),
+        not a signal, and must never win an argmax over q. And "q"
+        throughout is OUR-perspective value, ``-child.q`` — a root
+        child's raw ``q`` is the OPPONENT's value under the negamax
+        backup (iter-9.md §1.0 sign correction; iter-7 §2.6 read
+        raw q as our value and got the finding backwards).
+
+        ``board``/``player`` are needed only by
+        ``"tie-prior-forcing"`` (to test forcing-ness); when they
+        are absent that rule degrades to plain ``"tie-prior"``.
+        ``choose_move`` always passes them.
+
+        * ``"visits"`` (v6/v7): most-visited; ties by RNG/first.
+          Unchanged behaviour — with sims >= 1 the max-visit child
+          always has >= 1 visit, so the visited filter is a no-op.
+        * ``"q"`` (variant A): argmax our-q; ties by visits, then
+          RNG/first.
+        * ``"tie-q"`` (variant B): most-visited; ties by our-q,
+          then RNG/first.
+        * ``"blend"`` (variant C): argmax ``our-q + 0.1 *
+          (visits / max_visits)``; ties by visits, then RNG/first.
+        * ``"tie-prior"`` (variant D, v9): most-visited; ties by
+          v1 prior (a monotone transform of the v1 1-ply score),
+          then RNG/first.
+        * ``"tie-prior-forcing"`` (v12): most-visited; ties by
+          forcing-ness first (moves creating a four —
+          ``scoring._is_forcing``), then v1 prior, then RNG/first.
+          Targets iter-9 §2.6's failure mode: v1's 1-ply score
+          undervalues forcing counter-threats (~20k) against
+          occupying a creator (~204k), so the prior tie-break
+          systematically prefers blocking one of two creators over
+          forcing — and with two creators, blocking one is useless.
+        """
+        visited = [
+            (m, c) for m, c in root.children.items() if c.visit_count >= 1
+        ]
+        if not visited:
+            # No simulation ran (sims == 0): fall back to the
+            # highest prior. Unused in practice (sims >= 1
+            # everywhere); the sane behaviour when there is no
+            # search to decide by.
+            return max(root.children, key=lambda m: root.children[m].prior)
+        if self.root_decision == "q":
+            best_q = max(-c.q for _, c in visited)
+            cands = [m for m, c in visited if -c.q == best_q]
+            best_v = max(root.children[m].visit_count for m in cands)
+            cands = [
+                m for m in cands if root.children[m].visit_count == best_v
+            ]
+            return self._rng_or_first(cands)
+        if self.root_decision == "blend":
+            max_v = max(c.visit_count for _, c in visited)
+
+            def _score(child: _Node) -> float:
+                return -child.q + _BLEND_VISIT_WEIGHT * (
+                    child.visit_count / max_v
+                )
+
+            best_s = max(_score(c) for _, c in visited)
+            cands = [m for m, c in visited if _score(c) == best_s]
+            best_v = max(root.children[m].visit_count for m in cands)
+            cands = [
+                m for m in cands if root.children[m].visit_count == best_v
+            ]
+            return self._rng_or_first(cands)
+        # "visits" / "tie-q" / "tie-prior" / "tie-prior-forcing":
+        # most-visited first.
+        best_v = max(c.visit_count for _, c in visited)
+        cands = [m for m, c in visited if c.visit_count == best_v]
+        if len(cands) > 1:
+            if self.root_decision == "tie-q":
+                best_q = max(-root.children[m].q for m in cands)
+                cands = [
+                    m for m in cands if -root.children[m].q == best_q
+                ]
+            elif self.root_decision in ("tie-prior", "tie-prior-forcing"):
+                if (
+                    self.root_decision == "tie-prior-forcing"
+                    and board is not None
+                    and player is not None
+                ):
+                    # Forcing-first (v12, iter-12.md §1.1): among
+                    # the tied children, prefer moves that create
+                    # a four. Only the tied children are tested
+                    # (ties are ~24% of searched moves, tie sizes
+                    # small), so the scan is cheap. If none is
+                    # forcing, the tie-break falls through to the
+                    # prior below. Without a board (synthetic-root
+                    # tests) the rule degrades to plain tie-prior.
+                    forcing = [
+                        m
+                        for m in cands
+                        if scoring._is_forcing(board, m, player)
+                    ]
+                    if forcing:
+                        cands = forcing
+                best_p = max(root.children[m].prior for m in cands)
+                cands = [
+                    m for m in cands
+                    if root.children[m].prior == best_p
+                ]
+        return self._rng_or_first(cands)
 
     def _choose_root_child(
         self,
