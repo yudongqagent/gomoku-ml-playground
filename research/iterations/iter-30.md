@@ -437,11 +437,35 @@ detection transfers, its White play should improve — but its
 Black-win detection collapsed, so its Black play may regress.
 The colour splits in §5 will show which effect dominates.
 
-### 3.3 Leaf cost measurement (TBD)
+### 3.3 Leaf cost measurement (2026-11-17, `ml/runs/ml2-h1/leaf-bench.json`)
 
-### 3.4 Pre-sweep tactical (TBD)
+`bench_value_leaf.py --checkpoint ml/runs/ml2-h1/value-net.pt
+--positions 20 --leaf-samples 200 --sims 100`: per-leaf net eval
+mean 6.99 ms / median 1.88 ms / p95 64.9 ms (range 1.25–68.5 ms);
+per-move at 100 sims mean 2,204 ms / median 2,141 ms / p95
+2,793 ms; net leaf evals per move mean 79.2 (21–99). Same
+architecture as v8/v25, so the leaf cost is the same by
+construction (v25: mean 2,233 ms/move).
 
-### 3.5 α sweep (TBD)
+### 3.4 Pre-sweep tactical (α=0.25 placeholder, `--seed 100`)
+
+`eval_tactical_full.py --version 30 --suite both --seed 100`:
+**old 20/20, hard 29/29 — perfect.** The retrained net does not
+break tactics. (winning-quiet-setup-2 passed with the listed
+(10,10) on the corrected suite.) The battery re-runs tactical
+on the FINAL α (§5).
+
+### 3.5 α sweep (RUNNING since 2026-11-17 09:40 UTC)
+
+Grid {1.0, 0.5, 0.25, 0.125} × 20 games vs v0 and vs v8
+(seeds 1001/2001), both sweeps in parallel (PIDs 2059/2101).
+Selection (§1.4): highest COMBINED win rate over the 40 games;
+ties toward LARGER α. (Launch note: the vs-v8 sweep's first
+launch failed — the `&` backgrounded the `cd` too, so the
+redirect resolved against /home/hatch; relaunched with the
+`cd` inside a subshell. The vs-v0 sweep was unaffected.)
+
+(TBD — sweep results, selected α.)
 
 ## 4. Fast loop (TBD)
 
