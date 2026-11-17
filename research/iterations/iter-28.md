@@ -549,6 +549,73 @@ not v28-specific. The confirmed position (fl1-g7-ply15) is
 recorded in `regression_positions_v28.json` as an xfail — v28
 misses the save, as do v22/v20/v14/v7.
 
+### 2.2 Fast-loop iteration 2 — 10 games vs v7
+
+**Batch:** `research/iterations/fastloop2-v28-vs-v7.json` (seeds
+v28=1016 / v7=2016 — development seeds, distinct from the bar
+battery's 100/200). **6W-2L-2D, win rate 0.7000, CI [0.3968,
+0.8922]**, 647.0 s. Per colour: as Black 4W-0L-1D (games 0, 2, 4,
+6, 8), as White 2W-2L-1D (games 1, 3 won; 5, 9 lost; 7 drawn).
+Classifier: 2/2 losses via open four, 0 missed blocks, 0 clean
+missed preventions in 4 threatened turns (losses). Defence is
+still perfect; the losses are lost races, as in every batch.
+
+**The losing move in each game** (walk-back, corrected oracle
+method, seeds 0,1,2 — then ENGINE-SWAP VERIFIED with fresh v28
+vs fresh v7, the iter-20 §2.0 instrument):
+
+| Game | Last preventable turn | v28 played (loses 3/3) | Perfect move (oracle) | Engine-swap verdict |
+|---|---|---|---|---|
+| 5 (19 plies, White) | ply 13 | (8,7) | (10,7) draws 2/3 | **WITHDRAWN** — save D+211/L+45/L+49, control loses +5 |
+| 9 (21 plies, White) | ply 15 | (7,11) | (7,9) draws 2/3 | **WITHDRAWN** — save loses +5, control loses +5 |
+
+**Both oracle verdicts are WITHDRAWN.** Game 9 is the cleanest
+withdrawal: the save loses in exactly +5 plies, identical to the
+control — the position was already lost by the walk-back window,
+and v7-fresh playing the save (the only engine to do so) is luck
+as much as skill. Game 5 is subtler: the save draws once (a
+211-ply grind) and loses twice, but its losses run +45/+49
+plies against the control's +5 — the save delays the loss
+hugely without saving the game at 2 of 3 seeds, so the verdict
+is withdrawn under the ≥2/3 rule. Fresh-engine check at ply 13:
+v28-fresh plays (10,9) (NOT the match's actual (8,7) — the
+fresh RNG stream diverges), v22/v14/v7 play the actual (8,7),
+v20 plays (10,8), and NOBODY plays the oracle-save (10,7). The
+position is a coin-flip among several moves under 100-sim
+search; there is no v28-specific signal in either loss.
+
+**No patch from iteration 2; loop stops here (stopping rule).**
+Iteration 2 found no new patchable weakness class: both losses
+are withdrawn oracle verdicts on positions that were already
+lost (game 9) or horizon-limited coin-flips (game 5), and
+neither shows a v28-specific mechanism. Combined with
+iteration 1 — whose one confirmed losing move is shared by all
+engines — the fast loop's finding is that v28-as-pre-registered
+has no patchable v28-specific weakness class at these seeds.
+The battery (§3) measures the aggregate; v28-as-batteried is
+v28-as-pre-registered.
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
+
+### 2.5 Aggregate counts (secondary)
+
+Fast loop pooled (20 games, 7 v28 losses):
+
+- Losses via open four: **7/7** (5 vs v0 + 2 vs v7)
+- Missed blocks: **0** in all games
+- Clean missed preventions: **0** in 35 threatened turns (losses)
+- Losses with a verified losing move (oracle + engine-swap):
+  1 of 7 (fl1-g7); 6 of 7 oracle verdicts WITHDRAWN by
+  engine-swap (fl1-g1, fl1-g3, fl1-g5, fl1-g9, fl2-g5, fl2-g9)
+- Losses where the confirmed move is v28-specific: **0** (the
+  one confirmed move, fl1-g7-ply15, is played by all engines —
+  a shared 100-sim search-horizon value error)
+
+Defence is solved, as in every batch: every loss is an open-four
+race lost, never a defensive error.
+
 ## 3. v28 evaluation
 
 (TBD.)
