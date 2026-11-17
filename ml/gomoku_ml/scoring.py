@@ -448,8 +448,8 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # unchanged — the only intended difference is the training
     # data, plus the re-swept α ("value_weight", from the §1.4
     # sweep grid; the registry value below is the sweep's winner
-    # — 0.25 is the PLACEHOLDER, v8's value, until the sweep
-    # runs). The checkpoint path is relative to the repo root
+    # — 0.5, combined win rate 0.675 over 40 games, see iter-30
+    # §3.5). The checkpoint path is relative to the repo root
     # (gitignored data under ml/runs/); the GOMOKU_V30_CHECKPOINT
     # env var overrides it. The holdout is v25's dedup-aware
     # split, reused exactly so the before/after comparison is on
@@ -458,7 +458,7 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml2-h1/value-net.pt",
          "value_checkpoint_env": "GOMOKU_V30_CHECKPOINT",
-         "value_weight": 0.25},
+         "value_weight": 0.5},
 }
 
 # --- weights --------------------------------------------------------------

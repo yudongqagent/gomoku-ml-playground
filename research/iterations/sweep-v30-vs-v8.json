@@ -40,9 +40,21 @@
         0.7215
       ],
       "elapsed_seconds": 2445.7
+    },
+    {
+      "alpha": 0.125,
+      "wins": 11,
+      "losses": 9,
+      "draws": 0,
+      "win_rate": 0.55,
+      "win_rate_ci_95": [
+        0.3421,
+        0.7418
+      ],
+      "elapsed_seconds": 925.1
     }
   ],
   "selected_alpha": 0.5,
   "selection_rule": "highest win rate; ties toward larger alpha",
-  "complete": false
+  "complete": true
 }

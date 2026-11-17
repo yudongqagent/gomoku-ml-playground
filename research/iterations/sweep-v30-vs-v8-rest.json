@@ -1,0 +1,24 @@
+{
+  "version": 30,
+  "opponent": "v8",
+  "games_per_alpha": 20,
+  "seed_a": 1001,
+  "seed_b": 2001,
+  "alphas": [
+    {
+      "alpha": 0.125,
+      "wins": 11,
+      "losses": 9,
+      "draws": 0,
+      "win_rate": 0.55,
+      "win_rate_ci_95": [
+        0.3421,
+        0.7418
+      ],
+      "elapsed_seconds": 925.1
+    }
+  ],
+  "selected_alpha": 0.125,
+  "selection_rule": "highest win rate; ties toward larger alpha",
+  "complete": true
+}

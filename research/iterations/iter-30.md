@@ -476,7 +476,33 @@ arms afterwards. The sweep is seeded, so the re-run arm
 reproduces the lost partial games exactly (verify: α=0.125
 vs v8 must show 7W-5L at game 12).
 
-(TBD — final arm result, merged sweep, selected α.)
+**Sweep COMPLETE 2026-11-17 11:51 UTC.** Final arm α=0.125 vs
+v8 → 11W-9L-0D (0.55); game 20 was a win. Merged file:
+`research/iterations/sweep-v30-vs-v8.json` (all 4 arms,
+complete: true). Rest file (`-rest`) kept as the audit trail.
+**Determinism verified:** the rest arm reproduced the killed
+partial exactly — α=0.125 vs v8 7W-5L at game 12 ✓.
+
+| α | vs v0 (20 games) | vs v8 (20 games) | combined (40 games) |
+|---|---|---|---|
+| 1.0 | 0.525 (9W-8L-3D) | 0.350 (7W-13L) | 0.4375 |
+| 0.5 | 0.650 (13W-7L) | 0.700 (14W-6L) | **0.675** |
+| 0.25 | 0.650 (12W-6L-2D) | 0.525 (10W-9L-1D) | 0.5875 |
+| 0.125 | 0.500 (10W-10L) | 0.550 (11W-9L) | 0.525 |
+
+**Selected α = 0.5** (highest combined win rate, §1.4 rule;
+per-opponent winners: vs v0 0.5/0.25 tie at 0.65 — tie-break
+toward larger α gives 0.5; vs v8 0.5 outright at 0.70).
+The registry is updated to 0.5. Note v30's best α (0.5) is
+HIGHER than v8's/v25's (0.25) — consistent with the
+less-confident net (mean|v| 0.26 vs v25's 0.39): a larger α
+is needed for the same effective gradient (0.5 × 0.26 ≈
+0.13 vs 0.25 × 0.39 ≈ 0.10). α=1.0 is bad vs v8 (0.35) as
+in v8's/v25's sweeps — full weight still hurts against the
+stronger opponent, though vs v0 it is 0.525 (v25's α=1.0 vs
+v0 was 0.25 — the weaker net at full weight behaves more
+like a shrunk net). Small-sample caveat: 20-game arms; the
+100-game battery is the verdict.
 
 ## 4. Fast loop (TBD)
 
