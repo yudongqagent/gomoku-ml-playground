@@ -1,0 +1,80 @@
+{
+  "version": 28,
+  "description": "Critical positions from iteration 28 (batch 9, H2). fl1-g7-ply15: fast-loop game 7 vs v0, White to move; the save (6,4) is engine-swap verified (wins 3/3, +28 plies) while the actual (6,8) loses 3/3 in +5 \u2014 but ALL engines (v28/v22/v20/v14/v7) play (6,8): a shared 100-sim search-horizon value error, not a v28-specific defect. See research/iterations/iter-28.md \u00a72.1.",
+  "positions": [
+    {
+      "id": "fl1-g7-ply15",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          8,
+          5
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          6,
+          6
+        ]
+      ],
+      "white": [
+        [
+          8,
+          6
+        ],
+        [
+          9,
+          7
+        ],
+        [
+          7,
+          4
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          5,
+          4
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          9,
+          4
+        ]
+      ],
+      "to_move": "white",
+      "expected": [
+        [
+          6,
+          4
+        ]
+      ]
+    }
+  ]
+}

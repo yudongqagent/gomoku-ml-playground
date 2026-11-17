@@ -50,6 +50,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 POSITIONS_PATH = os.path.join(
     HERE, "..", "gomoku_ml", "regression_positions_v20.json"
 )
+POSITIONS_V28_PATH = os.path.join(
+    HERE, "..", "gomoku_ml", "regression_positions_v28.json"
+)
 
 # Positions v28 (seed 0) does NOT play the save at — measured in
 # iter-28.md §1.3, not assumed. All 9: v28 plays 0 saves.
@@ -71,6 +74,11 @@ def _load_positions():
         return json.load(f)["positions"]
 
 
+def _load_v28_positions():
+    with open(POSITIONS_V28_PATH, encoding="utf-8") as f:
+        return json.load(f)["positions"]
+
+
 def _board(pos):
     board = game.empty_board()
     for x, y in pos["black"]:
@@ -84,6 +92,30 @@ def _board(pos):
 def test_v28_regression_position(pos):
     if pos["id"] in XFAIL:
         pytest.xfail(XFAIL[pos["id"]])
+    board = _board(pos)
+    player = game.BLACK if pos["to_move"] == "black" else game.WHITE
+    v28 = scoring.get_player(28, seed=0)
+    move = v28.choose_move(board, player)
+    assert (move % 15, move // 15) in [tuple(e) for e in pos["expected"]], (
+        f"{pos['id']}: v28 played {(move % 15, move // 15)}, "
+        f"expected one of {pos['expected']}"
+    )
+
+
+# v28's own critical positions (iter-28 §2): fl1-g7-ply15 is an
+# engine-swap-verified save that ALL engines miss (shared 100-sim
+# search-horizon value error, not a v28-specific defect).
+XFAIL_V28 = {
+    "fl1-g7-ply15": "engine-swap-verified save (6,4) missed by all engines (v28/v22/v20/v14/v7 all play (6,8)); shared search-horizon value error; see iter-28.md §2.1",
+}
+
+
+@pytest.mark.parametrize(
+    "pos", _load_v28_positions(), ids=lambda p: p["id"]
+)
+def test_v28_own_regression_position(pos):
+    if pos["id"] in XFAIL_V28:
+        pytest.xfail(XFAIL_V28[pos["id"]])
     board = _board(pos)
     player = game.BLACK if pos["to_move"] == "black" else game.WHITE
     v28 = scoring.get_player(28, seed=0)

@@ -460,7 +460,94 @@ file pins the direction-check result, not a pass.
 
 ## 2. Loss analysis for iteration 28
 
-(TBD.)
+The fast loop runs on v28 itself (the pre-registered engine),
+against v0 AND v7. Its purpose is finding patchable weakness
+classes the ours-only demotion introduces or leaves open — not
+validating v28 (the battery does that).
+
+### 2.1 Fast-loop iteration 1 — 10 games vs v0
+
+**Batch:** `research/iterations/fastloop1-v28-vs-v0.json` (seeds
+v28=1015 / v0=2015 — development seeds, distinct from the bar
+battery's 100/200 AND from iter-20's loop seeds 1011/2011 and
+1012/2012 and iter-22's 1013/2013 and 1014/2014, so these are
+fresh games). **4W-5L-1D, win rate 0.4500, CI [0.2014, 0.7263]**,
+358.0 s. Per colour: as Black 4W-0L-1D (51, 225, 49, 143, 111
+plies), as White **0W-5L-0D** (25, 29, 29, 21, 21 plies). Mean
+game length 70.4 plies. The White collapse is the headline — all
+five White games lost, all fast (21–29 plies) — but 10 games is
+a smoke, not a verdict, and the control below shows these seeds
+are hard for White for v22 too. Classifier: 5/5 losses via open
+four, 0 missed blocks, 0 clean missed preventions in 31
+threatened turns (losses). Defence is still perfect; the losses
+are lost races, as in every batch.
+
+**The losing move in each game** (walk-back, corrected oracle
+method, seeds 0,1,2 — then ENGINE-SWAP VERIFIED with fresh v28
+vs fresh v0, the iter-20 §2.0 instrument; the oracle alone is
+not trusted for MCTS games, and this iteration shows why):
+
+| Game | Last preventable turn | v28 played (oracle) | Perfect move (oracle) | Engine-swap verdict |
+|---|---|---|---|---|
+| 1 (25 plies, White) | ply 17 | (4,5) | (7,6) draws 1/3 | **WITHDRAWN** — save loses +9, control loses +7 |
+| 3 (29 plies, White) | ply 15 | (7,9) | (10,9) draws 3/3 | **WITHDRAWN** — save loses +13, control loses +13 |
+| 5 (29 plies, White) | ply 15 | (9,7) | (9,10) draws 3/3 | **WITHDRAWN** — save loses +13, control loses +13 |
+| 7 (21 plies, White) | ply 15 | (6,8) | (6,4) wins 1 / draws 2 | **CONFIRMED** — save wins +28, control loses +5 |
+| 9 (21 plies, White) | ply 15 | (8,8) | (4,8) draws 1 / wins 2 | **WITHDRAWN** — save wins 1/3 (L+23, W+34, L+69), control loses +5 |
+
+**Four of the five oracle verdicts are WITHDRAWN.** Games 3 and
+5 are the sharpest case: the oracle's save loses in EXACTLY as
+many plies as the control (+13 both) — the positions were
+already lost by the walk-back window, and the v1-vs-v1 oracle's
+"draw" reflects 1-ply dynamics, not MCTS-vs-greedy play. Game 1:
+the save loses +9 vs the control's +7 — the save only delays
+the loss by 2 plies. Game 9: the save wins 1/3 but loses 2/3
+(and its losses run +23/+69 vs the control's +5 — it delays the
+loss substantially without saving the game at 2 of 3 seeds).
+This is the iter-22 §2.2 caveat again: the v1 walk-back oracle
+invents saves for MCTS games. Only game 7 survives as a
+verified losing move.
+
+**Game 7 ply 15 — the clean case, but SHARED by all engines.**
+Actual (6,8): v28-fresh, v22-fresh, v20-fresh, v14-fresh, and
+v7-fresh ALL play it; the save (6,4) wins 3/3 under engine-swap
+(+28 plies, a slow grind) while the actual loses 3/3 in +5.
+v28-root: actual 19 visits, our-q −0.016; save 12 visits, our-q
+−0.077 — priors nearly equal (0.1117 vs 0.1171, the save's is
+HIGHER), so this is a VALUE error, not starvation: the tree
+prefers the loser on q. The 1-ply gradients after each move do
+NOT separate them (for White: v28 +0.197 vs +0.195, v22 +0.198
+vs +0.198, v14 +0.195 vs +0.192) — the save's value materialises
+deeper than the 100-sim horizon, where the search cannot see
+that (6,4) wins slowly while (6,8) loses fast. After the actual,
+White holds 19 gap-three makers — the same saturation class as
+v22's fast-loop games 7/9 — but v20 (which demotes White's gap
+threes) and v7 (v0 kernel) miss it too, so the saturation alone
+does not explain it. This is the shared 100-sim search-horizon
+limit (the same class ML batch 1's v24 finding documented: v7
+makes the same miss as v24), not a v28-specific defect — and
+not a patch target for this iteration: no leaf change
+distinguishes these two moves at 1 ply, and the root-decision
+lever is EXHAUSTED.
+
+**Control: v22 at the same seeds.** v22 vs v0, seeds 1015/2015
+(`~/workspace/b9h2-logs/control-v22-vs-v0-1015.json`, not
+committed): **6W-4L-0D, Black 5W-0L-0D, White 1W-4L-0D**. v22-as-
+White also loses 4 of 5 at these seeds — the White collapse is
+largely a SEEDS effect, not a v28 effect. The v28-vs-v22
+difference at these seeds is exactly 2 games: game 2 (v28 draws
+as Black in 225 plies, v22 wins in 63) and game 9 (v28 loses as
+White in 21, v22 wins in 52). Ten games cannot attribute a
+2-game difference to the condition; the battery decides.
+
+**No patch from iteration 1; the loop continues to iteration 2
+vs v7** (per the method: loops run against v0 AND v7) before the
+stopping rule is applied. The one confirmed losing move is
+shared by all engines; the four withdrawn verdicts show the
+oracle inventing saves; the control shows the White collapse is
+not v28-specific. The confirmed position (fl1-g7-ply15) is
+recorded in `regression_positions_v28.json` as an xfail — v28
+misses the save, as do v22/v20/v14/v7.
 
 ## 3. v28 evaluation
 
