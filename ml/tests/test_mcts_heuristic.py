@@ -819,7 +819,7 @@ def test_attack_gradient_v1_gap_ours_matches_v22_at_black_to_move_and_v14_at_whi
     from gomoku_ml import kernel_numpy, kernel_v1
     from gomoku_ml.mcts_heuristic import _GRADIENT_V1_GAP_OURS_SCALE
 
-    assert _GRADIENT_V1_GAP_OURS_SCALE == 7.5
+    assert _GRADIENT_V1_GAP_OURS_SCALE == 8.0
     board = _battery_line_ply10_board()
     board = game.apply_move(board, 9 * 15 + 7, game.BLACK)
     b1, w1 = kernel_v1.attack_v1_both(board)

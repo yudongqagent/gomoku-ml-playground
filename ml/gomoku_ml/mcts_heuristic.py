@@ -555,9 +555,12 @@ def _gradient_v1_gap_black_leaf_value(board: np.ndarray, player: int) -> float:
 # from the v28 breadth-difference distribution (BOTH parities
 # pooled — the rule is parity-dependent) by v7's rule (scale ~=
 # 1.8 x std) in iter-28 §1.1; the cap (+/-0.2) is UNCHANGED.
-_GRADIENT_V1_GAP_OURS_SCALE = 7.5  # PROVISIONAL — replaced by the
-# Step-0 value (iter-28 §1.1: 1.8 x the pooled v28 breadth-
-# difference std, rounded to the nearest 0.5) BEFORE any v28 eval.
+_GRADIENT_V1_GAP_OURS_SCALE = 8.0  # Step-0 value (iter-28 §1.1):
+# 1.8 x the pooled v28 breadth-difference std (4.54), rounded to
+# the nearest 0.5 by v7's rule — the same rule v7 (4.0), v14 (7.5),
+# v20 (5.5), and v22 (7.0) used. Both parities pooled: the rule is
+# parity-dependent, so the Step-0 sample covers both (577 Black
+# to move, 574 White to move).
 
 
 def _attack_gradient_v1_gap_ours(board: np.ndarray, player: int) -> float:

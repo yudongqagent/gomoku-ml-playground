@@ -250,8 +250,8 @@ arithmetically wrong, since even move indices are ALL White to
 move; the corrected rule above (every ply ≥ 8) is the one Step 0
 uses. No v28 eval had run when this was corrected.] The scale is
 fixed here from the measured distribution, NOT tuned on any v28
-eval result. Value: **TBD in §1.1** (1.8 x measured std, rounded
-to the nearest 0.5).
+eval result. Value: **8.0** (1.8 x std 4.54 = 8.17, rounded to the
+nearest 0.5).
 
 **What this change is meant to fix, and the expected effect
 (stated in advance).** Against greedy v0: Black should HOLD near
@@ -306,7 +306,48 @@ fresh games.
 
 ### 1.1 Step 0 — cost and distribution measurement
 
-(TBD — run after the port is verified, before any v28 eval.)
+`ml/scripts/bench_v28_leaf.py` on 1,343 boards replayed from
+batch-v7-vs-v1.json (first 20 games, EVERY ply from ply 8
+onward — the iter-28 §1 sampling rule, both parities; 1,151
+quiet: 577 Black to move, 574 White to move). Median of 3 rounds
+x 50 calls.
+
+| Call | Median ms/call |
+|---|---:|
+| v28 `_attack_gradient_v1_gap_ours` (full) | 6.89 (min 5.98, max 7.09) |
+| v28 `_gradient_v1_gap_ours_leaf_value` (full) | 8.23 (min 7.87, max 9.44) |
+| v22 `_attack_gradient_v1_gap_black` (full) | 8.22 (min 6.21, max 11.31) |
+| v20 `_attack_gradient_v1_gap` (full) | 6.11 (min 4.42, max 7.35) |
+| v14 `_attack_gradient_v1` (full) | 4.37 (min 3.88, max 5.83) |
+| v7 `_attack_gradient` (full) | 2.12 (min 1.92, max 2.13) |
+| v6 `_terminal_leaf_value` | 1.79 (min 0.59, max 1.83) |
+
+The v28 gradient costs ~6.9 ms per quiet leaf on this run vs
+~8.2 ms for v22's (absolute numbers are contention-noisy; the
+ordering is what matters: v28 ≈ v22 ≈ v20, one extra kernel call
+over v14). At up to ~100 leaf calls per move that is at most
+~+0.3 s/move over v14, ~+10 min per 100-game match. Affordable
+— the same cost class as v22.
+
+Ours-only breadth-difference distribution on the 1,151 quiet
+positions (pooled): mean -2.89, std 4.54, p10 -9.00, p50 -2.00,
+p90 +1.50; |diff| >= 2 in 59.9%, >= 4 in 38.7%, >= 6 in 25.1%.
+Per parity: Black to move (n=577) mean -2.94, std 4.32; White to
+move (n=574) mean -2.85, std 4.75 — the two parities have close
+spreads, so a single pooled scale is reasonable for both. (On
+the same sample: v14 mean -2.11, std 4.63; v20 mean -1.51, std
+3.04; v22 mean -1.87, std 4.20.) Scale: 1.8 x 4.54 = 8.17 ->
+**8.0** (pre-registered above). The pooled mean (-2.89) is more
+negative than v22's (-1.87) — the intended direction: at
+White-to-move leaves v28 counts Black's full undemoted breadth
+in the theirs term, so White's positions look worse for White
+than under v22. Mean gap-three makers per position: Black 2.41,
+White 2.15. The ours-only demotion changes the breadth
+difference vs v22 in 27.9% of quiet positions (mean |change|
+1.03), vs v14 in 22.7% (mean 0.78), and vs v20 in 56.4% (mean
+1.81) — a substantial revision of the signal vs v22, not a
+tweak at the margin, and concentrated exactly where the design
+says it should be (White-to-move leaves).
 
 ### 1.2 Implementation (pre-registered)
 
@@ -334,6 +375,30 @@ fresh games.
   `ml/gomoku_ml/regression_positions_v28.json` record the §2
   critical positions (plus the v20/v22 positions re-checked in
   §1.3).
+
+**Port verification (before the condition changed).** v22 was
+ported from `research/batch-8` by cherry-pick (commits 8516a6e,
+the batch-7-h3 ml-tree port, and 39792ce, the v22
+implementation, code only — `iter-22.md` stays on batch-8) and
+verified to reproduce v22's behaviour BEFORE any v28 change:
+v22's tactical is 20/20 old + 29/29 hard on the CORRECTED suite
+(`eval_tactical_full.py --version 22 --suite both --seed 100`),
+and a 20-game smoke vs v0 (seeds 100/200) reproduces the
+batch-8 battery's first 20 games EXACTLY — 14W-5L-1D, 0
+mismatches in moves, winners, and ply counts, colour split
+Black 9W-0L-1D / White 5W-5L-0D (the v22 pattern: strong Black,
+weak White). The full ml suite on the ported tree was 338
+passed / 7 skipped / 38 xfailed with 2 failures, BOTH caused by
+the coordinator's batch-9 suite correction (commit 0ee51d8),
+not the port: `test_hard_suite_expected_moves_are_exact` (the
+(9,7) addition is a longer-route win the setup/VCF computation
+does not find) and `test_hard_suite_v1_baseline_reproduces`
+(v1 plays (9,7), so it now passes 13/29, not the recorded 12).
+Both tests were fixed on this branch with documented
+justifications (see the `PLAYOUT_VERIFIED_MOVES` exception and
+the V1_PASSED 12→13 comment in `test_tactical_hard.py`); after
+the fix, `test_tactical_hard.py` + `test_mcts_heuristic.py`
+(including the 6 new v28 leaf tests) run 78 passed / 1 xfailed.
 
 ### 1.3 Direction checks (NOT evals — identity/direction only)
 
