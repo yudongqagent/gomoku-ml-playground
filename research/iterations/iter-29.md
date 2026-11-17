@@ -745,9 +745,134 @@ clause 1 is genuinely contested, and clause 3 (tactical
 29/29 expected, §3.1) would be a clear improvement over
 v18's 26/29.
 
-## 4. Battery (TODO — filled in when the battery runs)
+## 4. Battery
 
-## 5. Verification (TODO — filled in at the end)
+**v29 PASSES ALL 4 CLAUSES — the second version ever to do so
+(after v7).** It is NOT a new strength champion: h2h vs v7
+0.7150 < v18's 0.775 and ladder Elo 240.8 < v18's 636.4, so
+v18 remains the heuristic strength champion. But v29 clears
+the bar (reference v7) on every clause, where v18 fails
+clause 3 (26/29). The bar and the champion are different
+things: v29 is the most COMPLETE version (no weak clause);
+v18 is the strongest in games.
+
+| Clause | Bar (ref v7) | v29 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v7 | > 0.50, Wilson 95% lower > 0.50 | 70W-27L-3D, 0.7150, CI [0.6199, 0.7942] | **PASS** |
+| 2. Ladder Elo | > 190.8 | 240.8, interval [58.9, 422.7] | **PASS** |
+| 3. Tactical (corrected) | ≥ 20/20 + 29/29 | 20/20 + 29/29 | **PASS** |
+| 4. Suites green | pytest + npm + tsc | pytest 348 passed, 7 skipped, 40 xfailed, 0 failed; npm 55/55; tsc clean | **PASS** |
+
+Secondary: vs v0 66W-33L-1D (0.6650, CI [0.5679, 0.7499]);
+swap vs v7 72W-25L-3D (0.7350, CI [0.6410, 0.8116]).
+
+### 4.1 Clause 1 — vs v7 (100 games, seeds 100/200)
+
+70W-27L-3D (0.7150). As Black 37-11-2 (0.76); as White
+33-16-1 (0.67). Both colours beat v7 — the White weakness
+seen in the fast loop (§3.4) persists as a RELATIVE gap
+(White 0.67 vs Black 0.76) but White still clears 0.50
+comfortably against v7, because v7's threats are real (the
+check's preventions are necessary, not phantom). Artefact:
+`research/iterations/batch-v29-vs-v7.json`.
+
+### 4.2 Clause 2 — ladder (20 games/opponent, seed 100)
+
+Elo 240.8 (interval [58.9, 422.7]). vs random 20-0 (1.00),
+vs heuristic 16-4 (0.80, as Black 8-2, as White 8-2), vs
+mcts 15-5 (0.75, as Black 8-2, as White 7-3). Notably, v29
+BEATS the ladder MCTS 15-5 — the opponent v22 collapsed
+against (5-15) — because the rollout leaf + VCF check handle
+forcing play: the check's preventions are real against the
+MCTS's genuine VCF threats. But 240.8 is far below v18's
+636.4: the VCF check's White-side cost (§3.4) shows in the
+ladder too (vs heuristic White 8-2, vs mcts White 7-3 —
+solid but not dominant). Artefact:
+`research/iterations/ladder-v29.json`.
+
+### 4.3 Clause 3 — tactical (seed 100, corrected suite)
+
+20/20 old + 29/29 hard. The VCF check fixes all three of
+v18's q-compression failures deterministically (g26 → (9,4),
+g79 → (7,9), v1bl-g2 → (6,5)). This is v29's clear win over
+v18 and the reason the fallback was worth building: the
+check converts v18's tactical weakness into a perfect score.
+Artefact: `research/iterations/tactical-v29.json`.
+
+### 4.4 Secondary — vs v0 and swap
+
+**vs v0: 66W-33L-1D (0.6650).** As Black 36-13-1 (0.73); as
+White 30-20-0 (0.60). Far below v18's 0.97 — the fast-loop
+finding (§3.4) confirmed at scale: against a weak opponent
+that creates phantom threats, the defensive check's
+prior-noise prevention picks bleed tempo, especially as
+White. v29's game strength is opponent-dependent: it beats
+strong opponents (v7, MCTS) that create real threats, and
+underperforms against weak ones (v0) that create phantom
+threats. Artefact: `research/iterations/batch-v29-vs-v0.json`.
+
+**Swap vs v7: 72W-25L-3D (0.7350, CI [0.6410, 0.8116]).**
+Balanced placement, placement_seed 11, tempo judge. As Black
+38-11-2 (0.765); as White 34-14-1 (0.704). Under the swap
+rule v29 is strong in both colours — the swap format (opener
+places 3 stones, opponent picks a side) blunts the
+White-side weakness, since v29 rarely ends up defending a
+bad White position of its own making. Artefact:
+`research/iterations/batch-v29-vs-v7-swap.json`.
+
+### 4.5 Defence classification (battery)
+
+Pooled across all 300 battery games: **85 losses, 85 via
+open four, 0 missed blocks, 0 clean missed preventions in
+463 threatened turns** (`classify_losses.py`). Defence stays
+solved — the VCF check did not introduce any missed blocks
+(the win/block scans run before the check, and the check
+itself only fires on genuine forced-win structure).
+
+### 4.6 Battery runtime notes
+
+The battery ran in 4 driver invocations across 3 VM
+replacements (SIGTERM kills at ~40 min, ~1.9h, ~2.0h). The
+auto-resume drivers worked as designed: legs 2/4/5 resumed
+from partial `--out` files (vs v7 resumed at game 26, swap
+at game 8, RNG restarts recorded); the ladder (no
+auto-resume) restarted from scratch once. Total battery wall
+time ≈ 5.5h of engine time across the runs. The VCF check's
+cost (§3.2) is visible in the leg times: vs v7 5488s, vs v0
+5512s for 100 games each — roughly 2x a check-free version's
+pace, dominated by the defensive scans in creator-rich
+positions.
+
+## 5. Verification
+
+- **Aggregates recomputed from raw records** (independent
+  Python recount of `records[]` in each JSON, Wilson CI
+  recomputed): vs v7 70W-27L-3D / 0.7150 / [0.6199, 0.7942];
+  vs v0 66W-33L-1D / 0.6650 / [0.5679, 0.7499]; swap
+  72W-25L-3D / 0.7350 / [0.6410, 0.8116]; tactical 20/20 +
+  29/29; ladder Elo 240.8 with per-opponent 20-0 / 16-4 /
+  15-5. All match the JSON summaries exactly.
+- **Port verification:** v18 leaf bit-for-bit on 401
+  positions (0 mismatches vs research/batch-7); v18 tactical
+  behaviour identical (26/29, same 3 failures, same chosen
+  moves). v22 port byte-identical + ladder replay exact
+  (5-15). See §2.0, §3.0.
+- **VCF-check equivalence:** the early-exit + subset +
+  ordering optimizations produce IDENTICAL moves to the naive
+  implementation on all 7 smoke-test positions and all 28
+  replayed White turns of fast-loop games 1 and 3 vs v0.
+- **Suites (clause 4, final tree):** ml pytest 348 passed,
+  7 skipped, 40 xfailed, 0 failures (PYTEST_EXIT=0); npm test
+  55/55; tsc clean. The 2 pre-existing
+  `test_tactical_hard.py` failures from the base commit's
+  (9,7) correction were fixed with H2's canonical fix
+  (a3c4f73), verified 4/4 (§3.3).
+- **Defence:** 85/85 battery losses via open four, 0 missed
+  blocks (§4.5).
+- **Constraints honoured:** `baseline.py` untouched (frozen);
+  no cloud GPU, no money, no releases, no Space edits; the
+  cross-track cron and its outputs untouched; no merge into
+  `research/batch-9` (coordinator merges).
 
 
 ## 4. v29 evaluation
