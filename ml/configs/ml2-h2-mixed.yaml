@@ -1,0 +1,91 @@
+# MIXED FORM (fast-loop patch, iter-31 §5.1): the B1-only net saturated at
+# +1.000 on engine positions (verified loss: vs-v0 game 7, ply 43 — the net
+# never saw engine positions in training). This config retrains from scratch
+# on B1-dedup (110,905) + v24's engine-game train data (33,849) = 144,754
+# positions. Same architecture and recipe as ml2-h2.yaml; only the run name
+# and the data differ. Run dir: ml/runs/ml2-h2-train-mixed/.
+#
+# ML batch 2 H2 (v31, MIXED form) — BIGGER value net on distilled rollout-leaf labels.
+#
+# Trains a ResNet 32ch/4 blocks (192,714 params — the round-1/2
+# architecture) from scratch to predict v18's 2-ply rollout-leaf
+# value on quiet positions from the DEDUPED B1 dataset (3,244 unique
+# games; see research/iterations/iter-31.md §1 for the
+# pre-registration). v24 proved distillation works as ML at v8's size
+# (16ch/2 blocks, holdout sign 0.7766) but plays only at v8's level
+# (0.515 h2h) — v31 tests whether scale breaks that ceiling.
+#
+# Value-only loss (policy_weight 0.0): the policy head is unused at
+# inference and the game-move policy targets are an auxiliary the
+# distillation does not need. Otherwise v24's recipe exactly
+# (ml1-h1.yaml): batch 64, lr 0.002 cosine, warmup 20, wd 1e-4,
+# augmentation on, val_fraction 0.05, seed 0. Epochs 10 (not v24's
+# 15): ~106k train samples x 10 = ~1.06M sample-passes, ~2x v24's
+# 525k — enough optimization for the larger net on ~3x the data,
+# with best-by-val-loss checkpointing guarding against overfitting.
+# checkpoint_every_epochs 1 (not 0): crash recovery — v24's
+# training was killed mid-run by a runtime restart drain and the
+# resume had to reason about a reset best_val_loss; per-epoch
+# checkpoints bound the loss to one epoch.
+#
+# Data: a memmap bundle built by ml/scripts/build_mmap_bundle.py
+# from the labelled train shards (ml/runs/ml2-h2/data/b1) — the
+# in-RAM load OOM-kills at this scale (iter-25 §2.4). The holdout
+# shards (ml/runs/ml2-h2/data/b1-holdout) are NEVER passed here.
+#
+# Run (from the worktree root):
+#   OMP_NUM_THREADS=1 TORCH_THREADS=1 \
+#   /home/hatch/workspace/projects/gomoku-ml-playground/ml/.venv/bin/python -u \
+#     ml/scripts/train.py --config ml2-h2 --run-dir ml/runs/ml2-h2-train \
+#     --data ml/runs/ml2-h2/data-mmap
+#
+# Threads pinned to 1 per B1's finding: under contention the default
+# 4 torch threads slowed a batched forward pass ~290x.
+
+run_name: ml2-h2-distill-mixed
+seed: 0
+
+architecture:
+  name: resnet
+  params:
+    channels: 32
+    blocks: 4
+
+base_checkpoint: null
+resume: null
+
+selfplay:
+  games: 1   # unused by train.py (data comes from --data); >= 1 required by validation
+  sims_per_move: 50
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_epsilon: 0.25
+  temperature: 1.0
+  temperature_moves: 30
+  resign_threshold: null
+  max_moves: 225
+  checkpoint_every_games: 10
+
+train:
+  epochs: 10
+  batch_size: 64
+  lr: 0.002
+  lr_schedule: cosine
+  lr_step_size: 10
+  lr_gamma: 0.5
+  warmup_steps: 20
+  weight_decay: 0.0001
+  policy_weight: 0.0
+  value_weight: 1.0
+  augmentation: true
+  val_fraction: 0.05
+  checkpoint_every_epochs: 1
+
+eval:
+  games: 4
+  sims: 32
+  opponents: [random, heuristic]
+  mcts_sims: 100
+  tactical: true
+  tactical_sims: 50
+  auto: false

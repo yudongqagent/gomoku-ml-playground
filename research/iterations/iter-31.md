@@ -494,7 +494,98 @@ wins). All three CIs overlap, so the sweep selects α but
 proves nothing — the 100-game battery is the verdict, as
 pre-registered.
 
-**Fast loop iteration 1** (TODO).
+**Fast loop iteration 1** (10 games each, seeds 1001/2001,
+α=0.5, 2026-11-17 ~10:10 PST):
+- vs v8: **5W-5L-0D (0.50)**, CI [0.2366, 0.7634]. As Black 3-2,
+  as White 2-3. **Registry verification:** these 10 games replay
+  the sweep's α=0.5 games 0–9 EXACTLY (same move lists and
+  winners, WWLLLWWLWL) — the registry α=0.5 path works.
+- vs v0: **2W-7L-1D (0.25)**, CI [0.0809, 0.5578]. As Black
+  0W-4L-1D (0.10!), as White 2W-3L-0D (0.40). v31 cannot convert
+  Black's edge against the frozen baseline heuristic.
+- Loss classification (`classify_losses.py`, both matches):
+  **12 losses, 12 via open four, 0 missed blocks, 0 clean missed
+  preventions in 64 threatened turns.** Defence as measured is
+  clean — the losses are positional drift into unstoppable open
+  fours, not blundered blocks.
+- Losing moves (`find_losing_moves.py`, VCF solver depth 4;
+  raw `ml/runs/ml2-h2/losing-moves-iter1.txt`): **11 of 12
+  losses were already lost** at the first VCF moment (no saving
+  reply exists — positional decline, no single tactical
+  blunder). **ONE genuine blunder: vs-v0 game 7 (White, 55
+  plies), ply 43 — (12,9), with 5 saving moves**
+  ((0,5), (4,9), (2,10), (3,10), (2,11)).
+
+**Workup verdict — vs-v0 game 7, ply 43 (VERIFIED):**
+`diag_root.py` at the position shows v31's search is BROKEN,
+not merely wrong: **all 102 root children have visits=1 and
+our-q=-0.500** — every simulation expands a new child and none
+is ever revisited, so the root choice is effectively arbitrary
+(RNG tie-break among 1-visit children). v8's search at the same
+position is healthy (top child (2,10) 7 visits — a saving
+move) and v7's too (top-4 all saving moves). `v31_net_diag.py`
+finds the cause: **v31's net outputs raw +1.000 (fully
+saturated) for the resulting position after EVERY candidate
+move** — the actual (12,9) and all 5 saving moves, with history
+and without — so the leaf value is +0.500 (opponent's
+perspective) for every move and the search cannot discriminate
+at all. v8's net at the same positions outputs varied small
+values (-0.083 to -0.293). The EXACT rollout leaf, for
+comparison, gives small gradient values (+0.052 after the
+actual move, +0.052 to +0.103 after the saves) — the teacher
+discriminates (weakly; it ranks the losing move tied-best, the
+depth-4 VCF being beyond its 2-ply horizon — v24's finding),
+but **the net does not reproduce the teacher here: it
+saturates at +1 where the teacher says +0.05–0.10.**
+
+**Mechanism (confirmed, not hypothesised):** in v31's B1-only
+training data, positions where Black holds threats were usually
+rollout-terminal (+1 — the weak B1 opponent doesn't block), so
+the net learned the shortcut "Black has threats → +1". On
+engine positions Black's threats are real but defensible, and
+the net saturates instead of evaluating. The holdout (§4) shows
+the same failure systematically (engine no-history sign
+0.27–0.31, mean|v| 0.46–0.57). The 11 "already lost"
+positional declines are consistent with a search that cannot
+discriminate anywhere the pattern appears. This is a DATA
+problem (the net never saw engine positions in training), not
+a search or architecture problem — and it is patchable inside
+H2's design space.
+
+### 5.1 PATCH (pre-registered-style change, motivated by the v0-g7 loss)
+
+**Change:** add v24's engine-game distill TRAIN data (33,849
+quiet positions: 19,545 v7 + 9,142 v18 + 5,162 random —
+verified counts, matching iter-24) to the training set.
+New training set: **144,754 positions** (110,905 B1-dedup +
+33,849 engine; 77% / 23%). v24's HOLDOUT shards stay held out
+(they remain the cross-distribution diagnostic). Everything
+else is unchanged: same architecture (ResNet 32ch/4 blocks),
+same recipe (value-only MSE, AdamW lr 0.002 cosine, warmup 20,
+wd 1e-4, batch 64, 10 epochs, augmentation on, val_fraction
+0.05, seed 0), retrained FROM SCRATCH (new run dir
+`ml/runs/ml2-h2-train-mixed/`, config `ml/configs/
+ml2-h2-mixed.yaml`, new memmap bundle
+`ml/runs/ml2-h2/data-mixed-mmap/`). The α sweep and the battery
+re-run from scratch on the new form, per §1.4. The B1-only form
+remains fully documented (holdout §4, sweep §5, fast loop §5);
+its checkpoint is preserved at
+`ml/runs/ml2-h2/value-net-b1only.pt` (renamed from
+`value-net.pt` before the retrain, so the registry path always
+points at the CURRENT form).
+
+**Regression check (pre-registered):** after retraining, at the
+v0-g7 ply-43 position the net must NOT saturate (raw values
+discriminating between the actual move and the saves, magnitudes
+comparable to the teacher's +0.05–0.10 range rather than +1.0),
+and v31's search must rank a saving move above (12,9). The
+holdout diagnostics (§1.5) also re-run: the engine-pooled sign
+accuracy must improve on 0.6458 (v24's 0.7766 is the reference)
+for the patch to be judged as having addressed the mechanism.
+If the regression check fails, the patch is abandoned and v31
+goes to the battery as the B1-only form.
+
+**Fast loop iteration 2** (mixed form; TODO).
 
 ## 6. Validation battery
 
