@@ -769,7 +769,27 @@ not counting it fully. The mechanism is H3's forensics question
 
 ### 3.7 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
 
-(TBD.)
+**v28 beats v7 under the swap rule: 50W-44L-6D, win rate
+0.5300, 95% CI [0.4329, 0.6249]**, 4589.2 s. File:
+`research/iterations/batch-v28-vs-v7-swap.json` (seeds 100/200,
+no resume). Per colour: as Black 30W-16L-4D (0.6400); as White
+20W-28L-2D (0.4200) — the White weakness (§3.4) persists under
+swap, unlike v23's swap White (0.78). The swap match (0.53) is
+essentially identical to v22's (0.535) and to the normal-rules
+h2h (0.57): the swap does not rescue v28, and the swap choice
+does not neutralise v28's colour asymmetry the way it did for
+v23 (Black won 58/100 here, vs 41/100 in v23's swap). Both
+engines choose colours identically (tempo judge is shared):
+second player took Black 38 / White 12 each. v28 as opener:
+0.48; v28 as second player: 0.58 — the colour choice is worth
+about +0.10 to whoever holds it, as the swap rule intends.
+Mean game length 53.32 plies (min 16, max 225); v28's 44 losses
+average 40.6 plies. 97 distinct 12-ply lines from 23 distinct
+opening placements. Loss classifier: 44/44 via open four,
+**0 missed blocks**, 179 threatened turns, **0 clean missed
+preventions** — defence is solved across the entire battery
+(pooled: 126/126 losses via open four, 0 missed blocks, 0 clean
+missed preventions in 588 threatened turns).
 
 ## 4. Bar check (v28 vs v7)
 
