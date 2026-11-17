@@ -376,14 +376,93 @@ cosine schedule continues from step 11529, LR 0.00040 at step
 11600). ~4,941 steps remain, ETA ~45–60 min at the recent
 ~15–25 min/epoch pace.
 
-TODO — fill in when training completes: final train/val loss,
-epochs run, best checkpoint (step/epoch), checkpoint path.
+**Training COMPLETE 2026-11-17 14:38 UTC** (10 epochs total:
+2 pre-interrupt + 5 resumed + 3 re-resumed; 16,460 steps;
+best.pt = final.pt = epoch 10, step 16470, verified identical
+weights). Final epochs: **epoch 8** train 0.0108 / val 0.0113
+(1,433 s), **epoch 9** 0.0103 / 0.0114 (559 s), **epoch 10**
+0.0102 / 0.0112 (1,513 s). Val loss decreased monotonically
+across all 10 epochs (0.0677 → 0.0218 → 0.0176 → 0.0163 →
+0.0131 → 0.0123 → 0.0120 → 0.0113 → 0.0114 → 0.0112) — no
+overfitting by epoch 10, but the pre-registered plan is 10
+epochs and the battery is the verdict, so no extension. **Best
+checkpoint: epoch 10 (`best.pt`, step 16470, val 0.0112)** —
+the resumed runs' best beats the epoch-7 backup's 0.0120
+outright, so the resume best-reset flaw never bit and no
+restore from `best-epoch7.pt` was needed (same as v24's
+resume). Final checkpoint copied to the registry path:
+**`ml/runs/ml2-h2/value-net.pt`** (gitignored data; the
+coordinator needs this path to verify on the merged tree).
+Total wall clock for training: ~4h54m across 3 runs and 2 VM
+replacements (09:44–14:38 UTC); 0 epochs lost to either
+replacement (per-epoch checkpoints + the §1.2 resume rule).
 
 ## 4. Holdout diagnostics (actuals)
 
-TODO — fill in: (a)–(d) per §1.5.
+Game-level holdout (every 10th unique game, never trained on),
+targets = rollout-leaf labels. v31 net =
+`ml/runs/ml2-h2/value-net.pt`; v24 net =
+`gomoku-ml1-h1/ml/runs/ml1-h1/value-net.pt`; v8 net =
+`ml/runs/b3-h2/value-net.pt`. Raw outputs in
+`ml/runs/ml2-h2/holdout-{b1,v7,v18,random}.txt`. Sanity check:
+this run reproduces v24's published numbers EXACTLY on its own
+holdout (v7 0.7713, v18 0.8384, random 0.7055, pooled 0.7766)
+— the eval setup is sound.
+
+| Holdout | n pos | v31 sign (full) | v31 sign (no-hist) | v31 MSE | v31 mean\|v\| | v24 sign (full) | v8 sign (full) |
+|---|---|---|---|---|---|---|---|
+| B1-dedup (in-dist) | 12,009 | **0.8675** | 0.6292 | 0.0129 | 0.163 | 0.6252 | 0.4516 |
+| v7 (engine) | 2,050 | 0.5718 | 0.3144 | 0.3202 | 0.354 | 0.7713 | — |
+| v18 (engine) | 790 | 0.7148 | 0.2733 | 0.1550 | 0.188 | 0.8384 | — |
+| random | 538 | 0.8069 | 0.6157 | 0.0932 | 0.322 | 0.7055 | — |
+| **engine pooled** | **3,378** | **0.6458** | **0.3290** | — | — | **0.7766** | — |
+
+**Verdict: the distillation learned the leaf function ON ITS
+OWN DISTRIBUTION — the §1.4 stop condition (chance-level
+holdout) does NOT trigger.** In-distribution sign agreement
+0.8675 vs 0.50 chance, far above v24's 0.6252 on the same B1
+positions: the bigger net + 3x data fits the leaf much better
+where it trained. v8's net is below chance on rollout labels
+(0.4516), as expected — the two nets encode genuinely
+different value functions.
+
+**But the fit does NOT transfer to engine positions, and the
+net is catastrophically history-dependent out-of-distribution.**
+On v24's engine-game holdout v31 scores only 0.6458 pooled
+(v24: 0.7766), and the no-history view is BELOW chance on
+engine positions (v7 0.3144, v18 0.2733 — systematically the
+wrong sign, with mean|v| ballooning to 0.46–0.57). Even
+in-distribution the net leans hard on history planes (B1 0.8675
+→ 0.6292 without them), while v24's net is history-robust on
+engine positions (0.7713 both views on v7). At inference the
+leaves get search-path history (neither the real-game history
+of the full-planes view nor the zeroed history of the
+no-history view), so the operating point lies between the two
+views — but on engine positions both bounds are worse than
+v24's. The inference distribution is engine games (v31 plays
+v8/v7/v0), so v31's effective leaf quality at inference is
+closer to the engine numbers than the B1 numbers. **This
+foreshadows that scale alone may not beat v8** — v24 tied v8
+with a BETTER engine-position net — but holdout is diagnostic,
+not the verdict: the α sweep and the battery measure played
+strength, and they proceed as pre-registered. No retrain is
+authorised by §1.4 on holdout grounds (the stop rule is
+chance-level own-holdout, which did not trigger); a
+data-mixing change would need a fast-loop loss to motivate it,
+and none exists yet.
 
 ## 5. α sweep and fast loops
+
+**Leaf cost (2026-11-17, `ml/runs/ml2-h2/leaf-bench.json`):**
+`bench_value_leaf.py --checkpoint ml/runs/ml2-h2/value-net.pt
+--positions 20 --leaf-samples 200 --sims 100`: per-leaf net eval
+mean 27.52 ms / median 6.05 ms / p95 91.75 ms (range 2.16–303.9
+ms); per-move at 100 sims mean 6,583 ms / median 3,657 ms / p95
+13,204 ms; net leaf evals per move mean 79.9 (11–99). v31 is
+~3x slower per move than v24 (mean 2,233 ms) — the 32ch net's
+forward is 3.6x v8's (13.6 ms vs 3.8 ms batch=1). Battery games
+will run ~3–5 min each under contention; the four 100-game
+matches are the long pole of this workstream.
 
 TODO — sweep results, registry α update, fast loops.
 
