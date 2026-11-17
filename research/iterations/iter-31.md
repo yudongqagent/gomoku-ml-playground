@@ -715,7 +715,40 @@ the FINAL v31 (mixed form, α=0.5); the battery is the verdict.
 
 ## 6. Validation battery
 
-TODO — clauses 1–4 + secondaries.
+### 6.1 Tactical — COMPLETE 2026-11-17 ~12:40 PST — **CLAUSE 3 FAILS**
+
+`eval_tactical_full.py --version 31 --suite both --seed 100`
+(log `ml/runs/ml2-h2/tactical-battery.log`):
+
+- Old suite: **20/20** ✓
+- Hard suite (corrected): **28/29** ✗ — one failure:
+  `setup-v1v0s-g92` (Set up the open four — v1v0s game 92):
+  chose (5,4), expected (9,6).
+
+**Diagnosis (VERIFIED, seed-independent — identical at seeds 0
+and 100):** a VALUE-HEAD failure, reproducing the v26 pattern.
+The v1 prior ranks the expected (9,6) FIRST (0.1122) for both
+engines, but v31's net gives it our-q -0.377 (1 visit) while
+giving the wrong (5,4) our-q +0.788 (75 visits). v8's net
+values (9,6) at +0.246 (57 visits) and (5,4) at +0.056 (4
+visits) — v8 passes. So the bigger distilled net is WORSE than
+v8's small net on this quiet 2-ply setup: it overvalues the
+immediate threat pattern (5,4) creates and undervalues the
+quiet setup whose value only materializes 2 plies later — a
+distillation-fidelity gap on quiet positions (the teacher's
+2-ply rollout sees the setup; the net's static evaluation does
+not reproduce it). **The value head remains the binding
+constraint, confirmed at 4x capacity.** Not patchable within
+H2's remit (would need a deeper-horizon teacher, targeted
+quiet-setup data, or a different architecture — all outside the
+pre-registered design). v31 is therefore REJECTED on clause 3
+regardless of the remaining legs; the battery continues for the
+program record.
+
+### 6.2 h2h vs v8 (clause 1; TODO)
+### 6.3 Ladder Elo (clause 2; TODO)
+### 6.4 Clause 4 re-run (TODO)
+### 6.5 Secondary: vs v0, vs v7, swap vs v7 (TODO)
 
 ### Battery verdicts
 
