@@ -644,7 +644,23 @@ tactical failures.
 
 ### 3.3 Head-to-head vs v7 (100 games, seeds 100/200) — FINAL BATTERY
 
-(TBD — running.)
+**v28 beats v7: 53W-39L-8D, win rate 0.5700, 95% CI [0.4722,
+0.6627]**, 5189.8 s. File:
+`research/iterations/batch-v28-vs-v7.json` (seeds 100/200). Per
+colour: as Black 26W-19L-5D (0.5700), as White 27W-20L-3D
+(0.5700) — a PERFECTLY SYMMETRIC split again, like v22's
+0.58/0.58 (v14: 0.72/0.48; v20: 0.61/0.53). The ours-only
+demotion keeps v22's colour balance exactly but buys nothing
+net against the searching opponent: the aggregate (0.5700) sits
+1 game per 100 BELOW v22's 0.5800 and 3 below v14's 0.6000, and
+matches v20's 0.5700. Mean game length 58.44 plies (min 18, max
+225); wins mean 41.0 plies, losses mean 48.0 — v28 wins slightly
+FASTER than it loses, as in v22. 86 distinct 12-ply lines in 100
+games (no transposition collapse). Loss classifier: 39/39 losses
+via open four, **0 missed blocks**, 172 threatened turns in
+losses, **0 clean missed preventions** — defence is solved.
+**Clause 1 FAILS** (0.5700 > 0.50, but the CI lower bound 0.4722
+< 0.50 — the edge over v7 is not established).
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
