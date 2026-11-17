@@ -361,7 +361,87 @@ Raw JSONs: `ml/runs/ml2-h1/holdout-honest-before.json`,
 `ml/runs/ml2-h1/holdout-clean-before.json` (text header +
 JSON dump, as the script prints).
 
-## 3. Training, holdout, leaf cost, tactical, α sweep (TBD)
+## 3. Training, holdout, leaf cost, tactical, α sweep
+
+### 3.1 Training (COMPLETE 2026-11-17 09:32 UTC, ~34 min, uninterrupted)
+
+Config `ml/configs/ml2-h1-train.yaml` (v8's recipe, §1.3),
+run dir `ml/runs/ml2-h1-value/`, 118,171 samples (112,262
+train after the 5% internal val split), 5 epochs, 8,775
+steps. Memmap path: RSS ~0.8 GB, no OOM pressure. Epoch
+losses (loss / policy / value / internal-val):
+
+| epoch | loss | policy | value | val | seconds |
+|---|---|---|---|---|---|
+| 1 | 5.8800 | 4.8998 | 0.9802 | 5.7192 | 598 |
+| 2 | 5.6420 | 4.6896 | 0.9523 | 5.6285 | 421 |
+| 3 | 5.5493 | 4.6314 | 0.9179 | 5.5489 | 395 |
+| 4 | 5.4739 | 4.5940 | 0.8798 | 5.5118 | 327 |
+| 5 | 5.4382 | 4.5757 | 0.8625 | 5.4996 | 301 |
+
+Internal val loss fell monotonically across all 5 epochs, so
+best.pt = epoch 5 = final.pt (verified: identical weights,
+both step 8,775; the file-size difference is final.pt's
+extra `config`/`history` keys). Log:
+`ml/runs/ml2-h1/train-launch.log`.
+
+### 3.2 Holdout — the White gap CLOSED, but overall accuracy is down and the asymmetry FLIPPED
+
+Evaluated 2026-11-17 (`ml/runs/ml2-h1/holdout-{honest,clean}-
+v30.json`); best.pt and final.pt give identical numbers
+(identical weights). **Checkpoint selection (§1.2): tie →
+best.pt**, copied to `ml/runs/ml2-h1/value-net.pt`.
+
+| set | net | full | no-hist | full: Black-to-move | full: White-to-move |
+|---|---|---|---|---|---|
+| honest (324 games) | v30 | 0.5611 | 0.5528 | 0.5663 | 0.5559 |
+| honest | v25 | 0.5720 | 0.5607 | 0.5861 | 0.5575 |
+| honest | v8 (LEAKY here) | 0.6390 | 0.5976 | 0.6360 | 0.6420 |
+| clean (180 games) | v30 | 0.5607 | 0.5556 | 0.5557 | **0.5658** |
+| clean | v25 | 0.5775 | 0.5599 | 0.6078 | 0.5465 |
+| clean | v8 | 0.5577 | 0.5707 | 0.5504 | 0.5652 |
+
+**The pre-registered mechanism test PASSES on its own
+terms:** the White-to-move accuracy gap closed — clean full
+v25 −0.061 → v30 +0.010 (White now BETTER); honest full v25
+−0.029 → v30 −0.010. **But the overall accuracy is slightly
+DOWN vs v25** (clean full 0.5607 vs 0.5775; honest full
+0.5611 vs 0.5720) and the net is much less confident
+(mean|v| 0.26 vs v25's 0.39) — the dedup's exposure
+reduction (5 vs ~15 exposures, §1.1) cost overall signal.
+
+**And the win/loss structure FLIPPED instead of
+symmetrizing** (side-bias diagnostic, full planes — the
+flip reproduces on BOTH the honest 324-game holdout and the
+clean 180-game subset, so it is not subset noise):
+
+| cell (full planes, honest) | v25 acc | v30 acc |
+|---|---|---|
+| Black-to-move, side wins | 0.654 (mean +0.138) | **0.512** (mean +0.042) |
+| White-to-move, side wins | 0.534 (mean +0.060) | **0.598** (mean +0.096) |
+| Black-to-move, side loses | 0.520 (mean −0.055) | 0.619 (mean −0.093) |
+| White-to-move, side loses | 0.583 (mean −0.101) | 0.510 (mean +0.008) |
+
+v25 detected Black wins well (0.654) and White wins poorly
+(0.534); v30 detects White wins well (0.598) and Black wins
+at chance (0.512). Balancing the outcomes did not produce a
+symmetric net — it produced a mirror-image asymmetric net.
+Reading: at this scale the value signal is weak (accuracy
+~0.56, predictions near the decision boundary), and the side
+asymmetry is a fragile property of the trained net — small
+shifts in the learned prior flip many near-zero predictions
+(the mean predictions moved only ~0.04–0.10). Whether the
+flip helps or hurts PLAYED strength is the battery's
+question: v25 lost as White (0.15 vs v8); if v30's White-win
+detection transfers, its White play should improve — but its
+Black-win detection collapsed, so its Black play may regress.
+The colour splits in §5 will show which effect dominates.
+
+### 3.3 Leaf cost measurement (TBD)
+
+### 3.4 Pre-sweep tactical (TBD)
+
+### 3.5 α sweep (TBD)
 
 ## 4. Fast loop (TBD)
 
