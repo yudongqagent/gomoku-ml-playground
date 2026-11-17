@@ -779,7 +779,25 @@ game 51, auto-resumed): **38W-50L-12D, 0.44, CI [0.3467,
 (0.320). v31 LOSES to the weakest opponent — v8 scored 0.545
 vs v0. The White gap again: White 0.32 vs Black 0.56.
 
-**vs v7 (TODO). Swap vs v7 (TODO).**
+**vs v7 — COMPLETE 2026-11-17 ~15:26 PST** (raw
+`research/iterations/batch-v31-vs-v7.json`, no interruptions):
+**47W-52L-1D, 0.475, CI [0.3799, 0.5720]**. As Black 28W-21L-1D
+(0.570); as White 19W-31L-0D (0.380). Black won 59/100. v31
+roughly TIES v7 — non-transitivity again (v26 tied v7 at 0.51
+while collapsing vs v8): v31 ties the heuristic bar reference
+but loses to v8 (0.40) and v0 (0.44).
+
+**Swap vs v7 — COMPLETE 2026-11-17 ~15:26 PST** (raw
+`research/iterations/batch-v31-vs-v7-swap.json`, tempo judge,
+balanced placement, placement_seed 0 — the same default v24
+used, so directly comparable): **28W-70L-2D, 0.29, CI [0.2101,
+0.3854]**. As Black 16W-32L-0D (0.333); as White 12W-38L-2D
+(0.250). v31's win rate is 0.28 when v7 chooses colour and
+0.30 when v31 chooses — no meaningful difference; both engines
+took Black in ~80% of their choices. Under swap the chooser
+gets the favourable side in every game, and v31 loses as both
+colours. Far below the heuristic versions' swap results (v23
+0.72, v27 0.775).
 
 ### Battery verdicts
 
