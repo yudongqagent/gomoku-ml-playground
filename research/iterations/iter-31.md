@@ -296,9 +296,6 @@ selfplay_batch.py --engine-a v31 --engine-b v7 --games 100 --swap-rule --out res
 
 ## 2. Data generation (actuals)
 
-TODO — fill in when labeling completes: quiet positions
-(train/holdout), ±1 vs gradient label split, labeling wall time.
-
 **Dedup (done 2026-11-17 ~00:51 PST):**
 `ml/scripts/extract_dedup_games.py` over the B1 10k shards:
 10,000 shards → **3,244 unique games** (6,756 duplicate
@@ -307,7 +304,44 @@ Verification PASSED: unique count is exactly 3,244 AND the
 implied holdout first-shard indices match v25's split manifest
 exactly (324 games) — v31's holdout set is identical to v25's.
 
+**Labeling (COMPLETE 2026-11-17 ~01:42 PST):**
+`generate_distill_data.py label` over all 3,244 unique games
+(`--holdout-every 10`). **VM replacement killed the first run
+at game 2949/3244 (91%)**; the resume-safe label phase skipped
+the 2,959 existing shards and finished the remaining 295 games
+in 217 s. Final totals (summed from the shards — the resumed
+run's LABEL_JSON covers only its own 295 games):
+
+| Split | Games | Quiet positions | ±1 labels | Gradient labels | Mean \|v\| |
+|---|---|---|---|---|---|
+| Train (`data/b1/`) | 2,920 | 110,905 | 10,751 (9.7%) | 100,154 | 0.1965 |
+| Holdout (`data/b1-holdout/`) | 324 | 12,009 | 1,070 (8.9%) | 10,939 | 0.1904 |
+| **Total** | **3,244** | **122,914** | **11,821 (9.6%)** | **111,093** | — |
+
+138,695 total positions, 88.6% quiet — close to the §0
+projection (~123k). Note the label magnitudes: mean|v| ~0.19
+is ~3x v24's ~0.06 — B1 weak-net games are tactically wilder
+(9.7% rollout-terminal ±1 vs 3.8–5.1% in v24's engine sources),
+so the ±1 mass pulls the mean up. The §1.3 α grid {0.5, 1.0,
+2.0} still brackets the right region (α=0.5 on these values
+contributes about what α=1.0 did on v24's); the sweep decides,
+no pre-registration change needed. Memmap bundle built by the
+chain script: `ml/runs/ml2-h2/data-mmap/` (110,905 samples).
+
 ## 3. Training (actuals)
+
+**Launched 2026-11-17 09:44 UTC** by the chain script
+(`ml/runs/ml2-h2/chain-label-train.sh`, which verified the
+2920/324 shard counts and built the bundle first): config
+`ml/configs/ml2-h2.yaml`, 10 epochs, batch 64, memmap bundle.
+Run dir `ml/runs/ml2-h2-train/`. RSS ~335 MB — the memmap path
+works (vs the 3.2 GB in-RAM load that OOM-killed v25's attempt
+1). Steps: 105,360 train samples (95% of 110,905) / 64 ≈ 1,646
+steps/epoch, **16,460 total**. Early pace ~2.2 s/step (epoch 1,
+step 350 at 09:57 UTC) — ETA ~10 h at that pace, sooner if
+sibling contention eases (v25's rate improved 3x as siblings
+finished). Per-epoch checkpoints on (`checkpoint_every_epochs:
+1`); the §1.2 resume rule applies if a restart drain kills it.
 
 TODO — fill in when training completes: final train/val loss,
 epochs run, best checkpoint (step/epoch), checkpoint path.
