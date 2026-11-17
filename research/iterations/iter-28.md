@@ -402,11 +402,61 @@ the fix, `test_tactical_hard.py` + `test_mcts_heuristic.py`
 
 ### 1.3 Direction checks (NOT evals — identity/direction only)
 
-(TBD — after implementation, before the battery: v28's search
-(100 sims, seed 0) on the 9 v20 regression positions
+After implementation and before the battery, v28's search (100
+sims, seed 0) is run on the 9 v20 regression positions
 (`regression_positions_v20.json`) to check the patch has the
-intended DIRECTIONAL effect. Single-position diagnostics CANNOT
-validate the version; the battery (§3) is the verdict.)
+intended DIRECTIONAL effect — whether it plays the oracle-verified
+save where v14 played the loser, and whether it keeps v22's saves.
+These are single-position diagnostics: they CANNOT validate the
+version (standing lesson), they only check the patch does what it
+was designed to do at the positions that motivated it. The battery
+(§3) is the verdict.
+
+**Results (measured, seed 0).** v28 plays the save at **0 of 9**
+positions; v22 at **2 of 9**; v20 at **3 of 9**; v14 at **0 of 9**:
+
+| Position | v28 plays | v22 plays | v20 plays | v14 plays | Expected (save) | Verdict |
+|---|---|---|---|---|---|---|
+| bl-ply8 | (7,10) | (7,10) | (7,10) | (7,10) | (8,5) | miss (all) |
+| bl-ply10 | (8,5) | (8,5) | (8,5) | (7,9) | (5,12) | miss (v28 avoids the loser, not the save) |
+| bl-ply12 | (6,11) | (6,11) | (5,12) | (6,11) | (5,12) | miss (v28 keeps v22's regression) |
+| bl-ply14 | (4,9) | (6,9) | (6,9) | (4,9) | (6,9) | **miss (v28 REGRESSES vs v22)** |
+| bl-ply16 | (9,4) | (9,4) | (9,4) | (9,4) | (6,9) | miss (all — prior gap) |
+| fl1-g6-ply28 | (7,5) | (4,9) | (0,9) | (7,5) | (4,9)/(0,9) | **miss (v28 REGRESSES vs v22)** |
+| fl1-g6-ply34 | (6,11) | (6,11) | (6,11) | (6,11) | (4,2) | miss (all — starvation) |
+| fl1-g5-ply27 | (11,9) | (11,9) | (6,10) | (8,9) | (7,6)/... | miss (all — beyond-horizon; v28 same as v22) |
+| fl2-g5-ply65 | (11,10) | (12,11) | (11,9) | (11,9) | (13,6)/... | miss (all — beyond-horizon; v28 plays a new move) |
+
+(Coordinates are (x, y) throughout, as in the walk-back JSONs
+and the iter-22 §1.3 table — the v22/v20/v14 columns reproduce
+iter-22 §1.3 exactly, which cross-checks the driver AND the port:
+the ported v22/v20/v14 play identically to batch 8's.)
+
+**v28 regresses BOTH of v22's saves.** At bl-ply14 v28 plays
+(4,9) like v14 instead of the forcing open three (6,9); at
+fl1-g6-ply28 v28 plays (7,5) like v14 instead of either save
+(v22's winning (4,9) or v20's drawing (0,9)). Both positions are
+Black to move, where v28's leaf IS v22's leaf — so the
+regressions are NOT 1-ply gradient effects: they are deeper-tree
+effects of the theirs-term repair, the mirror image of v22's
+bl-ply12 regression. Iter-22 §1.3 attributed bl-ply12 to
+White's full gap-three breadth at every White-to-move leaf
+making White's replies look better for White and the save's
+lines worse for Black on backup. Under v28 the sign flips:
+Black's gap-three breadth counts fully at every White-to-move
+leaf, so White's replies look WORSE for White (better for Black
+on backup), and the search prefers the flashier move over the
+forcing save. The condition is a trade, not a pure win — the
+same lesson as v22's §1.3, now in the other direction. Whether
+that cost matters in aggregate is what the battery measures; no
+single-position diagnostic can say. bl-ply12 stays a miss (v28
+does not recover v20's save there), and the two White positions
+are missed by all four engines, with v28 playing a new move at
+fl2-g5-ply65 ((11,10), vs v22's (12,11) and v20/v14's (11,9)) —
+whether it is better is unknown (it is not an oracle-verified
+save) and is not claimed. All 9 positions are xfails in
+`test_regression_v28.py` — v28 plays 0 saves, like v14; the
+file pins the direction-check result, not a pass.
 
 ## 2. Loss analysis for iteration 28
 
