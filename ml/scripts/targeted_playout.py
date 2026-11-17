@@ -107,6 +107,9 @@ def main() -> int:
     parser.add_argument("--no-playout", action="store_true",
                         help="exact analysis only, no playouts")
     args = parser.parse_args()
+    version_b = args.version_b
+    if version_b != "mcts":
+        version_b = int(version_b)
 
     with open(args.batch, encoding="utf-8") as f:
         batch = json.load(f)
@@ -136,7 +139,7 @@ def main() -> int:
     after_actual = game.apply_move(board, actual, a_colour)
     actual_out = [
         play_out(after_actual, -a_colour, args.version_a,
-                 args.version_b, a_colour, seed, cache)
+                 version_b, a_colour, seed, cache)
         for seed in args.seeds
     ]
     actual_losses = sum(1 for o in actual_out if o < 0)
@@ -146,7 +149,7 @@ def main() -> int:
     for m in tested:
         after = game.apply_move(board, m, a_colour)
         out = [
-            play_out(after, -a_colour, args.version_a, args.version_b,
+            play_out(after, -a_colour, args.version_a, version_b,
                      a_colour, seed, cache)
             for seed in args.seeds
         ]

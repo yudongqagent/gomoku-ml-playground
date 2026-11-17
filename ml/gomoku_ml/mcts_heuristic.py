@@ -920,14 +920,33 @@ class HeuristicMCTS:
 
         Implementation note (NOT a design change): both steps test
         moves in (prior desc, flat index asc) order and return the
-        FIRST success, which is exactly the highest-prior move
-        with the lowest index among ties — the pre-registered
-        selection rule. Testing all moves and then taking the max
-        gives the identical result at 10–50x the cost (a naive
-        full scan took 38.7s on hard-suite position
-        prev-v1v1s-g79: the per-candidate ``starts_forced_win``
-        calls dominate). The early exit changes only how many
-        moves are tested, never which move is selected.
+        FIRST success, which is exactly the pre-registered
+        selection rule (highest prior, ties lowest index). The
+        defensive step additionally tests only the opponent's
+        ORIGINAL four-creators on each resulting board (our move
+        can only remove the opponent's four-creators — it adds
+        our stone, never an opponent stone — so the four-creators
+        after our move are a subset of the original set, and
+        ``starts_forced_win`` returns False for a move that no
+        longer creates a four there), VCF starts first (a VCF
+        start on the original board usually still forces a win
+        after our move, so ``any`` short-circuits on the first
+        test for non-preventions). Both are pure reordering /
+        subset reasoning — the selected move is identical to
+        testing every four-creator on every resulting board
+        (verified: identical moves on all 7 smoke-test positions
+        and all 14 White turns of fast-loop game 1 vs v0; the
+        only exception is the already-lost 2+-opponent-wins case,
+        where the game is lost whatever the check returns). The
+        naive test-all implementation took **38.7s** for one
+        defensive check on hard-suite position prev-v1v1s-g79
+        (profiled: 51,109 ``winning_moves`` calls via the
+        ``forces_win`` recursion); the early exit + subset +
+        ordering is 8–13x faster on the three prevention
+        positions (g79: 38.68s → 4.98s; g26: → 2.01s; v1bl-g2:
+        → 2.21s) with IDENTICAL moves. These change only how
+        many moves are tested and in what order, never which move
+        is selected.
         """
         # 1. Offensive VCF — test in selection order, first VCF
         # start wins (identical to testing all and taking the max).
@@ -955,12 +974,15 @@ class HeuristicMCTS:
             scoring._candidate_moves(board),
             key=lambda m: (-priors.get(m, 0.0), m),
         )
+        # Test only the opponent's ORIGINAL four-creators (subset
+        # property, see the docstring), VCF starts first.
+        vcf_set = set(opp_vcf)
+        ordered = opp_vcf + [m for m in opp if m not in vcf_set]
         for c in cands:
             b2 = game.apply_move(board, c, player)
-            opp2 = evaluate.four_creating_moves(b2, -player)
             if not any(
                 evaluate.starts_forced_win(b2, -player, m, depth=3)
-                for m in opp2
+                for m in ordered
             ):
                 return c
         return None
