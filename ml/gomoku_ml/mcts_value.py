@@ -99,7 +99,8 @@ class ValueMCTS(HeuristicMCTS):
         value_weight: shrink factor applied to the net's value in
             quiet positions (ML batch 1 H1: the α sweep — v8's
             ``VALUE_WEIGHT`` 0.25 is the default when None, so v8 is
-            unchanged; v24's swept α is passed through the registry).
+            unchanged; v24's swept α is passed through the registry;
+            per-version α goes back to v11, batch 4 H3).
         device: torch device string (CPU here; there is no GPU).
     """
 

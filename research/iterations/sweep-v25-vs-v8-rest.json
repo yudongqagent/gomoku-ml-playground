@@ -1,0 +1,36 @@
+{
+  "version": 25,
+  "opponent": "v8",
+  "games_per_alpha": 20,
+  "seed_a": 1001,
+  "seed_b": 2001,
+  "alphas": [
+    {
+      "alpha": 0.5,
+      "wins": 7,
+      "losses": 10,
+      "draws": 3,
+      "win_rate": 0.425,
+      "win_rate_ci_95": [
+        0.2383,
+        0.6359
+      ],
+      "elapsed_seconds": 4190.1
+    },
+    {
+      "alpha": 0.25,
+      "wins": 10,
+      "losses": 7,
+      "draws": 3,
+      "win_rate": 0.575,
+      "win_rate_ci_95": [
+        0.3641,
+        0.7617
+      ],
+      "elapsed_seconds": 1882.6
+    }
+  ],
+  "selected_alpha": 0.25,
+  "selection_rule": "highest win rate; ties toward larger alpha",
+  "complete": false
+}

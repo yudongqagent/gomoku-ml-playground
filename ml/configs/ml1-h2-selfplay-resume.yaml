@@ -1,0 +1,89 @@
+# ML batch 1, H2 (v25) — resume config for completing the B1 10k dataset.
+#
+# Copy of gomoku-b3-b1/ml/runs/b3-b1/config.yaml (the round-2 job's own
+# config: resnet 32ch/4blocks, c_puct 1.5, Dirichlet a0.3/e0.25,
+# temperature 1.0/30 moves, max_moves 225) with THREE deliberate changes:
+#
+#   1. seed: 0 -> 1 (FRESH SEED — load-bearing). The parallel path seeds
+#      worker w with seed+w, so a same-seed resume replays the SAME
+#      games: the existing 4,350 shards contain only 1,449 unique
+#      move-sequences (645 games x4, 199 x3, 568 x2, 37 x1 — verified
+#      2026-11-15, see research/iterations/iter-25.md section 2).
+#      v8's author hit the same trap on the batched path and used a
+#      fresh seed per resume (iter-8.md section 2); the B1 10k legs did
+#      NOT, and legs 2-4 mostly regenerated leg 1's games (leg 4, the
+#      longest leg, added only 37 new unique games). Seed 1 makes all
+#      5,650 completion games fresh. Same generator, same distribution
+#      — only the RNG stream differs.
+#   2. selfplay.games: 200 -> 10000 and sims_per_move: 100 -> 50, so
+#      this config alone describes the run (the original legs passed
+#      --games/--sims on the CLI; the script's printed resume command
+#      DROPS --sims and --checkpoint, so re-running it verbatim would
+#      generate random-net games at 100 sims — a different dataset).
+#   3. run_name: b3-b1-10k (the CLI also passes --run-name; belt and
+#      braces — the shard prefix and the top-up count depend on it).
+#
+# Run (from the ml1-h2 worktree root):
+#   nohup /home/hatch/workspace/projects/gomoku-ml-playground/ml/.venv/bin/python -u \
+#     ml/scripts/selfplay.py --config ml/configs/ml1-h2-selfplay-resume.yaml \
+#     --checkpoint /home/hatch/workspace/projects/gomoku-b3-b1/ml/runs/b3-b1/final.pt \
+#     --run-dir /home/hatch/workspace/projects/gomoku-b3-b1/ml/runs/b3-b1-10k \
+#     --run-name b3-b1-10k --games 10000 --sims 50 --workers 4 --concurrency 8 \
+#     > ml/runs/ml1-h2/10k-completion-launch.log 2>&1 &
+#
+# Top-up semantics: --games is the TOTAL wanted (10,000); the run
+# generates only the missing games. A VM replacement loses at most the
+# in-progress games; re-run the same command (same seed 1 — the seed
+# applies to THIS leg; a further resume after an interruption of this
+# leg must use a FRESH seed again, seed 2, 3, ... per the rule above,
+# or it will replay this leg's prefix).
+#
+# Data lands in the SHARED b3-b1-10k run dir (same staged run):
+#   /home/hatch/workspace/projects/gomoku-b3-b1/ml/runs/b3-b1-10k/data/
+# Shards are numbered from the existing count (game4350.npz ...).
+
+run_name: b3-b1-10k
+seed: 1
+architecture:
+  name: resnet
+  params:
+    channels: 32
+    blocks: 4
+base_checkpoint: null
+resume: null
+train:
+  epochs: 20
+  batch_size: 64
+  lr: 0.002
+  lr_schedule: cosine
+  lr_step_size: 10
+  lr_gamma: 0.5
+  warmup_steps: 20
+  weight_decay: 0.0001
+  policy_weight: 1.0
+  value_weight: 1.0
+  augmentation: true
+  val_fraction: 0.05
+  checkpoint_every_epochs: 5
+selfplay:
+  games: 10000
+  sims_per_move: 50
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_epsilon: 0.25
+  temperature: 1.0
+  temperature_moves: 30
+  resign_threshold: null
+  max_moves: 225
+  checkpoint_every_games: 10
+eval:
+  games: 40
+  sims: 100
+  opponents:
+  - random
+  - heuristic
+  - mcts
+  mcts_sims: 100
+  tactical: true
+  tactical_sims: 50
+  auto: true

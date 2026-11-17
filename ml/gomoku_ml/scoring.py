@@ -221,6 +221,29 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml1-h1/value-net.pt",
          "value_weight": 1.0},
+    # v25 (iteration 25, ML batch 1): H2 — v8's ValueMCTS with the
+    # value net RETRAINED on the completed 10,000-shard B1 dataset
+    # (see research/iterations/iter-25.md). Search, leaf structure
+    # and the 2-ply threat check at the root are v8's, unchanged —
+    # the only intended difference is the training data, plus the
+    # re-swept α ("value_weight", from the §1.4 sweep grid; the
+    # registry value below is the sweep's winner — 0.25 is the
+    # PLACEHOLDER, v8's value, until the sweep runs; see iter-25
+    # §1.4/§1.7). The checkpoint path is relative to the repo root
+    # (gitignored data under ml/runs/); the GOMOKU_V25_CHECKPOINT
+    # env var overrides it. NOTE: the existing 4,350 shards contain
+    # only 1,449 unique games (same-seed resume replays — iter-25
+    # §2.1); the completion leg used a fresh seed (1).
+    25: {"name": "scoring-v25", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml1-h2/value-net.pt",
+         "value_checkpoint_env": "GOMOKU_V25_CHECKPOINT",
+         # value_weight 0.25: swept 2026-11-16 (grid {1.0, 0.5, 0.25,
+         # 0.125} x 20 games vs v0 and vs v8, seeds 1001/2001).
+         # Combined winner: 0.5625 over 40 games (vs v0 0.55, vs v8
+         # 0.575). Per-opponent: vs v0 best 0.5 (0.60), vs v8 best
+         # 0.25 (0.575). See research/iterations/iter-25.md §3.2.
+         "value_weight": 0.25},
     # v26 (iteration 26, ML batch 1): H3 — v8's engine shape (PUCT
     # MCTS, 100 sims, exact terminal leaf cases, v3's root threat
     # check) with a LEARNED policy prior + a joint policy+value net
@@ -827,13 +850,18 @@ class ScoringPlayer:
                     prior_temperature=temperature,
                 )
             elif value_ckpt is not None:
-                # Learned-value MCTS (v8): lazy import, mcts_value
+                # Learned-value MCTS (v8, v24, v25): lazy import, mcts_value
                 # imports this module (via mcts_heuristic). The path
                 # is relative to the repo root unless absolute; the
-                # GOMOKU_V8_CHECKPOINT env var overrides it.
-                from .mcts_value import ValueMCTS
+                # per-version env var (default GOMOKU_V8_CHECKPOINT)
+                # overrides it. Each version sweeps its own α
+                # ("value_weight", default 0.25 = v8's value).
+                from .mcts_value import VALUE_WEIGHT, ValueMCTS
 
-                path = os.environ.get("GOMOKU_V8_CHECKPOINT") or value_ckpt
+                env_key = ENGINE_VERSIONS[version].get(
+                    "value_checkpoint_env", "GOMOKU_V8_CHECKPOINT"
+                )
+                path = os.environ.get(env_key) or value_ckpt
                 if not os.path.isabs(path):
                     repo_root = os.path.dirname(
                         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -843,7 +871,9 @@ class ScoringPlayer:
                     checkpoint_path=path,
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
                     rng=self.rng,
-                    value_weight=ENGINE_VERSIONS[version].get("value_weight"),
+                    value_weight=ENGINE_VERSIONS[version].get(
+                        "value_weight", VALUE_WEIGHT
+                    ),
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.
