@@ -661,7 +661,19 @@ killed after 4 games (~26 min) to analyse the losses rather
 than burn VM time on a version already shown weaker than its
 base; the vs-v7 fast loop (below) is the clause-1 screen.
 
-**vs v7 (seeds 1032/2032):** TODO — running.
+**vs v7 (seeds 1032/2032): 7W-2L-1D (0.7500, CI [0.4422,
+0.9191]) in 763s.** As Black 5-0-0; as White 2-2-1 (game 9 a
+225-ply draw). Defence solved (2/2 losses via open four, 0
+missed blocks). The White weakness persists (both losses as
+White, 27 and 31 plies — the defensive-check override class),
+but Black dominance compensates, and 0.75 is at v18's level
+(0.775). The check helps vs a strong opponent (real VCF
+threats, where preventions are necessary) even though it
+hurts vs a weak one (phantom threats, where the prior-noise
+pick loses tempo). The fast loop justifies the battery:
+clause 1 is genuinely contested, and clause 3 (tactical
+29/29 expected, §3.1) would be a clear improvement over
+v18's 26/29.
 
 ## 4. Battery (TODO — filled in when the battery runs)
 
