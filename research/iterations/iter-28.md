@@ -664,11 +664,70 @@ losses, **0 clean missed preventions** — defence is solved.
 
 ### 3.4 Head-to-head vs v0 (100 games, seeds 100/200) — FINAL BATTERY
 
-(TBD.)
+**v28 beats v0: 52W-43L-5D, win rate 0.5450, 95% CI [0.4475,
+0.6391]**, 2750.0 s. File:
+`research/iterations/batch-v28-vs-v0.json` (seeds 100/200). Per
+colour: as Black **39W-6L-5D (0.8300)**; as White **13W-37L-0D
+(0.2600)** — the worst White vs v0 of any v1-leaf version (v14:
+0.60, v20: 0.45, v22: 0.38). The aggregate (0.5450) is below
+v22's 0.6550, v14's 0.6000, and v20's 0.5850: the ours-only
+demotion is the WORST of the four tested combinations vs v0.
+Mean game length 53.41 plies (min 21, max 225); wins mean 58.0
+plies, losses mean 27.9 — v28 wins very slow grinds and loses
+fast races, the familiar pattern in its extreme form. White's 37
+losses average 25.7 plies, 26 of them in ≤30 plies. 66 distinct
+12-ply lines (v0's greedy play funnels the lines). Loss
+classifier: 43/43 losses via open four, **0 missed blocks**, 237
+threatened turns in losses, **0 clean missed preventions** —
+defence is still solved.
+
+**Both pre-registered refutations trigger — and the mechanism is
+the OPPOSITE of the prediction.** White 0.26 ≤ 0.45 (REFUTATION
+(White)): the theirs-term demotion was NOT the cause of White's
+−0.22 — removing it made White WORSE (0.38 → 0.26), not better.
+Black 0.83 > 0.80, so REFUTATION (Black) does NOT trigger
+(narrowly): the ours-term demotion carries most of Black's edge
+(0.93 → 0.83), but not all of it. The decomposition (clean: each
+comparison changes exactly one thing) now prices the two terms
+separately:
+
+- v14 (no demotion): Black 0.60, White 0.60.
+- v20 (demote both, both terms): Black 0.72, White 0.45.
+- v22 (demote Black, both terms): Black 0.93, White 0.38.
+- v28 (demote Black, ours term only): Black 0.83, White 0.26.
+
+So the OURS-term demotion alone (v14 → v28) is worth **+0.23 for
+Black and −0.34 for White**, while the THEIRS-term demotion on
+top (v28 → v22) is worth **+0.10 for Black and +0.12 for
+White**. The design's premise is EXACTLY BACKWARDS for White:
+the theirs-term demotion HELPS White (+0.12), and the ours-term
+demotion is what HURTS White (−0.34). The mechanism, stated as
+the best explanation (not proven — the untested complement,
+Black-only theirs-term demotion, would be the controlled test):
+when White plays, Black's demoted breadth at Black-to-move
+leaves — the OPPONENT's turns in White's search — makes Black's
+replies look weak, so White under-fears Black's counterplay in
+its own search and plays into Black's threats; the theirs-term
+demotion (v22) partially compensates by making White's
+own-turn leaves look better (Black's threats discounted),
+restoring White's willingness to play counterplay. Removing it
+(v28) leaves White with the worst of both: under-fearing Black
+at Black's turns while over-fearing Black at its own turns.
+The deeper lesson (§5): v28's leaf is the first INCOHERENT leaf
+in the program — it breaks player-swap antisymmetry WITHIN a
+game (v16's colour gate is per-game, so v16's leaf is coherent
+within a game; v28's is per-leaf). The battery prices that
+incoherence at White 0.26.
 
 ### 3.5 Tactical suites — FINAL BATTERY (re-run on the final engine)
 
-(TBD.)
+**v28: 20/20 old + 29/29 hard** (full-dispatch driver,
+`ml/scripts/eval_tactical_full.py`, `--seed 100`, run on the
+final engine after the battery). Identical to the pre-battery run
+(§3.2) and to v7's scores on the CORRECTED suite. The ours-only
+demotion costs no tactical accuracy: every forced win, block,
+prevention, setup, and VCF sequence is still found. **Clause 3
+PASSES.**
 
 ### 3.6 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
 
