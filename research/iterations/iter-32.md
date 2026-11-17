@@ -395,7 +395,10 @@ may repeat games 0–10 — the distinct-openings count is
 reported below.
 The battery chain was killed by runtime restarts three times (during the
 vs-v8 leg at 82 games, during the vs-v7 leg at 20 games, and once more
-during the vs-v7 leg after the relaunch); the match drivers' auto-resume
+during the vs-v7 leg after the relaunch); the swap leg was killed a
+fourth time, by the VM restart drain that ended the original H3 worker
+at 11 games — the resumed workstream relaunched the same command and
+completed it (resumed_from_game 11). The match drivers' auto-resume
 saved every completed game — the only losses were the single in-progress
 game at each kill. The ladder (no auto-resume in `eval_version.py`)
 completed in the relaunched chain before the third restart, so it was not
@@ -410,12 +413,13 @@ re-run.
 | Ladder (clause 2) | Elo −70.4 | — | [−221.1, 80.2] | vs heuristic Black 6-4 / White 2-8; vs mcts Black 7-3 / White 2-8 | — |
 | vs v0 | 61W-37L-2D | 0.6200 | [0.5221, 0.7090] | Black 35W-15L (0.700); White 26W-22L-2D (0.540) | 47/100 |
 | vs v7 | 28W-67L-5D | 0.3050 | [0.2234, 0.4011] | Black 18W-31L-1D (0.370); White 10W-36L-4D (0.240) | 70/100 |
-| Swap vs v7 | TODO | | | | |
+| Swap vs v7 | 28W-71L-1D | 0.2850 | [0.2058, 0.3801] | Black 18W-30L-1D (0.378); White 10W-41L (0.196) | 97/100 |
 
 All aggregates recomputed independently from the raw JSONs (W/L/D recount,
 Wilson CI, per-colour splits, distinct lines) — every number matches the
 stored driver values exactly (script: `~/workspace/ml2h3-logs/recompute.py`,
-kept outside the repo).
+kept outside the repo; the swap leg recomputed the same way, plus
+opener/picker splits and distinct openings).
 
 Clause 3 (tactical): **PASS** — 20/20 + 29/29, run twice with identical
 results. Clause 4 (suites): re-run on the final tree — TODO.
@@ -437,7 +441,18 @@ better than v8's 0.545 — the check helps against the weak opponent, whose
 threats are real and whose defence cannot refute a VCF start. vs v7 0.3050
 is far below v24's 0.445 vs v7: the check hurts more against stronger
 opponents. Non-transitive in the same direction as v4/v5: v32 > v0 more
-convincingly than v8 does, yet v32 < v8 decisively.
+convincingly than v8 does, yet v32 < v8 decisively. Swap vs v7
+0.2850 is worse than v24's 0.330 and far below v29's 0.735:
+the check helps no more under swap than freestyle. As opener
+v32 scores 0.200 (10W-40L), as colour-picker 0.370
+(18W-31L-1D) — the same opener deficit v24 showed (0.270 vs
+0.390): v32's own swap openings are the weaker side of the
+match. Black won 59/100 swap games; the tempo judge picked
+Black in 75. Only 23 distinct openings in 100 games (the
+balanced draw from seed 0 is a small pool, and the resume's
+placement-RNG restart repeated 9 of the first 11 openings in
+games 11+) — so the swap match's opening diversity is limited
+even though 97/100 lines are distinct.
 
 ### 5.2 VCF fires in the battery (post-battery analysis)
 
@@ -546,8 +561,9 @@ corrected one.
 Secondary legs: vs v0 61W-37L-2D (0.6200, CI [0.5221,
 0.7090]) — better than v8's 0.545; vs v7 28W-67L-5D (0.3050,
 CI [0.2234, 0.4011]) — far below v24's 0.445 vs v7; swap vs v7
-TODO (100 games, tempo judge, placement_seed 0 — see the §5
-deviation note).
+28W-71L-1D (0.2850, CI [0.2058, 0.3801]) — worse than v24's
+0.330, far below v29's 0.735 (100 games, tempo judge,
+placement_seed 0 — see the §5 deviation note).
 
 What v32 establishes:
 
