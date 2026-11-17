@@ -258,7 +258,108 @@ placement_seed 11, tempo judge) ->
 before the fast loop completes are INTERMEDIATE, labelled as
 such; only the final battery counts for the bar.
 
-## 2. Data build and before-baseline (TBD)
+## 2. Data build and before-baseline
+
+### 2.1 Dedup + balance build (COMPLETE 2026-11-17)
+
+`ml/scripts/build_dedup_balanced_train.py --data
+~/workspace/projects/gomoku-b3-b1/ml/runs/b3-b1-10k/data
+--split-manifest ml/runs/ml2-h1-10k/split-manifest-v25.json
+--out ml/runs/ml2-h1-10k/data --balance-seed 0` (~100 s):
+
+* 10,000 shards → **3,244 unique games** (6,756 duplicate
+  shards) — reproduces v25's dedup count exactly.
+* **Holdout verified: 324 unique games, manifest match** — the
+  recomputed holdout set equals v25's
+  `holdout_first_shard_indices` exactly, so the before/after
+  comparison is on identical positions.
+* Train unique games: **2,920** (Black wins 1,549 / White wins
+  1,371 / draws 0) — the game-level skew is 53.0% Black.
+* Balanced: **kept 2,742 games** (1,371 Black-win + 1,371
+  White-win), **dropped 178 Black-win games** (seed 0;
+  dropped indices in the manifest). Data loss 6.1%, as
+  predicted (§1.1).
+* **118,171 samples** in the train set.
+* Position-level check: Black-to-move win 29,362 / loss
+  30,409 (49.1% win); White-to-move win 30,409 / loss 27,991
+  (52.1% win). Game-level balance is exact, but
+  position-level balance is NOT exact: White-win games run
+  slightly longer than Black-win games, so they contribute
+  more positions of both kinds. The residual 3-point gap is
+  much smaller than the original skew and is a game-length
+  effect, not a winner effect — recorded honestly, not
+  "fixed" by re-weighting positions (that would be a second
+  intervention).
+* Manifest: `ml/runs/ml2-h1-10k/dedup-balance-manifest.json`
+  (gitignored data; kept/dropped first-shard indices listed).
+* Memmap bundle built from the train dir
+  (`ml/scripts/build_mmap_bundle.py`): 2,742 shards, 118,171
+  samples, 914 MB at `ml/runs/ml2-h1-10k/data-mmap/`
+  (planes (118171, 8, 15, 15), policy (118171, 225), values
+  (118171,)).
+
+### 2.2 BEFORE baseline — holdout accuracy by side to move (v8 and v25 nets)
+
+`ml/scripts/eval_value_holdout.py` on the honest holdout
+(324 games, 13,485 positions) and the clean subset (180
+games, 7,468 positions — neither net trained on them).
+Overall numbers REPRODUCE v25's published values exactly
+(v25 honest 0.5720/0.5607, clean 0.5775/0.5599; v8 clean
+0.5577/0.5707) — the pipeline is validated end to end.
+
+**Honest holdout (324 games):**
+
+| net | full | no-hist | full: Black-to-move | full: White-to-move | no-hist: Black | no-hist: White |
+|---|---|---|---|---|---|---|
+| v8 | 0.6390 | 0.5976 | 0.636 (4341/6825) | 0.642 (4276/6660) | 0.5852 | 0.6102 |
+| v25 | 0.5720 | 0.5607 | 0.5861 (4000/6825) | 0.5575 (3713/6660) | 0.5458 | 0.5760 |
+
+**Clean subset (180 games, the honest v8-vs-v25 comparison):**
+
+| net | full | no-hist | full: Black-to-move | full: White-to-move | no-hist: Black | no-hist: White |
+|---|---|---|---|---|---|---|
+| v8 | 0.5577 | 0.5707 | 0.5504 (2081/3781) | 0.5652 (2084/3687) | 0.5551 | 0.5867 |
+| v25 | 0.5775 | 0.5599 | **0.6078** (2298/3781) | **0.5465** (2015/3687) | 0.5618 | 0.5579 |
+
+**Reading.** The White-collapse hypothesis is PARTLY
+supported, and the clean subset is where it shows: v25's net
+has a real White-to-move gap on FULL planes (−0.061 on
+clean, −0.029 on honest), while v8 shows NO White gap
+anywhere (White is better on all four cells). But on
+NO-HISTORY planes the gap vanishes (clean −0.004, honest
++0.030) — and no-history is the leaf condition at depth < 2.
+The leaf sees history at depth ≥ 2, so both views matter;
+the mechanism test is mixed, not clean. (Caveat: positions
+cluster by game, so the effective sample size is ~180 games,
+not 7,468 positions — but a 0.061 gap at n≈3,700/side is
+~3.9 SE even before clustering, so the full-planes gap is
+real.)
+
+**Direction of the error (one-off diagnostic,
+`/tmp/v30_side_bias.py`, clean subset, full planes):** the
+gap is driven by WHITE WINS, not White losses. When White is
+to move and eventually wins, v25's net predicts mean +0.051
+(sign acc 0.522) vs +0.139 (0.663) for Black-to-move wins —
+it UNDERVALUES White's winning chances. On White-to-move
+losses it is fine (mean −0.085, acc 0.571 ≈ Black's 0.552).
+So the net cannot see White wins coming — consistent with
+the game-level failure (as White, the search cannot find
+winning counterplay because the leaf undervalues White's
+winning lines). v8 shows no such asymmetry (White-win acc
+0.589 vs Black-win 0.578). Prediction for v30: if balancing
+works, the White-to-move WIN accuracy should rise toward the
+Black level on full planes.
+
+(No-history diagnostic, for completeness: v25's no-history
+predictions are shifted strongly positive (means +0.21 to
++0.41) — without history planes the net overvalues the side
+to move (Black-win acc 0.861, Black-loss acc 0.257). Both
+nets behave oddly on zeroed history; the full-planes view is
+the cleaner mechanism signal.)
+
+Raw JSONs: `ml/runs/ml2-h1/holdout-honest-before.json`,
+`ml/runs/ml2-h1/holdout-clean-before.json` (text header +
+JSON dump, as the script prints).
 
 ## 3. Training, holdout, leaf cost, tactical, α sweep (TBD)
 
