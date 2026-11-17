@@ -504,7 +504,74 @@ v0 was 0.25 — the weaker net at full weight behaves more
 like a shrunk net). Small-sample caveat: 20-game arms; the
 100-game battery is the verdict.
 
-## 4. Fast loop (TBD)
+## 4. Fast loop (iteration 1 — STOPPED: no patchable defect)
+
+### 4.1 Iteration 1 (2026-11-17 ~12:00 UTC, seeds 1001/2001)
+
+10 games vs v8: **7W-3L-0D (0.70)**. 10 games vs v0:
+**7W-3L-0D (0.70)**. Records:
+`research/iterations/fast-v30-vs-v8-iter1.json`,
+`fast-v30-vs-v0-iter1.json`. (Same seeds as the sweep's
+α=0.5 arms, so these are the sweep's first 10 games per
+opponent — with move records, which the sweep did not save;
+the 7-3 splits are consistent with the sweep's 20-game
+13W-7L / 14W-6L.) Colour splits (n=5 per colour — small,
+but no White collapse): vs v8 Black 3W-2L (0.60) / White
+4W-1L (0.80); vs v0 Black 4W-1L (0.80) / White 3W-2L
+(0.60). v25's White collapse (0.15 vs v8) is NOT visible
+here; the battery's 50-per-colour splits are the real test.
+
+Losing moves found with `ml/scripts/find_losing_moves.py`
+(VCF solver `evaluate.forces_win`, depth 4 attacker moves;
+a losing move is the first v30 move after which the opponent
+forces a win AND a saving reply exists — verified by
+enumerating v30's near-move replies at that ply; the script
+was generalised in this iteration to take the match files as
+arguments):
+
+| match | game | v30 | plies | losing move (ply) | saving moves | verdict |
+|---|---|---|---|---|---|---|
+| vs v8 | 3 | White | 25 | (9,10) @21 | 0 | already lost (positional) |
+| vs v8 | 6 | Black | 44 | (6,4) @36 | 2: (2,4) (2,6) | **genuine blunder** |
+| vs v8 | 8 | Black | 52 | (12,5) @42 | 0 | already lost (positional) |
+| vs v0 | 3 | White | 17 | (11,6) @13 | 0 | already lost (positional) |
+| vs v0 | 4 | Black | 32 | (7,3) @28 | 0 | already lost (positional) |
+| vs v0 | 7 | White | 29 | (9,6) @25 | 0 | already lost (positional) |
+
+Only 1 of 6 losses has a genuine blunder; 5 were already
+lost by the time a depth-4 VCF moment arrived (positional
+decline, no single tactical blunder). The blunder was
+analysed with `ml/scripts/v30_root_stats.py` (v30's own
+ValueMCTS root stats, 100 sims, seed 0; our-perspective q =
+−child.q per the PUCT code):
+
+* **v8-g6 @36 (6,4) vs save (2,4)/(2,6):** v30's root:
+  actual v=14, our-q +0.021; saving (2,4) v=2, our-q
+  −0.107; saving (2,6) v=2, our-q −0.108. The search's
+  value estimates prefer the losing move by ~0.13 — a
+  genuine value misjudgment. BUT the same analysis with
+  **v8's** search at the identical position
+  (`--version 8`): actual v=28, our-q +0.097; saving
+  (2,4) v=4, our-q −0.043 — **v8 makes the SAME miss with
+  even more conviction**. This is a SHARED 100-sim
+  search-horizon / value-judgment limit (the forced win
+  materialises beyond what the 100-sim search + shrunk
+  leaf values can see; both nets' leaves misjudge the
+  position the same way) — exactly v24's finding that v7
+  makes the same miss as the ML version. Not v30-specific,
+  not patchable within H1's remit (a search change or a
+  targeted retrain is a new version, not a fast-loop patch
+  for a data-only version).
+
+### 4.2 Decision: stop the fast loop after iteration 1
+
+No patchable defect within H1's remit: the one genuine
+blunder is shared with v8 (a search-horizon limit, not a
+v30 defect); the other 5 losses are positional with no
+single blunder. Further iterations without a patch would
+only find more instances of the same unpatchable
+categories. The 100-game battery is the verdict.
+(Iterations 2–4 not run — "up to 4".)
 
 ## 5. v30 evaluation (FULL VALIDATION BATTERY — final v30 only) (TBD)
 
