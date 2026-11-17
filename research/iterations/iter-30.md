@@ -573,7 +573,53 @@ only find more instances of the same unpatchable
 categories. The 100-game battery is the verdict.
 (Iterations 2–4 not run — "up to 4".)
 
-## 5. v30 evaluation (FULL VALIDATION BATTERY — final v30 only) (TBD)
+## 5. v30 evaluation (FULL VALIDATION BATTERY — final v30 only)
+
+### 5.1 Tactical (final α=0.5, `--seed 100`, 2026-11-17)
+
+`eval_tactical_full.py --version 30 --suite both --seed 100`:
+**old 20/20, hard 29/29 — perfect.** (Re-run on the final
+tree; identical to the pre-sweep run — the α change from
+0.25 to 0.5 does not regress tactics.) **Clause 3: PASS.**
+
+### 5.2 Ladder (20 games/opponent, `--seed 100`, 2026-11-17)
+
+`eval_version.py --version 30 --ladder-games 20 --mcts-sims
+100 --seed 100` (22.3 min):
+
+| opponent | v30 | v8 (reference) | v25 |
+|---|---|---|---|
+| random | 20W-0L-0D (1.000) | 20W-0L-0D (1.000) | 20W-0L-0D (1.000) |
+| heuristic | 8W-10L-2D (0.450) | 10W-10L-0D (0.500) | 7W-12L-1D (0.375) |
+| mcts | 8W-11L-1D (0.425) | 6W-14L-0D (0.300) | 10W-10L-0D (0.500) |
+| **ladder Elo** | **−34.9** (interval [−183.3, 113.6]) | **0.0** | **−88.7** |
+
+**Clause 2: FAIL** — ladder Elo −34.9 is not strictly
+higher than v8's 0.0 (the interval includes 0.0). Better
+than v25's −88.7, worse than v8's 0.0. The Elo estimate is
+driven by the heuristic leg (the anchor), where v30 scores
+0.450 vs v8's 0.50. Non-transitivity again: v30 beats the
+ladder MCTS more often than v8 does (8-11-1 vs 6-14) but
+loses to the plain heuristic more often (8-10-2 vs 10-10).
+Colour splits: vs heuristic Black 6W-2L-2D (0.70) / White
+2W-8L-0D (0.20) — the White gap vs the heuristic anchor is
+UNCHANGED from v8 (also 2W-8L as White); vs mcts Black
+5W-5L (0.50) / White 3W-6L-1D (0.35) — White IMPROVED vs
+v8's 1W-9L (0.10). So the White fix transfers against the
+MCTS opponent but not against the plain heuristic.
+
+### 5.3 h2h vs v8 / v0 (RUNNING since 2026-11-17 ~12:30 UTC)
+
+100-game matches, seeds 100/200, in parallel (PIDs 5447 /
+5450).
+
+(TBD — final results.)
+
+### 5.4 h2h vs v7 + swap vs v7 (TBD)
+
+### 5.5 Colour splits (TBD)
+
+### 5.6 Clause-4 re-verification (TBD)
 
 ## 6. Bar check (v30 vs v8) (TBD)
 
