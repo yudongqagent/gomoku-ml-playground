@@ -239,11 +239,19 @@ v7's rule (scale ~= 1.8 x std) — the same rule v7 (4.0 from std
 v28 eval. Because the rule is PARITY-dependent, the Step-0
 sample must cover BOTH parities, unlike iter-22's all-White-to-
 move sample: same replay source (batch-v7-vs-v1.json, first 20
-games), every 2nd ply from ply 8 (plies 8, 10, 12, … —
-alternating parity), quiet positions only, pooled std across
-both parities. The scale is fixed here from the measured
-distribution, NOT tuned on any v28 eval result. Value: **TBD
-in §1.1** (1.8 x measured std, rounded to the nearest 0.5).
+games), EVERY ply from ply 8 onward (0-indexed move index ≥ 8 —
+alternating parity, so both Black-to-move and White-to-move
+leaves are represented; the iter-22 sample's every-4th-ply rule
+would give all-White-to-move again), quiet positions only,
+pooled std across both parities. [CORRECTION, made before Step 0
+ran: the first draft of this paragraph said "every 2nd ply from
+ply 8 (plies 8, 10, 12, … — alternating parity)" — that is
+arithmetically wrong, since even move indices are ALL White to
+move; the corrected rule above (every ply ≥ 8) is the one Step 0
+uses. No v28 eval had run when this was corrected.] The scale is
+fixed here from the measured distribution, NOT tuned on any v28
+eval result. Value: **TBD in §1.1** (1.8 x measured std, rounded
+to the nearest 0.5).
 
 **What this change is meant to fix, and the expected effect
 (stated in advance).** Against greedy v0: Black should HOLD near
