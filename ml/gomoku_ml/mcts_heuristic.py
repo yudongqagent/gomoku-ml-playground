@@ -684,17 +684,54 @@ def _rollout_move(board: np.ndarray, player: int) -> tuple[int, float | None]:
     return int(np.argmax(total)), None
 
 
-def _rollout_leaf_value(board: np.ndarray, player: int) -> float:
+def _blend_rollout_terminal(
+    term: float, board: np.ndarray, player: int
+) -> float:
+    """Blend a rollout-found terminal value with the symmetric v1
+    gradient at the terminal position (v19, batch 7 H2 — see
+    ``research/iterations/iter-19.md`` §1).
+
+    ``term`` is ±1 from ``player``'s perspective at ``board`` (the
+    position where the rollout reached the terminal — the position
+    BEFORE the winning move is played; the terminal is a prediction
+    that the player to move there wins, not a finished game). The
+    blend is ``clamp(term + g, -1, 1)`` where ``g`` is the v1
+    gradient at that position for ``player``. The gradient's ±0.2
+    cap bounds the shift, so a blended rollout loss lands in
+    [-1.0, -0.8] and a blended rollout win in [0.8, 1.0]: the
+    terminal's dominance over quiet leaves (±0.2) and the
+    must-block (-0.25) is preserved, and the blend reorders ONLY
+    among lines that share a terminal outcome — precisely the set
+    v16's raw terminals flatten (iter-16 §3.1: in creator-rich
+    positions nearly every quiet leaf returns -1.000, so the search
+    cannot rank defences it knows are all losing). The clamp is the
+    predictions-never-exceed-facts rule: a rollout win must not
+    outrank an exact win at the leaf start (+1.0), nor a rollout
+    loss sink below an exact loss (-1.0). A draw (term 0.0, board
+    full) is returned unchanged — a full board has no empty cells,
+    so its gradient is 0 anyway.
+    """
+    if term == 0.0:
+        return 0.0
+    return max(-1.0, min(1.0, term + _attack_gradient_v1(board, player)))
+
+
+def _rollout_leaf_value(
+    board: np.ndarray, player: int, blend: bool = False
+) -> float:
     """v16 White leaf value: v7's terminal-aware values for terminal
     positions; for quiet positions, roll out exactly 2 plies
     (opponent reply + our reply, :func:`_rollout_move`) and evaluate
     the symmetric v1 gradient at the resulting position. A win/loss
     reached inside the rollout returns the exact terminal value
     (sign-adjusted to ``player``'s perspective: after an even number
-    of plies the player to move is ``player`` again). At the
-    rollout's END, only wins/losses (+/-1) are terminal: a must-block
-    (-0.25 — the opponent holds exactly one winning move) is a
-    position to evaluate with the gradient, not a game end.
+    of plies the player to move is ``player`` again) — or, with
+    ``blend=True`` (v19), the terminal blended with the v1 gradient
+    at the terminal position (:func:`_blend_rollout_terminal`),
+    sign-adjusted the same way. At the rollout's END, only
+    wins/losses (+/-1) are terminal: a must-block (-0.25 — the
+    opponent holds exactly one winning move) is a position to
+    evaluate with the gradient, not a game end.
     FAST-LOOP PATCH (iter-16 §2.1): treating a rollout-found
     must-block as an exact -0.25 lets a quiet move borrow a forcing
     move's value (in fast-loop game 7, (11,9) scored +0.25 because
@@ -712,15 +749,17 @@ def _rollout_leaf_value(board: np.ndarray, player: int) -> float:
     for i in range(_ROLLOUT_PLIES):
         move, term = _rollout_move(cur, p)
         if term is not None:
+            if blend:
+                term = _blend_rollout_terminal(term, cur, p)
             return term if i % 2 == 0 else -term
         cur = game.apply_move(cur, move, p)
         p = -p
     # 2 plies: p == player again. Only a win/loss ends the rollout
     # game; a must-block here is gradient-evaluated (see above).
     if scoring._winning_moves(cur, p):
-        return 1.0
+        return _blend_rollout_terminal(1.0, cur, p) if blend else 1.0
     if len(scoring._winning_moves(cur, -p)) >= 2:
-        return -1.0
+        return _blend_rollout_terminal(-1.0, cur, p) if blend else -1.0
     return _attack_gradient_v1(cur, p)
 
 
@@ -745,6 +784,10 @@ class HeuristicMCTS:
     v7's exactly. The mode is instance-bound (the leaf needs the
     root player's colour, recorded by :meth:`_run_one` on the root
     call).
+    ``leaf_mode="rollout2_v1_both"`` is v18: quiet leaves get the
+    2-ply rollout leaf for BOTH colours — the same function v16
+    uses as White, with no colour gate. v18-as-White IS v16.
+    (Ported from research/batch-7 for batch 9 H3 — the v29 base.)
     ``leaf_mode="gradient_v1"`` is v14: quiet leaves get the attack
     breadth gradient from the v1 kernel's scores
     (:func:`_gradient_v1_leaf_value`); terminal values are
@@ -777,12 +820,13 @@ class HeuristicMCTS:
         prior_floor: float = 0.0,
         root_decision: str = "visits",
     ) -> None:
-        if leaf_mode not in _LEAF_FUNCTIONS and (
-            leaf_mode != "rollout2_v1"
+        if leaf_mode not in _LEAF_FUNCTIONS and leaf_mode not in (
+            "rollout2_v1",
+            "rollout2_v1_both",
         ):
             raise ValueError(
                 f"unknown leaf_mode: {leaf_mode!r} "
-                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1']})"
+                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both']})"
             )
         if not 0.0 <= prior_floor < 1.0:
             raise ValueError(
@@ -799,8 +843,15 @@ class HeuristicMCTS:
         self.leaf_mode = leaf_mode
         self.prior_floor = prior_floor
         self.root_decision = root_decision
+        # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
+        # instance-bound methods): the dispatch MUST use this
+        # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
+        # raises KeyError on "rollout2_v1" / "rollout2_v1_both"
+        # (batch 6 caught this as a silent merge breakage).
         if leaf_mode == "rollout2_v1":
             self._leaf_value = self._rollout_v1_leaf_value
+        elif leaf_mode == "rollout2_v1_both":
+            self._leaf_value = self._rollout_v1_both_leaf_value
         else:
             self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
         # Colour to move at the root of the current search (the
@@ -823,6 +874,15 @@ class HeuristicMCTS:
         a search) falls back to the White branch."""
         if self._root_player == game.BLACK:
             return _gradient_leaf_value(board, player)
+        return _rollout_leaf_value(board, player)
+
+    def _rollout_v1_both_leaf_value(
+        self, board: np.ndarray, player: int
+    ) -> float:
+        """v18 leaf value: the 2-ply rollout leaf
+        (:func:`_rollout_leaf_value`) for BOTH colours — the same
+        function v16 uses as White, with no colour gate. v18-as-White
+        IS v16 exactly."""
         return _rollout_leaf_value(board, player)
 
     def choose_move(self, board: np.ndarray, player: int) -> int:

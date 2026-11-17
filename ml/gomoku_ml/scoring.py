@@ -315,6 +315,14 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # Versions 15-16 are the parallel batch-6 workstreams'.
     17: {"name": "scoring-v17", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100, "v17": True},
+    # v18 (iteration 18, batch 7): H1 — v16's 2-ply rollout leaf
+    # applied as Black too (leaf_mode "rollout2_v1_both"). Ported
+    # from research/batch-7 for batch 9 H3 (the v29 base): the
+    # heuristic track's strength champion (h2h vs v7 0.775,
+    # ladder Elo 636.4). As White v18 IS v16 exactly.
+    18: {"name": "scoring-v18", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both"},
     # v20 (iteration 20, batch 7): H3 — v14's v1-kernel gradient
     # leaf with GAP-THREE makers demoted from the strong tier to
     # the developing tier (see gomoku_ml.mcts_heuristic
