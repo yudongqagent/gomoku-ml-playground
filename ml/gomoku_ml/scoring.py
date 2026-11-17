@@ -438,6 +438,20 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v31 (iteration 31, ML batch 2): H2 — v8's search + a LARGER
+    # value net (ResNet 32ch/4 blocks, the round-1/2 architecture)
+    # trained to predict v18's rollout-leaf value on quiet positions
+    # from the DEDUPED B1 dataset (3,244 unique games; see
+    # research/iterations/iter-31.md). v24 proved distillation
+    # works as ML at v8's size (holdout sign 0.7766 vs v8's 0.504
+    # on the same rollout labels) but plays only at v8's level
+    # (0.515 h2h) — v31 tests whether scale breaks that ceiling.
+    # value_weight is a PLACEHOLDER until the §1.3 α sweep sets it
+    # (v24's winner, 1.0); the sweep overrides per-run.
+    31: {"name": "scoring-v31", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml2-h2/value-net.pt",
+         "value_weight": 1.0},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1049,6 +1063,7 @@ class ScoringPlayer:
                     checkpoint_path=path,
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
                     rng=self.rng,
+                    value_weight=ENGINE_VERSIONS[version].get("value_weight"),
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.
