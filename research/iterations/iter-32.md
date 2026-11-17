@@ -174,11 +174,78 @@ are still run in full (the drivers auto-resume).
 
 ## 2. Port
 
-TODO — implementation, port verification (§1.5), tests.
+### 2.0 Implementation
+
+Three files, all on branch `research/ml-batch-2-h3`:
+
+1. **`ml/gomoku_ml/mcts_heuristic.py`** — `_vcf_root_move` gains
+   a `defensive: bool = True` parameter; step 2 (the defensive
+   prevention scan) is skipped when `defensive=False`. The
+   default preserves v29 exactly (its `choose_move` calls the
+   method without the argument). No other change to the
+   heuristic engine.
+2. **`ml/gomoku_ml/mcts_value.py`** — `ValueMCTS.__init__`
+   gains `vcf_root: bool = False` and `vcf_defensive: bool =
+   False` (both default off = v8 exactly); `choose_move`
+   hooks the check after the win/block scans and the
+   single-candidate early return, before the search — the same
+   position as v29's hook in the parent's `choose_move`.
+   The hook had to be added explicitly: `ValueMCTS.choose_move`
+   overrides the parent's entirely, so v29's hook does not
+   reach the value engine. The check call passes
+   `defensive=self.vcf_defensive`.
+3. **`ml/gomoku_ml/scoring.py`** — v32 registered in
+   `ENGINE_VERSIONS` (same v8 checkpoint
+   `ml/runs/b3-h2/value-net.pt`, `vcf_root: True`,
+   `vcf_defensive: False`); the `ValueMCTS` branch of
+   `ScoringPlayer.__init__` passes both flags through.
+
+`baseline.py` untouched (frozen).
+
+### 2.1 Port verification (§1.5) — all four checks pass
+
+1. **Offensive check fires:** v32's check plays (8,3) on vcf-1
+   and (8,5) on vcf-2 (unit test), and the full tactical run
+   (§5) confirms the race/two-four VCF positions too — the same
+   moves v29's check plays.
+2. **Fall-through equivalence:** where the check does not fire,
+   v32 IS v8 exactly — unit test
+   (`test_v32_falls_through_to_v8_where_check_does_not_fire`,
+   low sims, shared random checkpoint and seed, 8 sparse
+   boards).
+3. **Offensive-only:** on all three of v18's tactical-failure
+   prevention positions (prev-v1v0s-g26, prev-v1v1s-g79,
+   prev-v1bl-g2), v32's check does NOT fire
+   (`defensive=False` returns None), while the defensive step
+   DOES fire on the same positions (control) — the defensive
+   step is provably absent, not merely unused.
+4. **v8 tactical re-verified** on the CORRECTED suite in this
+   worktree: **20/20 old + 29/29 hard** (`eval_tactical_full.py
+   --version 8 --suite both --seed 100`).
+
+New tests (5, in `ml/tests/test_mcts_value.py`): registration
++ offensive-only flags, offensive fires on vcf-1/vcf-2,
+defensive step absent on the three prevention positions,
+fall-through equivalence, board not mutated. All pass, and
+the v29 tests still pass (the `defensive` default preserves
+v29's behaviour). Targeted run: 13 passed (v32 + v29 + v8
+selection).
 
 ## 3. Cost guard
 
-TODO — bench numbers, fire rate, time/move distribution.
+`bench_vcf_root.py --engine v32` (new mode: v8 self-play
+positions, ValueMCTS with the offensive-only check, seed 777,
+n=100): **fired 6/100 (6%), median 14.5ms, p90 104.6ms, max
+279.2ms, mean 43.9ms.**
+
+The offensive-only check is ~38x cheaper than v29's on mean
+(43.9ms vs 1.65s) and the tail is gone (max 279ms vs 36s):
+v29's cost was dominated by the defensive full-candidate
+scan, which v32 does not run. The fire rate is also much
+lower (6% vs v29's 29%) — most of v29's firings were the
+defensive step. At ~44ms mean overhead next to a ~1s search,
+the battery runs at essentially v8's pace; no design change
+on cost grounds (§1.4), and none is needed.
 
 ## 4. Fast loop
 
