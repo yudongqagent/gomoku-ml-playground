@@ -638,18 +638,131 @@ improve White against the heuristic — the effect is
 opponent-dependent, and the net played strength is a wash
 (0.525 vs v8, 0.500 vs v0).
 
-### 5.4 h2h vs v7 + swap vs v7 (RUNNING since 2026-11-17 ~14:13 UTC)
+### 5.4 h2h vs v7 + swap vs v7 (COMPLETE 2026-11-17 16:56 UTC)
 
 100-game normal match via `fast_loop_match.py` (seeds
 100/200) + 100-game swap match via `selfplay_batch.py
---swap-rule`, in parallel.
+--swap-rule` (balanced placement, tempo judge), run in
+parallel from ~14:13 UTC. A VM restart drain killed both
+mid-run (normal at 61/100, swap at 67/100); the resumed H1
+worker re-ran the SAME commands with the SAME `--out` files
+at ~15:40 UTC and both auto-resumed with zero games lost
+(`resumed_from_game` 61 / 67, RNG restarts recorded).
+Swap completed 16:34 UTC, normal 16:56 UTC.
 
-(TBD — final results.)
+| match | result | win rate | Wilson 95% CI | as Black | as White |
+|---|---|---|---|---|---|
+| vs v7 | 39W-60L-1D | 0.395 | [0.3048, 0.4930] | 25W-25L-0D (0.50) | 14W-35L-1D (0.29) |
+| swap vs v7 | 25W-74L-1D | 0.255 | [0.1797, 0.3484] | 16W-36L-0D (0.3077) | 9W-38L-1D (0.1979) |
 
-### 5.5 Colour splits (see §5.3–§5.4 tables)
+v30 loses to v7 outright (0.395, CI entirely below 0.50)
+and collapses under swap (0.255 — the worst swap result of
+any ML version: v24 0.330, v25 0.350, v26 0.390). Swap
+splits: as opener 11W-38L-1D (0.23), as colour-picker
+14W-36L-0D (0.28) — barely better as picker, so the swap
+collapse is not an opening-placement problem; v30 simply
+loses the resulting positions in both roles. The tempo
+judge picks Black 36/50 times for v30 as second and 34/50
+for v7 — both sides agree Black is the better colour on
+these openings, and v30 loses as White (0.1979) far worse
+than as Black (0.3077).
 
-### 5.6 Clause-4 re-verification (TBD)
+The White gap persists against the STRONGEST opponent even
+though it closed against v8 (§5.3): vs v7 White 0.29 vs
+Black 0.50; under swap White 0.1979 vs Black 0.3077. The
+holdout flip (§3.2) bought White play against the ML
+reference but not against the heuristic MCTS — the same
+opponent-dependence seen vs v0 (White 0.35, worse than
+v8's 0.45). Ordering v7 > v8 ≈ v30 > v0 is transitive at
+the match level (v30 vs v0 0.500 is the tie, not a win).
 
-## 6. Bar check (v30 vs v8) (TBD)
+### 5.5 Colour splits (all battery matches)
 
-## 7. What this means (TBD)
+| match | as Black | as White | gap (B−W) |
+|---|---|---|---|
+| vs v8 | 32W-17L-1D (0.65) | 20W-30L-0D (0.40) | 0.25 |
+| vs v0 | 30W-15L-5D (0.65) | 17W-32L-1D (0.35) | 0.30 |
+| vs v7 | 25W-25L-0D (0.50) | 14W-35L-1D (0.29) | 0.21 |
+| swap vs v7 | 16W-36L-0D (0.3077) | 9W-38L-1D (0.1979) | 0.11 |
+| ladder vs heuristic | 6W-2L-2D (0.70) | 2W-8L-0D (0.20) | 0.50 |
+| ladder vs mcts | 5W-5L-0D (0.50) | 3W-6L-1D (0.35) | 0.15 |
+
+The gap shrank vs v25's 0.58 (vs v8) but did NOT close:
+White is still the weaker colour in every single match,
+and vs the heuristic anchor it is unchanged from v8
+(0.20). The balanced net made White less bad against ML
+opponents; against heuristic opponents the White problem
+is a search/prior problem, not a data-balance problem.
+
+### 5.6 Clause-4 re-verification (2026-11-17, final tree, resumed worker)
+
+- ml pytest (`ml/.venv` python, from `ml/`): **418 passed,
+  1 skipped, 58 xfailed, 0 failed** in 18:37 wall (log
+  `/tmp/v30-pytest.log` — run under contention with the H2/H3
+  workstreams and the daily cross-track match sharing the VM).
+- npm test (after `npm ci`): **55 passed (55)**; `npx tsc
+  --noEmit`: **clean**.
+- **Clause 4: PASS.**
+
+## 6. Bar check (v30 vs v8)
+
+| clause | bar | v30 | verdict |
+|---|---|---|---|
+| 1. h2h vs v8 (100 games) | win rate > 0.50, Wilson 95% CI lower > 0.50 | 52W-47L-1D, 0.5250, CI [0.4280, 0.6201] | **FAIL** |
+| 2. ladder Elo | strictly > v8's 0.0 | −34.9 (interval [−183.3, 113.6]) | **FAIL** |
+| 3. tactical | ≥ v8's 20/20 + 29/29 | 20/20 old, 29/29 hard | **PASS** |
+| 4. test suites | all green | pytest 418/1/58/0, npm 55/55, tsc clean | **PASS** |
+
+**v30 is REJECTED — 2 of 4 clauses pass.** It ties v8
+head-to-head (0.525, CI straddling 0.50) and sits below v8
+on ladder Elo (−34.9 vs 0.0, interval including 0.0). v8
+remains the ML-track champion. Secondary results: vs v0
+47W-47L-6D (0.5000, CI [0.4038, 0.5962]); vs v7 39W-60L-1D
+(0.3950); swap vs v7 25W-74L-1D (0.2550, the worst swap
+result of any ML version).
+
+## 7. What this means
+
+**The mechanism test passed and the strength test failed —
+both honestly.** Dedup + colour-balancing did exactly what
+it was designed to do to the NET: v25's White-to-move gap
+on clean full planes (−0.061) closed and flipped to +0.010,
+and the win/loss structure flipped with it (White-win
+detection 0.534 → 0.598, Black-win detection 0.654 →
+0.512). The played strength followed the holdout exactly
+where the holdout predicted it would: White vs v8 improved
+0.15 → 0.40 and Black declined 0.73 → 0.65 — the flip, in
+game form. But the NET effect is a wash: overall holdout
+accuracy fell slightly (clean full 0.5775 → 0.5607), the net
+is much less confident (mean|v| 0.26 vs 0.39), and v30 ties
+v8 (0.525) instead of beating it.
+
+**Dedup + balance are now CLOSED as a strength lever for
+this recipe** (per §1: if v30 fails, both levers close
+together — no follow-up to separate them is warranted,
+because the combined intervention produced no strength gain
+to attribute). The deeper finding is the opponent-dependence
+of the White fix: it transfers against ML opponents (v8,
+ladder MCTS) and NOT against heuristic opponents (v0 White
+0.35, worse than v8's 0.45; heuristic-anchor White 0.20,
+unchanged; v7 White 0.29). The White problem against
+heuristic play is a search/prior problem — the 100-sim
+search with v1 priors cannot find White's saving and
+counterattacking lines against greedy heuristic pressure —
+not a training-data problem. That is H2's (v31, bigger net
+on distilled labels) and H3's (v32, VCF-at-root) territory,
+not a further data intervention.
+
+**The value head remains the binding constraint** (iter-26's
+conclusion, reinforced): at this scale the value signal is
+weak (holdout ~0.56, predictions near the decision boundary)
+and the side asymmetry is a fragile property of the trained
+net — small shifts in the learned prior flip many near-zero
+predictions. Balancing outcomes did not symmetrize the net;
+it mirror-imaged it. A stronger value signal — more
+capacity (H2), better labels (distillation), or search-side
+help (H3) — is the only way the ML track moves from here.
+v30's contribution to the program is a clean negative
+result with the mechanism verified: the White collapse was
+real, its cause was in the data, fixing the data fixed the
+holdout gap — and it still wasn't enough.
