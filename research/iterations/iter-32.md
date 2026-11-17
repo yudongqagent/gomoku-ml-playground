@@ -377,6 +377,22 @@ implementation of §2.
 
 Validation seeds 100/200; ladder seed 100, 20 games/opponent, mcts_sims=100;
 swap 100 games vs v7, balanced placement, placement_seed 11, tempo judge.
+**Deviation, recorded honestly:** the swap leg was launched
+WITHOUT `--placement-seed 11` — the partial
+`batch-v32-vs-v7-swap.json` records `placement_seed: 0` (the
+driver default), so the 11 games played before the kill drew
+openings from seed 0, not the pre-registered 11. The resume
+preserved seed 0: re-running with 11 would have mixed two
+opening draws inside one match AND overwritten the recorded
+seed, misrepresenting games 0–10. The match is still a valid
+100-game swap match (the seed only chooses which balanced
+openings are drawn), but its opening draw differs from the
+pre-registered one and from v27/v29's seed-11 swap legs, so
+the swap numbers are not strictly comparable across versions.
+The resume also restarted the placement RNG (documented
+behaviour; `resumed_from_game: 11`), so openings in games 11+
+may repeat games 0–10 — the distinct-openings count is
+reported below.
 The battery chain was killed by runtime restarts three times (during the
 vs-v8 leg at 82 games, during the vs-v7 leg at 20 games, and once more
 during the vs-v7 leg after the relaunch); the match drivers' auto-resume
@@ -425,18 +441,144 @@ convincingly than v8 does, yet v32 < v8 decisively.
 
 ### 5.2 VCF fires in the battery (post-battery analysis)
 
-TODO — `replay_vcf_fires.py` on all four battery legs (fire rate + cost
-profile in real games); `classify_losses.py` on the battery legs; the
-misfire-hypothesis test on the vs-v8 losses (§5.3).
+`replay_vcf_fires.py` on all four battery legs (re-runs the
+check at every v32 turn of the recorded games; 0 mismatches
+everywhere — the recorded move equals the check's move
+whenever it fired, validating the port end-to-end in real
+games). Raw replay JSONs in `~/workspace/ml2h3-logs/
+replay-v32-vs-*.json`.
+
+| Leg | Checked turns | Scan turns | Fires | Fire rate | Check time median / p90 / max / mean | Fires in W / L / D |
+|---|---|---|---|---|---|---|
+| vs v8 | 1099 | 257 | 38 | 3.5% | 68.1ms / 206.0ms / 971.0ms / 91.3ms | 38 / 0 / 0 |
+| vs v0 | TODO | TODO | TODO | TODO | TODO | TODO |
+| vs v7 | TODO | TODO | TODO | TODO | TODO | TODO |
+| Swap vs v7 | TODO | TODO | TODO | TODO | TODO | TODO |
+| **Pooled** | TODO | TODO | TODO | TODO | TODO | TODO |
+
+Cost profile (vs-v8 leg): the in-game check is heavier than
+the quiet-position bench (§3: median 14.5ms, mean 43.9ms, max
+279ms) — real games reach creator-rich positions the bench
+does not — but still ~18x cheaper than v29's on mean (91ms vs
+1.65s) with the tail gone (max 971ms vs 36s). The fire rate
+(3.5%) matches the bench (6%) and the fast loop (4.6% vs v8):
+the offensive-only check fires rarely, and only where the
+position already holds a forced win. Fires by colour (vs v8):
+Black 21, White 17. The fires cluster on the repeated lines —
+(6,9) Black at ply 22, (6,5) White at ply 21, (6,8) White at
+ply 31 — the same three VCF starts recurring across the 23
+distinct lines.
+
+Loss classification (`classify_losses.py` on the three
+freestyle legs): **167 losses, 167 via open four, 0 missed
+blocks, 0 clean missed preventions in 772 threatened turns**
+(vs v8: 63/63 in 272 turns; vs v0: 37/37 in 213; vs v7: 67/67
+in 287). Defence is solved, as for every version since v7 —
+v32's losses are positional/horizon losses, not blunders.
 
 ### 5.3 The misfire hypothesis
 
-TODO — working hypothesis: `starts_forced_win` over-reports (some "VCF
-starts" do not convert against real defence), and playing them immediately
-forfeits the search's better move. Test on the vs-v8 battery losses: find
-check fires in losses, and check whether v8's search would have played a
-different move there and whether the check's move was actually winning.
+Working hypothesis (§5.3 draft): `starts_forced_win`
+over-reports (some "VCF starts" do not convert against real
+defence), and playing them immediately forfeits the search's
+better move. **REFUTED for the vs-v8 leg, on three tests:**
+
+1. **Fires in losses: zero.** All 38 fires in the vs-v8 leg
+   occurred in games v32 WON; none in the 63 losses (or the 0
+   draws). The check caused zero vs-v8 losses directly — it
+   cannot be the mechanism of the 0.37.
+2. **Fire games == win games, exactly.** The 37 distinct games
+   containing a fire are precisely v32's 37 wins (game 78 had
+   two fires). Every v32 win featured a fire; every fire
+   converted to a win. The check fires only in already-winning
+   positions — a VCF start means the position already holds a
+   forced win — so it converts wins, never creates them.
+3. **The search mostly agrees.** At the 38 fire positions,
+   v8's search (no check, 100 sims, seed 999) plays the SAME
+   move at 27/38. All 11 disagreements are ONE repeated line
+   (ply 22 Black: check (6,9) vs search (10,9)) — and the
+   check's move won all 11 of those games. So the check
+   changed the played move at only 11/1099 checked turns
+   (1.0%), all on one line, all won. (Script:
+   `~/workspace/ml2h3-logs/v8_search_at_fires.py`.)
+   Counterfactual TODO: `targeted_playout.py` on v8-g6 ply 22,
+   (6,9) vs (10,9) — does the search's move also win?
+
+So why 0.37 vs v8, if the check changed 1% of moves and
+caused zero losses? The answer is line collapse. The vs-v8
+leg has only **23 distinct lines** in 100 games, and at line
+level the match is nearly even: 7 all-W lines, 8 all-L lines,
+8 mixed. The game-level deficit lives in the three biggest
+lines — x27 (10W-17L), x20 (7W-13L), x12 (0W-12L): 17W-42L
+over 59 games — where v32 happened to hold the losing colour
+most of the time; the other 20 lines split 20W-21L. The
+Wilson CI [0.2818, 0.4678] assumes 100 independent games; the
+effective N is ~23 lines, at which the deficit is not
+significant. The losses themselves are the base engine's
+horizon losses (fast-loop workups, §4.3: 3 of 6 distinct
+losses with no save in window; the saves found have no exact
+signature a rule could reproduce). v32 ≈ v8 plus a check that
+fires only where the search already finds the win — the
+0.37 is a mirror-match draw at small effective N, not a
+check-caused regression. The check's value-add, if any, must
+come from positions where the search MISSES the VCF start;
+the battery produced exactly one such distinct position (the
+(6,9)/(10,9) line), and the check's move won there.
+
+Note the tension with §5.1's draft reading ("where they
+diverge, the check's move is usually the wrong one"): the
+post-battery analysis refutes it — where they diverge (11
+turns), the check's move won every time. The §5.1 sentence
+stands as the pre-analysis reading; this section is the
+corrected one.
 
 ## 6. Verdict
 
-TODO.
+**v32 is REJECTED — 2 of 4 ML-bar clauses pass.**
+
+| Clause | Bar | v32 | Result |
+|---|---|---|---|
+| 1. Head-to-head vs v8 | Win rate > 0.50, Wilson 95% CI lower > 0.50 | 37W-63L-0D, 0.3700, CI [0.2818, 0.4678] | **FAIL** |
+| 2. Ladder Elo | > v8's 0.0 | −70.4, interval [−221.1, 80.2] | **FAIL** |
+| 3. Tactical | ≥ v8's 20/20 + 29/29 | 20/20 old + 29/29 hard (corrected suite, seed 100) | **PASS** |
+| 4. Test suites | ml pytest, npm test, tsc all green | TODO — run on the final tree | TODO |
+
+Secondary legs: vs v0 61W-37L-2D (0.6200, CI [0.5221,
+0.7090]) — better than v8's 0.545; vs v7 28W-67L-5D (0.3050,
+CI [0.2234, 0.4011]) — far below v24's 0.445 vs v7; swap vs v7
+TODO (100 games, tempo judge, placement_seed 0 — see the §5
+deviation note).
+
+What v32 establishes:
+
+- **The offensive-only VCF check is near-neutral on the value
+  engine.** It fires rarely (3.5% of checked turns vs v8),
+  only in already-winning positions, and the search finds the
+  same move at 27/38 fire positions (§5.3). v29's check was
+  transformative on the rollout-leaf engine because it fixed
+  tactical failures (v18's 25/29 → 29/29); v8 was already
+  29/29, so there was nothing tactical to fix, and the
+  game-strength gain the check was designed for (§0: catching
+  horizon misses) did not materialise — the battery produced
+  exactly one distinct position where the search missed a VCF
+  start, and the check's move won there, but one line cannot
+  carry a 100-game match.
+- **The check is cheap.** Mean 91ms, max 971ms in real games
+  (§5.2) — ~18x cheaper than v29's, no tail. Cost was never
+  the problem; the lever simply has no strength to give the
+  value engine.
+- **The defensive check stays CLOSED.** The fast loop (§4.4)
+  produced one VCF-prevention save against the ≥2 required,
+  and v0-g4 showed a prevention pool both of whose members
+  lose — no selection rule, prior-based or search-based,
+  fixes a wrong pool. The batch-10 direction (VCF-filtered
+  search) fails at that position too.
+- **Defence is solved** (167/167 battery losses via open four,
+  0 missed blocks, 0 clean missed preventions in 772
+  threatened turns). The value engine's losses are horizon
+  losses, and the VCF check — which only sees forced wins —
+  cannot address them. The binding constraint remains the one
+  ML batch 1 identified: the value head (iter-26 §5).
+
+v8 stays the ML champion. No kernel re-sync (v32 did not pass
+the bar). No checkpoint (search-side change on the v8 base).
