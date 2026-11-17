@@ -641,9 +641,32 @@ arbiter: if it still plays at the B1-only form's level (0.50
 vs v8 / 0.25 vs v0), the patch failed in play and the residual
 is a teacher-horizon limit outside H2's remit.
 
-**α re-sweep (mixed form; TODO — same grid {0.5, 1.0, 2.0} and
-selection rule as §1.3; the mixed net's engine-position values
-are now v24-scale (mean|v| 0.08–0.10), so α=1.0 is live again).**
+**α re-sweep (mixed form) — COMPLETE 2026-11-17 ~12:08 PST**
+(20 games each vs v8, seeds 1001/2001; per-alpha JSONs
+`research/iterations/alpha-v31-<α>-vs-v8.json` — the B1-only
+sweep's files were renamed to `*-b1only.json` first). **VM
+replacement killed the first run** at α=0.5 game 14 (10W-4L);
+the auto-resume continued it from game 14 (RNG restart
+recorded in the JSON).
+
+| α | W-L-D | Win rate | 95% CI | As Black | As White |
+|---|---|---|---|---|---|
+| **0.5** | **14-6-0** | **0.700** | **[0.4810, 0.8545]** | 10-0-0 | 4-6-0 |
+| 1.0 | 10-9-1 | 0.525 | [0.3205, 0.7215] | 6-3-1 | 4-6-0 |
+| 2.0 | 9-10-1 | 0.475 | [0.2785, 0.6795] | 8-2-0 | 1-8-1 |
+
+**Winner: α = 0.5** — the registry value (0.5, from the
+B1-only sweep) stands; only the comment changes. Monotone
+decreasing in α this time (0.70/0.525/0.475), and the mixed
+net's α=0.5 (0.70) is well above the B1-only form's (0.55) —
+the patch improved played strength in the sweep. The colour
+pattern persists at every α: Black is strong (10-0, 6-3-1,
+8-2) and White is weak (4-6, 4-6, 1-8-1) — White is the gap
+again. The §1.3 no-signal rule does not apply (0.5 vs 1.0
+differ by 4 wins). All CIs overlap, so the sweep selects α
+but proves nothing — the 100-game battery is the verdict.
+
+**Fast loop iteration 2** (mixed form, α=0.5; TODO).
 
 ## 6. Validation battery
 
