@@ -608,16 +608,45 @@ UNCHANGED from v8 (also 2W-8L as White); vs mcts Black
 v8's 1W-9L (0.10). So the White fix transfers against the
 MCTS opponent but not against the plain heuristic.
 
-### 5.3 h2h vs v8 / v0 (RUNNING since 2026-11-17 ~12:30 UTC)
+### 5.3 h2h vs v8 / v0 (2026-11-17, seeds 100/200)
 
-100-game matches, seeds 100/200, in parallel (PIDs 5447 /
-5450).
+100-game matches via `fast_loop_match.py`. One VM
+replacement at ~13:38 UTC killed both matches (vs v8 at
+58/100, vs v0 at 74/100); both resumed from their partial
+`--out` files with zero games lost and completed. Total
+wall time ~1h40m (incl. the restart).
+
+| match | result | win rate | Wilson 95% CI | as Black | as White |
+|---|---|---|---|---|---|
+| vs v8 | 52W-47L-1D | 0.525 | [0.4280, 0.6201] | 32W-17L-1D (0.65) | 20W-30L-0D (0.40) |
+| vs v0 | 47W-47L-6D | 0.500 | [0.4038, 0.5962] | 30W-15L-5D (0.65) | 17W-32L-1D (0.35) |
+
+**Clause 1: FAIL** — win rate 0.525 > 0.50 but the Wilson
+95% CI lower bound (0.4280) is well below 0.50. v30 ties
+v8; it does not beat v8.
+
+Colour-gap analysis (the hypothesis test): vs v8, the gap
+SHRANK from v25's 0.58 (Black 0.73 / White 0.15) to 0.25
+(Black 0.65 / White 0.40) — White improved 0.15 → 0.40,
+Black declined 0.73 → 0.65, exactly the flip the holdout
+win/loss structure predicted (§3.2). But vs v0 the story is
+different: v30 White 0.35 is WORSE than v8's own White vs
+v0 (0.45; v8 vs v0 overall 0.545, Black 0.64 / White 0.45),
+while Black is unchanged (0.65 vs 0.64). So balancing
+closed the White gap against the ML opponent but did NOT
+improve White against the heuristic — the effect is
+opponent-dependent, and the net played strength is a wash
+(0.525 vs v8, 0.500 vs v0).
+
+### 5.4 h2h vs v7 + swap vs v7 (RUNNING since 2026-11-17 ~14:13 UTC)
+
+100-game normal match via `fast_loop_match.py` (seeds
+100/200) + 100-game swap match via `selfplay_batch.py
+--swap-rule`, in parallel.
 
 (TBD — final results.)
 
-### 5.4 h2h vs v7 + swap vs v7 (TBD)
-
-### 5.5 Colour splits (TBD)
+### 5.5 Colour splits (see §5.3–§5.4 tables)
 
 ### 5.6 Clause-4 re-verification (TBD)
 
