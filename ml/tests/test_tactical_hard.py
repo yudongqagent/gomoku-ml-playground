@@ -67,7 +67,10 @@ HARD_SUITE_PATH = os.path.join(
 # v1's recorded score on this suite (ScoringPlayer version=1, seed=0),
 # the clause-3 reference for batch-2 versions. See
 # research/iterations/tactical-suite-v2.md. Stable across seeds 0, 1, 2.
-V1_PASSED = 12
+# Batch-9 suite correction (commit 0ee51d8): v1 passes 13/29, not
+# 12 — v1 chooses (9,7) on winning-quiet-setup-2, which the
+# correction added to the expected list (verified live 2026-11-16).
+V1_PASSED = 13
 SUITE_TOTAL = 29
 
 
@@ -346,6 +349,17 @@ def test_hard_suite_expected_moves_are_exact():
                         for x, y in pos["expect"]["moves"]}
             good = (set(_setup_moves(board, to_move))
                     | set(_vcf_first_moves(board, to_move)))
+            if pid == "winning-quiet-setup-2":
+                # Batch-9 suite correction (commit 0ee51d8): (9,7)
+                # is a playout-verified winning move (wins 3/3
+                # under v7-vs-v7, iter-23 §3 — a suite-list gap,
+                # not an engine defect) that the setup ∪ VCF exact
+                # definitions do not capture: it wins by a quiet
+                # double-threat two plies out, not by an immediate
+                # creator or a consecutive-four sequence. The
+                # expected list includes it; the exact check
+                # verifies everything else.
+                good = good | {game.xy_to_move(9, 7)}
             assert good == expected, (
                 f"{pid}: winning moves (setup + VCF) are "
                 f"{sorted(game.move_to_xy(m) for m in good)}, listed "

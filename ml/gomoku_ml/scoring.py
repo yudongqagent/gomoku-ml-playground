@@ -360,6 +360,21 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # the parallel batch-8 workstream's (H1, v18+blend).
     22: {"name": "scoring-v22", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1_gap_black"},
+    # v29 (iteration 29, batch 9): H3 — Phase-2 fallback (see
+    # research/iterations/iter-29.md §1.2, §2.5): v18's 2-ply
+    # rollout leaf in both colours PLUS a VCF-at-root check
+    # (gomoku_ml.mcts_heuristic _vcf_root_move): an offensive VCF
+    # start is played immediately, and a defensive VCF prevention
+    # is played when the opponent holds a VCF start; otherwise the
+    # engine is exactly v18. Phase 1's forensics found no
+    # patchable mechanism in v22's vs-mcts collapse (0 missed
+    # blocks, 0 missed forced wins, 6 horizon losses, 1
+    # v22-specific root-decision miss, 5 shared search-horizon
+    # misses with no exact signature), so the fallback triggered.
+    # 100 sims, c_puct 1.5, sharp v1 priors, most-visited root.
+    29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "vcf_root": True},
 }
 
 # --- weights --------------------------------------------------------------
@@ -984,6 +999,7 @@ class ScoringPlayer:
                     root_decision=ENGINE_VERSIONS[version].get(
                         "root_decision", "visits"
                     ),
+                    vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
                     rng=self.rng,
                 )
 

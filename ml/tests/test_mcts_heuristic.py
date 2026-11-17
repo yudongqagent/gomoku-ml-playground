@@ -6,7 +6,7 @@ import math
 import numpy as np
 import pytest
 
-from gomoku_ml import game, scoring
+from gomoku_ml import evaluate, game, scoring
 from gomoku_ml.mcts_heuristic import (
     HeuristicMCTS,
     _Node,
@@ -1087,3 +1087,150 @@ def test_v12_choose_move_deterministic_for_same_seed():
     assert a.choose_move(board, game.BLACK) == b.choose_move(
         board, game.BLACK
     )
+
+
+# --- v18 (batch 7, H1): rollout leaf in both colours ---------------------
+# Ported from research/batch-7 for batch 9 H3 (the v29 base). Leaf
+# values verified bit-for-bit on the 401-position
+# verify_rollout_port.py set (iter-29 §3).
+
+
+def test_v18_registered_and_dispatches_to_rollout_both_mcts():
+    v18 = scoring.get_player(18, seed=0)
+    assert v18.name == "scoring-v18"
+    assert v18.mcts is True
+    assert v18._mcts is not None
+    assert v18._mcts.sims == 100
+    assert v18._mcts.leaf_mode == "rollout2_v1_both"
+    assert v18._mcts.vcf_root is False
+
+
+def test_v18_as_white_matches_v16():
+    # v18-as-White IS v16 exactly (same leaf, same priors, same
+    # search). Same seed, same positions, same moves.
+    rng = np.random.default_rng(7)
+    for trial in range(2):
+        board = game.empty_board()
+        cells = [(x, y) for y in range(4, 11) for x in range(4, 11)]
+        rng.shuffle(cells)
+        for i, (x, y) in enumerate(cells[:20]):
+            board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+        v16 = scoring.get_player(16, seed=0)
+        v18 = scoring.get_player(18, seed=0)
+        assert v18.choose_move(board, game.WHITE) == v16.choose_move(
+            board, game.WHITE
+        ), f"trial {trial}: v18-as-White differs from v16"
+
+
+# --- v29 (batch 9, H3): VCF-at-root on the v18 base ----------------------
+# See research/iterations/iter-29.md §1.2 (pre-registered design) and
+# §3 (implementation + cost guard).
+
+
+def _tactical_position(suite_path, pid):
+    import os
+
+    if suite_path == "hard":
+        suite_path = os.path.join(
+            os.path.dirname(evaluate.__file__),
+            "tactical_positions_hard.json",
+        )
+    suite = evaluate.load_tactical_suite(suite_path)
+    pos = next(p for p in suite["positions"] if p["id"] == pid)
+    return evaluate.board_from_position(pos), pos["to_move"], pos
+
+
+def test_v29_registered_and_vcf_root_enabled():
+    v29 = scoring.get_player(29, seed=0)
+    assert v29.name == "scoring-v29"
+    assert v29.mcts is True
+    assert v29._mcts is not None
+    assert v29._mcts.sims == 100
+    assert v29._mcts.leaf_mode == "rollout2_v1_both"
+    assert v29._mcts.vcf_root is True
+    # v18 is unchanged (no VCF check).
+    v18 = scoring.get_player(18, seed=0)
+    assert v18._mcts.vcf_root is False
+
+
+def test_vcf_root_offensive_fires_on_vcf_positions():
+    # Old-suite VCF positions: the offensive check plays the
+    # forced-win start directly (no search).
+    mcts = HeuristicMCTS(
+        sims=100, leaf_mode="rollout2_v1_both", vcf_root=True,
+        rng=np.random.default_rng(0),
+    )
+    for pid, expected_xy in (("vcf-1", (8, 3)), ("vcf-2", (8, 5))):
+        board, to_move, _pos = _tactical_position(None, pid)
+        move = mcts._vcf_root_move(board, to_move)
+        assert move is not None, f"{pid}: offensive VCF did not fire"
+        assert game.move_to_xy(move) == expected_xy, pid
+
+
+def test_vcf_root_defensive_fixes_v18_tactical_failures():
+    # v18's three hard-suite failures (iter-18 §3: q-compression
+    # visit-ties — the leaf knows the answer, the visit count
+    # picks wrong). The defensive VCF check plays a prevention
+    # deterministically, so v29 passes all three.
+    v29 = scoring.get_player(29, seed=100)
+    for pid, expected in (
+        ("prev-v1v0s-g26", {(8, 4), (9, 4)}),
+        ("prev-v1v1s-g79", {(6, 7), (8, 7), (7, 8), (7, 9)}),
+        ("prev-v1bl-g2", {(6, 5), (7, 5)}),
+    ):
+        board, to_move, _pos = _tactical_position("hard", pid)
+        move = v29.choose_move(board, to_move)
+        assert game.move_to_xy(move) in expected, (
+            f"{pid}: v29 chose {game.move_to_xy(move)}, "
+            f"expected one of {sorted(expected)}"
+        )
+
+
+def test_vcf_root_quiet_position_falls_through_to_v18():
+    # Where the check does not fire, v29 IS v18 exactly (same
+    # leaf, same priors, same search). Low sims to keep the test
+    # fast; the comparison is at the MCTS level. Sparse boards
+    # (8 stones over the full board): dense random boards are
+    # creator-rich and the check fires on them, so they are not
+    # fall-through positions.
+    rng = np.random.default_rng(11)
+    checked = 0
+    for _trial in range(8):
+        board = game.empty_board()
+        cells = [(x, y) for y in range(15) for x in range(15)]
+        rng.shuffle(cells)
+        for i, (x, y) in enumerate(cells[:8]):
+            board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+        v29 = HeuristicMCTS(
+            sims=20, leaf_mode="rollout2_v1_both", vcf_root=True,
+            rng=np.random.default_rng(0),
+        )
+        if v29._vcf_root_move(board, game.WHITE) is not None:
+            continue  # check fired — not a fall-through position
+        v18 = HeuristicMCTS(
+            sims=20, leaf_mode="rollout2_v1_both", vcf_root=False,
+            rng=np.random.default_rng(0),
+        )
+        assert v29.choose_move(board, game.WHITE) == v18.choose_move(
+            board, game.WHITE
+        )
+        checked += 1
+    assert checked >= 2, "too few fall-through positions sampled"
+
+
+def test_vcf_root_does_not_mutate_board():
+    board, to_move, _pos = _tactical_position(None, "vcf-1")
+    before = board.copy()
+    mcts = HeuristicMCTS(
+        sims=20, leaf_mode="rollout2_v1_both", vcf_root=True,
+        rng=np.random.default_rng(0),
+    )
+    mcts.choose_move(board, to_move)
+    assert np.array_equal(board, before)
+
+
+def test_v29_choose_move_deterministic_for_same_seed():
+    board, to_move, _pos = _tactical_position(None, "vcf-1")
+    a = scoring.get_player(29, seed=42)
+    b = scoring.get_player(29, seed=42)
+    assert a.choose_move(board, to_move) == b.choose_move(board, to_move)

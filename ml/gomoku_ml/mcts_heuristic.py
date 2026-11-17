@@ -74,6 +74,7 @@ import math
 import numpy as np
 
 from . import game
+from . import evaluate
 from . import kernel_numpy
 from . import kernel_v1
 from . import scoring
@@ -809,6 +810,11 @@ class HeuristicMCTS:
     most-visited, ties by RNG), ``"q"``, ``"tie-q"``, ``"blend"``,
     ``"tie-prior"``, ``"tie-prior-forcing"`` — see
     :meth:`_choose_root_child`.
+    ``vcf_root`` (v29, batch 9 H3) enables the VCF-at-root check
+    (:meth:`_vcf_root_move`): before the search, an offensive VCF
+    start is played immediately, and a defensive VCF prevention
+    is played when the opponent holds a VCF start. False (the
+    default) is v18 behaviour exactly.
     """
 
     def __init__(
@@ -819,6 +825,7 @@ class HeuristicMCTS:
         leaf_mode: str = "terminal",
         prior_floor: float = 0.0,
         root_decision: str = "visits",
+        vcf_root: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and leaf_mode not in (
             "rollout2_v1",
@@ -843,6 +850,7 @@ class HeuristicMCTS:
         self.leaf_mode = leaf_mode
         self.prior_floor = prior_floor
         self.root_decision = root_decision
+        self.vcf_root = vcf_root
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -885,6 +893,78 @@ class HeuristicMCTS:
         IS v16 exactly."""
         return _rollout_leaf_value(board, player)
 
+    def _vcf_root_move(
+        self, board: np.ndarray, player: int
+    ) -> int | None:
+        """VCF-at-root check (v29, batch 9 H3 — see
+        ``research/iterations/iter-29.md`` §1.2). Returns the move
+        to play, or None to fall through to the MCTS search.
+
+        1. **Offensive VCF.** Among our four-creating moves, any
+           that starts a forced win (``evaluate.starts_forced_win``,
+           depth 3 — the tactical suite's own VCF definition) is
+           played immediately, highest v1 prior first (ties: lowest
+           flat move index — deterministic, no RNG).
+        2. **Defensive VCF prevention.** If any opponent
+           four-creating move starts a forced win for the opponent,
+           play the highest-prior candidate move after which the
+           opponent has NO VCF-starting move (re-checked on the
+           resulting board); if none exists, fall through.
+        The depth-3 VCF definition is exact, not heuristic — the
+        check fires only on a genuinely forced win (by consecutive
+        fours). Note the forensics caveat (iter-29 §2.3):
+        ``starts_forced_win`` does not model defender multi-move
+        counter-threats, so a reported VCF start can fail to
+        convert in real play — the battery is the verdict on
+        whether the check helps or misfires.
+
+        Implementation note (NOT a design change): both steps test
+        moves in (prior desc, flat index asc) order and return the
+        FIRST success, which is exactly the highest-prior move
+        with the lowest index among ties — the pre-registered
+        selection rule. Testing all moves and then taking the max
+        gives the identical result at 10–50x the cost (a naive
+        full scan took 38.7s on hard-suite position
+        prev-v1v1s-g79: the per-candidate ``starts_forced_win``
+        calls dominate). The early exit changes only how many
+        moves are tested, never which move is selected.
+        """
+        # 1. Offensive VCF — test in selection order, first VCF
+        # start wins (identical to testing all and taking the max).
+        ours = evaluate.four_creating_moves(board, player)
+        if ours:
+            priors = _priors(board, player, self.prior_floor)
+            ours.sort(key=lambda m: (-priors.get(m, 0.0), m))
+            for m in ours:
+                if evaluate.starts_forced_win(board, player, m, depth=3):
+                    return m
+        # 2. Defensive VCF prevention — only when the opponent
+        # holds a VCF start on the current board (the gate that
+        # keeps this cheap in quiet positions: the per-candidate
+        # loop below runs only under a live VCF threat).
+        opp = evaluate.four_creating_moves(board, -player)
+        opp_vcf = [
+            m
+            for m in opp
+            if evaluate.starts_forced_win(board, -player, m, depth=3)
+        ]
+        if not opp_vcf:
+            return None
+        priors = _priors(board, player, self.prior_floor)
+        cands = sorted(
+            scoring._candidate_moves(board),
+            key=lambda m: (-priors.get(m, 0.0), m),
+        )
+        for c in cands:
+            b2 = game.apply_move(board, c, player)
+            opp2 = evaluate.four_creating_moves(b2, -player)
+            if not any(
+                evaluate.starts_forced_win(b2, -player, m, depth=3)
+                for m in opp2
+            ):
+                return c
+        return None
+
     def choose_move(self, board: np.ndarray, player: int) -> int:
         # Immediate win (any winning move wins).
         wins = scoring._winning_moves(board, player)
@@ -900,6 +980,11 @@ class HeuristicMCTS:
             return -1
         if len(cands) == 1:
             return cands[0]
+        # VCF-at-root (v29): forced wins the 100-sim search misses.
+        if self.vcf_root:
+            vcf_move = self._vcf_root_move(board, player)
+            if vcf_move is not None:
+                return vcf_move
         root = _Node(1.0)
         for _ in range(self.sims):
             self._run_one(root, board, player, None)

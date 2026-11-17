@@ -493,7 +493,118 @@ triggers.**
 
 ## 3. Patch / fallback (v29)
 
-TODO — filled in when the forensics concludes.
+### 3.0 v18 port verification
+
+Phase 2's base is v18 (`leaf_mode="rollout2_v1_both"`), ported
+from `research/batch-7` (the ML batch 1 H1 port, iter-24 §0,
+as the reference). Two independent checks confirm the port:
+
+1. **Leaf values bit-for-bit:** the ported
+   `_rollout_leaf_value` agrees with the `research/batch-7`
+   worktree's on **401/401 positions, 0 mismatches**
+   (`ml/scripts/verify_rollout_port.py`, copied from ML batch
+   1; positions: v7 self-play + random playouts + both
+   tactical suites, seed 777).
+2. **Tactical behaviour identical:** v18 scores **20/20 old +
+   26/29 hard** on the CORRECTED suite, with exactly the three
+   recorded q-compression failures (iter-18 §3) and the SAME
+   chosen moves: prev-v1v0s-g26 chose (12,3), prev-v1v1s-g79
+   chose (5,1), prev-v1bl-g2 chose (7,9). (Correction to the
+   §1.2 pre-registration, which said "v18 must score 29/29":
+   v18's recorded tactical is 25/29 on the old suite; the
+   (9,7) correction adds one pass — v18 chooses (9,7) on
+   winning-quiet-setup-2 — for 26/29 on the corrected suite.
+   The port reproduces the recorded behaviour exactly; the
+   pre-registration's 29/29 was a misreading of v18's record,
+   not a design condition.)
+
+### 3.1 Implementation
+
+`HeuristicMCTS._vcf_root_move` (`ml/gomoku_ml/mcts_heuristic.py`),
+hooked into `choose_move` after the immediate-win and
+single-block scans, before the search, gated by `vcf_root`
+(registry flag; True only for v29). Exactly the §1.2 design:
+
+1. **Offensive VCF:** our four-creating moves, tested with
+   `evaluate.starts_forced_win(board, player, m, depth=3)`;
+   the highest-v1-prior VCF start is played (ties: lowest flat
+   move index).
+2. **Defensive VCF prevention:** if any opponent four-creator
+   starts a forced win, the highest-prior candidate move after
+   which the opponent has NO VCF-starting move is played;
+   otherwise fall through to the search.
+3. If neither fires, the engine is exactly v18 (verified by
+   `test_vcf_root_quiet_position_falls_through_to_v18`).
+
+**Implementation note (not a design change):** both steps test
+moves in (prior desc, flat index asc) order and return the
+FIRST success, which is exactly the pre-registered selection
+rule (highest prior, ties lowest index). The naive
+test-all-then-max implementation took **38.7s** for one
+defensive check on hard-suite position prev-v1v1s-g79
+(profiled: 51,109 `winning_moves` calls via the
+`forces_win` recursion); the early exit is 8–13x faster on
+the three prevention positions (g79: 38.68s → 4.98s; g26:
+→ 2.01s; v1bl-g2: → 2.21s) with IDENTICAL moves on all 7
+smoke-test positions (4 VCF + 3 prevention). The early exit
+changes only how many moves are tested, never which move is
+selected.
+
+**Smoke test (7 positions):** the offensive check fires
+correctly on all 4 VCF positions (vcf-1 (8,3), vcf-2 (8,5),
+vcf-race-block-or-win (8,3), vcf-two-four-sequence (9,6)),
+and the defensive check fixes ALL THREE of v18's tactical
+failures deterministically: g26 → (9,4), g79 → (7,9),
+v1bl-g2 → (6,5) — all in the expected sets. v29 is therefore
+expected to score 29/29 on the corrected suite (battery
+clause 3 will confirm).
+
+### 3.2 Cost guard
+
+`ml/scripts/bench_vcf_root.py` (new): 100 quiet v7 self-play
+positions (seed 777), `_vcf_root_move` timed on each with a
+v29 engine. **Fired 29/100 (29%). Median 90.5ms, p90 2.94s,
+max 36.4s, mean 1.65s.** The median is small next to the ~1s
+search, but the tail is heavy: creator-rich midgame positions
+cost seconds (the defensive loop + the `forces_win`
+recursion), and one position cost 36s (opponent VCF threat
+with no prevention — the full candidate scan). Mean overhead
+≈1.65s/move implies roughly +1.5–2h per 100-game battery leg.
+Cost is reported, not acted on (§1.2): no design change was
+made on cost grounds. A 30s+ worst-case move would need
+addressing before any page deployment, but the battery
+measures strength, and the drivers auto-resume.
+
+### 3.3 Test-suite repair (pre-existing, base commit)
+
+The full pytest suite showed 2 failures in
+`test_tactical_hard.py`, BOTH pre-existing on the base commit
+`0ee51d8` (the coordinator's (9,7) suite correction, §1.0 —
+not caused by any v29 change):
+
+1. `test_hard_suite_expected_moves_are_exact`: the test's
+   exact definition of "winning" (setup ∪ VCF) does not
+   capture (9,7), which wins by a quiet double-threat two
+   plies out (playout-verified 3/3, iter-23 §3). Fixed with
+   a documented per-position exception: the exact check
+   still verifies every other position.
+2. `test_hard_suite_v1_baseline_reproduces`: v1 now passes
+   13/29, not 12 — v1 chooses (9,7) on
+   winning-quiet-setup-2 (verified live). `V1_PASSED`
+   updated 12 → 13.
+
+Both fixes are in this branch; the coordinator should apply
+the same two fixes at merge (H1/H2 will hit the same
+failures on the same base). After the fixes the ml suite is
+green (see §5).
+
+### 3.4 Fast loop
+
+TODO — filled in when the fast loop runs.
+
+## 4. Battery (TODO — filled in when the battery runs)
+
+## 5. Verification (TODO — filled in at the end)
 
 
 ## 4. v29 evaluation
