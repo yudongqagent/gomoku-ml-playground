@@ -339,7 +339,77 @@ tactical (post-registration): 20/20 old + 29/29 hard at
 
 ## 2. Loss analysis for iteration 27
 
-(TODO — the fast-loop worked games ARE the loss analysis.)
+### 2.1 Fast-loop iteration 1 — 10 games vs v7 + 10 games vs v0 (pre-patch engine)
+
+**Batches:** `research/iterations/fastloop1-v27-vs-v7.json`
+(seeds v27=1001 / v7=2001) and
+`research/iterations/fastloop1-v27-vs-v0.json` (seeds v27=1001 /
+v0=2001) — development seeds, distinct from the bar battery's
+100/200. **vs v7: 7W-2L-1D, win rate 0.7500, CI [0.4422,
+0.9191]**, 611.0 s. Split: as Black 4W-0L-1D (0.90), as White
+3W-2L (0.60). **vs v0: 10W-0L-0D, win rate 1.0000, CI [0.7225,
+1.0000]**, 309.3 s. Classifier (both batches): 2/2 losses via
+open four, 0 missed blocks, 0 clean missed preventions in 8
+threatened turns (losses). Defence is still perfect. (n=10 per
+opponent — development signal, not the bar; the fast loop's job
+is finding weaknesses, not measuring strength.)
+
+**Both losses — games 1 and 9 vs v7 (White, 21 and 23 plies) —
+have NO patchable losing move.** Game 9's walk-back
+(`research/iterations/walkback-fl1-g9.json`, v1 oracle, seeds
+0,1,2) nominates nothing: at every White turn the actual either
+does not lose at all seeds (ply 15/13/11/9/7) or loses 3/3 with
+0 saving alternatives (ply 21/19/17). The position went from
+drawable at ply 15 to lost by ply 17 with no verified save —
+distributed drift.
+
+Game 1's walk-back (`research/iterations/walkback-fl1-g1.json`)
+nominates ply 13 (actual (7,8) loses 3/3 under the v1 oracle;
+saves (9,8) [win,win,win] and (7,4) [draw,win,draw]) and ply 17
+(actual (6,4) loses 3/3; save (9,4) [draw,draw,draw]). **The
+stronger oracle REFUTES the ply-13 nomination outright**
+(`/tmp/verify_fl1_g1.py`, corrected — see the off-by-one note
+below): under v7-vs-v7, actual (7,8) is [−1,+1,−1] (wins 1/3)
+while BOTH "saves" lose 3/3 — (9,8) [−1,−1,−1], (7,4)
+[−1,−1,−1]. The v1 oracle's saves are worse than the actual move
+under strong play; the position at ply 13 is bad for White
+(loses 2/3 from the actual) but no tested alternative does
+better. The loss is distributed drift, not a single losing move.
+
+**The threshold is exonerated in both nominations** (corrected
+root dumps, fresh seed 0). At ply 13 the actual (7,8) is a
+UNIQUE visit leader (18 visits, our-q −0.1197); the save (7,4)
+is second at 8 visits with WORSE q (−0.3226), and (9,8) is not
+in the top 6. The tie-break never fires (no tie), and no root
+rule can promote a move that loses on visits AND on q —
+promoting it would be the CLOSED q-based root-decisions lever.
+At ply 17 there IS a 2-way visit tie at 6 visits — but both
+children share our-q −1.000 EXACTLY (gap 0.0), so the threshold
+correctly does not fire and the choice is RNG over the tied
+pair; the save (9,4) holds 5 visits with better q (−0.8027)
+but cannot be promoted without reopening the CLOSED lever.
+This is q-compression in its purest form (every candidate loses
+equally under the leaf), the same class as iter-23 §2.1's
+move-27 finding — and no tie-break variant could have saved it,
+since the q-tied set contains no saving move.
+
+**Off-by-one note (method).** The first verification run used
+the wrong ply convention: `walkback_loss.py`'s "ply" is the
+0-based move index, so the board before ply N is the first N
+moves — the first script passed N−1 and verified the wrong
+positions (and the wrong player to move) for 42 minutes before
+the root dumps exposed it (the "ply 17" dump reproduced Black's
+(5,4), the move at index 16). The corrected run above uses
+ply_before = N. The wasted run's numbers are discarded, not
+reported as evidence.
+
+**Iteration 1 verdict: no new patchable weakness class — but
+the loop does NOT stop here** (same pre-commitment as iter-23
+§2.1: two consecutive barren iterations, 40 games). Iteration
+2 runs on fresh seeds (1002/2002); if it also finds no
+patchable class, the loop stops. No regression positions added:
+neither loss yields a verified losing move with a verified save
+the engine could be patched to play.
 
 ## 3. v27 evaluation
 
