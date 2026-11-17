@@ -1,6 +1,6 @@
 # Iteration 27 — v27: q-gap threshold tie-break for rollout-leaf engines (batch 9, H1)
 
-**Status: IN PROGRESS — pre-registration (§1).** Comparison target is
+**Status: COMPLETE — v27 PASSES all 4 clauses (see §4).** Comparison target is
 v7 (the batch-9 reference: ladder Elo 190.8, on master at
 `bf866f7`). This is the H1 workstream of batch 9 (H2 is v28,
 ours-only Black demotion; H3 is v29, v22 vs-mcts forensics);
@@ -482,12 +482,248 @@ the §1.2 rule).
 
 ## 3. v27 evaluation
 
-(TODO — battery on the FINAL version only.)
+Battery run on the FINAL v27 (τ=0.05, as pre-registered — no
+patches were made in the fast loop, §2.5). Pre-registered seeds
+(§1.2): h2h 100/200, ladder seed 100, swap seeds 100/200 with
+balanced placement (placement_seed 11, tempo judge), tactical
+`--seed 100`. All aggregates below were recomputed from the raw
+records in the committed artefacts and match the drivers'
+headers exactly (`/tmp/verify_v27.py`).
+
+**Runtime interruptions (recorded, no games lost).** The battery
+chain was interrupted TWICE by runtime restarts without warning:
+once ~50 min in, at 53/100 vs-v7 games saved; once during the
+swap match, at 16/100 games saved. Both times the SAME chain was
+relaunched and the drivers auto-resumed from the partial
+`--out` files (`resumed_from_game: 53` and `resumed_from_game:
+16` in the artefacts; the completed matches were skipped on
+relaunch). The elapsed times below are the resume legs' as
+printed by the drivers, not total wall time.
+
+### 3.1 Tactical (clause 3)
+
+`ml/scripts/eval_tactical_full.py --version 27 --suite both
+--seed 100` (full-dispatch driver, `player.choose_move`):
+**old 20/20, hard 29/29** on the CORRECTED suite. Artefact:
+`research/iterations/tactical-v27.json`. The three tie fixes
+choose (8,4), (6,7), (7,5) as in the mechanism check (§1.3);
+winning-quiet-setup-2 chooses (9,7). `eval_version.py`'s probe
+independently confirms old 20/20 (§3.5).
+
+### 3.2 Head-to-head vs v7 (clause 1)
+
+`ml/scripts/fast_loop_match.py --version-a 27 --opponent v7
+--games 100 --seed-a 100 --seed-b 200`: **77W-19L-4D, win rate
+0.7900, 95% CI [0.7002, 0.8583]**, 2655.4 s (resume leg, 47
+games). Colour splits: as Black 41W-8L-1D (0.8300), as White
+36W-11L-3D (0.7500). Artefact:
+`research/iterations/batch-v27-vs-v7.json`.
+
+Context: v27's 0.7900 sits between v18's 0.775 (73W-18L-9D) and
+v23's 0.7950 (75W-16L-9D) — above the strength champion, 2 games
+below v23, well within noise of both (all three CIs overlap
+heavily). The threshold costs nothing measurable vs v7: the
+tie-break's vs-v7 effect was ~neutral-to-favourable, and
+filtering its sub-0.05 firings does not move the match.
+
+### 3.3 Head-to-head vs v0
+
+`ml/scripts/fast_loop_match.py --version-a 27 --opponent v0
+--games 100 --seed-a 100 --seed-b 200`: **96W-3L-1D, win rate
+0.9650, 95% CI [0.9085, 0.9871]**, 3549.2 s. Colour splits: as
+Black 46W-3L-1D (0.9300), as White 50W-0L-0D (1.0000). Artefact:
+`research/iterations/batch-v27-vs-v0.json`.
+
+Context: this is the regression v27 was built to fix, and it is
+fixed. v23 scored 0.91 (91W-9L, all 9 losses as Black); v27
+recovers 5 of those games and lands at 0.9650 — statistically
+indistinguishable from v18's 0.9700 (96W-2L-2D; v27 has one more
+loss and one fewer draw, same win count). The 3 remaining losses
+are all as Black, the same colour the misfires hit — the
+threshold converts deterministic-wrong picks into coin flips
+(§1.3), so a residual Black-side cost is expected, not a
+surprise. The sweep's 0 losses in 80 games (§1.5) did not
+reproduce at battery seeds, as §1.5 warned it might not.
+
+### 3.4 Swap match vs v7
+
+`ml/scripts/selfplay_batch.py --engine-a v27 --engine-b v7
+--games 100 --swap-rule --placement balanced --placement-seed
+11 --judge tempo --seed-a 100 --seed-b 200`: **76W-21L-3D, win
+rate 0.7750, 95% CI [0.6839, 0.8458]**, 3345.3 s (resume leg,
+84 games). Colour splits: as Black 40W-9L-2D (0.8039, 51
+games), as White 36W-12L-1D (0.7449, 49 games). Artefact:
+`research/iterations/batch-v27-vs-v7-swap.json`.
+
+Context: **0.7750 is the best swap result in the program**
+(v23: 0.72, v18: not measured under swap vs v7 in its own
+battery — v18's swap figure in iter-18 is vs v1; v7's swap vs
+v1 was 0.57 with the CI including 0.50). Unlike v7, whose edge
+mostly lived in the empty-board opening, v27's edge survives
+the swap choice almost intact (0.7750 swap vs 0.7900 normal).
+The second player (tempo judge) chose Black in 77/100 games and
+White in 23/100 — the balanced openings mostly favour Black
+slightly, and v27 wins strongly from either side (0.80 as
+Black, 0.74 as White).
+
+### 3.5 Ladder (clause 2)
+
+`ml/scripts/eval_version.py --version 27 --ladder-games 20
+--mcts-sims 100 --seed 100` (note: the brief said
+`eval_scoring.py`, but that script has no `--version` flag;
+`eval_version.py` is the ladder script, as iter-23 §3.5 used):
+**ladder Elo 636.4, interval [240.3, 1032.5]**. Artefact:
+`research/iterations/ladder-v27.json`.
+
+| Opponent | Result | Win rate | 95% CI | As Black | As White |
+|---|---|---|---|---|---|
+| random | 20W-0L-0D | 1.0000 | [0.8389, 1.0000] | 10W-0L-0D | 10W-0L-0D |
+| heuristic | 19W-0L-1D | 0.9750 | [0.7995, 0.9974] | 9W-0L-1D | 10W-0L-0D |
+| mcts | 13W-7L-0D | 0.6500 | [0.4329, 0.8188] | 8W-2L-0D | 5W-5L-0D |
+
+Context: **636.4 EXACTLY TIES v18's 636.4** — the highest ladder
+Elo in the program. The tie is exact, not approximate: the Elo
+estimate is computed from the vs-heuristic score only
+(19W-0L-1D → 636.4258...), and v27 scored exactly v18's
+19W-0L-1D against the heuristic. v23 scored 0.95 vs the
+heuristic (511.5) — the single Black loss the threshold was
+built to prevent. The full 125-Elo regression is recovered.
+The vs-mcts leg (13W-7L) is one game weaker than v18's 14W-6L
+but does not enter the Elo estimate (the mcts opponent has no
+anchor); v27 is the third version ever to beat the ladder MCTS
+outright (after v18 and v21).
+
+### 3.6 Defence classification
+
+`ml/scripts/classify_losses.py` on all three battery batches:
+
+| Batch | Losses | Via open four | Missed blocks | Clean missed preventions | Threatened turns |
+|---|---|---|---|---|---|
+| vs v7 | 19 | 19 | 0 | 0 | 69 |
+| vs v0 | 3 | 3 | 0 | 0 | 14 |
+| swap vs v7 | 21 | 21 | 0 | 0 | 100 |
+| **Pooled** | **43** | **43** | **0** | **0** | **183** |
+
+Defence remains solved: every battery loss is an open-four
+race lost, never a missed block or a missed prevention.
+
+### 3.7 Test suites (clause 4)
+
+All suites run on the FINAL tree (after the H2 test fix,
+commit a949606, and all battery artefacts):
+
+- **ml pytest: 297 passed, 7 skipped, 12 xfailed, 0 failures**
+  (282 s). The 12 xfails are the known regression xfails
+  (v7's, v23's carried-over fl1-g0-ply12 and fl2-g7-ply9, and
+  v27's own 2 — see `ml/tests/test_regression_v27.py`).
+- **npm test: 55/55** (4 test files).
+- **`tsc --noEmit`: clean**, exit 0.
+- **`ml/gomoku_ml/baseline.py`: 0 lines changed** vs the base
+  branch (`git diff 0ee51d8` — the frozen ladder anchor is
+  untouched).
 
 ## 4. Bar check (v27 vs v7)
 
-(TODO.)
+| Clause | Requirement | v27 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v7 | win rate > 0.50, Wilson 95% CI lower bound > 0.50 | 77W-19L-4D, 0.7900, CI [0.7002, 0.8583] | **PASS** |
+| 2. Ladder Elo | > v7's 190.8 | 636.4, interval [240.3, 1032.5] | **PASS** |
+| 3. Tactical | ≥ v7's 20/20 + 29/29 (corrected suite) | 20/20 old + 29/29 hard | **PASS** |
+| 4. Suites green | ml pytest, npm test, tsc | 297 passed / 0 failed; npm 55/55; tsc clean | **PASS** |
+
+**v27 PASSES all 4 clauses.** It is the second version in the
+program ever to do so (after v7), and the first rollout-leaf
+version. Per the brief, it goes to master and becomes the
+heuristic track's new bar reference, and the daily cross-track
+match's heuristic champion question is for the coordinator:
+v27 beats v18 on h2h vs v7 (0.7900 > 0.775) but TIES v18 on
+ladder Elo (636.4 = 636.4, exact), so it does NOT meet the
+strict "beat on BOTH" champion rule — see §5.
 
 ## 5. What this means
 
-(TODO.)
+**v27 PASSES all 4 clauses** (pending §3.7's suite numbers —
+clauses 1–3 are decided; see §4). It is the second version in
+the program ever to pass the bar (after v7), and the first
+rollout-leaf version to do so. The threshold hypothesis is
+CONFIRMED on every axis it targeted:
+
+- **vs v0: 0.91 → 0.9650** — v23's regression recovered (5 of
+  the 9 lost games back), statistically indistinguishable from
+  v18's 0.97.
+- **Ladder Elo: 511.5 → 636.4** — the full 125-Elo regression
+  recovered, exactly tying the program best.
+- **Tactical: 28/29 (old suite) → 29/29 (corrected)** — all
+  three q-compression tie fixes kept; the threshold fires on
+  every documented signal gap (0.130–0.417) and blocks the
+  documented noise gap (0.016).
+- **Swap: 0.72 → 0.7750** — the best swap result in the
+  program, improving on v23 rather than merely keeping it.
+- **vs v7: 0.7950 → 0.7900** — 2 games below v23, within noise;
+  the threshold costs nothing measurable against the reference.
+
+**What changed because of a specific loss: nothing was patched.**
+The fast loop ran 2 iterations (40 games) and found no
+patchable weakness class (§2): all 4 losses were distributed
+drift, the one threshold fire in the loop (§2.2, ply 22)
+separated two verified losers, and the only move with any
+saving signal sat one visit below the tie — promotable only by
+the CLOSED q-based root-decisions lever. v27-as-batteried is
+v27-as-pre-registered (τ=0.05, selected by the §1.2 tie rule
+after both thresholds tied the sweep at 39W-0L-1D). The
+threshold itself was designed from v23's documented losses
+(iter-23 §2.2's 0.016-gap misfires), not from v27's own games.
+
+**Champion status — the honest read.** v27 beats v18 on h2h
+vs v7 (0.7900 > 0.775) but TIES v18 on ladder Elo (636.4 =
+636.4, exact — same 19W-0L-1D vs the heuristic). The strict
+champion rule needs a beat on BOTH, so v27 is NOT the new
+strength champion by the strict reading; v18 keeps the title
+on the tie. But the tie is a tie at the program's ceiling, and
+v27 is the version that passes the bar — v18 never did
+(tactical 25/29). The two-track structure's heuristic bar
+reference should now be v27, not v7: future versions are
+measured against the strongest bar-passing version, and v27 is
+it. (The coordinator decides the champion recording; the
+numbers here are exact.)
+
+**What the threshold teaches.** The gap-size separation is real
+but not absolute. In the tactical positions, gaps ≥0.130 carry
+exact terminal values and the threshold keeps every fix. In
+real games, a "signal-sized" gap (0.1481 at fast-loop ply 22)
+separated two verified losers — a large gap in a murky midgame
+is not the same evidence as a large gap in a tactical position,
+because the rollout leaf's q values are estimates, not exact
+values, outside forced lines. The threshold's job was never to
+make q reliable; it was to stop q from being consulted where it
+is KNOWN noise (sub-0.05 gaps, mostly q-compression ties), and
+on that job it delivered exactly what §1.2 predicted: the
+misfires became coin flips, half the lost games came back, and
+the Elo followed. Further threshold tuning (τ in (0.05, 0.10])
+is a dead end — the sweep showed the two thresholds
+indistinguishable, and the remaining vs-v0 losses are coin
+flips, not threshold artefacts.
+
+**What did NOT change.** The leaf is v18's, byte-identical. The
+search is v23's. The only delta from v23 is one gated
+comparison at the root. v27's improvement over v23 is entirely
+a root-decision refinement — and it is the last such refinement
+available: the root-decision lever is now exhausted in both
+directions (pure q catastrophic, tie-break thresholded to its
+useful limit, visit leaders untouchable without reopening a
+closed lever). The next heuristic gains must come from the
+search or the leaf, not the root rule.
+
+**Test-repair note (flagged to the coordinator).** The batch-9
+suite correction (0ee51d8) broke 2 tests in
+`ml/tests/test_tactical_hard.py` on the base branch (verified
+by reproducing both failures on a bare 0ee51d8 worktree). I
+fixed them first (commit 3012cea), then — per the
+coordinator's note — replaced my fix verbatim with H2's
+verified fix (commit a3c4f73 on `research/batch-9-h2`, taken
+via `git checkout origin/research/batch-9-h2 -- 
+ml/tests/test_tactical_hard.py`; my commit a949606). The two
+fixes are functionally identical (V1_PASSED 12→13, a
+playout-verified (9,7) exception); H2's is canonical so all
+batch-9 branches converge. The coordinator's merge should take
+either — they agree.
