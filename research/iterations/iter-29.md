@@ -261,11 +261,240 @@ re-sync unless v29 passes the bar.
 
 ## 2. Forensics (Phase 1)
 
-TODO — filled in as the forensics runs.
+### 2.0 Port verification — the port is EXACT
+
+v22's code was cherry-picked from `research/batch-8` (commits
+`8516a6e`, `f39febb`, `39792ce`, `74ccc3a` — the batch-7-h3 ml
+tree port, the v22 pre-registration, implementation, and fast
+loop). Three independent checks confirm the port:
+
+1. **Byte-identical code:** `mcts_heuristic.py`, `scoring.py`,
+   `kernel_v1.py`, `baseline.py` diff clean against the
+   `gomoku-b8-h2` worktree (the tree the ladder ran on).
+2. **Tactical:** v22 scores **20/20 old + 29/29 hard** on the
+   CORRECTED suite (`eval_tactical_full.py --version 22 --suite
+   both --seed 100`), reproducing iter-22 §3.2/§3.5.
+3. **Ladder reproduction:** a new script,
+   `ml/scripts/replay_ladder_mcts.py`, replays a ladder matchup
+   EXACTLY (same player seeds, same warm-up legs — the version
+   player's RNG advances through the random and heuristic legs
+   before the mcts leg, exactly as in `ladder_for_player` — and
+   records every game with full move lists; RNG state is
+   snapshotted per game so a resume is exact, not a restart).
+   The v22 ladder mcts-leg replay reproduces the recorded ladder
+   result **exactly: 5W-15L-0D, win rate 0.2500, CI [0.1119,
+   0.4687], as Black 3W-7L, as White 2W-8L** (iter-22 §3.6; the
+   original log at `~/workspace/b8h2-logs/ladder-v22.log`
+   confirms the figure is real, not a transcription error). The
+   replay's games are the forensics corpus:
+   `research/iterations/forensics-v22-vs-mcts-ladder.json`.
+
+### 2.1 The collapse does NOT reproduce at fresh seeds
+
+The pre-registered forensics match (`fast_loop_match.py
+--version-a 22 --opponent mcts --games 20 --seed-a 1029
+--seed-b 2029`, `research/iterations/forensics-v22-vs-mcts.json`)
+came back **v22 14W-6L-0D, win rate 0.7000, CI [0.4810,
+0.8545]** — as Black 7-3, as White 7-3. The CIs of the two
+20-game samples do not overlap (ladder [0.1119, 0.4687] vs
+fresh-seed [0.4810, 0.8545]). The drivers are equivalent
+(`resolve_opponent("mcts")` builds the identical
+`HeuristicMCTSPlayer(sims=100)`; `play_recorded_game` mirrors
+`play_game_from`; the only difference is RNG seeds plus the
+ladder's warm-up legs) and the fresh-seed games are varied (12
+distinct 5-ply prefixes in 14 games at the check; no
+transposition collapse). Two facts shrink the collapse further:
+
+- **Duplicate lines:** the ladder's 20 games contain only **17
+  distinct games** — three loss pairs are move-for-move
+  identical (games 6=8, 12=14, 16=18). The 15 losses are **12
+  distinct lines**. The effective sample is smaller than 20.
+- **Short games:** the ladder games average **33.55 plies**
+  (losses mostly 22–34 plies) — the MCTS kills v22 fast when it
+  kills it at all.
+
+So the "0.25 collapse" is partly a seed-draw artifact (a ~2%
+tail under a 0.50 true rate, and the fresh-seed draw sits at
+the opposite tail) and partly duplicate counting. The
+forensics below works on the ladder's 12 distinct losses —
+the games that actually collapsed — with the fresh-seed
+match's 6 losses as the control (6/6 via open four, 0 missed
+blocks, 0 clean missed preventions in 46 threatened turns).
+
+### 2.2 Loss classification (ladder corpus, 15 losses)
+
+`classify_losses.py`: **15/15 losses via open four, 0 missed
+blocks, 2 clean missed preventions** (games 13 and 19, both at
+ply 23, both with 4 creators live) **in 74 threatened turns**.
+Defence is solved, as in every batch. The 2 classifier-flagged
+preventions do NOT save in playouts (§2.4) — the "safe"
+alternatives are forcing counter-attacks that Black answers
+while keeping 2 creators live.
+
+Structural scan (exact computation): 6 of the 12 distinct
+losses contain a **double-threat ply** — the winner plays a
+move creating a four (forcing a block) while already holding an
+open three that becomes an open four after the block (games 2,
+5, 6, 9, 11, 15). The other 6 are **creator explosions** — the
+winner plays a quiet setup move creating 2–4 open-four creators
+at once, after v22's prevention took the previous creators to
+0 (games 1, 7, 12, 13, 16, 19).
+
+### 2.3 Workups — 6 verified saving moves, 6 horizon losses
+
+All 12 distinct losses were worked up with `workup_loss.py`
+(last 4 v22 turns, top-5 1-ply + VCF alternatives, seeds 0/1/2;
+raw JSONs in `~/workspace/b9h3-logs/workup-g*.json`):
+
+| Game | v22 | Plies | Losing move (verified) | Save (playout) | Exact class of the save |
+|---|---|---|---|---|---|
+| 1 | W | 29 | ply 21 (6,8) | (12,6) 2/3 | partial setup-prevention (setups 2→1; VCF 0→0) |
+| 2 | B | 34 | ply 30 (5,7) | (4,12) 3/3, (5,13) 3/3 | partial VCF-prevention (VCF 3→1) / none (VCF 3→3) |
+| 5 | W | 29 | ply 23 (9,6) | (13,10) 3/3 | none (VCF 4→4, creators 0, setups 0) |
+| 6 | B | 22 | ply 16 (8,3) | (9,7) 3/3, (10,8) 3/3 | **clean VCF-prevention (VCF 1→0)** |
+| 7 | W | 25 | ply 19 (8,9) | (8,5) 2/3 | none (all exact counts IDENTICAL to the loser) |
+| 9 | W | 29 | ply 23 (5,6) | (1,10) 3/3 | none (VCF 4→4, creators 0, setups 0) |
+| 11 | W | 29 | none in window | — | horizon loss |
+| 12 | B | 30 | none in window | — | horizon loss |
+| 13 | W | 27 | none in window | — | horizon loss |
+| 15 | W | 29 | none in window | — | horizon loss |
+| 16 | B | 30 | none in window | — | horizon loss |
+| 19 | W | 27 | none in window | — | horizon loss |
+
+The exact analysis (`ml/scripts/targeted_playout.py`, new:
+for each move, the opponent's VCF starts / open-four creators /
+setup moves on the resulting board) shows the saves are
+HETEROGENEOUS. Only ONE (game 6) is a clean exact prevention.
+Game 2's (4,12) is partial (VCF 3→1) and (5,13) is not a
+prevention at all (VCF 3→3 — the remaining VCF starts don't
+convert in playouts, i.e. `starts_forced_win` reports forced
+wins the real engines refute, because it doesn't model
+defender counter-threats beyond the next move). Game 1's save
+removes one of two setups. Games 5, 7, 9 have NO exact
+signature: the save leaves the opponent's threat counts
+unchanged (game 7's save and loser are identical on every
+count — VCF 0, creators 0, setups 3, same sets).
+
+Targeted follow-up (13 hypothesis moves in the 6 no-save
+games — the double-threat squares, the remaining creators,
+the setup squares, the classifier's forcing moves): **0 saves**.
+By the last 4 turns those positions are lost by force
+(multiple creators/VCF starts one move can't address); the
+loss was decided earlier or is distributed drift. Game 1's
+(12,6) at ply 23 (one move later than the verified save)
+also loses 3/3 — the save has a one-move window.
+
+**Missed forced win: 0 of 12.** An exact scan of every v22
+turn in every distinct loss finds v22 NEVER held a
+VCF-starting move it didn't play. The offensive VCF check
+would not have changed any loss game.
+
+### 2.4 Root dumps — the search, not the leaf
+
+`ml/scripts/diag_root.py` (new: root visits/q/priors + 1-ply
+leaf values under the v22/v20/v14 leaves + breadth
+decomposition) at the verified losing positions:
+
+- **Game 6, ply 16** (the clean VCF case): v22 ranks (8,3)
+  above (9,7) by VISITS (26 vs 15) although q prefers the save
+  (+0.073 vs +0.068) and the 1-ply leaf prefers the save under
+  ALL THREE leaves (v22 +0.146 vs +0.081; v20 +0.188 vs +0.185;
+  v14 +0.196 vs +0.167). Prior-driven visit allocation
+  (0.1086 vs 0.0698) + the forced loss 3 plies below (8,3)
+  never propagating to the root q.
+- **Game 1, ply 21:** a FLAT root (top move 9 visits). The
+  search genuinely prefers the loser on every measure —
+  visits 9 vs 5, q +0.162 vs +0.065, leaf +0.192 vs +0.155 —
+  and all three leaves agree. Nothing at the root
+  distinguishes the save.
+- **Game 2, ply 30:** an EXTREMELY flat root (top move 4
+  visits of 100 sims). All q's negative; the save (4,12) has
+  the HIGHEST prior (0.1604) but the WORST q (-0.612) — the
+  tree "finds" White's (2,7) VCF below the save and backs up
+  a loss, missing Black's refutation. The search hallucinates
+  a loss below the save.
+- **Game 5, ply 23:** the search prefers the loser by visits
+  (31 vs 22) and q (+0.040 vs +0.004); the 1-ply leaf is
+  identical for loser and save (+0.197). The blocks (10,8)/
+  (10,9) have q -0.40 — and don't save.
+
+**Cross-engine check (is the miss v22-specific?):** at game 6
+ply 16, **v14, v20, AND v7 all play the save (9,7)** (v14 #1,
+22 visits; v20 #2, 16 visits, #1 is the other save (10,8);
+v7 #1, 20 visits) — v22 is the ONLY engine that misses it.
+The mechanism there is v22-specific: below (9,7), Black's
+gap-three counterplay (14 makers) is demoted in v22's leaf,
+so v22's tree rates the quiet block's subtree much lower
+(+0.073) than v14's (+0.180), and the near-tie in q lets the
+prior drive visits to the flashy (8,3). BUT at the other five
+verified positions, **v14 makes the SAME miss as v22** (g1:
+plays (8,5), save #7; g2: plays (5,7), save #2; g5: plays
+(9,6), save #2; g7: plays (8,9), save #2 by 22–20 visits; g9:
+plays (5,6), save #2). The v22-specific mechanism has exactly
+ONE verified instance. The other five misses are shared
+across leaf variants — the shared 100-sim search horizon
+(v24's finding), not v22's demotion.
+
+### 2.5 Verdict: no patchable mechanism — Phase 2 triggers
+
+Final classification of the 12 distinct losses (pre-registered
+scheme, §1.1, with two refinements the data forced):
+
+| Class | Count | Games |
+|---|---|---|
+| Missed block | 0 | — |
+| Missed forced win | 0 | — |
+| Horizon loss (no save in window) | 6 | 11, 12, 13, 15, 16, 19 |
+| Prior starvation | 0 | — |
+| Leaf value error (strict) | 0 | — |
+| Root-decision (visits-over-q; scheme gap) | 1 | 6 |
+| Search-horizon value error (verified save; q/visits/leaf rank the loser above or are neutral; no exact threat signature) | 5 | 1, 2, 5, 7, 9 |
+
+Patch-rule check (§1.1): no class with ≥3 verified instances
+has a patch that reproduces the perfect move.
+
+- The VCF-prevention mechanism has ONE clean instance (g6).
+  The pre-registered VCF check (play a move leaving the
+  opponent with NO VCF start) reproduces (9,7) but NOT (4,12)
+  (leaves (2,7) live), NOT (5,13) (leaves all 3), and does not
+  fire at all at g1/g7 (no VCF starts) or distinguish the
+  saves at g5/g9 (VCF 4→4).
+- "Minimise setups" fails on g7 (identical counts) and g5/g9
+  (setups 0 either way). "Minimise creators" fails on g7
+  (0 either way). "Minimise VCF starts" fails on g5/g9 (4→4).
+- More sims is CLOSED (not monotonically better). q-based root
+  decisions are CLOSED (pure q 0.20) and would only fix g6
+  anyway (q prefers the save there by 0.005 — noise).
+  Prior-temperature flattening is CLOSED.
+- The 6 horizon losses have no saving move to reproduce.
+
+The iter-22 §3.6 hypothesis (the full theirs-term makes v22
+over-fear and play passively vs the forcing MCTS) is NOT
+supported: at every verified losing position the v22 leaf
+agrees with the v14/v20 leaves on the 1-ply ranking — the
+demotion is never the deciding factor — and the collapse
+itself is largely a seed artifact (§2.1). The v22-specific
+demotion cost is real but confined to ONE position (g6 ply
+16), where it undervalues the quiet block's gap-three
+counterplay; that single instance cannot carry a patch (and
+the ours-only demotion that would address the theirs-term
+side is H2's v28 workstream, not this one).
+
+On the extension rule (§1.1): the rule assumes the fresh-seed
+forensics match IS the collapse corpus. It isn't (14-6, §2.1),
+so extending it would add non-collapse losses that don't bear
+on the collapse mechanism. The ladder corpus — the games that
+actually collapsed — is exhausted instead: all 12 distinct
+losses worked up, all 13 targeted hypothesis moves tested.
+The rule's purpose (no premature conclusion from a small
+sample) is satisfied by that completeness. **Phase 1
+concludes: no patchable mechanism found. Phase 2 (§1.2)
+triggers.**
 
 ## 3. Patch / fallback (v29)
 
 TODO — filled in when the forensics concludes.
+
 
 ## 4. v29 evaluation
 
