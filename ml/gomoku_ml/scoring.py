@@ -446,12 +446,14 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # works as ML at v8's size (holdout sign 0.7766 vs v8's 0.504
     # on the same rollout labels) but plays only at v8's level
     # (0.515 h2h) — v31 tests whether scale breaks that ceiling.
-    # value_weight is a PLACEHOLDER until the §1.3 α sweep sets it
-    # (v24's winner, 1.0); the sweep overrides per-run.
+    # value_weight is the §1.3 α sweep winner (0.5): the sweep
+    # (20 games each vs v8) gave 0.55 at 0.5, 0.20 at 1.0, 0.50 at
+    # 2.0 — v24's winner (1.0) is a valley for v31 because v31's
+    # values are ~3x larger (mean|v| 0.19 vs 0.06).
     31: {"name": "scoring-v31", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml2-h2/value-net.pt",
-         "value_weight": 1.0},
+         "value_weight": 0.5},
 }
 
 # --- weights --------------------------------------------------------------

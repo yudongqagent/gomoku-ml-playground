@@ -466,6 +466,36 @@ matches are the long pole of this workstream.
 
 TODO — sweep results, registry α update, fast loops.
 
+**α sweep — COMPLETE 2026-11-17 ~09:38 PST** (20 games each vs
+v8, seeds 1001/2001; per-alpha JSONs
+`research/iterations/alpha-v31-<α>-vs-v8.json`). **VM
+replacement killed the first run** after the α=0.5 arm
+completed (11W-9L-0D); the sweep's auto-resume skipped the
+complete arm and restarted α=1.0 fresh — no games lost.
+
+| α | W-L-D | Win rate | 95% CI | As Black | As White |
+|---|---|---|---|---|---|
+| **0.5** | **11-9-0** | **0.550** | **[0.3421, 0.7418]** | 7-3-0 | 4-6-0 |
+| 1.0 | 4-16-0 | 0.200 | [0.0807, 0.4160] | 2-8-0 | 2-8-0 |
+| 2.0 | 10-10-0 | 0.500 | [0.2993, 0.7007] | 10-0-0 | 0-10-0 |
+
+**Winner: α = 0.5** — registry `value_weight` set to 0.5. The
+result is non-monotone in α again (v24's sweep was too), and
+v24's winner (1.0) is a VALLEY for v31 (0.20) — the mechanism
+is the one §2 predicted: v31's values are ~3x larger
+(mean|v| ~0.19 vs v24's ~0.06), so α=1.0 here contributes ~3x
+what it did for v24, and the noisier engine-position values
+(see §4) hurt at full weight. α=2.0 is the strangest arm:
+**Black 10-0, White 0-10** — at full amplification the net's
+values dominate the search completely, and the bias aligns
+with Black's attacking edge while destroying White's defence.
+The §1.3 no-signal rule does not apply (0.5 vs 1.0 differ by 7
+wins). All three CIs overlap, so the sweep selects α but
+proves nothing — the 100-game battery is the verdict, as
+pre-registered.
+
+**Fast loop iteration 1** (TODO).
+
 ## 6. Validation battery
 
 TODO — clauses 1–4 + secondaries.
