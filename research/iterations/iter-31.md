@@ -745,10 +745,41 @@ pre-registered design). v31 is therefore REJECTED on clause 3
 regardless of the remaining legs; the battery continues for the
 program record.
 
-### 6.2 h2h vs v8 (clause 1; TODO)
+### 6.2 h2h vs v8 (clause 1) — COMPLETE 2026-11-17 ~14:15 PST — **CLAUSE 1 FAILS**
+
+`fast_loop_match.py --version-a 31 --opponent v8 --games 100
+--seed-a 100 --seed-b 200` (raw
+`research/iterations/batch-v31-vs-v8.json`; one VM replacement
+killed the run at game 62, auto-resume continued it):
+
+- **39W-59L-2D, 0.40, 95% CI [0.3094, 0.4980]** — the CI's upper
+  bound is below 0.50: v31 is significantly WORSE than v8.
+- As Black 26W-22L-2D (0.540); as White 13W-37L-0D (**0.260**).
+  Black won 63/100.
+
+The dev-seed evidence (sweep 0.70, fast loop 0.70) did NOT
+reproduce at validation seeds — the same small-sample trap
+v24 hit (0.65 smoke → 0.515 at 100 games), pre-registered in
+§1.3. The 100-game battery is the verdict. The White collapse
+mirrors v25's (Black 0.73 / White 0.15): both B1-data versions
+collapse as White while v24 (engine-only data) did not —
+support for the Black-skewed-training-data hypothesis (Black
+wins 53.1% of B1 games; the net learns "Black has threats →
++1" and, as White, overvalues Black's threats and undervalues
+its own play).
+
 ### 6.3 Ladder Elo (clause 2; TODO)
 ### 6.4 Clause 4 re-run (TODO)
-### 6.5 Secondary: vs v0, vs v7, swap vs v7 (TODO)
+### 6.5 Secondary: vs v0, vs v7, swap vs v7
+
+**vs v0 — COMPLETE 2026-11-17 ~14:15 PST** (same seeds, raw
+`research/iterations/batch-v31-vs-v0.json`; VM replacement at
+game 51, auto-resumed): **38W-50L-12D, 0.44, CI [0.3467,
+0.5377]**. As Black 24W-18L-8D (0.560); as White 14W-32L-4D
+(0.320). v31 LOSES to the weakest opponent — v8 scored 0.545
+vs v0. The White gap again: White 0.32 vs Black 0.56.
+
+**vs v7 (TODO). Swap vs v7 (TODO).**
 
 ### Battery verdicts
 
