@@ -343,6 +343,23 @@ sibling contention eases (v25's rate improved 3x as siblings
 finished). Per-epoch checkpoints on (`checkpoint_every_epochs:
 1`); the §1.2 resume rule applies if a restart drain kills it.
 
+**Interrupt and resume (2026-11-17 11:36 UTC):** a VM
+replacement killed training at step 3,600 / epoch 3. Completed
+epochs: **epoch 1** train 0.0691 / val 0.0677 (3,144 s),
+**epoch 2** train 0.0326 / val 0.0218 (3,054 s) — val loss
+already 3x below v24's final 0.0617 after 2 epochs on 3x the
+data. `best.pt` verified before resuming (step 3294, epoch 2,
+ResNet 32ch/4 blocks, 192,714 params, optimiser state present,
+all 72 tensors finite) and backed up to
+`ml/runs/ml2-h2/best-epoch2.pt` (the resumed run resets
+`best_val_loss`, so the final best is chosen by comparing the
+resumed run's best against 0.0218). Resumed 11:37 UTC into the
+same run dir with `--resume .../checkpoints/best.pt --epochs 8`
+(8 ADDITIONAL epochs; cosine schedule continues exactly from
+step 3294 — LR 0.00180 at step 3410 vs 0.00178 at the kill).
+Post-resume pace ~0.9 s/step (contention easing); ~13,030 steps
+remain.
+
 TODO — fill in when training completes: final train/val loss,
 epochs run, best checkpoint (step/epoch), checkpoint path.
 
