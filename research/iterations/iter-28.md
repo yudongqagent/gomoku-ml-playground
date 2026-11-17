@@ -731,7 +731,41 @@ PASSES.**
 
 ### 3.6 Ladder (20 games/opponent, mcts_sims=100, seed 100) — FINAL BATTERY
 
-(TBD.)
+**Ladder Elo: -34.9, interval [-183.3, 113.6]** (anchors:
+random=-800, heuristic=0; relative to this ladder only).
+Per-opponent (20 games each, seed 100):
+- vs random: 20W-0L-0D (1.0000; as Black 10W-0L-0D, as White
+  10W-0L-0D).
+- vs heuristic (= v0): 9W-11L-0D (0.4500, CI [0.2582, 0.6579];
+  as Black 8W-2L-0D, as White 1W-9L-0D) — the White collapse
+  (§3.4) shows here too, at the ladder's 20-game scale.
+- vs mcts: 13W-7L-0D (0.6500, CI [0.4329, 0.8188]; as Black
+  8W-2L-0D, as White 5W-5L-0D).
+Log: `~/workspace/b9h2-logs/ladder-v28.log` (raw); the EVAL_JSON
+is committed as `research/iterations/ladder-v28.json`.
+**Clause 2 FAILS** (-34.9 < v7's 190.8; the interval's upper
+bound 113.6 does not reach 190.8). The Elo is identical to
+v14's (-34.9) — the vs-heuristic leg (0.45) is the binding
+constraint, and it is the WORST vs-heuristic of any v1-leaf
+version at the ladder scale (v14: 9-11 too — the same 0.45, in
+fact; v20: 0.65, v22: 0.70).
+
+**The vs-mcts collapse did NOT reproduce — and that refutes
+v22's leading hypothesis.** v28 beats the ladder MCTS 13-7
+(0.65), matching v20's 0.65 and well above v7's own 0.40 and
+v22's 0.25 (the worst of any v1-leaf version). Iter-22 §3.6
+hypothesized the collapse came from the FULL theirs-term (v22
+counting the opponent's gap-three breadth at full weight, so it
+over-fears and plays passively). v28 counts MORE opponent
+breadth at full weight than v22 (Black's theirs-breadth is
+undemoted at White-to-move leaves) yet beats the MCTS — so the
+over-fear hypothesis is REFUTED as the cause of v22's collapse.
+The difference between v22 and v28 is ONLY the White-to-move
+leaves (v28 ≡ v14 there), so the collapse tracks the
+THEIRS-TERM DEMOTION itself: demoting Black's breadth at
+White-to-move leaves is what loses to the terminal-leaf MCTS,
+not counting it fully. The mechanism is H3's forensics question
+(v29); this battery constrains it to the theirs-term demotion.
 
 ### 3.7 Swap match vs v7 (100 games, balanced, placement_seed 11, tempo judge) — FINAL BATTERY
 
