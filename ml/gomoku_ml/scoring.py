@@ -315,6 +315,19 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # Versions 15-16 are the parallel batch-6 workstreams'.
     17: {"name": "scoring-v17", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100, "v17": True},
+    # v18 (iteration 18, batch 7): H1 — v16's 2-PLY ROLLOUT leaf
+    # applied as Black too (see gomoku_ml.mcts_heuristic and
+    # research/iterations/iter-18.md). The rollout function, the v1
+    # rollout policy (with open-four priority), the gradient-
+    # evaluated rollout end and the v1 gradient are v16's,
+    # byte-identical; only the dispatch changed (no colour gate).
+    # As White, v18 IS v16 exactly, so the White games are a
+    # built-in control. Sims (100), c_puct (1.5), priors and root
+    # decision are v7 unchanged. No threat check (minimal, isolable
+    # change). Version 17 is the parallel batch-6 H3 workstream's.
+    18: {"name": "scoring-v18", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both"},
     # v20 (iteration 20, batch 7): H3 — v14's v1-kernel gradient
     # leaf with GAP-THREE makers demoted from the strong tier to
     # the developing tier (see gomoku_ml.mcts_heuristic
@@ -352,6 +365,46 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # the parallel batch-8 workstream's (H1, v18+blend).
     22: {"name": "scoring-v22", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100, "leaf_mode": "gradient_v1_gap_black"},
+    # v23 (iteration 23, batch 8): H3 — v18 + a Q-AWARE VISIT-TIE
+    # BREAK at the root (see gomoku_ml.mcts_heuristic.HeuristicMCTS
+    # ``tie_break_q`` and research/iterations/iter-23.md). When two
+    # or more root children share the maximum visit count, break
+    # the tie by correctly-signed q (our-q = -child.q); if q also
+    # ties exactly, fall back to v18's RNG/first choice on the
+    # q-tied subset. A unique visit leader is untouched. The leaf
+    # (v18's rollout leaf, both colours), priors, sims (100),
+    # c_puct (1.5) and win/block scans are v18 unchanged — the
+    # tie-break is the ONLY change. Narrow, mechanism-specific
+    # clause-3 recovery for rollout-leaf engines: v18's three hard
+    # tactical failures are q-compression visit-ties where the leaf
+    # KNOWS the answer (chosen -1.000 vs expected +0.250) but
+    # cannot convert it into visits. This does NOT reopen the
+    # CLOSED q-based root-decisions lever (pure q was catastrophic
+    # at 0.20; v9's tie-by-q smoked 0.45 on the v0/v1 leaf) — on
+    # the rollout leaf, q-compression makes ties far more frequent
+    # and the failure mode is documented. Versions 19-22 are the
+    # parallel batch-7/8 workstreams'.
+    23: {"name": "scoring-v23", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True},
+    # v27 (iteration 27, batch 9): H1 — v23 + a THRESHOLD on the
+    # q-gap tie-break (see gomoku_ml.mcts_heuristic.HeuristicMCTS
+    # ``tie_break_q_threshold`` and research/iterations/iter-27.md).
+    # The tie-break fires ONLY when the top our-q exceeds the
+    # second-highest DISTINCT our-q among the visit-tied children
+    # by strictly more than 0.05; below the threshold the choice is
+    # v18's (RNG over ALL tied children). Threshold selected by the
+    # pre-registered rule (iter-27 §1.2/§1.5): both sweep values
+    # (0.05, 0.10) passed the tactical gate 20/20 + 29/29 and
+    # scored IDENTICAL 39W-0L-1D (0.9875) in the 40-game vs-v0
+    # sweep, so the tie rule selected the smaller threshold (0.05).
+    # The temporary sweep entries (90/91) were removed on
+    # registration. Everything else is v23 unchanged: 100 sims,
+    # c_puct 1.5, v1 priors, rollout leaf both colours.
+    27: {"name": "scoring-v27", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05},
     # v28 (iteration 28, batch 9): H2 — v14's v1-kernel gradient
     # leaf with gap-three makers demoted ONLY in BLACK's breadth
     # and ONLY in the OURS term (see gomoku_ml.mcts_heuristic
@@ -995,6 +1048,10 @@ class ScoringPlayer:
                         "root_decision", "visits"
                     ),
                     rng=self.rng,
+                    tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
+                    tie_break_q_threshold=ENGINE_VERSIONS[version].get(
+                        "tie_break_q_threshold", 0.0
+                    ),
                 )
 
     def score_move(self, board: np.ndarray, move: int, player: int) -> int:

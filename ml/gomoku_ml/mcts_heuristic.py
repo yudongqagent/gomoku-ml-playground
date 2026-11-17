@@ -1,6 +1,7 @@
 """PUCT MCTS with the v1 heuristic as prior and leaf value (v6, batch 2 H2;
 v7, batch 3 H1, adds an attack gradient to the leaf; v16, batch 6 H2,
-adds a White-only 2-ply rollout leaf — see below).
+adds a White-only 2-ply rollout leaf — see below; v18, batch 7 H1,
+applies the same rollout leaf as Black too).
 
 Standalone module: it does NOT import :mod:`gomoku_ml.mcts` (the
 neural AlphaZero MCTS, owned by the B2 batched-leaf workstream).
@@ -56,6 +57,11 @@ Design (see ``research/iterations/iter-6.md`` for v6 and
   ``_rollout_leaf_value`` and ``research/iterations/iter-16.md``.
   When the engine plays Black, v16 IS v7 exactly, so the Black
   games are a built-in control.
+* v18 (``leaf_mode="rollout2_v1_both"``, batch 7 H1): the SAME
+  2-ply rollout leaf as v16, applied as Black too — the dispatch
+  returns ``_rollout_leaf_value`` for both colours. When the
+  engine plays White, v18 IS v16 exactly, so the White games are
+  a built-in control; see ``research/iterations/iter-18.md``.
 
 Backup accounting follows the AlphaZero convention: every node
 on the simulated path — including the newly expanded leaf — has
@@ -867,6 +873,36 @@ class HeuristicMCTS:
     values identical. Deliberately not antisymmetric under player
     swap (see the v28 comment block above the leaf function).
 
+
+    ``leaf_mode="rollout2_v1_both"`` is v18: quiet leaves get the
+    2-ply rollout leaf for BOTH colours — the same function v16
+    uses as White, with no colour gate. v18-as-White IS v16.
+
+    ``tie_break_q=True`` is v23 (batch 8, H3): when two or more
+    root children share the maximum visit count (an exact tie at
+    the top), break the tie by correctly-signed q (our-q =
+    ``-child.q`` — ``child.q`` is the OPPONENT's perspective, see
+    :meth:`_run_one`'s backup and :meth:`_select_child`). If q
+    also ties exactly, fall back to the RNG/first choice on the
+    q-tied subset. A unique visit leader is untouched. Default
+    False: v18 and all earlier versions are unaffected. See
+    ``research/iterations/iter-23.md`` §1.1 for the
+    pre-registered rule and why this narrow retest does not reopen
+    the CLOSED q-based root-decisions lever.
+
+    ``tie_break_q_threshold`` is v27 (batch 9, H1): the tie-break
+    fires ONLY when the q gap — the highest our-q minus the
+    second-highest DISTINCT our-q among the visit-tied children —
+    strictly exceeds the threshold. Below the threshold the
+    tie-break does not fire at all and the choice is v18's (RNG
+    over ALL tied children, else first). Default 0.0 reproduces
+    v23 exactly (any positive gap fires; a zero gap means all
+    tied children share q_max, so v23's rule-4 subset IS all tied
+    children). See ``research/iterations/iter-27.md`` §1.1 for
+    the pre-registered rule: the threshold separates terminal
+    signal (documented gaps >= 0.130) from gradient noise (the
+    documented misfire gap is 0.016).
+
     ``root_decision`` (v9, batch 4 H1; v12, batch 5 H1) selects the
     root move choice: ``"visits"`` (default, v6/v7 behaviour —
     most-visited, ties by RNG), ``"q"``, ``"tie-q"``, ``"blend"``,
@@ -882,13 +918,15 @@ class HeuristicMCTS:
         leaf_mode: str = "terminal",
         prior_floor: float = 0.0,
         root_decision: str = "visits",
+        tie_break_q: bool = False,
+        tie_break_q_threshold: float = 0.0,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
-            leaf_mode != "rollout2_v1"
+            leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
         ):
             raise ValueError(
                 f"unknown leaf_mode: {leaf_mode!r} "
-                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1']})"
+                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both']})"
             )
         if not 0.0 <= prior_floor < 1.0:
             raise ValueError(
@@ -905,8 +943,17 @@ class HeuristicMCTS:
         self.leaf_mode = leaf_mode
         self.prior_floor = prior_floor
         self.root_decision = root_decision
+        self.tie_break_q = tie_break_q
+        self.tie_break_q_threshold = tie_break_q_threshold
+        # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
+        # instance-bound methods): the dispatch MUST use this
+        # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
+        # raises KeyError on "rollout2_v1" / "rollout2_v1_both"
+        # (batch 6 caught this as a silent merge breakage).
         if leaf_mode == "rollout2_v1":
             self._leaf_value = self._rollout_v1_leaf_value
+        elif leaf_mode == "rollout2_v1_both":
+            self._leaf_value = self._rollout_v1_both_leaf_value
         else:
             self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
         # Colour to move at the root of the current search (the
@@ -929,6 +976,17 @@ class HeuristicMCTS:
         a search) falls back to the White branch."""
         if self._root_player == game.BLACK:
             return _gradient_leaf_value(board, player)
+        return _rollout_leaf_value(board, player)
+
+    def _rollout_v1_both_leaf_value(
+        self, board: np.ndarray, player: int
+    ) -> float:
+        """v18 leaf value: the 2-ply rollout leaf
+        (:func:`_rollout_leaf_value`) for BOTH colours — no colour
+        gate. The rollout function, policy, gradient and both
+        fast-loop patches are v16's, byte-identical; only the
+        dispatch changed (v16 gates on ``_root_player``, v18 does
+        not). v18-as-White IS v16 exactly."""
         return _rollout_leaf_value(board, player)
 
     def choose_move(self, board: np.ndarray, player: int) -> int:
@@ -960,6 +1018,46 @@ class HeuristicMCTS:
             return int(self.rng.choice(moves))
         return moves[0]
 
+    def _pick_root_move(self, root: _Node) -> int:
+        """Final root selection: the most-visited child. On an exact
+        top-visit tie, v23 (``tie_break_q=True``) breaks it by
+        correctly-signed q (our-q = ``-child.q`` — ``child.q`` is
+        the OPPONENT's perspective; see :meth:`_run_one`'s backup
+        and :meth:`_select_child`); if q also ties exactly, fall
+        back to v18's behaviour (RNG choice, else first) restricted
+        to the q-tied subset. v27 gates that rule on the q gap:
+        the tie-break fires ONLY when the highest our-q exceeds
+        the second-highest DISTINCT our-q among the tied children
+        by strictly more than ``tie_break_q_threshold``; below the
+        threshold the tie-break does not fire at all and the choice
+        is v18's (RNG over ALL tied children, else first). With
+        ``tie_break_q=False`` (v18 and earlier) a tie is broken by
+        RNG choice among ALL tied children, else first. A unique
+        visit leader is untouched either way. Pre-registered rules:
+        iter-23.md §1.1, iter-27.md §1.1."""
+        best_visits = max(c.visit_count for c in root.children.values())
+        best = [
+            m for m, c in root.children.items() if c.visit_count == best_visits
+        ]
+        if len(best) == 1:
+            return best[0]
+        if self.tie_break_q:
+            our_q = {m: -root.children[m].q for m in best}
+            q_max = max(our_q.values())
+            distinct = sorted(set(our_q.values()), reverse=True)
+            q_second = distinct[1] if len(distinct) > 1 else q_max
+            if q_max - q_second > self.tie_break_q_threshold:
+                best = [m for m in best if our_q[m] == q_max]
+                if len(best) == 1:
+                    return best[0]
+                # Else fall through to RNG/first on the q-tied
+                # subset (v23 rule 4).
+            # Else (gap <= threshold): fall through with `best`
+            # unchanged — v18's RNG/first over ALL tied children.
+        if self.rng is not None:
+            return int(self.rng.choice(best))
+        return best[0]
+
     def _choose_root_child(
         self,
         root: _Node,
@@ -987,6 +1085,11 @@ class HeuristicMCTS:
         * ``"visits"`` (v6/v7): most-visited; ties by RNG/first.
           Unchanged behaviour — with sims >= 1 the max-visit child
           always has >= 1 visit, so the visited filter is a no-op.
+          With ``tie_break_q=True`` (v23/v27 only) exact visit ties
+          are broken by our-q first, gated on the q gap by
+          ``tie_break_q_threshold`` (see :meth:`_pick_root_move` —
+          same rule, same candidate set); the gate is the only
+          difference between v23 (threshold 0.0) and v27 (0.05).
         * ``"q"`` (variant A): argmax our-q; ties by visits, then
           RNG/first.
         * ``"tie-q"`` (variant B): most-visited; ties by our-q,
@@ -1073,6 +1176,25 @@ class HeuristicMCTS:
                     m for m in cands
                     if root.children[m].prior == best_p
                 ]
+            elif self.tie_break_q:
+                # v23/v27 (batch 8 H3 / batch 9 H1): q-aware visit-tie
+                # break, gated on the q gap by tie_break_q_threshold.
+                # Only reachable when root_decision is "visits" (the
+                # other rules branch above) and tie_break_q is True —
+                # v23 and v27 are the only versions that set it, so
+                # every other version's behaviour is unchanged. Same
+                # rule as _pick_root_move, same candidate set (with
+                # sims >= 1 the visited filter is a no-op here).
+                # Default threshold 0.0 reproduces v23 exactly (any
+                # positive gap fires); v27 sets 0.05.
+                our_q = {m: -root.children[m].q for m in cands}
+                q_max = max(our_q.values())
+                distinct = sorted(set(our_q.values()), reverse=True)
+                q_second = distinct[1] if len(distinct) > 1 else q_max
+                if q_max - q_second > self.tie_break_q_threshold:
+                    cands = [m for m in cands if our_q[m] == q_max]
+                # Else (gap <= threshold): cands unchanged — v18's
+                # RNG/first over ALL tied children.
         return self._rng_or_first(cands)
 
     def _select_child(self, node: _Node) -> int:
