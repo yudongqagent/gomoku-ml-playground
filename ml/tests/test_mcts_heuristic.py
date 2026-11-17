@@ -634,3 +634,155 @@ def test_v23_choose_move_deterministic_for_same_seed():
     v23a = scoring.get_player(23, seed=0)
     v23b = scoring.get_player(23, seed=0)
     assert v23a.choose_move(board, game.BLACK) == v23b.choose_move(board, game.BLACK)
+
+
+# --- v27 (batch 9, H1): q-gap threshold tie-break --------------------------
+# Pre-registered rule (iter-27.md §1.1): v23's tie-break fires ONLY
+# when the q gap — the highest our-q minus the second-highest
+# DISTINCT our-q among the visit-tied children — strictly exceeds
+# the threshold. Below the threshold the tie-break does not fire
+# at all (v18's RNG/first over ALL tied children). tau=0.0
+# reproduces v23 exactly; tau -> infinity reproduces v18.
+
+
+def test_v27_threshold_zero_reproduces_v23():
+    # Same root as test_v23_tie_break_picks_highest_our_q: with
+    # tau=0.0 the threshold must not change v23's choice.
+    root = _root_with_children([(100, 3, -1.75), (101, 3, -3.0), (102, 3, -2.0)])
+    mcts = HeuristicMCTS(
+        sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+        tie_break_q_threshold=0.0,
+    )
+    assert mcts._pick_root_move(root) == 101
+    # All-q-equal root: gap 0, v23's rule-4 subset is all tied
+    # children, so tau=0.0 with no RNG returns the first — same
+    # as v23.
+    root2 = _root_with_children([(100, 3, -1.75), (101, 3, -1.75), (102, 3, -1.75)])
+    assert mcts._pick_root_move(root2) == 100
+    # Registry: v23 dispatches with threshold 0.0 (v23 unchanged).
+    v23 = scoring.get_player(23, seed=0)
+    assert v23._mcts.tie_break_q is True
+    assert v23._mcts.tie_break_q_threshold == 0.0
+    v18 = scoring.get_player(18, seed=0)
+    assert v18._mcts.tie_break_q is False
+    assert v18._mcts.tie_break_q_threshold == 0.0
+
+
+def test_v27_threshold_blocks_small_gap_misfire():
+    # The documented fl2-g6/g8 misfire (iter-23 §2.2): a 2-way
+    # tie at 8 visits, q gap 0.016 (loser our-q +0.076 over saver
+    # +0.060). v23 picks the loser (101); v27 at tau=0.05 must
+    # NOT fire — with no RNG it returns the first in dict order
+    # (100), v18's behaviour. value_sum = -our_q * visits.
+    root = _root_with_children([(100, 8, -0.48), (101, 8, -0.608)])
+    mcts27 = HeuristicMCTS(
+        sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+        tie_break_q_threshold=0.05,
+    )
+    assert mcts27._pick_root_move(root) == 100
+    mcts27b = HeuristicMCTS(
+        sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+        tie_break_q_threshold=0.10,
+    )
+    assert mcts27b._pick_root_move(root) == 100
+    # Control: v23 (tau=0.0) fires on the same root and picks
+    # the higher-q (losing) move.
+    mcts23 = HeuristicMCTS(sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True)
+    assert mcts23._pick_root_move(root) == 101
+
+
+def test_v27_threshold_fires_on_large_gap_signal():
+    # The v1bl-g2 tactical fix (iter-23 §1.2): a 2-way tie at 8
+    # visits, q gap 0.130 (expected (7,5) our-q -0.594 over loser
+    # (7,9) -0.724). Both sweep thresholds must fire and pick the
+    # higher-q move (101). value_sum = -our_q * visits.
+    root = _root_with_children([(100, 8, 5.792), (101, 8, 4.752)])
+    for tau in (0.05, 0.10):
+        mcts = HeuristicMCTS(
+            sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+            tie_break_q_threshold=tau,
+        )
+        assert mcts._pick_root_move(root) == 101
+    # A threshold ABOVE the gap (0.20) must not fire: first in
+    # dict order (100), v18's behaviour. (This is why 0.20 is not
+    # swept — it would break the v1bl-g2 fix.)
+    mcts20 = HeuristicMCTS(
+        sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+        tie_break_q_threshold=0.20,
+    )
+    assert mcts20._pick_root_move(root) == 100
+
+
+def test_v27_threshold_boundary_is_strict():
+    # Dyadic q values so the gap is exact: our-q 0.625 vs 0.5,
+    # gap exactly 0.125. The rule is gap > tau (strict): at
+    # tau=0.125 it must NOT fire; at tau=0.10 it must fire.
+    root = _root_with_children([(100, 8, -4.0), (101, 8, -5.0)])
+    mcts_eq = HeuristicMCTS(
+        sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+        tie_break_q_threshold=0.125,
+    )
+    assert mcts_eq._pick_root_move(root) == 100
+    mcts_lt = HeuristicMCTS(
+        sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+        tie_break_q_threshold=0.10,
+    )
+    assert mcts_lt._pick_root_move(root) == 101
+
+
+def test_v27_below_threshold_rng_uses_all_tied_children():
+    # Three children tie at 3 visits with our-q 0.60 / 0.59 /
+    # 0.583: the gap between the top two DISTINCT values is 0.01,
+    # below tau=0.05, so the tie-break must not fire and the RNG
+    # must choose among ALL THREE — including 101, the worst-q
+    # child v23's rule would exclude. 50 draws: P(never drawing
+    # 101) = (2/3)^50 ~ 1e-9 if the choice is uniform over all.
+    root = _root_with_children([(100, 3, -1.8), (101, 3, -1.77), (102, 3, -1.749)])
+    mcts = HeuristicMCTS(
+        sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+        tie_break_q_threshold=0.05, rng=np.random.default_rng(0),
+    )
+    picks = {mcts._pick_root_move(root) for _ in range(50)}
+    assert picks == {100, 101, 102}
+    # Control: v23 (tau=0.0) fires on the same root (gap 0.01 >
+    # 0) and always picks the top-q child 100.
+    mcts23 = HeuristicMCTS(
+        sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+        rng=np.random.default_rng(0),
+    )
+    assert {mcts23._pick_root_move(root) for _ in range(10)} == {100}
+
+
+def test_v27_top_q_group_falls_back_to_rng_subset_when_firing():
+    # Gap above threshold, but two children share q_max exactly:
+    # v23 rule 4 applies within the firing branch — RNG over the
+    # q-tied subset only, never the worse-q child. our-q: 100 and
+    # 102 at +0.583, 101 at +0.333; gap 0.25 > tau=0.05.
+    root = _root_with_children([(100, 3, -1.75), (101, 3, -1.0), (102, 3, -1.75)])
+    mcts = HeuristicMCTS(
+        sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+        tie_break_q_threshold=0.05, rng=np.random.default_rng(0),
+    )
+    for _ in range(20):
+        assert mcts._pick_root_move(root) in (100, 102)
+
+
+def test_v27_sweep_candidates_registered():
+    # TEMPORARY sweep entries (iter-27 §1.2): removed when v27 is
+    # registered with the selected threshold.
+    v90 = scoring.get_player(90, seed=0)
+    assert v90.name == "scoring-v27-tau005"
+    assert v90._mcts.leaf_mode == "rollout2_v1_both"
+    assert v90._mcts.tie_break_q is True
+    assert v90._mcts.tie_break_q_threshold == 0.05
+    v91 = scoring.get_player(91, seed=0)
+    assert v91.name == "scoring-v27-tau010"
+    assert v91._mcts.tie_break_q_threshold == 0.10
+    # Same seed, same board, same move — the threshold consumes
+    # RNG only where v18/v23 would, so determinism holds.
+    board = _board_with(
+        [(7, 7), (6, 7), (8, 7), (7, 6)], [(7, 8), (6, 8), (8, 8), (7, 5)]
+    )
+    a = scoring.get_player(90, seed=0)
+    b = scoring.get_player(90, seed=0)
+    assert a.choose_move(board, game.BLACK) == b.choose_move(board, game.BLACK)

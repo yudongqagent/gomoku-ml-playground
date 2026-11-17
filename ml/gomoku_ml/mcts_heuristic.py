@@ -458,6 +458,19 @@ class HeuristicMCTS:
     ``research/iterations/iter-23.md`` §1.1 for the
     pre-registered rule and why this narrow retest does not reopen
     the CLOSED q-based root-decisions lever.
+
+    ``tie_break_q_threshold`` is v27 (batch 9, H1): the tie-break
+    fires ONLY when the q gap — the highest our-q minus the
+    second-highest DISTINCT our-q among the visit-tied children —
+    strictly exceeds the threshold. Below the threshold the
+    tie-break does not fire at all and the choice is v18's (RNG
+    over ALL tied children, else first). Default 0.0 reproduces
+    v23 exactly (any positive gap fires; a zero gap means all
+    tied children share q_max, so v23's rule-4 subset IS all tied
+    children). See ``research/iterations/iter-27.md`` §1.1 for
+    the pre-registered rule: the threshold separates terminal
+    signal (documented gaps >= 0.130) from gradient noise (the
+    documented misfire gap is 0.016).
     """
 
     def __init__(
@@ -467,6 +480,7 @@ class HeuristicMCTS:
         rng: np.random.Generator | None = None,
         leaf_mode: str = "terminal",
         tie_break_q: bool = False,
+        tie_break_q_threshold: float = 0.0,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
             leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
@@ -480,6 +494,7 @@ class HeuristicMCTS:
         self.rng = rng
         self.leaf_mode = leaf_mode
         self.tie_break_q = tie_break_q
+        self.tie_break_q_threshold = tie_break_q_threshold
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -551,10 +566,16 @@ class HeuristicMCTS:
         the OPPONENT's perspective; see :meth:`_run_one`'s backup
         and :meth:`_select_child`); if q also ties exactly, fall
         back to v18's behaviour (RNG choice, else first) restricted
-        to the q-tied subset. With ``tie_break_q=False`` (v18 and
-        earlier) a tie is broken by RNG choice among ALL tied
-        children, else first. A unique visit leader is untouched
-        either way. Pre-registered rule: iter-23.md §1.1."""
+        to the q-tied subset. v27 gates that rule on the q gap:
+        the tie-break fires ONLY when the highest our-q exceeds
+        the second-highest DISTINCT our-q among the tied children
+        by strictly more than ``tie_break_q_threshold``; below the
+        threshold the tie-break does not fire at all and the choice
+        is v18's (RNG over ALL tied children, else first). With
+        ``tie_break_q=False`` (v18 and earlier) a tie is broken by
+        RNG choice among ALL tied children, else first. A unique
+        visit leader is untouched either way. Pre-registered rules:
+        iter-23.md §1.1, iter-27.md §1.1."""
         best_visits = max(c.visit_count for c in root.children.values())
         best = [
             m for m, c in root.children.items() if c.visit_count == best_visits
@@ -562,10 +583,18 @@ class HeuristicMCTS:
         if len(best) == 1:
             return best[0]
         if self.tie_break_q:
-            best_q = max(-root.children[m].q for m in best)
-            best = [m for m in best if -root.children[m].q == best_q]
-            if len(best) == 1:
-                return best[0]
+            our_q = {m: -root.children[m].q for m in best}
+            q_max = max(our_q.values())
+            distinct = sorted(set(our_q.values()), reverse=True)
+            q_second = distinct[1] if len(distinct) > 1 else q_max
+            if q_max - q_second > self.tie_break_q_threshold:
+                best = [m for m in best if our_q[m] == q_max]
+                if len(best) == 1:
+                    return best[0]
+                # Else fall through to RNG/first on the q-tied
+                # subset (v23 rule 4).
+            # Else (gap <= threshold): fall through with `best`
+            # unchanged — v18's RNG/first over ALL tied children.
         if self.rng is not None:
             return int(self.rng.choice(best))
         return best[0]

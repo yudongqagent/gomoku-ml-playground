@@ -250,6 +250,21 @@ ENGINE_VERSIONS: dict[int, dict] = {
     23: {"name": "scoring-v23", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "tie_break_q": True},
+    # TEMPORARY v27 sweep candidates (batch 9, H1 — see
+    # research/iterations/iter-27.md §1.2): v23 + a threshold on
+    # the q-gap tie-break. Version 90 is tau=0.05, version 91 is
+    # tau=0.10. These exist ONLY so the standard drivers can run
+    # the pre-registered sweep; both entries are REMOVED when v27
+    # is registered with the threshold the selection rule picks.
+    # They are not versions and must never be batteried as such.
+    90: {"name": "scoring-v27-tau005", "defence_weight": 1.0,
+         "threat_check": False, "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05},
+    91: {"name": "scoring-v27-tau010", "defence_weight": 1.0,
+         "threat_check": False, "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.10},
 }
 
 # --- weights --------------------------------------------------------------
@@ -838,6 +853,9 @@ class ScoringPlayer:
                     leaf_mode=ENGINE_VERSIONS[version].get("leaf_mode", "terminal"),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
+                    tie_break_q_threshold=ENGINE_VERSIONS[version].get(
+                        "tie_break_q_threshold", 0.0
+                    ),
                 )
 
     def score_move(self, board: np.ndarray, move: int, player: int) -> int:
