@@ -296,7 +296,7 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 16/22 complete at this writing)
+### 2.1 Workups (running — 17/22 complete at this writing)
 
 **Runtime interruption (recorded, no workups lost).** The VM
 was replaced mid-chain (uptime reset; the chain died during
@@ -333,6 +333,7 @@ values (`~/workspace/b10h3-logs/scripts/diag_rollout.py`), and exact threat anal
 | 65 (vs v7) | W | 41 | none in window | — | horizon loss |
 | 67 (vs v7) | W | 65 | none in window | — | horizon loss (by ply 57 Black holds 5 VCF starts; no prevention exists) |
 | 73 (vs v7) | W | 31 | ply 23 (3,8) | (8,5) 2W+1L | **clean VCF-prevention (VCF 1→0, setups 3→1)** |
+| 91 (vs v7) | W | 29 | ply 23 (5,5) | (8,5) 2W+1L | **clean VCF-prevention — SAME position as g73 ply 23 (transposition; see note)** |
 | 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
 
 **Game 4, ply 44 (Black to move) — missed VCF prevention.**
@@ -518,6 +519,23 @@ preventions. (8,5) also saves at ply 25 ([1,−1,1]), as does
 check reproduces the save at 5 of the 6 VCF-prevention
 instances so far.
 
+**Game 91, ply 23 (White to move) — missed VCF prevention
+(6th fixed by the check; SAME position as g73 ply 23).**
+The actual (5,5) loses 3/3; (8,5) SAVES [1, 1, −1] — and
+(8,5) is exactly the check's move. Black holds 1 VCF start
+[(8,5)]; (5,5) leaves it live while (8,5) occupies it.
+**Transposition note:** g91's ply-23 board is IDENTICAL to
+g73's ply-23 board (same 23 moves — the two games share
+their opening line and diverge only after ply 23, when
+v27's different RNG streams picked different moves: (3,8)
+in g73, (5,5) in g91). So g73 and g91 are ONE distinct
+position, not two independent instances. The
+VCF-prevention class has 7 game-instances across 6 distinct
+positions (5 fixed by the check, 1 — g32 — not). The patch
+rule is satisfied at the position level too (5 distinct
+positions ≥ 3). No other VCF-prevention positions collide
+(they sit at different plies, hence different stone counts).
+
 **Game 77, ply 13 (White to move) — search-horizon value
 error, no exact signature.** The actual (7,6) loses 2/3;
 (7,4) and (8,7) win 3/3, (7,5) wins 2/3. The root is flat
@@ -535,9 +553,11 @@ the loser on every count. The 400-sim deeper-search proposal
 (7,9) loses 3/3 — deeper search does not find the save.
 Class 7 (search-horizon value error), no patchable signature.
 
-**Running tally: VCF-prevention 6 (check reproduces the save
-at 5, picks the losing prevention at 1), horizon 8,
-search-horizon (no signature) 2.** The patch rule (§1.1)
+**Running tally: VCF-prevention 7 game-instances across 6
+distinct positions (check reproduces the save at 6
+game-instances / 5 distinct positions, picks the losing
+prevention at 1), horizon 8, search-horizon (no signature)
+2.** The patch rule (§1.1)
 is satisfied at 3 VCF-prevention instances with the patch
 reproducing all three saves (g4, g10, g21). The remaining
 workups complete the classification table.
