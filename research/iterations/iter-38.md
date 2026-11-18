@@ -625,7 +625,36 @@ a stop rule); clause 3 is now expected to fail on this
 position, and the fast loop will look for whether any
 patchable mechanism remains.
 
-TODO — α sweep results, registry α update, fast loops.
+### 5.1 α sweep — winner α = 0.5 (2026-11-18)
+
+Grid {0.5, 1.0, 2.0} × 20 games vs v8, seeds 1001/2001,
+per-game seeding. Interrupted once by a VM replacement at
+α=2.0 game 2; resumed cleanly (α=0.5 and 1.0 already
+complete, α=2.0 resumed from game 2 with per-game seeding
+reproducing the uninterrupted run). JSONs:
+`research/iterations/alpha-v38-{0.5,1.0,2.0}-vs-v8.json`.
+
+| α | Record | Win rate | Wilson 95% CI |
+|---|---|---|---|
+| **0.5** | 12W-8L-0D | 0.600 | [0.387, 0.781] |
+| 1.0 | 9W-10L-1D | 0.475 | [0.279, 0.680] |
+| 2.0 | 5W-15L-0D | 0.250 | [0.112, 0.469] |
+
+**Winner: α = 0.5** (pre-registered rule: best win rate;
+the no-signal rule does not apply — 12 vs 9 vs 5 wins is a
+clear spread). Registry `value_weight` updated 1.0 → 0.5.
+The pattern is monotone DECREASING in α — the more the
+multi-task net's value is trusted, the worse v38 plays, and
+at α=2.0 it is significantly BELOW 0.50 (CI upper 0.469).
+Consistent with §5.0: the multi-task net's value is actively
+harmful at full weight (it overvalues threats); halving the
+weight lets the v1 prior carry more of the decision. For
+comparison v24's sweep winner was α=1.0 at 0.65, and v31's
+was α=0.5 at 0.70 — v38's 0.60 at its best α is the weakest
+of the three distilled versions on dev seeds, and dev seeds
+flatter (v31: 0.70 dev → 0.40 validation).
+
+TODO — fast loops.
 
 ## 6. Validation battery
 

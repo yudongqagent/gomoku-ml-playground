@@ -453,7 +453,7 @@ ENGINE_VERSIONS: dict[int, dict] = {
     38: {"name": "scoring-v38", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml3-h3/value-net.pt",
-         "value_weight": 1.0},
+         "value_weight": 0.5},
 }
 
 # --- weights --------------------------------------------------------------
