@@ -441,19 +441,150 @@ tactical (post-registration): 20/20 old + 29/29 hard at
 
 ### 2.1 Fast-loop iteration 1 — 10 games vs v8 + 10 games vs v0
 
-(TODO)
+**Batches:** `research/iterations/fastloop1-v36-vs-v8.json`
+(seeds v36=1001 / v8=2001) and
+`research/iterations/fastloop1-v36-vs-v0.json` (seeds v36=1001 /
+v0=2001) — development seeds, distinct from the bar battery's
+100/200. **vs v8: 3W-7L-0D, win rate 0.3000, CI [0.1078,
+0.6032]**, 473.4 s. Split: as Black 2W-3L (0.40), as White 1W-4L
+(0.20). **vs v0: 3W-6L-1D, win rate 0.3500, CI [0.1369,
+0.6463]**, 631.0 s (game 7 was a 225-ply full-board draw).
+Split: as Black 3W-2L (0.60), as White 0W-4L-1D (0.10).
+Classifier (both batches): 13/13 losses via open four, 0 missed
+blocks, 0 clean missed preventions in 66 threatened turns.
+Defence is still perfect. (n=10 per opponent — development
+signal, not the bar; the fast loop's job is finding weaknesses,
+not measuring strength.)
 
-### 2.2 Fast-loop iteration 2
+**The fire diagnostic exonerates the tie-break in both legs**
+(`~/workspace/gomoku-ml3-h1-scripts/fire_diag.py` — replays
+every v36 turn with the search re-run and the RNG state
+snapshotted, so each fire is exact and the v8 counterfactual
+pick is known; every replayed pick matched the recorded move).
+vs v8: 132 v36 turns, 109 searched, 10 tied (9.2%), **0 fires**
+— v36 played EXACTLY as v8 would have in all 10 games, so the
+3W-7L is v8-vs-v8 seed noise, not a tie-break effect. vs v0:
+267 turns, 220 searched, 58 tied (26.4%), **1 fire** — game 7
+ply 25 (gap 0.0623, 2-way tie, v36 played 205 where v8's RNG
+would have played 155), in the game that drew anyway. The
+tie-break changed one move in 20 games and decided zero games.
 
-(TODO)
+**The 3-7 vs v8 is a colour lottery over 3 lines, not 10
+independent games.** The vs-v8 leg collapses to **3 distinct
+lines in 10 games** (uniqueness audit): line [0,7] (White wins
+2/2), line [1,2,3,5,8,9] (Black wins 6/6), line [4,6] (White
+wins 2/2). Every line was won by the same colour in every
+occurrence — both engines are so deterministic that the line
+determines the winner, and v36's score is the colour-assignment
+lottery (it held the losing colour in 7 of 10). The driver's
+de-dup rate (0.0) is an artefact of its first-occurrence rule:
+the same lines contain wins under the opposite colour
+assignment. Per-game seeding does not prevent this collapse —
+it prevents resume replay, but the lines recur because the
+engines barely consume RNG (RNG is spent only on exact ties,
+and the tie-break fires ~0% of the time). The vs-v0 leg
+collapses less (9 distinct lines in 10) because v0's play
+varies more. The battery will face the same collapse on the
+vs-v8 leg — its uniqueness audit is reported prominently in §3
+and clause 1 is read on both cuts.
 
-### 2.3 Fast-loop iteration 3 — NOT RUN unless iterations 1–2 find a patchable class
+**Game 1 vs v8 (White, 25 plies) — the walkback nominates ply
+11, and the stronger oracle REFUTES it.**
+(`research/iterations/walkback-fl1-g1.json`, v1 oracle, seeds
+0,1,2): plies 23/21/19/17/15/13 lose 3/3 with 0 saving
+alternatives; ply 11 nominates (actual (9,8) loses 3/3; saves
+(5,8) [draw,draw,draw] and (5,7) [win,win,win]); ply 9 does not
+lose at all seeds. Under v8-vs-v8
+(`~/workspace/gomoku-ml3-h1-scripts/verify_nomination.py`,
+seeds 0,1,2): the ACTUAL move draws 3/3 and the (5,8) save
+draws 3/3 — the nomination is refuted outright (the actual must
+lose first before an alternative counts, and it does not lose
+at all). The (5,7) leg was killed after ~14 min on marathon
+playout games; it cannot resurrect the nomination, which
+already fails on the actual's draws. **The root dump
+exonerates the tie-break independently**: at ply 11 the
+threat-filtered pool has 2 children and NO tie — the actual
+move is the unique visit leader (16 visits, our-q −0.1288)
+over the (5,8) save (12 visits, our-q −0.1858), and (5,7) is
+not in the safe pool at all. No tie-break variant could have
+picked a save: the actual wins on visits AND on q. The loss is
+distributed drift in v8's search/leaf, not a root-decision
+failure — and not patchable within v36's scope (its only change
+is the tie-break).
 
-### 2.4 Fast-loop iteration 4 — NOT RUN unless iterations 1–3 find a patchable class
+**Iteration 1 verdict: no patchable weakness class.** The
+tie-break fired once in 329 searched turns and decided zero
+games; the one nominated losing move is refuted by the stronger
+oracle and unreachable by any tie-break. The loop does NOT stop
+here (same pre-commitment as iter-27 §2.1: two consecutive
+barren iterations, 40 games). Iteration 2 runs on fresh seeds
+(1002/2002); if it also finds no patchable class, the loop
+stops. No regression positions added: no loss yields a verified
+losing move with a verified save the tie-break could be patched
+to play.
+
+### 2.2 Fast-loop iteration 2 — 10 games vs v8 + 10 games vs v0 (LOOP STOPS)
+
+**Batches:** `research/iterations/fastloop2-v36-vs-v8.json`
+(seeds v36=1002 / v8=2002) and
+`research/iterations/fastloop2-v36-vs-v0.json` (seeds v36=1002 /
+v0=2002). **vs v8: 8W-2L-0D, win rate 0.8000, CI [0.4902,
+0.9433]**, 219.5 s — the mirror image of iteration 1's 3W-7L.
+Split: as Black 4W-1L (0.80), as White 4W-1L (0.80). **vs v0:
+6W-4L-0D, win rate 0.6000, CI [0.3127, 0.8318]**, 295.2 s.
+Split: as Black 4W-1L (0.80), as White 2W-3L (0.40).
+Classifier (both batches): 6/6 losses via open four, 0 missed
+blocks, 0 clean missed preventions in 34 threatened turns.
+Defence still solved.
+
+**The reversal confirms iteration 1 was seed noise.** The two
+iterations bracket 0.50 almost symmetrically (3-7 then 8-2 vs
+v8; pooled 11W-9L, 0.55). The vs-v8 leg again collapses to a
+handful of lines (6 distinct in 10; the [1,3,5,9] White line
+occurred 4 times, all with v36 as White → 4W). The fire
+diagnostic again shows an inert tie-break — vs v8: 129 turns,
+101 searched, 10 tied (9.9%), **0 fires**; vs v0: 232 turns,
+184 searched, 30 tied (16.3%), **4 fires (2.17%)**, 3 changing
+the move (game 1 ply 25 fired but the RNG agreed; game 6 ply 24
+changed the move in a game v36 lost; game 9 ply 25 and ply 107
+changed moves in a game v36 won). Across the whole fast loop:
+614 searched turns, 5 fires (0.81%), 4 changed moves.
+
+**The game 6 fire (the only fire in a fast-loop loss) is
+exonerated.** At ply 24 (v36 as Black, 2-way tie, gap 0.0766)
+the tie-break fired and played (9,5) where v8's RNG would have
+played (3,8); v36 lost the game. Under v8-vs-v8
+(`verify_nomination.py`, seeds 0,1,2): the fired move (9,5)
+draws 3/3 AND v8's move (3,8) draws 3/3 — the two moves are
+equivalent under strong play, so the fire did not cost the
+game; the loss came later (distributed drift). The tie-break is
+exonerated in the one fire-in-a-loss, exactly as it was in the
+sweep's diverging games (§1.5) and the ply-11 nomination (§2.1).
+
+**No patchable weakness class in this iteration either — the
+fast loop STOPS here (2 iterations)** per the pre-commitment in
+§2.1 (two consecutive barren iterations, 40 games). v36's only
+losses in the loop are v8's distributed-drift losses plus one
+fire in a lost game (game 6, §2.2 above); the battery is the
+verdict on whether the rare fires help or hurt at scale.
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
 
 ### 2.5 Aggregate counts (secondary)
 
-(TODO)
+Fast-loop totals (2 iterations, 40 games): vs v8 11W-9L-0D
+(0.5500); vs v0 9W-10L-1D (0.4750). Colour splits vs v8: as
+Black 6W-4L (0.60), as White 5W-5L (0.50). Fast-loop defence:
+19/19 losses via open four, 0 missed blocks, 0 clean missed
+preventions (100 threatened turns in losses). Defence remains
+solved. Fire totals: 614 searched v36 turns, 5 tie-break fires
+(0.81%), 4 changed moves, 0 games decided by a fire (the game 6
+fire is exonerated by the v8-vs-v8 verification — both moves
+draw 3/3). No patches were made in this iteration —
+v36-as-batteried is v36-as-pre-registered (τ=0.05, selected by
+the §1.2 rule).
 
 ## 3. v36 evaluation
 
