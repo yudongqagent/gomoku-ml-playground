@@ -967,7 +967,13 @@ class HeuristicMCTS:
     (:meth:`_vcf_root_move`): before the search, an offensive VCF
     start is played immediately, and a defensive VCF prevention
     is played when the opponent holds a VCF start. False (the
-    default) is v18 behaviour exactly.
+    default) is v18 behaviour exactly. The offensive step runs
+    FIRST and is load-bearing: in race positions (both sides hold
+    a VCF start) it plays our forced win instead of letting the
+    defensive step block — a defensive-only variant was tried for
+    v35 and refuted by the tactical mechanism check (27/29: it
+    blocked instead of winning both race positions; see
+    ``research/iterations/iter-35.md`` §3).
     ``vcf_filtered_search`` (v33, batch 10 H1) enables VCF-filtered
     search (:meth:`_vcf_prevention_pool` + :meth:`_search_restricted`):
     the offensive VCF step is v29's unchanged, but the defensive
@@ -979,6 +985,24 @@ class HeuristicMCTS:
     search. Mutually exclusive with ``vcf_root`` (the two defensive
     rules conflict); setting both raises ValueError. See
     ``research/iterations/iter-33.md`` §1.1.
+    ``vcf_root_search_first`` (v35, batch 10 H3) changes the
+    DEFENSIVE step to search-first: the search runs first, and
+    the defensive check overrides ONLY when the search's chosen
+    move is NOT a prevention (leaves opponent VCF starts live).
+    When the search already plays a prevention, its visits/q
+    signal — built from 100 sims — chooses among preventions,
+    not the prior's static score. The fast loop verified 3
+    override-harm instances for the plain check (it overrode a
+    correct search prevention by prior noise: fast-loop g2 ply
+    12, g3 ply 9, g5 ply 9) against 1 case where the prior
+    picked the right prevention over a wrong search prevention
+    (forensics g73; g44 is the second). Search-first is weakly
+    dominant over the no-check baseline: it overrides only a
+    move that loses by force (opponent VCF), so it can only
+    help, never harm, relative to v27. The offensive step is
+    unaffected (still short-circuits). Only meaningful with
+    ``vcf_root=True``; False (the default) is v29's behaviour
+    exactly. See ``research/iterations/iter-35.md`` §4.2.
     """
 
     def __init__(
@@ -994,6 +1018,7 @@ class HeuristicMCTS:
         tie_break_q_tactical_only: bool = False,
         vcf_root: bool = False,
         vcf_filtered_search: bool = False,
+        vcf_root_search_first: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
             leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
@@ -1037,6 +1062,7 @@ class HeuristicMCTS:
         # subclasses (ValueMCTS) that inherit _run_one always have
         # the attribute.
         self._root_pool: frozenset[int] | None = None
+        self.vcf_root_search_first = vcf_root_search_first
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -1085,14 +1111,15 @@ class HeuristicMCTS:
         self, board: np.ndarray, player: int
     ) -> int | None:
         """Step 1 of the VCF-at-root check (v29, batch 9 H3),
-        factored out for reuse by v33's filtered search (which
-        keeps the offensive step unchanged): among our
-        four-creating moves, the highest-v1-prior one that starts
-        a forced win (``evaluate.starts_forced_win``, depth 3),
-        ties by lowest flat move index — or None. Tests in
-        selection order and returns the FIRST VCF start, which is
-        exactly the pre-registered selection rule (identical to
-        testing all and taking the max)."""
+        factored out for reuse by v33's filtered search and v35's
+        search-first defensive (both keep the offensive step
+        unchanged): among our four-creating moves, the
+        highest-v1-prior one that starts a forced win
+        (``evaluate.starts_forced_win``, depth 3), ties by lowest
+        flat move index — or None. Tests in selection order and
+        returns the FIRST VCF start, which is exactly the
+        pre-registered selection rule (identical to testing all
+        and taking the max)."""
         ours = evaluate.four_creating_moves(board, player)
         if ours:
             priors = _priors(board, player, self.prior_floor)
@@ -1168,6 +1195,63 @@ class HeuristicMCTS:
             self._root_pool = None
         return self._choose_root_child(root, board, player)
 
+    def _vcf_defensive_move(
+        self, board: np.ndarray, player: int
+    ) -> int | None:
+        """Defensive VCF step (v29): the highest-prior prevention
+        when the opponent holds a VCF start, or None (no threat,
+        or no prevention exists)."""
+        opp = evaluate.four_creating_moves(board, -player)
+        opp_vcf = [
+            m
+            for m in opp
+            if evaluate.starts_forced_win(board, -player, m, depth=3)
+        ]
+        if not opp_vcf:
+            return None
+        priors = _priors(board, player, self.prior_floor)
+        cands = sorted(
+            scoring._candidate_moves(board),
+            key=lambda m: (-priors.get(m, 0.0), m),
+        )
+        # Test only the opponent's ORIGINAL four-creators (subset
+        # property, see _vcf_root_move's docstring), VCF starts
+        # first.
+        vcf_set = set(opp_vcf)
+        ordered = opp_vcf + [m for m in opp if m not in vcf_set]
+        for c in cands:
+            b2 = game.apply_move(board, c, player)
+            if not any(
+                evaluate.starts_forced_win(b2, -player, m, depth=3)
+                for m in ordered
+            ):
+                return c
+        return None
+
+    def _leaves_opp_vcf(
+        self, board: np.ndarray, player: int, move: int
+    ) -> bool:
+        """True if the opponent still holds a VCF start AFTER
+        ``move`` — i.e. ``move`` is NOT a prevention. False when
+        the opponent holds no VCF start on the current board (our
+        move cannot create one — monotonicity) or when ``move``
+        removes them all. Only the opponent's ORIGINAL VCF starts
+        need re-testing on the resulting board (a non-VCF-start
+        cannot become one by adding our stone)."""
+        opp = evaluate.four_creating_moves(board, -player)
+        opp_vcf = [
+            m
+            for m in opp
+            if evaluate.starts_forced_win(board, -player, m, depth=3)
+        ]
+        if not opp_vcf:
+            return False
+        b2 = game.apply_move(board, move, player)
+        return any(
+            evaluate.starts_forced_win(b2, -player, m, depth=3)
+            for m in opp_vcf
+        )
+
     def _vcf_root_move(
         self, board: np.ndarray, player: int
     ) -> int | None:
@@ -1223,40 +1307,12 @@ class HeuristicMCTS:
         many moves are tested and in what order, never which move
         is selected.
         """
-        # 1. Offensive VCF — factored out (see
-        # _vcf_offensive_move); v29's step 1 unchanged.
-        offensive = self._vcf_offensive_move(board, player)
-        if offensive is not None:
-            return offensive
-        # 2. Defensive VCF prevention — only when the opponent
-        # holds a VCF start on the current board (the gate that
-        # keeps this cheap in quiet positions: the per-candidate
-        # loop below runs only under a live VCF threat).
-        opp = evaluate.four_creating_moves(board, -player)
-        opp_vcf = [
-            m
-            for m in opp
-            if evaluate.starts_forced_win(board, -player, m, depth=3)
-        ]
-        if not opp_vcf:
-            return None
-        priors = _priors(board, player, self.prior_floor)
-        cands = sorted(
-            scoring._candidate_moves(board),
-            key=lambda m: (-priors.get(m, 0.0), m),
-        )
-        # Test only the opponent's ORIGINAL four-creators (subset
-        # property, see the docstring), VCF starts first.
-        vcf_set = set(opp_vcf)
-        ordered = opp_vcf + [m for m in opp if m not in vcf_set]
-        for c in cands:
-            b2 = game.apply_move(board, c, player)
-            if not any(
-                evaluate.starts_forced_win(b2, -player, m, depth=3)
-                for m in ordered
-            ):
-                return c
-        return None
+        # Both steps factored out (see _vcf_offensive_move /
+        # _vcf_defensive_move); v29's selection unchanged.
+        off = self._vcf_offensive_move(board, player)
+        if off is not None:
+            return off
+        return self._vcf_defensive_move(board, player)
 
     def choose_move(self, board: np.ndarray, player: int) -> int:
         # Immediate win (any winning move wins).
@@ -1288,14 +1344,30 @@ class HeuristicMCTS:
                     return pool[0]
                 return self._search_restricted(board, player, pool)
         # VCF-at-root (v29): forced wins the 100-sim search misses.
-        if self.vcf_root:
+        # Search-first (v35): only the OFFENSIVE step short-circuits
+        # here; the defensive step runs after the search below and
+        # overrides only a non-prevention (see _leaves_opp_vcf).
+        if self.vcf_root and not self.vcf_root_search_first:
             vcf_move = self._vcf_root_move(board, player)
             if vcf_move is not None:
                 return vcf_move
+        if self.vcf_root and self.vcf_root_search_first:
+            off = self._vcf_offensive_move(board, player)
+            if off is not None:
+                return off
         root = _Node(1.0)
         for _ in range(self.sims):
             self._run_one(root, board, player, None)
-        return self._choose_root_child(root, board, player)
+        search_move = self._choose_root_child(root, board, player)
+        if (
+            self.vcf_root
+            and self.vcf_root_search_first
+            and self._leaves_opp_vcf(board, player, search_move)
+        ):
+            def_move = self._vcf_defensive_move(board, player)
+            if def_move is not None:
+                return def_move
+        return search_move
 
     def _rng_or_first(self, moves: list[int]) -> int:
         """Break a final tie: the seeded RNG's choice, or the first
