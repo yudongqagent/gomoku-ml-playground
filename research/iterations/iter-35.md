@@ -937,7 +937,39 @@ The battery is the verdict.
 
 ## 5. Battery
 
-TODO.
+### 5.0 Seed-replay audit (coordinator note, 2026-11-18)
+
+`selfplay_batch.py` creates the engines once per run with fixed
+seeds, so on auto-resume their RNG streams restart (the driver
+itself prints "RNG restarts"). H2 (v34) found their vs-v27 leg
+replayed games 0–33 exactly as games 66–99 (63 unique games,
+not 100). Per the coordinator's instruction the battery scheme
+is NOT changed mid-run and completed legs are NOT re-run; each
+leg is audited for uniqueness (distinct games by move sequence)
+and BOTH the nominal numbers (the official battery result) and
+the de-duplicated cut are reported.
+
+**Why a resume does or does not duplicate:** the engines'
+RNGs are per-engine (seed-a / seed-b), and colours alternate
+by game number. A resume at an ODD game replays earlier
+games with SWAPPED colours (engine-a is White where it was
+Black), so the RNG draws land on different colours and the
+games diverge (verified: my vs-v27 games 0 vs 3 diverge at
+ply 2). A resume at an EVEN game replays with the SAME
+colours — exact duplicates (H2's case: resume at 66).
+
+**vs-v27 leg resume history:** Run 1 games 0–2; Run 2
+resumed from game 3 (odd — safe); Run 3 resumed from game
+62 (even — games 62–99 are EXPECTED to duplicate games
+0–37). Audit at 62 games: **62/62 unique** (0 duplicates).
+Final audit when the leg completes (expected ~62 unique
+of 100). The de-duplicated cut (62 games) is the honest
+strength estimate for clause 1; the nominal 100-game
+numbers are the official battery result.
+
+### 5.1 Legs
+
+TODO (numbers when each leg completes).
 
 ## 6. Bar check
 
