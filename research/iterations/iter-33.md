@@ -298,7 +298,38 @@ Targeted run (v33 + vcf + v29 + v18 selection): 20 passed.
 
 ## 3. Cost guard
 
-TODO.
+`bench_vcf_root.py --engine v33` (new mode, §2): 100 quiet v7
+self-play positions (seed 777 — the SAME set as v29's bench).
+**Offensive fires 6/100; gate open 29/100; filter engaged
+(non-empty pool) 23/100. Median 89.4ms, p90 9.72s, max 48.6s,
+mean 2.73s.**
+
+Comparison with v29's bench on the same set (fired 29/100,
+median 90.5ms, p90 2.94s, max 36.4s, mean 1.65s): the gate opens
+on exactly the same 29 positions (the gate is unchanged); of
+those, 23 have a non-empty pool and 6 have an empty pool (the
+full scan is paid, then the unrestricted search runs). The mean
+check overhead is 1.65x v29's (2.73s vs 1.65s), the p90 3.3x
+(9.7s vs 2.9s) — the full-pool scan has no first-success early
+exit, and the tail is heavier. The median is unchanged (89ms):
+gate-closed positions dominate it. Two further costs vs v29 are
+NOT in this bench: v29 SKIPS the search when the check fires
+(29% of positions), while v33 runs the search after the filter
+engages (23%) and after an empty pool (6%) — v33 pays check AND
+search on most gate-open moves. The fast loop (§4) measures the
+real in-game cost; the battery legs will run slower than v29's
+(~1.5–2x projected) and the drivers auto-resume, so a slow
+battery is survivable.
+
+**No cost optimisation was made.** An exact optimisation of the
+shared `four_creating_moves` (a four-creator must sit in a
+5-window with ≥3 attacker stones) was considered and REJECTED:
+it would change shared `evaluate.py` code (used by v29/v32 and
+the tactical suite) for a cost problem the pre-registration says
+to report, not act on (§1.3), and v29's battery was feasible at
+~5.5h — v33's at ~1.5–2x that is feasible too, just long. If the
+fast loop shows a far worse in-game cost than projected, that is
+a finding to report to the coordinator, not a silent redesign.
 
 ## 4. Fast loop
 
