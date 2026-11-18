@@ -296,17 +296,17 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 12/22 complete at this writing;
-g62's ply-16 finding is established from its in-progress
-workup log, JSON pending)
+### 2.1 Workups (running — 13/22 complete at this writing)
 
 **Runtime interruption (recorded, no workups lost).** The VM
 was replaced mid-chain (uptime reset; the chain died during
 game 62's workup, after its ply-16 alternatives had printed
 but before the JSON was written). The chain was relaunched
 with the same script, which skips completed JSONs and
-resumed at g62. The g62 ply-16 finding above is from the
-first run's log; the resumed workup re-verifies it.
+resumed at g62. The resumed workup reproduced ply 16
+exactly ((3,5) saves [1,1,-1]) and found a second save
+there, (4,4) [1,1,-1], which the first run had not reached
+before the kill.
 
 Same-engine playout oracle (`workup_loss.py`, v27 vs v7 / v27
 vs v0, seeds 0/1/2, last 4 turns, top-5 + 400-sim + VCF
@@ -329,7 +329,7 @@ values (`~/workspace/b10h3-logs/scripts/diag_rollout.py`), and exact threat anal
 | 44 (vs v7) | B | 48 | ply 40 (12,10) | (10,13) 1W+2D, (9,12) 2W+1L, (11,10) 3W | **clean VCF-prevention (VCF 1→0)** |
 | 45 (vs v7) | W | 23 | none in window | — | horizon loss |
 | 56 (vs v7) | B | 62 | none in window | — | horizon loss |
-| 62 (vs v7) | B | 24 | ply 16 (4,5) | (3,5) 2W+1L | none (loser, save, and other loser all 0/0/0) |
+| 62 (vs v7) | B | 24 | ply 16 (4,5) | (3,5) 2W+1L, (4,4) 2W+1L | none (loser, saves, and other loser all 0/0/0) |
 | 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
 
 **Game 4, ply 44 (Black to move) — missed VCF prevention.**
