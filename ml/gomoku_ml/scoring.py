@@ -447,7 +447,11 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # ``_rollout2_leaf_value``: the rollout-leaf value 2 plies
     # ahead under the teacher's own rollout policy, a 4-ply-horizon
     # value vs v24's 2-ply) and the swept α (``value_weight`` —
-    # placeholder 1.0 until the §1.3 sweep sets it). Search,
+    # 0.25, the α-sweep winner at 0.75 vs v8 over 20 games; the
+    # 2-ply labels are hotter than v24's, mean|v| ~0.20 vs ~0.06,
+    # so the smaller shrink wins — and the α effect is almost
+    # entirely a White effect: White goes 0.80 → 0.45 → 0.20 as α
+    # goes 0.25 → 0.5 → 1.0, while Black stays 0.70–0.80). Search,
     # priors, sims, threat check, terminal cases: v8 unchanged, so
     # the battery is a clean A/B of the deeper-teacher net — and,
     # against v24's numbers, of 2-ply vs 1-ply labels on identical
@@ -455,7 +459,7 @@ ENGINE_VERSIONS: dict[int, dict] = {
     37: {"name": "scoring-v37", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml3-h2/value-net.pt",
-         "value_weight": 1.0},
+         "value_weight": 0.25},
 }
 
 # --- weights --------------------------------------------------------------

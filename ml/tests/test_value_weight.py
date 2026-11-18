@@ -61,19 +61,19 @@ def test_value_weight_scales_quiet_leaf(tmp_path):
 
 
 def test_value_weight_registry_passthrough(tmp_path):
-    # v37's registry entry carries value_weight 1.0 (placeholder
-    # until the α sweep); a player built from the registry must
-    # carry it. The checkpoint does not exist yet in a fresh
-    # worktree, so point the registry at the temp checkpoint.
+    # v37's registry entry carries value_weight 0.25 (the α-sweep
+    # winner); a player built from the registry must carry it. The
+    # checkpoint does not exist yet in a fresh worktree, so point
+    # the registry at the temp checkpoint.
     ckpt = _random_net_checkpoint(tmp_path)
     entry = scoring.ENGINE_VERSIONS[37]
     assert entry["value_checkpoint"] == "ml/runs/ml3-h2/value-net.pt"
-    assert entry["value_weight"] == 1.0
+    assert entry["value_weight"] == 0.25
     saved = entry["value_checkpoint"]
     try:
         entry["value_checkpoint"] = ckpt
         player = scoring.get_player(37, seed=0)
-        assert player._mcts.value_weight == 1.0
+        assert player._mcts.value_weight == 0.25
     finally:
         entry["value_checkpoint"] = saved
 

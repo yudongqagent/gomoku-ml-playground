@@ -568,7 +568,44 @@ from their different label depths.
 
 ## 5. α sweep and fast loops
 
-TODO — sweep results, registry α update, fast loops.
+**Leaf cost (2026-11-18, `ml/runs/ml3-h2/leaf-bench.txt`):**
+`bench_value_leaf.py --checkpoint ml/runs/ml3-h2/value-net.pt
+--positions 20 --leaf-samples 200 --sims 100`: per-move at 100
+sims mean 2,155 ms / median 2,137 ms / p95 2,924 ms; net leaf
+evals per move mean 80.2 (15–99). v37 runs at v24's speed (mean
+2,233 ms) — the same 16ch net — so battery games run ~2–4 min
+each under contention; the four 100-game matches are the long
+pole of this workstream.
+
+**α sweep — COMPLETE 2026-11-18 ~07:58 PST** (20 games each vs
+v8, seeds 1001/2001; per-alpha JSONs
+`research/iterations/alpha-v37-<α>-vs-v8.json`). No
+interruptions. Clause-4 early check ran concurrently: ml pytest
+**428 passed, 1 skipped, 58 xfailed, 0 failed** (19:50 wall;
+log `ml/runs/ml3-h2/pytest-full.log`); npm test 55/55 and tsc
+clean were verified earlier (§0).
+
+| α | W-L-D | Win rate | 95% CI | As Black | As White |
+|---|---|---|---|---|---|
+| **0.25** | **15-5-0** | **0.750** | **[0.5313, 0.8881]** | 7-3-0 | 8-2-0 |
+| 0.5 | 11-7-2 | 0.600 | [0.3866, 0.7812] | 7-2-1 | 4-5-1 |
+| 1.0 | 10-10-0 | 0.500 | [0.2993, 0.7007] | 8-2-0 | 2-8-0 |
+
+**Winner: α = 0.25** — registry `value_weight` set to 0.25.
+Monotone decreasing in α, as the §1.4 prediction (hotter labels
+→ smaller α) said. The α effect is almost entirely a WHITE
+effect: Black is 0.70–0.80 at every α, while White collapses
+0.80 → 0.45 → 0.20 as α rises — at full weight the net's hot
+values destroy White's defence (the optimizer's curse hits the
+defending side hardest). At α=0.25 White is 8-2, the strongest
+White sweep split in the program — but 10 games per colour is a
+small sample, and v24 (0.65) and v31 (0.70) both flattered in
+sweeps before the battery said otherwise. The §1.4 no-signal
+rule does not apply (0.25 vs 0.5 differ by 4 wins). The sweep
+selects α but proves nothing — the 100-game battery is the
+verdict.
+
+TODO — fast loops.
 
 ## 6. Validation battery
 
