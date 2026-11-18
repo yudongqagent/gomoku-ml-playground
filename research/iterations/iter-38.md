@@ -704,7 +704,31 @@ proceeds on the final v38 (α=0.5).
 
 ## 6. Validation battery
 
-TODO — clauses 1–4 + secondaries.
+Final v38: multi-task net (epoch 14, md5
+`7c3fade60d87a85037cf81cd4bdebd10`), α=0.5. Validation seeds
+100/200; swap placement_seed 11.
+
+### 6.3 Tactical (clause 3) — FAIL
+
+`eval_tactical_full.py --version 38 --suite both --seed 100`
+(2026-11-18): **old 20/20 ✓, hard 27/29 ✗** (clause 3
+requires 20/20 + 29/29). Both failures are setup positions —
+the exact quiet-setup class the hypothesis targeted:
+
+- `setup-v1v0s-g92`: chose (5,4), expected (9,6) — as
+  predicted by the §5.0 g92 check.
+- `setup-v2v1s-g94`: chose (8,11), expected (7,8) — a second
+  setup failure v24 and v31 did not have.
+
+v38 is 27/29 — worse than v24 (29/29) and v31 (28/29).
+Multi-task training did not merely fail to fix the setup
+failure; it added a second one. All 16 prevention positions
+pass, both VCF races pass, both quiet-setup "winning"
+positions pass — the failure is specific to SETTING UP an
+open four (playing the quiet move that creates the threat),
+not to taking wins, blocking, or preventing.
+
+TODO — clauses 1, 2, 4 + secondaries.
 
 ## 7. Verdict
 
