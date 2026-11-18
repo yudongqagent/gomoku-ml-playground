@@ -296,7 +296,7 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 3/22 complete at this writing)
+### 2.1 Workups (running — 5/22 complete at this writing)
 
 Same-engine playout oracle (`workup_loss.py`, v27 vs v7 / v27
 vs v0, seeds 0/1/2, last 4 turns, top-5 + 400-sim + VCF
@@ -311,6 +311,7 @@ values (`/tmp/diag_rollout.py`), and exact threat analysis
 | 4 (vs v7) | B | 50 | ply 44 (3,5) | (13,7) 3/3, (14,7) 2D+1W | **clean VCF-prevention (VCF 3→0)** |
 | 7 (vs v7) | W | 31 | none in window | — | horizon loss |
 | 10 (vs v7) | B | 52 | ply 44 (7,10) | (3,6) 1W+1D+1L | **clean VCF-prevention (VCF 1→0, creators 0, setups 0)** |
+| 15 (vs v7) | W | 23 | none in window | — | horizon loss |
 | 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
 
 **Game 4, ply 44 (Black to move) — missed VCF prevention.**
@@ -362,6 +363,10 @@ reproduce the save here: `_vcf_root_move` returns (3,6)
 below it by prior). **VCF-prevention mechanism: 2 verified
 instances, both reproduced by the VCF check.**
 
+**Game 15 (White, 23 plies) — horizon loss.** No saving move
+at any of the last 4 White turns (3 qualifying turns, 0
+saves). Class 3 (2nd horizon loss).
+
 **Game 77, ply 13 (White to move) — search-horizon value
 error, no exact signature.** The actual (7,6) loses 2/3;
 (7,4) and (8,7) win 3/3, (7,5) wins 2/3. The root is flat
@@ -379,7 +384,7 @@ the loser on every count. The 400-sim deeper-search proposal
 (7,9) loses 3/3 — deeper search does not find the save.
 Class 7 (search-horizon value error), no patchable signature.
 
-**Running tally: VCF-prevention 2, horizon 1, search-horizon
+**Running tally: VCF-prevention 2, horizon 2, search-horizon
 (no signature) 1.** The patch rule needs ≥3 verified
 instances of ONE mechanism — one more VCF-prevention
 instance triggers it.
