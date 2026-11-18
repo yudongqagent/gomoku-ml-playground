@@ -438,6 +438,28 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v33 (iteration 33, batch 10): H1 — v29 with the defensive
+    # VCF step REPLACED by VCF-filtered search (see
+    # gomoku_ml.mcts_heuristic _vcf_prevention_pool /
+    # _search_restricted and research/iterations/iter-33.md).
+    # v29's verified flaw (iter-29 §3.4): its defensive check
+    # picks preventions by v1 prior, and preventions are
+    # near-tied on prior by construction (3e-6 gaps between
+    # preventions with opposite outcomes — the check's move lost
+    # 3/3 while the search's won 3/3). v33 keeps v29's offensive
+    # VCF step unchanged and, when the opponent holds a VCF start,
+    # computes the FULL prevention pool and runs the normal
+    # 100-sim MCTS with the root restricted to the pool (priors
+    # renormalised over the pool), letting the rollout-leaf search
+    # choose among preventions by visits. Pool of 1 plays
+    # directly; empty pool falls through to the unrestricted
+    # search. NOTE: v33 sets vcf_filtered_search ONLY — NOT
+    # vcf_root (the flags are mutually exclusive; the filtered
+    # path subsumes the offensive step). Versions 30-32 are ML
+    # batch 2's, 34-35 the parallel batch-10 workstreams'.
+    33: {"name": "scoring-v33", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "vcf_filtered_search": True},
     # v34 (iteration 34, batch 10): H2 — v27 + a TACTICAL GATE on
     # the q-gap tie-break (see gomoku_ml.mcts_heuristic
     # ``tie_break_q_tactical_only`` and research/iterations/
@@ -1125,6 +1147,9 @@ class ScoringPlayer:
                         "root_decision", "visits"
                     ),
                     vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
+                    vcf_filtered_search=ENGINE_VERSIONS[version].get(
+                        "vcf_filtered_search", False
+                    ),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(

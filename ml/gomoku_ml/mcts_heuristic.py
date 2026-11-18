@@ -968,6 +968,17 @@ class HeuristicMCTS:
     start is played immediately, and a defensive VCF prevention
     is played when the opponent holds a VCF start. False (the
     default) is v18 behaviour exactly.
+    ``vcf_filtered_search`` (v33, batch 10 H1) enables VCF-filtered
+    search (:meth:`_vcf_prevention_pool` + :meth:`_search_restricted`):
+    the offensive VCF step is v29's unchanged, but the defensive
+    step does NOT pick a prevention by prior — it computes the FULL
+    prevention pool and runs the normal 100-sim MCTS with the root
+    restricted to the pool (priors renormalised over the pool),
+    letting the search choose among preventions by visits. Pool of
+    1 plays directly; empty pool falls through to the unrestricted
+    search. Mutually exclusive with ``vcf_root`` (the two defensive
+    rules conflict); setting both raises ValueError. See
+    ``research/iterations/iter-33.md`` §1.1.
     """
 
     def __init__(
@@ -982,6 +993,7 @@ class HeuristicMCTS:
         tie_break_q_threshold: float = 0.0,
         tie_break_q_tactical_only: bool = False,
         vcf_root: bool = False,
+        vcf_filtered_search: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
             leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
@@ -999,6 +1011,11 @@ class HeuristicMCTS:
                 f"unknown root_decision: {root_decision!r} "
                 f"(known: {list(_ROOT_DECISIONS)})"
             )
+        if vcf_root and vcf_filtered_search:
+            raise ValueError(
+                "vcf_root and vcf_filtered_search are mutually "
+                "exclusive (conflicting defensive rules)"
+            )
         self.sims = sims
         self.c_puct = c_puct
         self.rng = rng
@@ -1009,6 +1026,17 @@ class HeuristicMCTS:
         self.tie_break_q_threshold = tie_break_q_threshold
         self.tie_break_q_tactical_only = tie_break_q_tactical_only
         self.vcf_root = vcf_root
+        self.vcf_filtered_search = vcf_filtered_search
+        # Root-pool restriction for VCF-filtered search (v33): when
+        # set (a frozenset of flat moves), the ROOT expansion in
+        # _run_one keeps only those children, priors renormalised
+        # over the pool. Set by _search_restricted for the duration
+        # of one search and cleared in a finally block; None means
+        # unrestricted (every other version, and v33 outside the
+        # filtered search). Initialised here (not lazily) so
+        # subclasses (ValueMCTS) that inherit _run_one always have
+        # the attribute.
+        self._root_pool: frozenset[int] | None = None
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -1052,6 +1080,93 @@ class HeuristicMCTS:
         dispatch changed (v16 gates on ``_root_player``, v18 does
         not). v18-as-White IS v16 exactly."""
         return _rollout_leaf_value(board, player)
+
+    def _vcf_offensive_move(
+        self, board: np.ndarray, player: int
+    ) -> int | None:
+        """Step 1 of the VCF-at-root check (v29, batch 9 H3),
+        factored out for reuse by v33's filtered search (which
+        keeps the offensive step unchanged): among our
+        four-creating moves, the highest-v1-prior one that starts
+        a forced win (``evaluate.starts_forced_win``, depth 3),
+        ties by lowest flat move index — or None. Tests in
+        selection order and returns the FIRST VCF start, which is
+        exactly the pre-registered selection rule (identical to
+        testing all and taking the max)."""
+        ours = evaluate.four_creating_moves(board, player)
+        if ours:
+            priors = _priors(board, player, self.prior_floor)
+            ours.sort(key=lambda m: (-priors.get(m, 0.0), m))
+            for m in ours:
+                if evaluate.starts_forced_win(board, player, m, depth=3):
+                    return m
+        return None
+
+    def _vcf_prevention_pool(
+        self, board: np.ndarray, player: int
+    ) -> list[int] | None:
+        """The FULL VCF-prevention pool (v33, batch 10 H1 — see
+        ``research/iterations/iter-33.md`` §1.1). Returns None
+        when the opponent holds NO VCF start on the current board
+        (the gate is closed — the same gate as v29's defensive
+        step, so quiet positions pay only the gate check);
+        otherwise the list of candidate moves (in prior-desc,
+        flat-index-asc order) after which the opponent has NO
+        VCF-starting move — possibly empty, when no prevention
+        exists. The definition is EXACTLY v29's step 2, with the
+        same subset + ordering optimisations (test only the
+        opponent's ORIGINAL four-creators — our move can only
+        remove them — VCF starts first, so ``any`` short-circuits
+        on the first surviving VCF start for non-preventions),
+        but WITHOUT v29's first-success early exit: the search
+        needs the whole pool. The board is not mutated."""
+        opp = evaluate.four_creating_moves(board, -player)
+        opp_vcf = [
+            m
+            for m in opp
+            if evaluate.starts_forced_win(board, -player, m, depth=3)
+        ]
+        if not opp_vcf:
+            return None
+        priors = _priors(board, player, self.prior_floor)
+        cands = sorted(
+            scoring._candidate_moves(board),
+            key=lambda m: (-priors.get(m, 0.0), m),
+        )
+        vcf_set = set(opp_vcf)
+        ordered = opp_vcf + [m for m in opp if m not in vcf_set]
+        pool: list[int] = []
+        for c in cands:
+            b2 = game.apply_move(board, c, player)
+            if not any(
+                evaluate.starts_forced_win(b2, -player, m, depth=3)
+                for m in ordered
+            ):
+                pool.append(c)
+        return pool
+
+    def _search_restricted(
+        self, board: np.ndarray, player: int, pool: list[int]
+    ) -> int:
+        """Run the normal MCTS with the root restricted to ``pool``
+        (v33, batch 10 H1): root children = pool moves only, priors
+        renormalised over the pool (applied in :meth:`_run_one`'s
+        root expansion via ``self._root_pool``), ``self.sims``
+        simulations, most-visited root choice by this instance's
+        root-decision rule (``"visits"`` for v33 — v29/v18's rule).
+        All deeper nodes expand normally over all candidates. The
+        pool restriction is cleared in a finally block so a reused
+        instance never leaks it into the next move. Callers
+        guarantee ``len(pool) >= 2`` (a 1-move pool plays directly
+        — identical to what a 1-child search would pick)."""
+        root = _Node(1.0)
+        self._root_pool = frozenset(pool)
+        try:
+            for _ in range(self.sims):
+                self._run_one(root, board, player, None)
+        finally:
+            self._root_pool = None
+        return self._choose_root_child(root, board, player)
 
     def _vcf_root_move(
         self, board: np.ndarray, player: int
@@ -1108,15 +1223,11 @@ class HeuristicMCTS:
         many moves are tested and in what order, never which move
         is selected.
         """
-        # 1. Offensive VCF — test in selection order, first VCF
-        # start wins (identical to testing all and taking the max).
-        ours = evaluate.four_creating_moves(board, player)
-        if ours:
-            priors = _priors(board, player, self.prior_floor)
-            ours.sort(key=lambda m: (-priors.get(m, 0.0), m))
-            for m in ours:
-                if evaluate.starts_forced_win(board, player, m, depth=3):
-                    return m
+        # 1. Offensive VCF — factored out (see
+        # _vcf_offensive_move); v29's step 1 unchanged.
+        offensive = self._vcf_offensive_move(board, player)
+        if offensive is not None:
+            return offensive
         # 2. Defensive VCF prevention — only when the opponent
         # holds a VCF start on the current board (the gate that
         # keeps this cheap in quiet positions: the per-candidate
@@ -1162,6 +1273,20 @@ class HeuristicMCTS:
             return -1
         if len(cands) == 1:
             return cands[0]
+        # VCF-filtered search (v33): offensive VCF played
+        # immediately (v29's step 1, unchanged); a defensive
+        # prevention pool is SEARCHED, not prior-picked. Pool of
+        # 1 plays directly (identical to a 1-child search); empty
+        # pool or closed gate falls through to the search below.
+        if self.vcf_filtered_search:
+            offensive = self._vcf_offensive_move(board, player)
+            if offensive is not None:
+                return offensive
+            pool = self._vcf_prevention_pool(board, player)
+            if pool:
+                if len(pool) == 1:
+                    return pool[0]
+                return self._search_restricted(board, player, pool)
         # VCF-at-root (v29): forced wins the 100-sim search misses.
         if self.vcf_root:
             vcf_move = self._vcf_root_move(board, player)
@@ -1553,6 +1678,21 @@ class HeuristicMCTS:
         # Expansion: first visit — compute priors, evaluate the leaf.
         if node.children is None:
             priors = _priors(board, player, self.prior_floor)
+            if last_move is None and self._root_pool is not None:
+                # Restricted root (v33, VCF-filtered search): the
+                # root's children are the prevention pool only,
+                # priors renormalised over the pool (a proper prior
+                # distribution over the restricted action set).
+                # Only the root call has last_move None; deeper
+                # nodes always expand over all candidates.
+                total = sum(
+                    p for m, p in priors.items() if m in self._root_pool
+                )
+                priors = {
+                    m: p / total
+                    for m, p in priors.items()
+                    if m in self._root_pool
+                }
             node.children = {m: _Node(p) for m, p in priors.items()}
             if last_move is None:  # root: no leaf value
                 # Record the root player (the engine's colour for
