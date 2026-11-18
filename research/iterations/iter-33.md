@@ -513,8 +513,173 @@ the battery as designed.
 
 ## 5. Battery
 
-TODO.
+Battery run 2026-11-17 19:05 PST – 2026-11-18 03:58 PST via
+`~/workspace/b10h1-logs/run-battery.sh` (5 driver runs — the
+battery was interrupted 4× by SIGTERM / runtime restarts; the
+auto-resume drivers saved every game: vs v27 resumed from game
+35 then 75, swap resumed from game 11; vs v0 and the ladder ran
+uninterrupted). All numbers below are recomputed from the raw
+per-game records (`recompute.py` — stored summaries verified to
+match) and cross-checked by the uniqueness audit (§5.1).
+
+| Leg | Result | Win rate | 95% CI | Distinct lines |
+|---|---|---|---|---|
+| vs v27 (clause 1) | 49W-39L-12D | 0.5500 | [0.4524, 0.6439] | 71/100 |
+| ladder (clause 2) | Elo 511.5 | [203.9, 819.1] | random 20-0, heuristic 19-1, MCTS 19-1 | — |
+| tactical (clause 3) | 20/20 old + 29/29 hard | | | |
+| vs v0 (secondary) | 99W-0L-1D | 0.9950 | [0.9539, 0.9995] | 44/100 |
+| swap vs v27 (secondary) | 57W-39L-4D | 0.5900 | [0.4920, 0.6813] | 99/100 |
+
+**Clause 1: FAIL.** vs v27 0.5500, CI lower 0.4524 < 0.50.
+Per-colour: Black 31W-13L-6D (0.68), White 18W-26L-6D
+(0.42) — White is still the gap against the bar reference,
+as in every version before it.
+
+**Clause 2: FAIL.** Ladder Elo 511.5 < 636.4 — exactly v23's
+number. The gap is a single game: v33's heuristic leg is
+19W-1L-0D (one loss) where v27's was 19W-0L-1D (one draw);
+at 20 games/opponent a loss instead of a draw costs ~125
+Elo. v33 beats the ladder MCTS 19-1 (v18: 14-6; v27: not
+recorded separately in its row) — the MCTS leg is not the
+problem; the heuristic leg is.
+
+**Clause 3: PASS.** Tactical 20/20 old + 29/29 hard on the
+corrected suite (seed 100), artefact
+`research/iterations/tactical-v33.json`.
+
+**Clause 4: PASS.** ml pytest 406 passed / 7 skipped /
+58 xfailed / 0 failed (614s, optimised code); npm test
+55/55; `npx tsc --noEmit` clean; `baseline.py` diff vs
+master empty.
+
+**Secondary legs.** vs v0 0.9950 is the strongest vs-v0
+result since v12's perfect 100-0 (v27: 0.9650, v18: 0.97,
+v29: 0.6650) — and the §3.4 White weakness is gone: as
+White v33 is 50W-0L-0D vs v0 (v29: White 0.60). Swap vs
+v27 0.5900 (CI includes 0.50 — the swap edge is not
+established either); per-colour Black 31W-17L-1D (0.6429,
+n=49), White 26W-22L-3D (0.5392, n=51) — swap lifts White
+0.42 → 0.54, as designed.
+
+**Defence:** 78/78 battery losses via open four, 0 missed
+blocks, 0 clean missed preventions in 396 threatened
+turns. Defence stays solved.
+
+**Cost:** 100-game legs took 4888s (vs v27), 6157s (vs v0),
+6358s (swap) — the filter's pool scans make v33 ~2–3×
+slower than a check-free version; the §2.3 optimisation is
+what kept the battery feasible at all.
+
+### 5.1 Uniqueness audit (coordinator-directed battery hygiene)
+
+H2 (v34) found the resume seed-replay bug during batch 10:
+`selfplay_batch.py` creates engines once with fixed seeds,
+so on auto-resume their RNG streams restart and the resumed
+segment replays earlier games. The coordinator directed a
+uniqueness audit on every battery leg: distinct games by
+exact move sequence, nominal vs de-duplicated cut. The audit
+script is `~/workspace/b10h1-logs/audit-uniqueness.py`;
+results below (full log in
+`~/workspace/b10h1-logs/audit-v33-legs1-3.log`).
+
+| Leg | Nominal | Distinct | De-dup W/L/D | De-dup WR + CI |
+|---|---|---|---|---|
+| vs v27 | 100 | 71 | 38W-26L-7D | 0.5845 [0.4684, 0.6919] |
+| vs v0 | 100 | 44 | 43W-0L-1D | 0.9886 [0.9000, 0.9988] |
+| swap vs v27 | 100 | 99 | 57W-38L-4D | 0.5960 [0.4975, 0.6873] |
+| fast vs v27 | 10 | 8 | 4W-2L-2D | 0.6250 [0.3057, 0.8632] |
+| fast vs v0 | 10 | 9 | 8W-0L-1D | 0.9444 [0.6288, 0.9942] |
+
+**Clause 1 fails on BOTH cuts** (nominal CI lower 0.4524;
+de-dup CI lower 0.4684) — the verdict is unchanged by the
+audit. The swap edge is also not established on the de-dup
+cut (CI lower 0.4975, just under 0.50). The vs-v0 conclusion
+is unchanged (0.9886 de-dup, still near-perfect).
+
+**Mechanism** (verified by code inspection + the duplicate
+patterns) — the finding is BIGGER than the resume bug
+alone:
+
+1. The engines are near-deterministic: the RNG is consumed
+   ONLY on exact ties (`rng.choice` in `scoring.py` and
+   `mcts_heuristic.py::_rng_or_first`). RNG state is
+   effectively a small cumulative tie-count, and the search
+   itself is deterministic given the position.
+2. Same (colours, RNG-state) → identical game, and states
+   revisit often → **within-segment repeats with NO resume
+   at all**: vs v27 games 3 = 21 in the uninterrupted
+   original segment; vs v0 one White line repeats 16× and
+   White collapses to just 6 distinct lines in 50 games
+   (de-dup White 6W-0L-0D vs nominal 50W-0L-0D). The vs-v0
+   leg was never resumed (`resumed: false`) yet yields only
+   44 distinct games.
+3. A resume resets the RNG to the initial state →
+   guaranteed replays when colour parity aligns: vs v27
+   games 75–99 replay games 35–59 (all 25); first-resume
+   games 35/37/45 replay 5/3/3. The operative condition is
+   the PARITY OF THE GAP between segment starts (75−35 =
+   40, even), not the resume point itself — H2's even
+   resume point was the special case of a gap from 0.
+   (The fast loop vs v27's games 0=8, 1=9, noted in §4.2
+   as "duplicated exactly", were this bug: resume from
+   game 8, even.)
+4. **Varied starting positions break it**: the swap leg
+   (balanced placement, per-game openings) is 99/100
+   distinct despite a resume — the duplication needs
+   identical starts. The single swap duplicate (games 4,
+   16) is two games whose openings coincided with aligned
+   RNG states.
+
+**Implication for the program:** nominal "100 games"
+overstates the independent sample by up to 2.3× (44
+distinct vs v0). The effective N, not the nominal N, is
+what the CIs should reflect. Future batteries should (a)
+vary the starting position or per-game seed so the
+near-deterministic engines cannot replay, and/or (b)
+report the de-dup cut alongside the nominal — now standard
+battery hygiene per the coordinator. The ladder leg is not
+auditable (no move sequences are stored in
+`ladder-v33.json`) and was not resumed (`resumed: false`).
 
 ## 6. Verdict
 
-TODO.
+**REJECTED — 2 of 4 clauses pass** (tactical 20/20 + 29/29;
+all suites green). Clause 1 fails (vs v27 0.5500, CI lower
+0.4524 < 0.50; de-dup 0.5845, CI lower 0.4684 — fails both
+cuts) and clause 2 fails (ladder Elo 511.5 < 636.4). v27
+stays the bar reference; v18 stays the strength champion.
+No v18 challenge match — only bar-passers challenge, and
+v33 did not pass.
+
+**Interpretation.** The hypothesis is confirmed
+MECHANICALLY but not as a strength lever. The filter fixes
+v29's §3.4 flaw decisively: vs v0 0.665 → 0.995 (White
+50-0-0), the strongest vs-v0 result since v12's perfect
+100-0; the fast loop showed the winning prevention chosen
+5/5 times where v29's check lost. But against the bar
+reference it adds nothing measurable: vs v27 0.55 (CI
+includes 0.50), ladder Elo 511.5 (one heuristic-leg game
+from v27's 636.4). The fast-loop losses were horizon losses
+with no filter failure — against a strong opponent the
+games are decided elsewhere, and v27's threshold tie-break
+already captures the cheap tactical wins. Choosing
+preventions by search instead of prior is a real fix to a
+real flaw, but at this level the flaw only costs games
+against weak opponents. The defensive-check lever, in both
+its prior-pick (v29) and search-pick (v33) forms, is now
+priced: it fixes tactical prevention and crushes weak
+opponents, and does not move the needle against the bar.
+
+**What v33 leaves behind.** (1) The VCF-filtered-search
+implementation + `replay_vcf_filter.py` (filter-engagement
+verification on recorded matches, 0 mismatches across 95
+engagements in two legs). (2) The exact
+`four_creating_moves` optimisation (§2.3, 5.1× faster, 0
+mismatches on 2,896 calls) — a permanent program asset
+that made this battery feasible. (3) The uniqueness audit
++ mechanism (§5.1) — a program-level measurement finding:
+nominal game counts overstate the independent sample by up
+to 2.3×. (4) The §1.4 pool-contains-a-winner methodology
+(targeted playouts at pool members in losses), which
+caught the v32 caveat realised twice in the vs-v27 fast
+loop.
