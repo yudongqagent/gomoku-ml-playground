@@ -606,7 +606,6 @@ rule does not apply (0.25 vs 0.5 differ by 4 wins). The sweep
 selects α but proves nothing — the 100-game battery is the
 verdict.
 
-TODO — fast loops.
 
 **Fast loop iteration 1** (10 games each, seeds 1001/2001, α=0.25):
 - vs v8: **7W-3L-0D (0.70)**, CI [0.3968, 0.8922]. As Black 5-0
@@ -695,8 +694,6 @@ where the setup dominates. Note v8's raw net ALSO prefers (5,4)
 ranking was never the deciding level; the search-level behaviour
 is what the battery measures, and it is fixed.
 
-TODO — clause 1, ladder, secondaries, clause 4 re-run.
-
 ### 6.2 h2h vs v8 (clause 1) — COMPLETE 2026-11-18 ~11:35 PST — **CLAUSE 1 PASSES**
 
 `fast_loop_match.py --version-a 37 --opponent v8 --games 100
@@ -728,6 +725,25 @@ TODO — clause 1, ladder, secondaries, clause 4 re-run.
   (games 41–99: 37W-17L-5D, 0.6712) regressed toward the mean
   from the hot start, as expected — the final 0.75 is the
   pooled number, not the hot start.
+
+### 6.3 Secondary: vs v0 — COMPLETE 2026-11-18 ~12:45 PST
+
+`fast_loop_match.py --version-a 37 --opponent v0 --games 100
+--seed-a 100 --seed-b 200` (raw
+`research/iterations/batch-v37-vs-v0.json`):
+
+- **56W-39L-5D, 0.5850, CI [0.4870, 0.6767].** Beats the frozen
+  baseline outright (better than v8's 0.545, just below v24's
+  0.6000) — the fast loop's 0.35 did NOT reproduce at full
+  sample, though the leg started cold (0.4677 at game 31) and
+  recovered (games 31–99: 42W-23L-4D, 0.6377).
+- As Black 36W-13L-1D (0.7300); as White 20W-26L-4D (0.4400) —
+  White is still the weaker side vs v0 (as for v24: White
+  0.440), but not a collapse.
+- Uniqueness audit: **95 unique games of 100**; de-dup win rate
+  0.5737, CI [0.4733, 0.6684].
+- **VM replacement during the leg:** killed after game 30;
+  auto-resumed from game 31 (recorded in the JSON).
 
 ## 7. Verdict
 
