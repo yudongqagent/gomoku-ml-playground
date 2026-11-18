@@ -768,8 +768,27 @@ wins 53.1% of B1 games; the net learns "Black has threats →
 +1" and, as White, overvalues Black's threats and undervalues
 its own play).
 
-### 6.3 Ladder Elo (clause 2; TODO)
-### 6.4 Clause 4 re-run (TODO)
+### 6.3 Ladder Elo (clause 2) — COMPLETE 2026-11-17 ~16:09 PST — **CLAUSE 2 FAILS**
+
+`eval_version.py --version 31 --ladder-games 20` (raw
+`research/iterations/eval-v31.json`; the run finished minutes
+before a VM replacement — the ladder driver has no resume, so
+this was luck, not durability):
+
+- vs random: 20W-0L-0D (1.0000, CI [0.8389, 1.0000])
+- vs heuristic: 9W-10L-1D (0.4750, CI [0.2785, 0.6795])
+- vs mcts: 11W-9L-0D (0.5500, CI [0.3421, 0.7418]) — v31 beats
+  the ladder MCTS outright, as v24 did.
+- **Ladder Elo: estimate -17.4, interval [-165.3, 130.6]**
+  (anchors random=-800, heuristic=0). Below v8's 0.0; the
+  interval includes 0. v24's 52.5 remains the best ML ladder
+  Elo.
+
+### 6.4 Clause 4 re-run — COMPLETE 2026-11-17 ~16:13 PST — **CLAUSE 4 PASSES**
+
+On the final tree: ml pytest **406 passed, 1 skipped, 58
+xfailed, 0 failed**; npm test **55/55**; tsc clean. Identical
+to the early clause-4 check.
 ### 6.5 Secondary: vs v0, vs v7, swap vs v7
 
 **vs v0 — COMPLETE 2026-11-17 ~14:15 PST** (same seeds, raw
@@ -801,8 +820,65 @@ colours. Far below the heuristic versions' swap results (v23
 
 ### Battery verdicts
 
-TODO.
+| Clause | Requirement | v31 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v8 | ≥100 games, win rate > 0.50, Wilson 95% CI lower > 0.50 | 39W-59L-2D, 0.40, CI [0.3094, 0.4980] | **FAIL** |
+| 2. Ladder Elo | > 0.0 | -17.4, interval [-165.3, 130.6] | **FAIL** |
+| 3. Tactical | ≥ 20/20 + 29/29 | 20/20 + 28/29 (setup-v1v0s-g92) | **FAIL** |
+| 4. Test suites | ml pytest + npm test + tsc green | pytest 406/1/58, npm 55/55, tsc clean | **PASS** |
+
+Secondaries: vs v0 38W-50L-12D (0.44, CI [0.3467, 0.5377]);
+vs v7 47W-52L-1D (0.475, CI [0.3799, 0.5720]); swap vs v7
+28W-70L-2D (0.29, CI [0.2101, 0.3854]). Defence: 231/231
+battery losses via open four, 0 missed blocks, 0 clean missed
+preventions in 1,064 threatened turns.
 
 ## 7. Verdict
 
-TODO.
+**v31 is REJECTED — 1 of 4 clauses pass (only clause 4).** v8
+stays the ML champion; v24 stays the strongest ML version on
+ladder Elo (52.5) and the only ML version to tie v8 (0.515).
+
+What v31 establishes, with the evidence:
+
+1. **Bigger net + distilled labels ≠ better play.** The mixed
+   net beat v24 on holdout transfer (engine pooled 0.7929 vs
+   0.7766) and improved fast-loop play (vs v0 0.25 → 0.60),
+   yet scored 0.40 vs v8 at 100 games. Holdout sign accuracy
+   does not predict played strength at this scale.
+2. **The value head remains the binding constraint, confirmed
+   at 4x capacity.** The tactical failure (setup-v1v0s-g92)
+   is a value-head failure: the prior ranks the setup move
+   first, the net overrides it (q -0.377 vs +0.788 for the
+   wrong move), while v8's small net values the setup
+   correctly (+0.246). The distilled net overvalues immediate
+   threat patterns and undervalues quiet 2-ply setups — a
+   distillation-fidelity gap on quiet positions.
+3. **B1 data collapses White.** v31 (White 0.26 vs v8, 0.32
+   vs v0) mirrors v25 (White 0.15); v24 (engine-only data)
+   did not collapse as White. The Black-skewed-training-data
+   hypothesis (Black wins 53.1% of B1 games) now has two
+   supporting data points. Colour-balanced retraining (H1's
+   v30) is the direct test.
+4. **Dev seeds flatter; the battery decides.** Sweep and fast
+   loop both said 0.70 vs v8 at dev seeds; validation seeds
+   said 0.40. The 20-game sweep selects α; it proves nothing.
+5. **The mixed-data patch was real but insufficient.** It
+   fixed a verified search-breaking defect (B1-only net
+   saturation, raw +1.000 after every move) and improved every
+   holdout and fast-loop measure — but the residual (teacher
+   horizon, B1 label conflicts, White-side data skew) is
+   outside H2's design space.
+
+What changed because of a specific loss: the mixed-data patch
+itself — iter-1's vs-v0 game 7 ply 43 blunder (a live VCF the
+B1-only net could not see because it saturated at +1.000)
+motivated retraining on B1 + engine data, which fixed the
+saturation class in holdout and fast-loop play. Iter-2's one
+genuine blunder (vs-v0 g3 ply 23) was a shared-prior problem
+(the net's q was right; the v1 prior won on visits) — not
+patchable within H2's remit.
+
+Branch: `research/ml-batch-2-h2`. Checkpoint (mixed form):
+`ml/runs/ml2-h2/value-net.pt` (B1-only preserved at
+`value-net-b1only.pt`).
