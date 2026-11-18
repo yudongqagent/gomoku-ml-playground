@@ -83,7 +83,9 @@ multi-task net builds from the registry (ResNet 16ch/2 blocks +
 threat head, 141,263 params — v8's 126,586 + 14,677 for the
 threat head). Targeted tests green: threat (8), multitask (8),
 load_shards, architectures, config, mcts_value — 60 passed.
-npm test 55/55, tsc clean (full pytest running at commit time).
+npm test 55/55, tsc clean. Full pytest on the implementation
+tree: **434 passed, 1 skipped, 58 xfailed, 0 failed** (959s;
+log `ml/runs/ml3-h3/pytest-full-1.log`).
 
 ## 1. Design and pre-registration
 
