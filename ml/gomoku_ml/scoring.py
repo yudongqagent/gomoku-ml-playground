@@ -438,6 +438,24 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v37 (iteration 37, ML batch 3): H2 — v8's PUCT MCTS with the
+    # value net distilled from v18's rollout leaf with DEEPER (2-ply)
+    # labels (see research/iterations/iter-37.md). The ONLY
+    # differences from v8 are the checkpoint (trained on the SAME
+    # 37,227 quiet positions as v24 — v7/v18 self-play + random
+    # playouts, same game-level holdout — but labelled with
+    # ``_rollout2_leaf_value``: the rollout-leaf value 2 plies
+    # ahead under the teacher's own rollout policy, a 4-ply-horizon
+    # value vs v24's 2-ply) and the swept α (``value_weight`` —
+    # placeholder 1.0 until the §1.3 sweep sets it). Search,
+    # priors, sims, threat check, terminal cases: v8 unchanged, so
+    # the battery is a clean A/B of the deeper-teacher net — and,
+    # against v24's numbers, of 2-ply vs 1-ply labels on identical
+    # positions.
+    37: {"name": "scoring-v37", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml3-h2/value-net.pt",
+         "value_weight": 1.0},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1049,6 +1067,7 @@ class ScoringPlayer:
                     checkpoint_path=path,
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
                     rng=self.rng,
+                    value_weight=ENGINE_VERSIONS[version].get("value_weight"),
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.
