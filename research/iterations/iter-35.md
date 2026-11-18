@@ -296,7 +296,7 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 17/22 complete at this writing)
+### 2.1 Workups (running — 18/22 complete at this writing)
 
 **Runtime interruption (recorded, no workups lost).** The VM
 was replaced mid-chain (uptime reset; the chain died during
@@ -334,6 +334,7 @@ values (`~/workspace/b10h3-logs/scripts/diag_rollout.py`), and exact threat anal
 | 67 (vs v7) | W | 65 | none in window | — | horizon loss (by ply 57 Black holds 5 VCF starts; no prevention exists) |
 | 73 (vs v7) | W | 31 | ply 23 (3,8) | (8,5) 2W+1L | **clean VCF-prevention (VCF 1→0, setups 3→1)** |
 | 91 (vs v7) | W | 29 | ply 23 (5,5) | (8,5) 2W+1L | **clean VCF-prevention — SAME position as g73 ply 23 (transposition; see note)** |
+| 93 (vs v7) | W | 57 | ply 49 (8,5) | (5,4) 3W (400-sim proposal) | none (save leaves MORE setups, 6 vs 4) |
 | 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
 
 **Game 4, ply 44 (Black to move) — missed VCF prevention.**
@@ -536,6 +537,20 @@ rule is satisfied at the position level too (5 distinct
 positions ≥ 3). No other VCF-prevention positions collide
 (they sit at different plies, hence different stone counts).
 
+**Game 93, ply 49 (White to move) — search-horizon value
+error, no exact signature (3rd).** The actual (8,5) loses
+3/3; (5,4) SAVES [1, 1, 1] — and (5,4) is the 400-sim
+deeper-search proposal (the only save in the corpus found
+by deeper search rather than the 1-ply topk). The save
+leaves MORE setups than the loser (6 vs 4) and the loser
+(6,12) leaves 6 too — no exact signature. The root is
+flat (115 children, top 6 visits); the save holds 3
+visits with worse q (−0.033 vs −0.002), and the rollout
+leaf prefers the loser (+0.0199 vs −0.0133). The VCF check
+does not fire (Black holds 0 VCF starts) and v35 plays
+(8,5) like v27. The miss is depth, not evaluation — but
+more sims is CLOSED (v10) and this is one instance. Class 7.
+
 **Game 77, ply 13 (White to move) — search-horizon value
 error, no exact signature.** The actual (7,6) loses 2/3;
 (7,4) and (8,7) win 3/3, (7,5) wins 2/3. The root is flat
@@ -557,7 +572,7 @@ Class 7 (search-horizon value error), no patchable signature.
 distinct positions (check reproduces the save at 6
 game-instances / 5 distinct positions, picks the losing
 prevention at 1), horizon 8, search-horizon (no signature)
-2.** The patch rule (§1.1)
+3.** The patch rule (§1.1)
 is satisfied at 3 VCF-prevention instances with the patch
 reproducing all three saves (g4, g10, g21). The remaining
 workups complete the classification table.
