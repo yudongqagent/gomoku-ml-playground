@@ -1,19 +1,23 @@
 """Find the losing move in each fast-loop loss (v25, iteration 1).
 
-For every loss in the two iter-1 match files, replay the game and,
-after each v25 move, check whether the opponent forces a win
+For every loss in the given match files, replay the game and,
+after each version-A move, check whether the opponent forces a win
 (``evaluate.forces_win``, VCF solver, depth 4 attacker moves).
-The losing move is the first v25 move after which the opponent
+The losing move is the first version-A move after which the opponent
 forces a win AND some alternative reply avoids it (verified by
-enumerating v25's near-move replies at that ply). If no reply
+enumerating version-A's near-move replies at that ply). If no reply
 avoids it, the position was already lost — reported as such.
 
+Ported verbatim from ML batch 1 H2 (v25) except ``main()``, which
+takes the match files as arguments instead of hardcoding v25's.
+
 Usage:
-    python ml/scripts/find_losing_moves.py
+    python ml/scripts/find_losing_moves.py research/iterations/fast-v31-vs-v8-iter1.json research/iterations/fast-v31-vs-v0-iter1.json
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -86,10 +90,13 @@ def analyse_loss(rec, a_colour):
 
 
 def main():
-    for fname in ("fast-v25-vs-v8-iter1", "fast-v25-vs-v0-iter1"):
-        d = json.load(
-            open(f"research/iterations/{fname}.json", encoding="utf-8")
-        )
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("files", nargs="+",
+                        help="fast_loop_match JSON files to analyse")
+    args = parser.parse_args()
+    for path in args.files:
+        fname = os.path.basename(path)
+        d = json.load(open(path, encoding="utf-8"))
         print(f"== {fname}: {d['wins']}W-{d['losses']}L-{d['draws']}D ==")
         for rec in d["records"]:
             if rec["winner_is_a"] is not False:

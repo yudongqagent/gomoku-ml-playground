@@ -53,8 +53,9 @@ code was ported into this worktree — reuse, don't re-derive):**
   batch-3 per-game-seeding signature (the sweep itself keeps
   v24/v31's fixed-seed protocol — see the comment at the call
   site; it only SELECTS α).
-- `ml/scripts/find_losing_moves.py`: copied VERBATIM from
-  `gomoku-ml1` (sha256 `24814e64…`).
+- `ml/scripts/find_losing_moves.py`: v31's parameterised version
+  (takes match files as arguments), copied VERBATIM from
+  `gomoku-ml2-h2` (sha256 `1f1ca6cc…`).
 - `ml/gomoku_ml/mcts_value.py`: the per-version `value_weight`
   port (ML batch 1 H1's change, applied by hand to this tree's
   file — the SAME 3-hunk shape as v24's, byte-identical hunks:
@@ -606,6 +607,65 @@ selects α but proves nothing — the 100-game battery is the
 verdict.
 
 TODO — fast loops.
+
+**Fast loop iteration 1** (10 games each, seeds 1001/2001, α=0.25):
+- vs v8: **7W-3L-0D (0.70)**, CI [0.3968, 0.8922]. As Black 5-0
+  (all short wins, 19–25 plies), as White 2-3. All 10 games unique
+  (per-game seeding; dedup rate 1.00).
+- vs v0: **3W-6L-1D (0.35)**, CI [0.1369, 0.6463]. As Black 2-3,
+  as White 1-3-1. All 10 games unique.
+- Loss classification (`classify_losses.py`, both matches):
+  **9 losses, 9 via open four, 0 missed blocks, 0 clean missed
+  preventions in 46 threatened turns.** Defence as measured is
+  clean — the losses are positional drift into unstoppable open
+  fours, not blundered blocks.
+- Losing moves (`find_losing_moves.py`, VCF solver depth 4; raw
+  `ml/runs/ml3-h2/losing-moves-iter1.txt`): **7 of 9 losses were
+  already lost** at the first VCF moment (no saving reply exists
+  — positional decline, no single tactical blunder). **TWO
+  genuine blunders, both vs v0: game 2 (Black, 48 plies), ply 36
+  — (6,3), with 3 saving moves ((10,3), (13,3), (12,4)); game 9
+  (White, 53 plies), ply 47 — (4,11), with 4 saving moves ((9,8),
+  (7,10), (5,12), (7,14)).**
+
+**Workup verdict — vs-v0 game 2, ply 36 (VERIFIED):** `diag_root.py`
+(raw `ml/runs/ml3-h2/diag-v0-g2-ply36.txt`) shows the search's q
+is RIGHT and the prior is wrong: the saves (13,3)/(12,4) have
+BETTER our-q (−0.063/−0.062) than the actual (6,3) (−0.120),
+but only 7 visits each vs 11 — their v1 priors (0.040/0.044)
+are 3x the actual's (0.1266), and the most-visited root choice
+follows the prior. Worse, the actual TIED the saving (10,3) at
+11 visits with an identical prior (0.1266) and won the RNG
+tie-break. This is the SAME category as v31 iter-2's blunder:
+a PRIOR problem in shared heuristic-track code (`_priors`),
+whose change would alter v8/v7 equally and invalidate the α
+sweep — NOT patchable within H2's remit (v37 = v8's search +
+distilled net).
+
+**Workup verdict — vs-v0 game 9, ply 47 (VERIFIED):** `diag_root.py`
+(raw `ml/runs/ml3-h2/diag-v0-g9-ply47.txt`) shows a FLAT root:
+the actual (4,11) has the best our-q (−0.159), the most visits
+(4), and the highest prior (0.0545); every save sits at our-q
+≈ −0.250 (must-block leaves). The 1-ply heuristic leaves AGREE
+(actual +0.087..+0.166, best; saves +0.033..+0.113). The VCF
+(depth-4 attacker moves, up to 8 plies) is beyond the 100-sim
+search's horizon AND beyond the 2-ply label's 4-ply horizon —
+the net agrees with the exact heuristic leaf, and both rank the
+loser first. This is the shared search-horizon limit (v24's d9
+class), NOT a value-head failure — no retraining on these labels
+fixes it (a perfect 2-ply-label net ranks the loser first too).
+
+**Fast-loop STOP after iteration 1:** no patchable weakness class
+for v37 within H2's design space. The one q-vs-prior blunder is
+a shared-prior issue; the other blunder is a shared-horizon
+issue; the other 7 losses are positional with no single blunder.
+The §4 history-dependence is NOT implicated in either blunder
+(g2: the net's q was already right; g9: the net agrees with the
+exact leaf) — so no loss-motivated retrain is authorised by
+§1.5, and a history-augmentation retrain on holdout grounds
+alone would repeat v31's error of chasing a diagnostic. The
+battery is the verdict; if v37 plays badly, the battery losses
+are the motivation the next batch needs.
 
 ## 6. Validation battery
 
