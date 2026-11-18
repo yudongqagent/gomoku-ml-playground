@@ -447,11 +447,146 @@ Holdout shards are NOT in the bundle (never trained on).
 
 ## 3. Training (actuals)
 
-TODO — training log (value + threat loss/accuracy per epoch), interrupts/resumes, best checkpoint.
+**Training COMPLETE 2026-11-18 ~15:06 UTC** (15 epochs, 7,545
+steps, ~35 min wall, NO interruptions): config
+`ml/configs/ml3-h3.yaml`, run dir `ml/runs/ml3-h3-train/`,
+memmap bundle. Log `ml/runs/ml3-h3/train.log`. RSS stayed low
+(the memmap path works). Per-epoch checkpoints on; no resume
+was needed.
+
+| Epoch | Train value loss | Val value loss | Train threat loss / acc | Val threat loss / acc |
+|---|---|---|---|---|
+| 1 | 0.0776 | 0.0876 | 0.5345 / 0.7796 | 0.5114 / 0.7884 |
+| 4 | 0.0689 | 0.0858 | 0.4350 / 0.8107 | — / 0.8032 |
+| 8 | 0.0625 | 0.0790 | 0.3793 / 0.8325 | — / 0.8327 |
+| 12 | 0.0573 | 0.0721 | 0.3479 / 0.8480 | — / 0.8316 |
+| 14 | 0.0555 | **0.0720** | 0.3386 / 0.8514 | — / 0.8381 |
+| 15 | 0.0561 | 0.0722 | 0.3398 / 0.8506 | — / 0.8410 |
+
+**Best checkpoint: epoch 14** (`best.pt`, step 7042, val VALUE
+loss 0.0720 — the pre-registered selection metric, §1.2; epoch
+15's 0.0722 is slightly worse, so `best.pt` ≠ `final.pt`),
+copied to the registry path **`ml/runs/ml3-h3/value-net.pt`**
+(md5 `7c3fade60d87a85037cf81cd4bdebd10`; all tensors finite).
+Val value loss decreased monotonically until epoch 14 — no
+overfitting by the selection metric, but the pre-registered
+plan is 15 epochs and the battery is the verdict, so no
+extension.
+
+**Comparison with v24 (same data, same val split — seed 0 over
+the same 33,849 samples, so the numbers are directly
+comparable):** v38's train value loss (0.0555) matches v24's
+(0.0567), but its VAL value loss is worse (0.0720 vs v24's
+0.0617). The multi-task training costs ~17% relative val MSE
+on the value task — the threat gradient trades against value
+generalisation. Whether that cost shows up in sign accuracy
+(the played-strength-relevant measure) is §4's question.
 
 ## 4. Holdout diagnostics (actuals)
 
-TODO — §1.8 (a)–(d), value + threat accuracy by side to move.
+Game-level holdout (every 10th game, never trained on),
+targets = rollout-leaf labels. v38 net =
+`ml/runs/ml3-h3/value-net.pt`; v24 net =
+`gomoku-ml1-h1/ml/runs/ml1-h1/value-net.pt`; v8 net =
+`ml/runs/b3-h2/value-net.pt`. Raw outputs in
+`ml/runs/ml3-h3/holdout-{v7,v18,random}.txt` (value) and the
+threat script's JSON. Sanity check: this run reproduces v24's
+published numbers EXACTLY on its own holdout (v7 0.7713, v18
+0.8384, random 0.7055, pooled 0.7766) and v8's (0.523 / 0.501
+/ 0.463) — the eval setup is sound.
+
+### 4.1 Value head — sign accuracy (full planes)
+
+| Holdout | n pos (non-draw) | v38 sign | v38 MSE | v38 mean\|v\| | v24 sign | v8 sign |
+|---|---|---|---|---|---|---|
+| v7 | 2,050 (1,845) | 0.7669 | 0.0397 | 0.083 | 0.7713 | 0.523 |
+| v18 | 790 (761) | 0.8344 | 0.0616 | 0.092 | 0.8384 | 0.501 |
+| random | 538 (523) | 0.7132 | 0.1713 | 0.254 | 0.7055 | 0.463 |
+| **pooled** | **3,378 (3,129)** | **0.7744** | — | — | **0.7766** | — |
+
+**Verdict: the distillation learned the leaf function — the
+§1.7 stop condition (chance-level holdout) does NOT trigger.**
+v38's pooled full-planes sign (0.7744) is statistically
+identical to v24's (0.7766) — the multi-task training did NOT
+hurt the value fit in-distribution, despite the worse val MSE
+(§3: the MSE gap is magnitude calibration, not sign). v38's
+MSE is LOWER than v24's on every source (0.040 vs 0.045, 0.062
+vs 0.069, 0.171 vs 0.238) — the multi-task net is
+better-calibrated in magnitude where it trained.
+
+### 4.2 Value head — the history-dependence problem (no-history view)
+
+| Holdout | v38 sign (no-hist) | v38 mean\|v\| (no-hist) | v24 sign (no-hist) |
+|---|---|---|---|
+| v7 | **0.5035** (chance) | 0.468 | 0.7713 |
+| v18 | 0.5742 | 0.324 | 0.8344 |
+| random | 0.6998 | 0.237 | 0.5468 |
+| **pooled** | **0.5536** | — | **0.7491** |
+
+v38 is catastrophically history-dependent on ENGINE positions:
+without history planes its value sign falls to chance on v7
+(0.5035) with mean|v| ballooning to 0.47 — the same pathology
+v31's B1-only net showed (engine no-history 0.27–0.31). v24 is
+history-robust (0.7713/0.8344 both views). On random positions
+the pattern INVERTS (v38 0.6998 vs v24 0.5468). At inference
+the leaves get search-path history (neither the real-game
+history of the full-planes view nor the zeroed history of the
+no-history view), so the operating point lies between the two
+views — but on engine positions both bounds are worse than
+v24's. **This foreshadows that v38 may play worse than v24
+despite equal full-planes holdout** — the battery is the
+verdict, and §4.3 explains the mechanism.
+
+### 4.3 Threat head — accuracy (full planes)
+
+| Holdout | Threat acc | Majority baseline | Per-class acc (quiet / threatening / forcing) |
+|---|---|---|---|
+| v7 | 0.859 | 0.835 | 0.960 / 0.403 / **0.000** (0/46) |
+| v18 | 0.846 | 0.795 | 0.959 / 0.471 / **0.000** (0/22) |
+| random | 0.723 | 0.573 | 0.916 / 0.082 / 0.690 |
+| **pooled** | **0.834** | **0.784** | — |
+
+**The auxiliary task PARTIALLY learned — the §1.7
+majority-baseline stop does NOT trigger (0.834 vs 0.784), but
+the forcing class is the story:** on engine holdouts the head
+gets 0% of forcing positions right — it never predicts
+forcing there. On random positions it gets 69% of forcing
+right. Mechanism: 1,285 of 1,912 forcing training examples
+(67%) come from random playouts, which look different
+(tactically wild, long games); the head learned "forcing =
+looks like a random position", not the general four-creator
+concept. On engine positions (2.2% forcing) it calls them
+quiet. The threatening class is middling on engine (0.40–0.47)
+and near-zero on random (0.08 — random threatening positions
+are mostly called forcing, since random positions are 25%
+forcing). The threat signal the trunk learned is
+distribution-specific, not the general threat concept the
+hypothesis needs.
+
+**No-history view:** threat acc collapses (v7 0.558 — BELOW
+the 0.835 majority baseline; v18 0.70 vs 0.795; random 0.617
+vs 0.573). The threat head leans on the last-move/history
+planes as a shortcut (the last move often IS the
+threat-creating move) — and the shared trunk routes threat
+information through history features, which is exactly the
+mechanism behind the value head's history dependence (§4.2).
+The auxiliary task taught the trunk to use history, not to
+read threats from the board.
+
+### 4.4 By side to move (full planes)
+
+| Holdout | Threat acc Black / White | Value sign Black / White |
+|---|---|---|
+| v7 | 0.862 / 0.856 | 0.739 / 0.794 |
+| v18 | 0.841 / 0.850 | 0.866 / 0.805 |
+| random | 0.639 / 0.807 | 0.606 / 0.817 |
+
+No uniform White collapse (unlike the B1-data versions v25/v31)
+— the engine-only data does not collapse White, as expected.
+The weak cells are random-Black (threat 0.639, value sign
+0.606) — random positions with Black to move are the hardest
+for both heads. Value sign by side is roughly balanced on
+engine positions.
 
 ## 5. α sweep and fast loops
 

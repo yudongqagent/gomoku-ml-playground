@@ -58,7 +58,8 @@ def _load_position() -> tuple[np.ndarray, int]:
         common.ML_DIR, "gomoku_ml", "tactical_positions_hard.json"
     )
     with open(path, encoding="utf-8") as f:
-        positions = json.load(f)
+        data = json.load(f)
+    positions = data if isinstance(data, list) else data.get("positions", [])
     for p in positions:
         if p["id"] == "setup-v1v0s-g92":
             board = game.empty_board()
@@ -76,7 +77,9 @@ def _root_ranking(mcts, board, player, sims=100):
         mcts._run_one(root, board.copy(), player, None)
     rows = []
     for m, c in root.children.items():
-        q = c.value_sum / c.visit_count if c.visit_count else 0.0
+        # value_sum is accumulated from the perspective of the player
+        # to move AT THE CHILD (the opponent), so our-q is negated.
+        q = -c.value_sum / c.visit_count if c.visit_count else 0.0
         rows.append((m, c.visit_count, q, c.prior))
     rows.sort(key=lambda r: (-r[1], -r[2]))
     return rows
