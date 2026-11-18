@@ -798,10 +798,24 @@ the check picks a different one by prior noise.
 
 **Games 3, 5, 9 (all White, 29 plies) — horizon losses.**
 No saving move at any of the last 4 White turns in any of
-the three. Whether the check fired EARLIER in these games
-(and caused harm the last-4-turns workup cannot see) is
-audited separately (audit log
-`~/workspace/b10h3-logs/audit-fast-v0.log`).
+the three. The check-fire audit
+(`~/workspace/b10h3-logs/audit-fast-v0.log`) shows the check
+fired 7x in g3, 6x in g5, 7x in g9 — starting as early as
+ply 5, i.e. v0-as-Black holds VCF starts very frequently
+and the check is doing heavy work in these games. Games 3
+and 9 are the SAME line up to ply 19 (identical check
+fires, identical workup plies 21/23/25; they diverge only
+at ply 27) — so the three White losses are two distinct
+lines, not three. Comparing the check's move against
+v27's search at every fire
+(`compare-fast-v0.log`): 13 distinct fires, 7 AGREE, 6
+DISAGREE. Exact analysis of the 6 disagreements: in 1
+(g3 ply 15) the check is RIGHT and the search is WRONG
+(the search's (8,6) leaves 4 VCF starts live); in the
+other 5 both moves are preventions with IDENTICAL exact
+signatures (same VCF/creator/setup counts and squares) —
+a pure choice among equivalent preventions, decidable
+only by playouts. Those 5 are tested in §4.2.
 
 **White-side note:** v35 went 2W-3L as White in this leg
 (g1, g7 wins; g3, g5, g9 losses) and 4W-1L as Black. Five
