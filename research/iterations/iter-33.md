@@ -296,6 +296,67 @@ Targeted run (v33 + vcf + v29 + v18 selection): 20 passed.
   position-dependent; the bench (§3) and the fast loop (§4)
   quantify the real-game cost.
 
+### 2.3 Exact optimisation of `four_creating_moves` (NOT a design change)
+
+The fast loop (§4.1) showed far worse in-game cost than §3
+projected: ~7x v29's battery pace (~400s/game vs 55s), which
+would put the battery at ~40h. Per §3's commitment this is a
+finding to report, not a silent redesign — and what follows is
+NOT a redesign: it changes only how fast the VCF check computes,
+never which move it selects (the same category as v29's own
+§3.1 optimisations: "change only how many moves are tested and
+in what order, never which move is selected"). The design
+(§1.1 — pool definition, selection rule) is untouched.
+
+**Profile** (g26's 31s pool scan, cProfile): 97% of the time is
+`evaluate.winning_moves` — 42,716 calls, all from
+`four_creating_moves` testing every near move (~80 per call)
+with a full-board scan. **Optimisation** (`evaluate.py`,
+`_four_creator_candidates`): a move creates a four only if it
+lands in a 5-window holding >= 3 attacker stones (the four
+needs 4 stones including the move itself, so 3 must already be
+there; windows with 4 stones contribute their empty cell too —
+the winning move, decided by the apply+check exactly as
+before). Only those candidates are tested.
+
+**The A/B caught a real flaw in the first version of the proof:**
+when the player ALREADY holds a winning move, nearly every near
+move "creates" a four (the pre-existing win survives), so the
+old code returns 60+ moves where the window filter returns only
+true four-creators — 3 mismatches on the tactical suites, all of
+this degenerate kind. The fix: `four_creating_moves` falls back
+to the full near-move enumeration exactly when the player already
+has a winning move (rare in real games — only the already-lost
+2+-opponent-wins defensive call and tactical diagnostics). With
+that fallback the proof is airtight: given no pre-existing win,
+any window with 4 stones after m must include m (else the win
+pre-existed), so the window held 3 stones before m.
+
+**Verification (A/B, `/tmp/ab_four_creators.py`, old logic copied
+verbatim from git HEAD):** Part 1 — `four_creating_moves` on
+449 positions (both tactical suites + 200 random-playout +
+200 recorded-game positions, both colours): **898 calls, 0
+mismatches**, 5.1x faster (104.5s → 20.7s). Part 2 —
+`starts_forced_win` (monkeypatched old/new) on the tactical
+suites + 50 game positions, all creators: **1998 calls, 0
+mismatches**, 3.9x faster (334.7s → 85.4s). **Smoke
+re-verification:** identical pools and moves at both §3.4
+positions and all three tactical prevention positions, and
+v29's check still plays (5,5) at both §3.4 positions (v29's
+behaviour is preserved too — the optimisation is shared code).
+Pool scans: g26 31.0s → 13.4s, g79 26.4s → 9.5s, v1bl-g2 8.3s
+→ 4.5s. Targeted tests (test_mcts_heuristic + test_evaluate +
+test_tactical_hard): 130 passed, 0 failed, on the optimised
+code. The full suite is re-run before the battery (§5).
+
+**Consequence for the fast loop:** the vs-v0 leg (§4.1) ran
+entirely on the OLD code (loaded at process start); the vs-v27
+leg and the battery run on the optimised code. That is valid
+only because the optimisation is verified behaviour-identical
+(0 mismatches on 2,896 calls) — the legs are the same engine,
+just computed faster. The leg header records which code each
+leg ran on.
+
 ## 3. Cost guard
 
 `bench_vcf_root.py --engine v33` (new mode, §2): 100 quiet v7
@@ -332,6 +393,46 @@ fast loop shows a far worse in-game cost than projected, that is
 a finding to report to the coordinator, not a silent redesign.
 
 ## 4. Fast loop
+
+### 4.1 Leg 1 — vs v0 (seeds 1037/2037): 9W-0L-1D (0.9500)
+
+**9W-0L-1D (win rate 0.9500, CI [0.6555, 0.9948]) in 1941.6s.**
+As Black 4W-0L-1D (game 6 a 225-ply draw); as White 5W-0L-0D.
+9 distinct lines in 10 games (games 1 and 7 identical, 38
+plies). This leg ran on the OLD (pre-optimisation) code —
+valid per §2.3 (verified behaviour-identical). Control: v29's
+fast loop vs v0 at its own seeds was 2W-2L (both losses as
+White, §3.4 motif) and its battery 0.6650; v18's control at
+v29's seeds was 9W-0L-1D. v33's 9-0-1 matches v18's control and
+reverses v29's White weakness — directionally the fix works,
+but n=10 with CI [0.66, 0.99] proves nothing alone; the battery
+is the verdict.
+
+**Defence / workups:** 0 losses, so there is nothing to work up
+and no loss pool to check under §1.4. The pool-contains-a-winner
+check is satisfied positively instead: the §3.4 motif RECURS in
+all five White games — at ply 9 the pool is [(5,9), (5,5)] (game
+3: [(5,5), (9,5)]) and v33 plays the winning prevention (5,9) /
+(9,5) every time, where v29 played (5,5) and lost 3/3. All five
+White games were won. The pool contained a winner and the search
+picked it, five times out of five.
+
+**Filter replay** (`replay_vcf_filter.py`, new code, on the
+recorded leg — raw JSON in `/tmp/replay-v33-vs-v0.json`): 277
+v33 turns, 52 scan turns (win/block fired first), offensive
+fired 18, gate open 54, filter engaged 50 (singleton pools 3).
+Pool sizes: min 0, median 2.0, mean 3.09, max 13 (game 6's
+225-ply draw, ply 76). **Mismatches: 0** — whenever the filter
+engaged, the recorded move was a pool member (pool of 1: exactly
+that move), validating the implementation end-to-end in real
+games. Check time (new code): median 94.4ms, p90 2.78s, max
+59.3s, mean 1.67s — the tail survives the optimisation (one
+59s scan in a creator-rich position), but p90 is under 3s.
+
+**No patchable weakness class** in this leg (0 losses). The fast
+loop continues to the vs-v27 leg (§4.2).
+
+### 4.2 Leg 2 — vs v27 (seeds 1038/2038)
 
 TODO.
 
