@@ -654,7 +654,53 @@ was α=0.5 at 0.70 — v38's 0.60 at its best α is the weakest
 of the three distilled versions on dev seeds, and dev seeds
 flatter (v31: 0.70 dev → 0.40 validation).
 
-TODO — fast loops.
+### 5.2 Fast loop, iteration 1 (seeds 1001/2001) — NO PATCHABLE CLASS FOUND; LOOP STOPS
+
+vs v8: the α=0.5 sweep leg (20 games, same seeds, same α)
+IS the fast-loop leg — re-playing it would reproduce the
+first 10 games exactly under per-game seeding, so the sweep
+JSON was analysed directly. vs v0: 10 fresh games via
+`fast_loop_match.py` (`fast-v38-vs-v0-k1.json`).
+
+| Leg | Record | Win rate | As Black | As White |
+|---|---|---|---|---|
+| vs v8 (α=0.5) | 12W-8L-0D | 0.60 | 8W-2L | 4W-6L |
+| vs v0 | 4W-6L-0D | 0.40 | 2W-3L | 2W-3L |
+
+**v38 LOSES to v0 (0.40) on dev seeds** — the no-search
+heuristic anchor. No White collapse this time (2-3 as Black,
+2-3 as White; the v8 leg is White-heavy instead: 6 of the 8
+losses as White). All 10 v0 games are unique.
+
+Loss classification (`classify_losses.py`), both legs:
+
+| Leg | Losses | Via open four | Missed blocks | Clean missed preventions | Threatened turns |
+|---|---|---|---|---|---|
+| vs v8 | 8 | 8 | 0 | 0 | 33 |
+| vs v0 | 6 | 6 | 0 | 0 | 38 |
+
+Every loss in both legs is a positional open-four loss with
+ZERO missed blocks and ZERO clean missed preventions — v38
+never blunders a block and never misses a prevention that a
+single candidate move would have supplied. Two losses read
+in full (v8 leg game 7, 19 plies; game 3, 31 plies): White
+lets Black build a column/row into an open four over several
+moves, playing its own threats (7,9; 5,4) instead of
+preventing — the same "overvalues own threats, undervalues
+quiet/preventive moves" failure the auxiliary task was
+supposed to fix. The classifier's zero on clean missed
+preventions means there is no single-move prevention patch:
+at every threatened turn, either v38's move was forcing/safe
+or no safe alternative existed among the candidates. The
+failure is the net's value judgment, which only a retrain
+could change — and a retrain with a redesigned auxiliary
+task (history dropout, class-balanced forcing examples) is a
+NEW version, not a v38 patch. The α grid is NOT extended
+post-hoc (the 0.5-vs-1.0 gap is 3 wins in 20 games with
+heavily overlapping CIs — only the α=2.0 harm is
+significant). **Per the stop rule, the fast loop ends after
+iteration 1: no new patchable weakness class.** The battery
+proceeds on the final v38 (α=0.5).
 
 ## 6. Validation battery
 
