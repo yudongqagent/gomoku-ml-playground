@@ -34,6 +34,21 @@ terminal check first, net value otherwise:
   player-to-move perspective) on the 8-plane encoding of the leaf
   position.
 
+v36 (ML batch 3, H1) ports v27's q-gap threshold tie-break
+(``research/iterations/iter-27.md`` §1.1) to this engine's root
+selection: on an exact top-visit tie within the effective pool
+(after the threat filter), the tie is broken by correctly-signed
+q (our-q = ``-child.q``) ONLY when the gap between the highest
+and second-highest distinct our-q among the tied children
+strictly exceeds ``tie_break_q_threshold``; below the threshold
+the choice is v8's (RNG over all tied children, else first).
+``tie_break_q`` / ``tie_break_q_threshold`` default to False /
+0.0, so v8 is unaffected. See :meth:`ValueMCTS._pick_pool_move`
+and ``research/iterations/iter-36.md`` §1.1 — including §0's
+measurement, which shows net q gaps do NOT separate terminal
+signal from noise the way rollout-leaf gaps did (max gap 0.057
+in 59 measured ties).
+
 The terminal cases stay exact: a net cannot be trusted to recognise
 a forced win/loss as reliably as a scan, and v6's defence is already
 perfect — the leaf must not regress it. The net's job is exactly the
@@ -96,6 +111,10 @@ class ValueMCTS(HeuristicMCTS):
             over ``checkpoint_path``; used by tests).
         sims / c_puct / rng: as :class:`HeuristicMCTS` (100 / 1.5 by
             default, matching v6 and the ladder MCTS).
+        tie_break_q / tie_break_q_threshold: v36 (ML batch 3, H1) —
+            v27's threshold tie-break on the root pool (see
+            :meth:`_pick_pool_move`); defaults False / 0.0 reproduce
+            v8 exactly.
         device: torch device string (CPU here; there is no GPU).
     """
 
@@ -106,9 +125,15 @@ class ValueMCTS(HeuristicMCTS):
         sims: int = 100,
         c_puct: float = 1.5,
         rng: np.random.Generator | None = None,
+        tie_break_q: bool = False,
+        tie_break_q_threshold: float = 0.0,
         device: str = "cpu",
     ) -> None:
-        super().__init__(sims=sims, c_puct=c_puct, rng=rng)
+        super().__init__(
+            sims=sims, c_puct=c_puct, rng=rng,
+            tie_break_q=tie_break_q,
+            tie_break_q_threshold=tie_break_q_threshold,
+        )
         # Batch-3 merge fix: H1's HeuristicMCTS sets ``self._leaf_value``
         # to a module-level leaf function in __init__; that instance
         # attribute shadows this class's leaf method, so the net leaf
@@ -162,7 +187,9 @@ class ValueMCTS(HeuristicMCTS):
         (:func:`gomoku_ml.scoring._move_is_safe`); if no root
         child is safe, the most-visited move is played anyway
         (best effort, as in v3). With no creators the choice is
-        exactly the parent's.
+        exactly the parent's. v36 adds the threshold tie-break
+        (see :meth:`_pick_pool_move`); with the flag off the
+        choice is v8's exactly.
         """
         wins = scoring._winning_moves(board, player)
         if wins:
@@ -188,12 +215,48 @@ class ValueMCTS(HeuristicMCTS):
             if safe and len(safe) < len(root.children):
                 pool = safe
                 self.threat_filter_used += 1
+        return self._pick_pool_move(pool)
+
+    def _pick_pool_move(self, pool: dict[int, _Node]) -> int:
+        """Final root selection from the effective pool: the
+        most-visited child. On an exact top-visit tie, v36
+        (``tie_break_q=True``) breaks it by correctly-signed q
+        (our-q = ``-child.q`` — ``child.q`` is the OPPONENT's
+        perspective; see :meth:`HeuristicMCTS._run_one`'s backup
+        and :meth:`HeuristicMCTS._select_child`), gated on the q
+        gap: the tie-break fires ONLY when the highest our-q
+        exceeds the second-highest DISTINCT our-q among the tied
+        children by strictly more than ``tie_break_q_threshold``;
+        below the threshold the tie-break does not fire at all
+        and the choice is v8's (RNG over ALL tied children, else
+        first). When the tie-break fires and q also ties exactly,
+        fall back to RNG/first restricted to the q-tied subset.
+        With ``tie_break_q=False`` (v8) a tie is broken by RNG
+        choice among ALL tied children, else first. A unique
+        visit leader is untouched either way. Same rule as
+        :meth:`HeuristicMCTS._pick_root_move`, on the pool
+        instead of ``root.children`` — the threat filter may have
+        restricted it. Pre-registered rule: iter-36.md §1.1 (v27's
+        rule, iter-27.md §1.1, ported)."""
         best_visits = max(c.visit_count for c in pool.values())
         best = [
             m for m, c in pool.items() if c.visit_count == best_visits
         ]
         if len(best) == 1:
             return best[0]
+        if self.tie_break_q:
+            our_q = {m: -pool[m].q for m in best}
+            q_max = max(our_q.values())
+            distinct = sorted(set(our_q.values()), reverse=True)
+            q_second = distinct[1] if len(distinct) > 1 else q_max
+            if q_max - q_second > self.tie_break_q_threshold:
+                best = [m for m in best if our_q[m] == q_max]
+                if len(best) == 1:
+                    return best[0]
+                # Else fall through to RNG/first on the q-tied
+                # subset (v23 rule 4).
+            # Else (gap <= threshold): fall through with `best`
+            # unchanged — v8's RNG/first over ALL tied children.
         if self.rng is not None:
             return int(self.rng.choice(best))
         return best[0]

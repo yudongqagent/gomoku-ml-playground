@@ -438,6 +438,22 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # TEMPORARY sweep candidates for v36 (ML batch 3, H1 — see
+    # research/iterations/iter-36.md §1.2): v8 + v27's threshold
+    # tie-break at τ=0.05 (92) and τ=0.10 (93). Both entries are
+    # REMOVED when v36 is registered with the selected threshold.
+    # Numbered 92/93, NOT 90/91: v27's regression test asserts
+    # 90/91 are absent (its own sweep temps), so reusing them
+    # would break the suite during the sweep. Same checkpoint as
+    # v8 (ml/runs/b3-h2/value-net.pt).
+    92: {"name": "scoring-v92", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/b3-h2/value-net.pt",
+         "tie_break_q": True, "tie_break_q_threshold": 0.05},
+    93: {"name": "scoring-v93", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/b3-h2/value-net.pt",
+         "tie_break_q": True, "tie_break_q_threshold": 0.10},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1049,6 +1065,12 @@ class ScoringPlayer:
                     checkpoint_path=path,
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
                     rng=self.rng,
+                    tie_break_q=ENGINE_VERSIONS[version].get(
+                        "tie_break_q", False
+                    ),
+                    tie_break_q_threshold=ENGINE_VERSIONS[version].get(
+                        "tie_break_q_threshold", 0.0
+                    ),
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.
