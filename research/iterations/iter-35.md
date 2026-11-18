@@ -296,7 +296,7 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 21/22 complete at this writing)
+### 2.1 Workups (COMPLETE — 22/22, Wed 2026-11-18 03:22 UTC)
 
 **Runtime interruption (recorded, no workups lost).** The VM
 was replaced mid-chain (uptime reset; the chain died during
@@ -338,6 +338,7 @@ values (`~/workspace/b10h3-logs/scripts/diag_rollout.py`), and exact threat anal
 | 96 (vs v7) | B | 30 | none in window | — | horizon loss |
 | 4 (vs v0) | B | 60 | ply 52 (11,3) | (9,4) 3W, (5,8) 2W+1D (400-sim) | setup signature (2→0) — see note |
 | 32 (vs v0) | B | 60 | ply 52 (3,11) | (4,9) 3W | setup signature (2→0) — TRANSPOSE of v0-g4 ply 52 |
+| 82 (vs v0) | B | 36 | none in window | — | horizon loss ((5,5) 'save' INVALIDATED — see §2.3) |
 | 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
 
 **Game 4, ply 44 (Black to move) — missed VCF prevention.**
@@ -585,6 +586,22 @@ a single-distinct-position observation, not a mechanism
 territory, REJECTED). Recorded for future work, not
 patched. Class 7 for both games.
 
+**Game 82 vs v0 (Black, 36 plies) — horizon loss; the
+(5,5) 'save' is INVALIDATED by exact computation (see
+§2.3).** At ply 28 White holds NINE VCF starts; the actual
+(10,10) is a prevention (0 VCF starts after) but loses 3/3
+(it leaves 3 creators and 92 setups). The workup's (5,5)
+'saved' [1,1,1] in playouts vs v0 — but exact computation
+shows White holds FIVE VCF starts after (5,5), so White
+wins by force against correct play and (5,5) is not a real
+save (v0 simply does not find White's VCF starts). All
+four preventions ((10,10), (11,4), (12,4), (11,11)) lose
+3/3 in playouts; the check's move (11,4) leaves 3 creators
+and 87 setups and loses 3/3. The root is extremely flat
+(top 4 moves all 2 visits, identical q −0.375). The
+position is lost by ply 28 — no save exists in the window.
+Class 3 (10th horizon loss).
+
 **Game 77, ply 13 (White to move) — search-horizon value
 error, no exact signature.** The actual (7,6) loses 2/3;
 (7,4) and (8,7) win 3/3, (7,5) wins 2/3. The root is flat
@@ -602,15 +619,70 @@ the loser on every count. The 400-sim deeper-search proposal
 (7,9) loses 3/3 — deeper search does not find the save.
 Class 7 (search-horizon value error), no patchable signature.
 
-**Running tally: VCF-prevention 7 game-instances across 6
-distinct positions (check reproduces the save at 6
+**FINAL tally (22/22): VCF-prevention 7 game-instances
+across 6 distinct positions (check reproduces the save at 6
 game-instances / 5 distinct positions, picks the losing
-prevention at 1), horizon 9, search-horizon (no signature)
-3, setup-signature 2 game-instances / 1 distinct position
-(see note).** The patch rule (§1.1)
+prevention at 1), horizon 10, search-horizon (no signature)
+3, setup-signature 2 game-instances / 1 distinct position.
+Missed forced win: 0. Prior starvation: 0. Leaf value
+error: 0. Missed block: 0 (reproduces iter-27 §3.6).**
+Total: 7 + 10 + 3 + 2 = 22. ✓ The patch rule (§1.1)
 is satisfied at 3 VCF-prevention instances with the patch
 reproducing all three saves (g4, g10, g21). The remaining
 workups complete the classification table.
+
+### 2.2 Final classification (22/22)
+
+| Class | Games | Distinct positions | Check fixes? |
+|---|---|---|---|
+| 1. Missed VCF prevention | 7 (g4, g10, g21, g32, g44, g73, g91) | 6 (g73=g91) | 6/7 games, 5/6 positions (fails g32) |
+| 3. Horizon loss | 10 (g7, g15, g30, g35, g45, g56, g65, g67, g96, v0-g82) | 10 | n/a (no save in window) |
+| 7. Search-horizon, no signature | 3 (g62, g77, g93) | 3 | no (check does not fire) |
+| 7. Search-horizon, setup signature | 2 (v0-g4, v0-g32) | 1 (transpose) | no (check does not fire) |
+| 2. Missed forced win | 0 | 0 | — |
+| 4. Prior starvation | 0 | 0 | — |
+| 5. Leaf value error | 0 | 0 | — |
+| 6. Root-decision (visits-over-q) | 0 as primary (v0-g4's (5,8) is q-preferred but 5 vs 11 visits — CLOSED lever) | — | — |
+
+**The patch rule triggered:** class 1 has 7 game-instances /
+6 distinct positions sharing ONE mechanism (the search
+cannot see the opponent's VCF 3+ plies out; the exact
+depth-3 check can) and the check reproduces the verified
+save at 5 of the 6 distinct positions. The mechanism spans
+flat roots (g4, g21, g73: visit ties the threshold does not
+fire on) and concentrated roots (g10: 96 visits on the
+loser; g44: the loser is a forcing move) — the common
+thread is the search's horizon, not the root rule. The
+fallback (cheaper VCF check for v29) does NOT trigger.
+
+**What the forensics did NOT find:** no missed forced win
+(0/22) — v27's search already finds offensive VCFs (it is
+29/29 on the hard tactical suite). No prior starvation, no
+leaf value error as a primary class. Defence is solved
+(0 missed blocks). The horizon losses (10/22) are
+distributed drift or losses decided before the window —
+no patchable mechanism. The setup signature (v0-g4/g32)
+is ONE distinct position — recorded for future work, not
+patched.
+
+### 2.3 Method note: playouts can produce FALSE saves
+
+The v0-g82 (5,5) case is a methodological finding worth
+recording: same-engine playouts (the workup protocol's
+verification) called (5,5) a save [1,1,1] because the
+opponent (v0) does not find White's VCF starts — but exact
+computation shows White holds 5 VCF starts after (5,5) and
+wins by force. Playout verification is only as strong as
+the opponent in the playout. **Every verified save in the
+corpus was therefore re-audited with exact computation**
+(opponent VCF starts after the save must be 0): 22 of 23
+saves pass; only v0-g82's (5,5) fails. The VCF-prevention
+count is unaffected (all 7 instances are real saves).
+**Rule for future forensics:** a save is verified only if
+it passes BOTH the playout qualification AND the exact
+audit (0 opponent VCF starts after). The audit script is
+inline in the workup notes (not a saved file — it is a
+one-off check over the 23 saves listed in §2.1).
 
 ## 3. Patch (v35)
 
