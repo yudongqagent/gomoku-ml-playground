@@ -387,7 +387,63 @@ selfplay_batch.py --engine-a v38 --engine-b v7 --games 100 --swap-rule --placeme
 
 ## 2. Data (actuals)
 
-TODO — copy counts, threat labelling, class distribution, verification (a)/(b).
+**Threat labelling COMPLETE 2026-11-18** (`ml/scripts/
+label_threat.py`, logs `ml/runs/ml3-h3/label-threat*.log`).
+Two interruptions, both recovered by the script's resume-safe
+skip: the run was killed once deliberately (to deploy the
+threat-labelling speedup below) and once by a VM replacement at
+random 46/90 — no shard was lost or double-written (output
+shards are skipped on re-run; the per-run LABEL_JSONs cover
+only the newly written shards, so the authoritative totals are
+computed from the shards below).
+
+**Speedup (exact, verified):** `threat.max_winning_moves_after`
+was restricted to candidates within Chebyshev distance 2 of a
+player stone when the player holds no winning move (all quiet
+positions — the whole training set; proof in the docstring).
+Verified 0 mismatches on 1,553 already-labelled positions
+against the unoptimised labels, and the 8 unit tests pass;
+interleaved A/B on 160 positions: 30–37 ms/pos vs 37–68 ms/pos
+(1.2–1.8x; candidates 61 → 43 per position).
+
+**Counts (from the shards — identical to v24's published
+numbers in every cell):**
+
+| Source | Games | Quiet positions | ±1 labels | Threat classes [quiet, threatening, forcing] |
+|---|---|---|---|---|
+| v7 self-play (train) | 440 | 19,545 | 746 (3.8%) | [16,027, 3,095, 423] |
+| v18 self-play (train) | 207 | 9,142 | 453 (5.0%) | [7,333, 1,605, 204] |
+| Random playouts (train) | 90 | 5,162 | 1,470 (28.5%) | [2,910, 967, 1,285] |
+| **Train total** | **737** | **33,849** | **2,669** | **[26,270, 5,667, 1,912] = 77.6% / 16.7% / 5.6%** |
+| v7-holdout | 48 | 2,050 | 78 | [1,711, 293, 46] |
+| v18-holdout | 22 | 790 | 51 | [628, 140, 22] |
+| random-holdout | 10 | 538 | 156 | [308, 85, 145] |
+| **Holdout total** | **80** | **3,378** | **285** | **[2,647, 518, 213] = 78.4% / 15.3% / 6.3%** |
+
+**Merge contingency (§1.1): NOT triggered.** Every class is
+above 2% of train positions (forcing is 5.6% overall — 2.2%
+on engine positions, 24.9% on random playouts, which are
+tactically wild). The 3-class scheme stands. Note the
+distribution skew the threat head must handle: random
+positions are 25% forcing vs 2.2% for engine positions, so
+the head sees most of its class-2 examples from the random
+source (1,285 of 1,912).
+
+**Verification (a) — quiet-filter consistency: PASS.** 0
+non-quiet positions across all 37,227 positions in all three
+runs: the board reconstruction from planes is correct.
+
+**Verification (b) — spot re-labelling: PASS.** The ported
+label phase re-ran on 20 games (7 v7 + 7 v18 + 6 random, 888
+quiet positions); the regenerated value labels AND planes
+match v24's shards EXACTLY (0 mismatched shards). Master's
+rollout-leaf teacher is the same function v24 distilled.
+
+**Memmap bundle:** `ml/runs/ml3-h3/data-mmap/` (737 shards,
+33,849 samples; planes/policy/values/threats). Verified on
+load: threat distribution [26,270, 5,667, 1,912] exact, and
+the first sample's planes/value/threat match its source shard.
+Holdout shards are NOT in the bundle (never trained on).
 
 ## 3. Training (actuals)
 
