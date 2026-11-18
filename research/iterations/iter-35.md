@@ -1040,7 +1040,23 @@ before process-level variation broke it; the 4th
 duplicate pair (30=96) is engine determinism, not
 replay (H2's vs-v0 phenomenon in miniature).
 
-TODO (vs-v0, swap, ladder — numbers when each leg completes).
+**vs v0: 97W-2L-1D, 0.9750, CI [0.9226, 0.9922].**
+De-duplicated: 42W-2L-1D over 45 unique games, 0.9444,
+CI [0.8364, 0.9826]. (v27's: 96W-3L-1D nominal, 0.9650;
+de-dup 37W-3L-1D, 0.9146 over 41 unique — v35 is one
+nominal game and ~3 points de-duplicated better, not a
+meaningful strength signal on its own.) The vs-v0 leg
+reproduces H2's engine-determinism finding: 45 unique
+of 100 with NO seed-replay (the leg ran in two
+processes, resumed from game 67 — odd, so colours
+swapped and no replay occurred; the duplicates are
+v0's near-determinism collapsing seed draws to the
+same short games). Colour split: as Black 47W-2L-1D;
+as White 50W-0L-0D (perfect as White — the opposite
+of the vs-v27 pattern). Losses: games 4, 26 (both as
+Black).
+
+TODO (swap, ladder — numbers when each leg completes).
 
 ## 6. Bar check
 
