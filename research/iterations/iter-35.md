@@ -296,9 +296,7 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 16/22 complete at this writing;
-g91's ply-23 finding is established from its in-progress
-workup log, JSON pending)
+### 2.1 Workups (running — 17/22 complete at this writing)
 
 **Runtime interruption (recorded, no workups lost).** The VM
 was replaced mid-chain (uptime reset; the chain died during
