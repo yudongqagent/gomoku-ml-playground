@@ -75,10 +75,15 @@ code was ported into this worktree — reuse, don't re-derive):**
   needed. A threat-accuracy companion script
   (`eval_threat_holdout.py`) is NEW for this workstream.
 
-**Port smoke checks:** TODO — v8 loads and plays in this
+**Port smoke checks (2026-11-18):** v8 loads and plays in this
 worktree (first move 112, centre; `value_weight` 0.25 default
-preserved); v38 is registered; the multi-task net builds from
-the registry.
+preserved — the port does not change v8's behaviour); v38 is
+registered (registry entry + `test_v38_registry_entry`); the
+multi-task net builds from the registry (ResNet 16ch/2 blocks +
+threat head, 141,263 params — v8's 126,586 + 14,677 for the
+threat head). Targeted tests green: threat (8), multitask (8),
+load_shards, architectures, config, mcts_value — 60 passed.
+npm test 55/55, tsc clean (full pytest running at commit time).
 
 ## 1. Design and pre-registration
 

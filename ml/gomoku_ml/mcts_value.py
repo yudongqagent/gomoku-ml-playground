@@ -96,6 +96,11 @@ class ValueMCTS(HeuristicMCTS):
             over ``checkpoint_path``; used by tests).
         sims / c_puct / rng: as :class:`HeuristicMCTS` (100 / 1.5 by
             default, matching v6 and the ladder MCTS).
+        value_weight: shrink factor applied to the net's value in
+            quiet positions (ML batch 1 H1's port, carried into ML
+            batch 2 and ML batch 3: v8's ``VALUE_WEIGHT`` 0.25 is the
+            default when None, so v8 is unchanged; v24/v31/v38's
+            swept α is passed through the registry).
         device: torch device string (CPU here; there is no GPU).
     """
 
@@ -106,6 +111,7 @@ class ValueMCTS(HeuristicMCTS):
         sims: int = 100,
         c_puct: float = 1.5,
         rng: np.random.Generator | None = None,
+        value_weight: float | None = None,
         device: str = "cpu",
     ) -> None:
         super().__init__(sims=sims, c_puct=c_puct, rng=rng)
@@ -130,6 +136,7 @@ class ValueMCTS(HeuristicMCTS):
             )
         self.device = torch.device(device)
         self.net.to(self.device)
+        self.value_weight = VALUE_WEIGHT if value_weight is None else value_weight
         # Two intra-op threads: the harness shares this VM with the
         # parallel H1 workstream, and a batch=1 forward pass gains
         # nothing from more threads (see ml/README.md "Threading").
@@ -225,8 +232,10 @@ class ValueMCTS(HeuristicMCTS):
             _logits, value = self.net(x)
         self.leaf_net_evals += 1
         # Fast-loop iteration 2: shrink the net value toward the
-        # terminal value (0 here) — see VALUE_WEIGHT.
-        return float(value[0, 0].item()) * VALUE_WEIGHT
+        # terminal value (0 here) — see VALUE_WEIGHT. The shrink
+        # factor is per-instance (``self.value_weight``) so the
+        # ML α sweep can vary it; the default is v8's 0.25.
+        return float(value[0, 0].item()) * self.value_weight
 
     def _run_one(
         self,

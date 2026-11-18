@@ -30,6 +30,7 @@ import torch.nn as nn
 
 from .model import (
     GomokuMobileNet,
+    GomokuMultiTaskNet,
     GomokuNet,
     ResidualBlock,
     SEResidualBlock,
@@ -111,6 +112,14 @@ def _build_mobilenet(channels: int = 128, blocks: int = 10) -> GomokuMobileNet:
     return GomokuMobileNet(channels=channels, blocks=blocks)
 
 
+def _build_resnet_multitask(
+    channels: int = 128, blocks: int = 10, threat_classes: int = 3
+) -> GomokuMultiTaskNet:
+    return GomokuMultiTaskNet(
+        channels=channels, blocks=blocks, threat_classes=threat_classes
+    )
+
+
 _CHANNELS = {
     "type": "integer",
     "default": 128,
@@ -160,6 +169,28 @@ ARCHITECTURES: dict[str, ArchitectureSpec] = {
                 "default": 8,
                 "minimum": 1,
                 "description": "Channel reduction factor in the SE bottleneck.",
+            },
+        },
+    ),
+    "resnet-multitask": ArchitectureSpec(
+        name="resnet-multitask",
+        description=(
+            "ResNet policy+value network with an auxiliary "
+            "threat-classification head on the shared trunk (v38, ML "
+            "batch 3 H3): the value head is unchanged in form; the "
+            "threat head (quiet / threatening / forcing, see "
+            "gomoku_ml.threat) is training-only and never influences "
+            "move choice."
+        ),
+        builder=_build_resnet_multitask,
+        params_schema={
+            "channels": dict(_CHANNELS),
+            "blocks": dict(_BLOCKS),
+            "threat_classes": {
+                "type": "integer",
+                "default": 3,
+                "minimum": 2,
+                "description": "Number of threat classes (3: quiet / threatening / forcing).",
             },
         },
     ),

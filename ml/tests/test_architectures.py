@@ -15,7 +15,12 @@ from gomoku_ml.train import save_checkpoint
 
 
 def test_registry_contents():
-    assert set(ARCHITECTURES) == {"resnet", "mobilenet", "resnet-se"}
+    assert set(ARCHITECTURES) == {
+        "resnet",
+        "mobilenet",
+        "resnet-se",
+        "resnet-multitask",
+    }
     for spec in ARCHITECTURES.values():
         assert spec.description
         assert spec.params_schema
@@ -28,13 +33,15 @@ def test_list_architectures_json_serializable():
     text = json.dumps(payload)
     assert json.loads(text)["architectures"]
     names = {a["name"] for a in payload["architectures"]}
-    assert names == {"resnet", "mobilenet", "resnet-se"}
+    assert names == {"resnet", "mobilenet", "resnet-se", "resnet-multitask"}
     for entry in payload["architectures"]:
         assert "channels" in entry["params"]
         assert "blocks" in entry["params"]
 
 
-@pytest.mark.parametrize("name", ["resnet", "mobilenet", "resnet-se"])
+@pytest.mark.parametrize(
+    "name", ["resnet", "mobilenet", "resnet-se", "resnet-multitask"]
+)
 def test_each_arch_builds_and_forward_shapes(name):
     net = build_architecture(name, {"channels": 8, "blocks": 1})
     net.eval()
