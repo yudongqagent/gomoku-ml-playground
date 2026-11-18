@@ -112,6 +112,38 @@ def wilson_ci(
     return (max(0.0, centre - half), min(1.0, centre + half))
 
 
+def uniqueness_audit(records: list[dict]) -> dict:
+    """Distinct-game audit for a batch's records (ML batch 3 tooling).
+
+    Two games are the same game iff their full move lists match.
+    Returns the distinct-game count plus the W/L/D and win rate
+    over distinct games only (each distinct line counted once) —
+    the de-duplicated cut that batch 10 used to check its verdicts
+    against the resume seed-replay bug (v34: 63 unique in 100;
+    vs-v0 legs collapse to 41–45 unique even with no resume,
+    because the engines are deterministic and RNG is consumed only
+    on exact ties).
+    """
+    seen: dict[tuple, dict] = {}
+    for rec in records:
+        key = tuple(rec.get("moves") or [])
+        if key not in seen:
+            seen[key] = rec
+    wins = sum(1 for r in seen.values() if r.get("winner_is_a") is True)
+    losses = sum(1 for r in seen.values() if r.get("winner_is_a") is False)
+    draws = len(seen) - wins - losses
+    lo, hi = wilson_ci(wins, losses, draws)
+    return {
+        "unique_games": len(seen),
+        "total_games": len(records),
+        "dedup_wins": wins,
+        "dedup_losses": losses,
+        "dedup_draws": draws,
+        "dedup_win_rate": round(win_rate(wins, losses, draws), 4),
+        "dedup_win_rate_ci_95": [round(lo, 4), round(hi, 4)],
+    }
+
+
 def elo_diff(wins: int, losses: int, draws: int) -> float | None:
     """Rough Elo difference from W/L/D. None if either side has no
     decisive games (the estimate would be infinite)."""

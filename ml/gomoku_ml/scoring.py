@@ -1070,6 +1070,23 @@ class ScoringPlayer:
                     ),
                 )
 
+    def reseed(self, seed: int) -> None:
+        """Reset the RNG stream to a fresh generator from ``seed``.
+
+        Per-game seeding (ML batch 3 tooling): the match drivers
+        call this before every game with ``base_seed + game_index``,
+        so each game is determined by its index alone — a resumed
+        run then reproduces the uninterrupted run exactly, instead
+        of replaying the prefix (batch 10's resume seed-replay bug:
+        the old drivers created the engines once, so on resume the
+        RNG streams restarted and the resumed segment replayed the
+        prefix when segment-start parity aligned). The inner MCTS
+        engine shares this RNG object, so it is reset too.
+        """
+        self.rng = np.random.default_rng(seed)
+        if self._mcts is not None:
+            self._mcts.rng = self.rng
+
     def score_move(self, board: np.ndarray, move: int, player: int) -> int:
         """This version's heuristic score for ``player`` playing
         ``move`` on ``board``."""
