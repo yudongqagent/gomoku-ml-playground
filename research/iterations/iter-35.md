@@ -564,7 +564,9 @@ setup signature (2 game-instances, 1 distinct position).**
 Both are Black, 60-ply losses vs v0. In g4 the actual
 (11,3) loses 3/3; (9,4) SAVES [1,1,1] and (5,8) (the
 400-sim proposal) SAVES [1,0,1]. In g32 the actual (3,11)
-loses 3/3; (4,9) SAVES [1,1,1]. **Transpose note:** g32's
+loses 3/3; (4,9) SAVES [1,1,1] and (8,5) (the 400-sim
+proposal) SAVES [1,1,1] — (8,5) is the transpose of g4's
+(5,8). **Transpose note:** g32's
 ply-52 board is the TRANSPOSE (x↔y) of g4's ply-52 board —
 the same position up to board symmetry (verified: the
 transposed move set is identical; the root dumps match
