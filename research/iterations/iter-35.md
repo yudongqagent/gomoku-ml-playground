@@ -1056,7 +1056,23 @@ as White 50W-0L-0D (perfect as White — the opposite
 of the vs-v27 pattern). Losses: games 4, 26 (both as
 Black).
 
-TODO (swap, ladder — numbers when each leg completes).
+**swap vs v27: 59W-35L-6D, 0.6200, CI [0.5221, 0.7090].**
+100/100 unique games (no duplication — the placement
+RNG and the swap choice add variety; the leg also ran
+in two processes, resumed from 89 — odd, so no replay).
+Under swap rules v35 beats v27 with the CI clear of
+0.50; under normal rules it does not (0.53, CI
+straddling 0.50). The swap rule neutralises the
+first-move edge and lets the check's skill show. Colour
+split: v35 as Black 38W-10L-3D (0.775); as White
+21W-25L-3D (0.45) — White is still the weaker side,
+but the swap choice (v35 Black 51, White 49) balances
+the aggregate. (v27's own swap vs v7 was 0.775 — a
+different opponent, not comparable.) Swap is a
+secondary metric, not a bar clause; it does not change
+the clause-1 verdict.
+
+TODO (ladder — numbers when the leg completes).
 
 ## 6. Bar check
 
