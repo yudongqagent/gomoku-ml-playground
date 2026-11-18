@@ -1738,3 +1738,185 @@ def test_v29_choose_move_deterministic_for_same_seed():
     a = scoring.get_player(29, seed=42)
     b = scoring.get_player(29, seed=42)
     assert a.choose_move(board, to_move) == b.choose_move(board, to_move)
+
+
+# --- v33 (batch 10, H1): VCF-filtered search on the v29 base ------------
+# See research/iterations/iter-33.md §1.1 (pre-registered design):
+# v29's defensive step picks preventions by v1 prior (verified flaw,
+# iter-29 §3.4 — 3e-6 prior gaps between preventions with opposite
+# outcomes); v33 computes the FULL prevention pool and runs the
+# normal 100-sim MCTS with the root restricted to the pool, letting
+# the rollout-leaf search choose among preventions by visits. The
+# offensive VCF step is v29's unchanged.
+
+
+def test_v33_registered_and_filtered_search_enabled():
+    v33 = scoring.get_player(33, seed=0)
+    assert v33.name == "scoring-v33"
+    assert v33.mcts is True
+    assert v33._mcts is not None
+    assert v33._mcts.sims == 100
+    assert v33._mcts.leaf_mode == "rollout2_v1_both"
+    assert v33._mcts.vcf_filtered_search is True
+    assert v33._mcts.vcf_root is False
+    # v29 and v18 are unchanged (no filtered search).
+    v29 = scoring.get_player(29, seed=0)
+    assert v29._mcts.vcf_root is True
+    assert v29._mcts.vcf_filtered_search is False
+    v18 = scoring.get_player(18, seed=0)
+    assert v18._mcts.vcf_root is False
+    assert v18._mcts.vcf_filtered_search is False
+
+
+def test_vcf_filtered_search_mutually_exclusive_with_vcf_root():
+    import pytest
+
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        HeuristicMCTS(
+            sims=20, leaf_mode="rollout2_v1_both",
+            vcf_root=True, vcf_filtered_search=True,
+        )
+
+
+# The two iter-29 §3.4 positions (v29-vs-v0 fast loop, seeds
+# 1031/2031 — move prefixes from ~/workspace/b9h3-logs/
+# fast-v29-vs-v0.json, games 1 and 3): White to move at ply 9,
+# Black holds exactly two VCF starts, and v29's prior pick (5,5)
+# loses 3/3 while the search's prevention wins 3/3. The prefixes
+# are embedded so the test is self-contained.
+_FL_G1_PREFIX = [112, 96, 97, 142, 82, 67, 81, 65, 83]
+_FL_G3_PREFIX = [112, 96, 111, 114, 110, 109, 95, 79, 125]
+
+
+def _board_from_prefix(prefix):
+    board = game.empty_board()
+    player = game.BLACK
+    for m in prefix:
+        board = game.apply_move(board, m, player)
+        player = -player
+    return board, player
+
+
+def test_vcf_prevention_pool_contains_both_iter29_preventions():
+    # The pool at both §3.4 positions is exactly the two
+    # preventions, in prior-desc order — (5,5) first (the prior
+    # pick v29 played), then the search's winning prevention.
+    # The pool CONTAINS a winner at both positions (the v32
+    # caveat check: a pool with no winner cannot be fixed by any
+    # selection rule — iter-32 §4.3).
+    v33 = scoring.get_player(33, seed=0)
+    board, to_move = _board_from_prefix(_FL_G1_PREFIX)
+    assert to_move == game.WHITE
+    pool = v33._mcts._vcf_prevention_pool(board, to_move)
+    assert [game.move_to_xy(m) for m in pool] == [(5, 5), (9, 5)]
+    board, to_move = _board_from_prefix(_FL_G3_PREFIX)
+    assert to_move == game.WHITE
+    pool = v33._mcts._vcf_prevention_pool(board, to_move)
+    assert [game.move_to_xy(m) for m in pool] == [(5, 5), (5, 9)]
+    # Every pool member leaves the opponent with no VCF start
+    # (the pool definition, re-checked independently here).
+    for prefix in (_FL_G1_PREFIX, _FL_G3_PREFIX):
+        board, to_move = _board_from_prefix(prefix)
+        pool = v33._mcts._vcf_prevention_pool(board, to_move)
+        for c in pool:
+            b2 = game.apply_move(board, c, to_move)
+            for m in evaluate.four_creating_moves(b2, -to_move):
+                assert not evaluate.starts_forced_win(
+                    b2, -to_move, m, depth=3
+                ), f"{game.move_to_xy(c)} is not a prevention"
+
+
+def test_vcf_filtered_search_reproduces_iter29_winning_preventions():
+    # The pre-registered reproduction check (iter-33 §1.4): v33
+    # plays the search's winning prevention at both §3.4
+    # positions, where v29 played the losing (5,5). If this fails,
+    # the design has failed its own motivating test.
+    v33 = scoring.get_player(33, seed=0)
+    board, to_move = _board_from_prefix(_FL_G1_PREFIX)
+    assert game.move_to_xy(v33.choose_move(board, to_move)) == (9, 5)
+    board, to_move = _board_from_prefix(_FL_G3_PREFIX)
+    assert game.move_to_xy(v33.choose_move(board, to_move)) == (5, 9)
+    # No state leak: the root-pool restriction is cleared after
+    # each filtered search.
+    assert v33._mcts._root_pool is None
+
+
+def test_vcf_filtered_search_fixes_v18_tactical_failures():
+    # v18's three hard-suite failures (iter-18 §3). v29's check
+    # fixed all three by prior pick; v33 must still play a
+    # prevention in the expected set — the filtered search must
+    # not lose the tactical guarantee.
+    v33 = scoring.get_player(33, seed=100)
+    for pid, expected in (
+        ("prev-v1v0s-g26", {(8, 4), (9, 4)}),
+        ("prev-v1v1s-g79", {(6, 7), (8, 7), (7, 8), (7, 9)}),
+        ("prev-v1bl-g2", {(6, 5), (7, 5)}),
+    ):
+        board, to_move, _pos = _tactical_position("hard", pid)
+        move = v33.choose_move(board, to_move)
+        assert game.move_to_xy(move) in expected, (
+            f"{pid}: v33 chose {game.move_to_xy(move)}, "
+            f"expected one of {sorted(expected)}"
+        )
+
+
+def test_vcf_filtered_search_offensive_still_fires():
+    # Old-suite VCF positions: the offensive step (v29's step 1,
+    # unchanged) plays the forced-win start directly.
+    v33 = scoring.get_player(33, seed=0)
+    for pid, expected_xy in (("vcf-1", (8, 3)), ("vcf-2", (8, 5))):
+        board, to_move, _pos = _tactical_position(None, pid)
+        move = v33.choose_move(board, to_move)
+        assert game.move_to_xy(move) == expected_xy, pid
+
+
+def test_vcf_filtered_search_quiet_position_falls_through_to_v18():
+    # Where neither the offensive step fires nor the gate opens,
+    # v33 IS v18 exactly (same leaf, same priors, same search).
+    # Low sims to keep the test fast; sparse boards (8 stones)
+    # so the gate stays closed.
+    rng = np.random.default_rng(11)
+    checked = 0
+    for _trial in range(8):
+        board = game.empty_board()
+        cells = [(x, y) for y in range(15) for x in range(15)]
+        rng.shuffle(cells)
+        for i, (x, y) in enumerate(cells[:8]):
+            board[y, x] = game.BLACK if i % 2 == 0 else game.WHITE
+        v33 = HeuristicMCTS(
+            sims=20, leaf_mode="rollout2_v1_both",
+            vcf_filtered_search=True,
+            rng=np.random.default_rng(0),
+        )
+        if v33._vcf_offensive_move(board, game.WHITE) is not None:
+            continue  # offensive step fired — not a fall-through
+        if v33._vcf_prevention_pool(board, game.WHITE) is not None:
+            continue  # gate open — not a fall-through position
+        v18 = HeuristicMCTS(
+            sims=20, leaf_mode="rollout2_v1_both",
+            rng=np.random.default_rng(0),
+        )
+        assert v33.choose_move(board, game.WHITE) == v18.choose_move(
+            board, game.WHITE
+        )
+        checked += 1
+    assert checked >= 2, "too few fall-through positions sampled"
+
+
+def test_vcf_filtered_search_does_not_mutate_board():
+    board, to_move, _pos = _tactical_position(None, "vcf-1")
+    before = board.copy()
+    v33 = scoring.get_player(33, seed=0)
+    v33.choose_move(board, to_move)
+    assert np.array_equal(board, before)
+    board, to_move = _board_from_prefix(_FL_G1_PREFIX)
+    before = board.copy()
+    v33.choose_move(board, to_move)
+    assert np.array_equal(board, before)
+
+
+def test_v33_choose_move_deterministic_for_same_seed():
+    board, to_move = _board_from_prefix(_FL_G1_PREFIX)
+    a = scoring.get_player(33, seed=42)
+    b = scoring.get_player(33, seed=42)
+    assert a.choose_move(board, to_move) == b.choose_move(board, to_move)

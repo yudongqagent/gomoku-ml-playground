@@ -208,7 +208,93 @@ pick (or picked, and won).
 
 ## 2. Implementation
 
-TODO — written after the pre-registration commit, before any eval.
+Branch `research/batch-10-h1`, worktree
+`~/workspace/projects/gomoku-b10-h1/` (from coordinator commit
+`a4ed543`). Three files:
+
+1. **`ml/gomoku_ml/mcts_heuristic.py`** —
+   `HeuristicMCTS.__init__` gains `vcf_filtered_search: bool =
+   False` (mutually exclusive with `vcf_root` — setting both
+   raises `ValueError`) and initialises `self._root_pool = None`
+   (set by `_search_restricted` for one search, cleared in a
+   finally block; initialised in `__init__`, not lazily, so
+   subclasses inheriting `_run_one` — `ValueMCTS` — always have
+   the attribute). `_vcf_root_move`'s offensive step is factored
+   out unchanged into `_vcf_offensive_move` (v29's step 1,
+   reused by v33); v29's defensive step is untouched. New:
+   `_vcf_prevention_pool` (the FULL pool — None when the gate is
+   closed, else the list of candidates after which the opponent
+   has no VCF start, prior-desc order; same subset + ordering
+   optimisations as v29's step 2, no first-success early exit)
+   and `_search_restricted` (the normal 100-sim MCTS with the
+   root restricted to the pool). `choose_move` checks the
+   filtered path first (offensive → pool → 1-play-direct /
+   restricted-search / fall-through), then v29's `vcf_root`
+   branch. `_run_one`'s root expansion (`last_move is None`)
+   filters priors to `self._root_pool` and renormalises over the
+   pool when set; deeper nodes always expand over all candidates.
+2. **`ml/gomoku_ml/scoring.py`** — v33 registered in
+   `ENGINE_VERSIONS` (`leaf_mode="rollout2_v1_both"`,
+   `vcf_filtered_search: True` — and NOT `vcf_root`, by design);
+   `ScoringPlayer.__init__` passes the flag through to
+   `HeuristicMCTS`.
+3. **`ml/tests/test_mcts_heuristic.py`** — 8 new tests (§2.1).
+
+`baseline.py` untouched (frozen).
+
+### 2.1 Tests (new, all passing)
+
+- `test_v33_registered_and_filtered_search_enabled` — registry
+  + flags; v29/v18 unchanged.
+- `test_vcf_filtered_search_mutually_exclusive_with_vcf_root`.
+- `test_vcf_prevention_pool_contains_both_iter29_preventions` —
+  the pool at both §3.4 positions is exactly the two preventions
+  ([(5,5), (9,5)] / [(5,5), (5,9)]), and every pool member is
+  re-verified as a prevention (no opponent VCF start on the
+  resulting board). The pool CONTAINS a winner at both positions
+  — the v32 caveat check passes here.
+- `test_vcf_filtered_search_reproduces_iter29_winning_preventions`
+  — the pre-registered reproduction check (§1.4): v33 plays (9,5)
+  / (5,9) at the two §3.4 positions; also asserts `_root_pool`
+  is cleared after the filtered search (no state leak).
+- `test_vcf_filtered_search_fixes_v18_tactical_failures` — v33
+  plays a prevention in the expected set at all three of v18's
+  hard-suite failures (g26 → (9,4), g79 → (7,9), v1bl-g2 → (7,5)).
+- `test_vcf_filtered_search_offensive_still_fires` (vcf-1/vcf-2).
+- `test_vcf_filtered_search_quiet_position_falls_through_to_v18`
+  — where neither step fires, v33 IS v18 exactly (low sims).
+- `test_vcf_filtered_search_does_not_mutate_board`,
+  `test_v33_choose_move_deterministic_for_same_seed`.
+
+Targeted run (v33 + vcf + v29 + v18 selection): 20 passed.
+
+### 2.2 Pre-battery verification (smoke, not eval)
+
+- **Reproduction check (§1.4): PASS.** At both iter-29 §3.4
+  positions (reconstructed from
+  `~/workspace/b9h3-logs/fast-v29-vs-v0.json`), the pool is the
+  two preventions and v33 plays the search's winning one —
+  (9,5) in game 1, (5,9) in game 3 — where v29 played the losing
+  (5,5). Controls at the same positions: v29's check plays (5,5);
+  v18's unrestricted search plays (9,5)/(5,9) — the restricted
+  search agrees with the full search here, as expected (the
+  filter's value-add is the GUARANTEE of a prevention plus the
+  concentrated sims, not a different pick at these positions).
+  Pool scans 0.22s/0.21s; total v33 move time ~2.1s, the same as
+  v18's search — the pool scan is negligible next to the search
+  at these positions.
+- **Tactical prevention positions: PASS.** g26 pool [(9,4),
+  (8,4)] → (9,4); g79 pool [(7,9), (8,7), (6,7), (7,8)] → (7,9);
+  v1bl-g2 pool [(6,5), (7,5)] → (7,5). Every pool member is in
+  the expected set at all three — the search cannot pick wrong
+  there, so the tactical guarantee survives the design change.
+  Offensive VCF positions vcf-1/vcf-2: (8,3)/(8,5) as expected.
+- **Cost flag (see §3):** the full-pool scan is slow on
+  creator-rich tactical positions — g26 31.0s, g79 26.4s,
+  v1bl-g2 8.3s (vs v29's early-exit 2.0s/5.0s/2.2s). The §3.4
+  positions scan in 0.22s, so the cost is strongly
+  position-dependent; the bench (§3) and the fast loop (§4)
+  quantify the real-game cost.
 
 ## 3. Cost guard
 

@@ -9,6 +9,16 @@ median / p90 / max root-check time and the fire rate.
 
 Usage:
     PYTHONPATH=ml python ml/scripts/bench_vcf_root.py [--seed 777] [--n 100]
+    PYTHONPATH=ml python ml/scripts/bench_vcf_root.py --engine v33
+
+``--engine v33`` (iter-33 §1.3) times the v33 check path instead:
+the offensive step plus the full prevention-pool scan (what
+``choose_move`` pays before the search). The pool scan has no
+first-success early exit, so v33's check is >= v29's wherever
+the gate opens; "filter engages" counts positions with a
+non-empty pool (the search runs restricted), "gate open" counts
+positions where the opponent holds a VCF start at all (pool
+computed, possibly empty).
 """
 
 from __future__ import annotations
@@ -65,6 +75,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", type=int, default=777)
     ap.add_argument("--n", type=int, default=100)
+    ap.add_argument("--engine", default="v29", choices=("v29", "v33"))
     args = ap.parse_args()
 
     from gomoku_ml.mcts_heuristic import HeuristicMCTS
@@ -72,6 +83,36 @@ def main() -> int:
     positions = generate_positions(args.seed, args.n)
     print(f"generated {len(positions)} positions (seed {args.seed})",
           file=sys.stderr)
+    if args.engine == "v33":
+        mcts = HeuristicMCTS(
+            sims=100, leaf_mode="rollout2_v1_both",
+            vcf_filtered_search=True,
+            rng=np.random.default_rng(0),
+        )
+        times: list[float] = []
+        offensive = 0
+        gate_open = 0
+        engaged = 0
+        for board, player in positions:
+            t0 = time.perf_counter()
+            off = mcts._vcf_offensive_move(board, player)
+            if off is not None:
+                offensive += 1
+            else:
+                pool = mcts._vcf_prevention_pool(board, player)
+                if pool is not None:
+                    gate_open += 1
+                    if pool:
+                        engaged += 1
+            times.append(time.perf_counter() - t0)
+        times_sorted = sorted(times)
+        p90 = times_sorted[int(0.9 * len(times_sorted)) - 1]
+        print(f"n={len(times)} offensive={offensive} "
+              f"gate_open={gate_open} filter_engaged={engaged}")
+        print(f"median={statistics.median(times) * 1000:.1f}ms "
+              f"p90={p90 * 1000:.1f}ms max={max(times) * 1000:.1f}ms "
+              f"mean={statistics.mean(times) * 1000:.1f}ms")
+        return 0
     mcts = HeuristicMCTS(
         sims=100, leaf_mode="rollout2_v1_both", vcf_root=True,
         rng=np.random.default_rng(0),
