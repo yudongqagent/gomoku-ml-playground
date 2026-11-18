@@ -1024,7 +1024,23 @@ numbers are the official battery result.
 
 ### 5.1 Legs
 
-TODO (numbers when each leg completes).
+**vs v27 (clause 1): 51W-45L-4D, 0.5300, Wilson 95% CI
+[0.4329, 0.6249] — FAILS** (CI lower < 0.50). De-duplicated:
+49W-44L-3D over 96 unique games, 0.5260, CI [0.4271,
+0.6230] — also fails. The verdict does not turn on
+duplication: both cuts are a statistical tie with v27.
+Colour split: as Black 38W-10L-2D (0.78); as White
+13W-35L-2D (0.28) — White remains the gap; v35 wins the
+Black games and loses the White ones, as v27 did. The
+leg's progression (28W-32L-2D at 62 games, 37W-40L-3D
+at 80, 51W-45L-4D at 100) shows a genuine late surge,
+but the hole was too deep. Uniqueness: 96/100 — the
+seed-replay held for only 3 games (62=0, 63=1, 64=2)
+before process-level variation broke it; the 4th
+duplicate pair (30=96) is engine determinism, not
+replay (H2's vs-v0 phenomenon in miniature).
+
+TODO (vs-v0, swap, ladder — numbers when each leg completes).
 
 ## 6. Bar check
 
