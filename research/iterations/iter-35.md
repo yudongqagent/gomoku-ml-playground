@@ -1072,7 +1072,111 @@ different opponent, not comparable.) Swap is a
 secondary metric, not a bar clause; it does not change
 the clause-1 verdict.
 
-TODO (ladder — numbers when the leg completes).
+**Ladder (clause 2): Elo 636.4, interval [240.3, 1032.5] —
+TIES v27's 636.4, does not exceed it — FAILS.** Legs:
+random 20W-0L-0D; heuristic 19W-0L-1D (identical to
+v27's — the Elo is determined by the heuristic leg
+alone, since the random leg is saturated and the MCTS
+leg is not an Elo anchor); mcts **19W-1L-0D — the best
+MCTS leg in the program** (v29's 15-5 and v34's 15-5
+were the previous bests; v18's was 14-6). The mcts leg
+is a strength signal, not an Elo input: it shows v35
+crushes the baseline MCTS, but the bar's Elo instrument
+cannot see it. v34's 20-0 heuristic leg (the only one
+ever) is what a pass needs; v35's single draw (as
+Black, game 9) is the difference between 636.4 and a
+saturated pass. The ladder driver ran clean in one
+process (no resume); the EVAL_JSON backup is in
+`~/workspace/b10h3-logs/ladder-v35-stdout.log`.
+
+### 5.2 Defence classification
+
+`classify_losses.py` on the three battery batches:
+
+| Batch | Losses | Via open four | Missed blocks | Clean missed preventions | Threatened turns |
+|---|---|---|---|---|---|
+| vs v27 | 45 | 45 | 0 | **0** | 251 |
+| vs v0 | 2 | 2 | 0 | **0** | 8 |
+| swap vs v27 | 35 | 35 | 0 | **0** | 189 |
+| **Pooled** | **82** | **82** | **0** | **0** | **448** |
+
+v35 has **0 clean missed preventions in 448 threatened
+turns** — the check does exactly what it was designed
+to do. (Compare v34's 6 in 468, the first non-zero
+reading in the program; v27's 0 in 183.) Every v35
+loss is via open four with no clean prevention missed:
+the remaining losses are horizon losses (the
+opponent's forcing sequence was already unstoppable
+by the time the check could see it) or prevention
+choices among equally-clean options (the g32 prior-noise
+flaw — the check picks a prevention, but the wrong one).
+Defence is still solved in the block sense (0 missed
+blocks holds).
+
+## 6. Bar check (v35 vs v27)
+
+| Clause | Requirement | v35 result | Verdict |
+|---|---|---|---|
+| 1 | h2h vs v27 ≥ 100 games, win rate > 0.50, Wilson 95% CI lower > 0.50 | 51W-45L-4D, 0.5300, CI [0.4329, 0.6249] (de-dup: 49W-44L-3D over 96 unique, 0.5260, CI [0.4271, 0.6230]) | **FAIL** |
+| 2 | Ladder Elo > 636.4 | Elo 636.4, interval [240.3, 1032.5] — TIES v27/v18, does not exceed | **FAIL** |
+| 3 | Tactical ≥ 20/20 + 29/29 (corrected suite) | 20/20 old, 29/29 hard | **PASS** |
+| 4 | All test suites green | pytest 405 passed, 7 skipped, 60 xfailed, 0 failures; npm 55/55; tsc clean; baseline.py untouched | **PASS** |
+
+**v35 is REJECTED, 2/4 clauses.** No v18 challenge match
+is triggered (it requires all 4 clauses). v18 stays the
+strength champion; v27 stays the bar reference.
+
+## 7. What this means
+
+**The forensics was right; the patch was real; the bar
+was too high for it.** The VCF-prevention mechanism was
+verified on 7 game-instances (6 distinct positions) of
+v27's losses, cross-validated on all 3 of H2's
+independently-discovered missed preventions, and the
+battery confirms the mechanism works: 0 clean missed
+preventions in 448 threatened turns (vs v34's 6 in
+468). The fast loop showed the search-first design
+flipping all 4 of its vs-v0 losses (6W-4L → 10W-0L)
+and winning 8-2 vs v27. The swap leg (0.62, CI clear
+of 0.50) and the record MCTS ladder leg (19-1) both
+point the same way: v35 IS stronger than v27.
+
+But the bar's clause 1 measures normal-rules h2h
+against v27, and there v35 is 51-45-4 — a 6-game edge
+that the Wilson interval cannot separate from a tie.
+Two structural reasons: (1) the missed-prevention
+rate was only ~1.3% of threatened turns, so fixing it
+gains a handful of games, not dozens; (2) White
+remains the gap (13W-35L-2D as White vs v27) — the
+check helps both colours equally, so it cannot close
+a colour-asymmetric deficit. The horizon losses (10
+of v27's 22) are untouched by design: the check fires
+only when the opponent already holds VCF starts, and
+by then the loss is often already forced.
+
+**The VCF-prevention lever is now CLOSED as a
+strength lever for the v27 family.** The check is
+proven to eliminate missed preventions, and the
+remaining losses are horizon losses and
+prevention-choice noise (g32's 1e-4 prior margin).
+Further gains need a different mechanism: either
+earlier threat detection (before VCF starts exist —
+the setup-signature lead from §2, a single distinct
+position, needs more instances) or the leaf-value
+fix for H2's leaf-blind flavour (§2.4). The
+search-first design is the right shape for any
+future check (it is weakly dominant over the search
+alone), and it should be the default whenever a
+check is added to a search engine.
+
+**Cost note:** v35 inherits v29's VCF cost (~1.65s/move
+mean, ~7s/move creator-rich) plus the search-first
+overhead. The battery took ~7 hours wall-clock for
+340 games (3 legs + ladder) under 2-way contention.
+A future version that wants the check's benefit
+without the cost needs the pre-registered fallback
+(§1.2, cheaper VCF check) — which v35 did not need,
+since the forensics found a patchable mechanism.
 
 ## 6. Bar check
 
