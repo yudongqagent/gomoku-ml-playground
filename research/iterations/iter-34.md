@@ -405,17 +405,99 @@ also finds no patchable class, the loop stops. No regression
 positions added: the one verified losing move has a verified
 save no root rule can promote.
 
-### 2.2 Fast-loop iteration 2
+### 2.2 Fast-loop iteration 2 — 10 games vs v27 + 10 games vs v0 (LOOP STOPS)
 
-(TODO)
+**Batches:** `research/iterations/fastloop2-v34-vs-v27.json`
+(seeds v34=1002 / v27=2002) and
+`research/iterations/fastloop2-v34-vs-v0.json` (seeds v34=1002 /
+v0=2002). **vs v27: 5W-4L-1D, win rate 0.5500, CI [0.2737,
+0.7986]**, 945.7 s — identical to iteration 1. Split: as Black
+4W-0L-1D (0.90), as White 1W-4L (0.20) — all 4 losses as White.
+**vs v0: 10W-0L-0D, win rate 1.0000, CI [0.7225, 1.0000]**,
+289.9 s. Classifier (both batches): 4/4 losses via open four, 0
+missed blocks, 0 clean missed preventions in 21 threatened turns
+(losses). Defence still solved. (One runtime restart interrupted
+the walk-back chain after games 1 and 3; games 7 and 9 were
+re-run — no work was lost, and the /tmp diagnostic scripts were
+recreated from the committed code afterwards.)
 
-### 2.3 Fast-loop iteration 3 — NOT RUN unless iterations 1–2 find a patchable class
+**The gate changed moves in this iteration — and cost one game.**
+The gate-difference scan (`/tmp/scan_v34_gate_diff.py`, recreated
+after the restart) compared 93 v34 turns across the 4 losses and
+found THREE gate-caused differences (after zero in iteration 1's
+87 turns):
 
-### 2.4 Fast-loop iteration 4 — NOT RUN unless iterations 1–3 find a patchable class
+- **Game 7, ply 37 — the gate COST the game.** The position is
+  QUIET (no threat for either side). The root (fresh seed 0)
+  has a 3-way tie at 6 visits: (6,2) our-q +0.0007, (2,6)
+  +0.0680, (7,11) +0.0001. Gap 0.0673 > τ=0.05, so v27's
+  tie-break FIRES and picks (2,6); v34's gate BLOCKS the fire
+  and the RNG coin flip over the tied triple lands on (7,11) —
+  the actual losing move. Under v34-vs-v27 playouts
+  (`targeted_playout.py`, seeds 0,1,2): (7,11) [-1,-1,-1],
+  (2,6) [+1,+1,+1] (SAVES), (6,2) [-1,+1,-1] (split). The
+  gate converted a deterministic save into a 1/3 coin flip and
+  the flip landed wrong. This is direct evidence AGAINST the
+  hypothesis: a quiet-position above-threshold fire carried
+  real signal — the 0.0673 gap separated a saver from a loser
+  and a split. (The walkback's nominated save (11,7) also wins
+  3/3, but it sits at 3 visits with our-q −0.0629, rank 5/96 —
+  outside the tie, unreachable by any root rule. The loss is
+  recorded as regression xfail fl2-g7-ply37, expected (11,7)
+  and (2,6).)
+- **Game 1, ply 31 — outcome-free.** v34 played (4,9), v27's
+  fired pick was (9,3) (gap 0.0533, quiet). Under v34-vs-v27
+  playouts BOTH lose 3/3 — the gate changed the move but not
+  the outcome. (The exact analysis even scores (9,3) worse: it
+  leaves Black 3 VCF starts vs 0 after (4,9). The v1 oracle
+  had said (4,9) wins 2/3 here — wrong again under strong
+  play.)
+- **Game 3, ply 15 — no match effect.** Fresh-seed-0 v34 picks
+  (3,8) vs v27's (3,7) (gap 0.0806, quiet), but the MATCH move
+  was (3,7) — v34's coin flip landed on v27's fired pick, so
+  the gate changed nothing in the actual game.
+
+**The other nominations were all refuted by the stronger
+oracle.** Game 1 ply 23: (9,7) loses 3/3 (the v1 oracle said
+win/win/win). Game 9 ply 13: (10,5) wins only 1/3 (below the
+≥2/3 bar — a split, not a save). Game 3 ply 69: (10,7) loses
+3/3 (only the first-listed of five v1-oracle saves was verified
+under the strong oracle; the others were not pursued — same
+class, same oracle, and the pattern across both iterations is
+5 of 7 v1-oracle saves failing under strong play).
+
+**No patchable weakness class in this iteration either.** The
+one gate-caused loss (game 7) is "fixed" only by removing the
+gate — i.e. by being v27 — which is abandoning the hypothesis,
+not a patch. The other confirmed losing move (game 7's (11,7)
+save) is unreachable by any root rule. **The fast loop STOPS
+here (2 iterations)** per the pre-commitment in §2.1 (two
+consecutive barren iterations, 40 games). v34-as-batteried is
+v34-as-pre-registered. The battery is the verdict on whether
+the gate costs or saves games at scale — the fast loop's
+evidence cuts against it (1 game cost, 0 saved, in 40 games),
+but n=40 cannot measure a small effect.
+
+### 2.3 Fast-loop iteration 3 — NOT RUN (loop stopped after iteration 2)
+
+### 2.4 Fast-loop iteration 4 — NOT RUN (loop stopped after iteration 2)
 
 ### 2.5 Aggregate counts (secondary)
 
-(TODO)
+Fast-loop totals (2 iterations, 40 games): vs v27 10W-8L-2D
+(0.5500); vs v0 20W-0L-0D (1.0000). Colour splits vs v27: as
+Black 7W-2L-1D (0.75), as White 3W-6L-1D (0.35) — the White
+gap is iteration 2's 1W-4L (n=10 per colour per iteration;
+noise, not a finding). Fast-loop defence: 8/8 losses via open
+four, 0 missed blocks, 0 clean missed preventions (43
+threatened turns in losses). Defence remains solved.
+Gate-difference totals: 180 turns compared in lost games, 3
+gate-caused differences (all in iteration 2), 1 game cost
+(g7-ply37), 0 games saved, 1 outcome-free (g1-ply31), 1 with no
+match effect (g3-ply15). No patches were made in this
+iteration — v34-as-batteried is v34-as-pre-registered (the
+tactical gate on τ=0.05). One regression xfail added:
+fl2-g7-ply37 (the gate's documented cost).
 
 ## 3. v34 evaluation
 

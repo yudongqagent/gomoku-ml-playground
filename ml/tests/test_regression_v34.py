@@ -31,6 +31,15 @@ v27's behaviour on every position here:
   iter-27.md; the regression test pins the deterministic seed-0
   behaviour and would catch a regression to v23's
   deterministic-wrong choice.
+* fl2-g7-ply37 (v34 fast loop, iteration 2): the gate's
+  documented cost. v34 plays (7, 11) at seed 0; (11, 7) and
+  (2, 6) both win 3/3 under v34-vs-v27 playouts while (7, 11)
+  loses 3/3 (iter-34 §2.2). The position is QUIET, so the gate
+  blocks v27's tie-break fire (gap 0.0673) and the RNG coin
+  flip over the 3-way tie lands on the loser — v27's fired
+  pick (2, 6) is itself a verified save. The "fix" would be
+  removing the gate (i.e. being v27), so this stays an xfail:
+  a pinned record of the gate's cost, not a patchable weakness.
 """
 
 import json
@@ -61,6 +70,7 @@ POSITIONS_PATH = os.path.join(
 XFAIL = {
     "fl1-g0-ply12": "Black position; v18/v23 play [7, 10], not a save; see iter-18.md §1.2",
     "fl2-g7-ply9": "White twin-choice; v18/v23 play (6, 4) over (10, 8); no patchable mechanism; see iter-18.md §2.2",
+    "fl2-g7-ply37": "Gate's documented cost: v34 plays (7, 11); (11, 7) and (2, 6) both win 3/3 under v34-vs-v27 playouts. The fix would be removing the gate; see iter-34.md §2.2",
 }
 
 
