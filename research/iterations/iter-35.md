@@ -900,13 +900,40 @@ non-prevention. Cost: the search now runs even when the
 defensive check would have fired, plus one VCF gate per
 move — the battery measures the pace.
 
-### 4.3 vs v27 (10 games, seeds 1036/2036)
+### 4.3 vs v27 (10 games, seeds 1036/2036): v35 8W-2L-0D (0.80)
 
-TODO.
+Search-first v35 vs v27: **8W-2L-0D** (CI [0.49, 0.94])
+in 911s. Both losses as White (g3, 53 plies; g7, 35
+plies). Both losses were analysed with exact analysis
+(VCF gates + prevention checks at the last 4 White turns;
+log `~/workspace/b10h3-logs/light-fast2-v27.log`) — full
+playout workups were infeasible at current VM load (H1
+running 2 matches; a single workup alternative took 15+
+min), so the classification rests on exact analysis, not
+playouts, and is recorded as such.
 
-### 4.4 Fast-loop verdict
+- **Game 3:** v35 played preventions at ply 45 (Black VCF
+  3→0) but by ply 47 Black held 8 VCF starts and NO
+  prevention exists (`_vcf_root_move` returns None —
+  verified); plies 49/51 are 11 and 96 VCF starts. The
+  loss was decided before ply 47 (Black built too many
+  threats for one move to address). Horizon loss; no
+  missed-prevention mechanism, no search-first bug.
+- **Game 7:** v35 played preventions at plies 27 (4→0) and
+  29 (7→0) but by ply 31 Black held 12 VCF starts and NO
+  prevention exists (verified). Horizon loss; same
+  conclusion.
 
-TODO.
+### 4.4 Fast-loop verdict: v35 GOES TO THE BATTERY
+
+Search-first v35: 10W-0L vs v0 (the plain check's 6W-4L,
+all 4 losses flipped), 8W-2L vs v27, tactical 20/20 +
+29/29, regression tests 8 passed + 2 xfailed. The 2
+vs-v27 losses are horizon losses with no patchable
+mechanism in the window (v35 played preventions where
+they existed; where it did not, none existed). The fast
+loop's 1 refinement is used; no further design changes.
+The battery is the verdict.
 
 ## 5. Battery
 
