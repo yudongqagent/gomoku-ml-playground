@@ -300,6 +300,14 @@ prevention in the classifier's sense.
 g62's ply-16 finding is established from its in-progress
 workup log, JSON pending)
 
+**Runtime interruption (recorded, no workups lost).** The VM
+was replaced mid-chain (uptime reset; the chain died during
+game 62's workup, after its ply-16 alternatives had printed
+but before the JSON was written). The chain was relaunched
+with the same script, which skips completed JSONs and
+resumed at g62. The g62 ply-16 finding above is from the
+first run's log; the resumed workup re-verifies it.
+
 Same-engine playout oracle (`workup_loss.py`, v27 vs v7 / v27
 vs v0, seeds 0/1/2, last 4 turns, top-5 + 400-sim + VCF
 alternatives). Workup JSONs in `~/workspace/b10h3-logs/`.
