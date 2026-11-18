@@ -745,6 +745,28 @@ is what the battery measures, and it is fixed.
 - **VM replacement during the leg:** killed after game 30;
   auto-resumed from game 31 (recorded in the JSON).
 
-## 7. Verdict
+### 6.4 Secondary: vs v7 — COMPLETE 2026-11-18 ~14:15 PST
+
+`fast_loop_match.py --version-a 37 --opponent v7 --games 100
+--seed-a 100 --seed-b 200` (raw
+`research/iterations/batch-v37-vs-v7.json`):
+
+- **43W-53L-4D, 0.4500, CI [0.3561, 0.5476].** Loses to the
+  heuristic bar reference — essentially v24's number (0.4450).
+  The 2-ply labels closed the gap to v8 and past it, but v7's
+  exact gradient leaf still wins the head-to-head.
+- As Black 28W-19L-3D (0.5900); as White 15W-34L-1D (0.3100) —
+  White is the gap vs v7 (v24: White 0.490; v31: White 0.380).
+  Black won 62/100.
+- Uniqueness audit: **99 unique games of 100**; de-dup win rate
+  0.4444, CI [0.3505, 0.5426].
+- **Two VM replacements during the leg** (killed after game 5
+  and after game 66); auto-resumed from games 6 and 67 (the
+  JSON records only the latest `resumed_from_game`, so both
+  restarts are recorded here).
+- Non-transitivity check: v7 > v37 (0.55) > v8 (v37 0.75) > v0
+  (v37 0.585, v8 0.545) — the ordering is transitive, no bad
+  non-transitivity (contrast v26/v31, which tied v7 while
+  losing to v8).
 
 TODO — verdict.
