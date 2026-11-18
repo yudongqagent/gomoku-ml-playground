@@ -590,7 +590,42 @@ engine positions.
 
 ## 5. α sweep and fast loops
 
-TODO — sweep results, registry α update, fast loops, g92 check (§1.9).
+### 5.0 The g92 check (§1.9) — MULTI-TASK DID NOT FIX THE OVERRIDE
+
+`ml/scripts/diag_g92.py` (100 sims, seed 0; the diagnostic
+reproduces iter-31's v8 numbers exactly — (9,6) +0.246 at 57
+visits, (5,4) +0.056 at 4 visits — so the instrument is
+validated):
+
+| Engine | (9,6) expected: visits / our-q | (5,4) wrong: visits / our-q | Raw net after (9,6) (White to move) | Picks |
+|---|---|---|---|---|
+| **v38** (α=1.0) | 2 / **−0.062** | 93 / **+0.729** | +0.060 (wrong sign) | (5,4) ✗ |
+| v31 (iter-31) | 1 / −0.377 | 75 / +0.788 | — | (5,4) ✗ |
+| v8 (α=0.25) | 57 / +0.246 | 4 / +0.056 | −0.545 | (9,6) ✓ |
+| v24 (α=1.0) | 56 / +0.461 | 5 / +0.031 | −0.121 | (9,6) ✓ |
+
+The prior ranks (9,6) 1st (0.1122) for all engines. v38
+reproduces the v26/v31 failure mode UNMITIGATED: the net
+values the quiet setup at −0.062 ours (wrong-signed, near
+zero) while the (5,4) line gets +0.729 ours, and the search
+picks (5,4) 93–2. v38 is less wrong than v31 on (9,6)
+(−0.062 vs −0.377) but equally wrong on (5,4) (+0.729 vs
++0.788). Note v38 is WORSE than v24's single-task net on BOTH
+moves (v24: (9,6) +0.461, (5,4) +0.031) — the threat head
+appears to have AMPLIFIED the threat-overvaluation rather
+than correcting it: the trunk now represents threats more
+strongly, and the value head leans on that representation.
+(The (5,4) line's immediate leaf is the +0.250 must-block
+short-circuit for all engines — the +0.729 comes from deeper
+threat-heavy leaves the net overvalues.) The hypothesis's
+core prediction — v38's net values (9,6) ABOVE (5,4) — is
+REFUTED at the named diagnostic position. The battery
+proceeds as pre-registered (the g92 check is diagnostic, not
+a stop rule); clause 3 is now expected to fail on this
+position, and the fast loop will look for whether any
+patchable mechanism remains.
+
+TODO — α sweep results, registry α update, fast loops.
 
 ## 6. Validation battery
 
