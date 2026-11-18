@@ -367,7 +367,75 @@ parameters before running anything.
 
 ### 1.5 Threshold selection — sweep results (the pre-registered rule applied)
 
-(TODO — after the sweep.)
+**Tactical gate (§1.2 rule 1):** both τ pass — 20/20 old + 29/29
+hard at `--seed 100`, as the mechanism check (§1.3) predicted.
+Both eligible.
+
+**Sweep artefact names.** The first sweep run wrote to
+`sweep-tau005-vs-v0.json` / `sweep-tau010-vs-v0.json` — the same
+names as v27's committed sweep artefacts — and the driver
+correctly skipped both matches as already complete (v27's
+39W-0L-1D). No v36 games were played and no v27 artefact was
+modified. The matches were re-run to distinct files
+(`sweep-v36-tau005-vs-v0.json` /
+`sweep-v36-tau010-vs-v0.json`); only those files are v36 sweep
+evidence.
+
+**40-game vs-v0 sweep (seeds 3001/4001, alternating colours,
+100 sims; aggregates recomputed from the raw records, matching
+the drivers' headers exactly):**
+
+| τ | Result | Win rate | 95% CI | As Black | As White | Unique games | De-dup rate |
+|---|---|---|---|---|---|---|---|
+| 0.05 | 20W-20L-0D | 0.5000 | [0.3520, 0.6480] | 11W-9L (0.55) | 9W-11L (0.45) | 31/40 | 0.5161 |
+| 0.10 | 20W-20L-0D | 0.5000 | [0.3520, 0.6480] | 11W-9L (0.55) | 9W-11L (0.45) | 31/40 | 0.5161 |
+
+The two thresholds are INDISTINGUISHABLE on the sweep:
+identical W/L/D, identical colour splits, identical uniqueness
+audits. 37/40 games are move-for-move identical between the two
+matches; the 3 diverging games (12, 26, 36) all keep the same
+winner — the τ=0.05 fires (the only difference between the
+engines) change lines but no outcomes. **Per the pre-registered
+tie rule (§1.2 rule 3: rates within 1 game → the smaller
+threshold), v36 = τ 0.05.** The temporary sweep entries (92/93)
+were removed on registration. Sweep artefacts:
+`research/iterations/sweep-v36-tau005-vs-v0.json`,
+`research/iterations/sweep-v36-tau010-vs-v0.json`.
+
+**What the sweep does and does not show.** Both thresholds sit
+at 0.5000 vs v0 — within noise of v8's battery 0.545 (54W-45L-1D,
+CI [0.4475, 0.6391]), and the sweep CIs overlap it heavily. The
+tie-break changes essentially nothing against v0 at either τ,
+exactly as §0 predicted (the rule fires on ~1% of moves at
+τ=0.05 and ~0% at τ=0.10). The 100-game battery is the verdict —
+but the sweep already prices the mechanism: a near-no-op. The
+only open question for the battery is whether the rare τ=0.05
+fires carry any signal vs v8 itself (clause 1), where the two
+engines differ ONLY in those fires.
+
+**Runtime restart during the sweep (recorded, no games lost).**
+A runtime restart killed the sweep chain mid-match (τ=0.10 at
+20/40 games) and wiped /tmp — the q-gap measurement's raw
+records (`/tmp/qgap_v8.json`) and the mechanism-check records
+(`/tmp/mech_v36.json`) are lost, but every number reported from
+them was recomputed and recorded in §0/§1.3 before the restart,
+and the committed log is the record. The chain was relaunched
+from the persistent scripts directory
+(`~/workspace/gomoku-ml3-h1-scripts/`, created after the
+restart so a second wipe cannot strand the run) and the driver
+auto-resumed from the partial `--out` file (`resuming from
+game 20`). Resume integrity verified two ways: (a) all 20 saved
+prefix games match the pre-restart snapshot (winners, plies,
+colours) taken from the recovery log; (b) the resumed match's
+duplicate structure is IDENTICAL to the uninterrupted τ=0.05
+control's (duplicate groups [4,20], [6,18,24],
+[9,25,27,29,31,39], [30,38] in both) — the groups straddling
+the resume boundary are engine determinism (the same line
+recurring from different per-game seeds), not resume replay,
+because the never-resumed control has them too. Per-game
+seeding reproduced the uninterrupted run exactly. v36's own
+tactical (post-registration): 20/20 old + 29/29 hard at
+`--seed 100`, as expected.
 
 ## 2. Loss analysis for iteration 36
 

@@ -319,21 +319,22 @@ def test_v36_flag_off_is_v8_behaviour(tmp_path):
     assert mcts._pick_pool_move(pool) == 100
 
 
-def test_v36_sweep_versions_registered_and_dispatch(tmp_path, monkeypatch):
-    # Temporary sweep candidates 92 (τ=0.05) and 93 (τ=0.10) —
-    # removed when v36 is registered with the selected threshold.
+def test_v36_registered_with_selected_threshold(tmp_path, monkeypatch):
+    # v36 = v8 + threshold 0.05, selected by the pre-registered
+    # rule (iter-36 §1.2/§1.5: both sweep values tied at
+    # 20W-20L-0D vs v0, so the tie rule picked the smaller one).
+    # The temporary sweep entries (92/93) are gone.
     ckpt = _random_net_checkpoint(tmp_path)
-    monkeypatch.setitem(scoring.ENGINE_VERSIONS[92], "value_checkpoint", ckpt)
-    monkeypatch.setitem(scoring.ENGINE_VERSIONS[93], "value_checkpoint", ckpt)
-    v92 = scoring.get_player(92, seed=0)
-    assert v92.name == "scoring-v92"
-    assert isinstance(v92._mcts, ValueMCTS)
-    assert v92._mcts.sims == 100
-    assert v92._mcts.tie_break_q is True
-    assert v92._mcts.tie_break_q_threshold == 0.05
-    v93 = scoring.get_player(93, seed=0)
-    assert v93._mcts.tie_break_q is True
-    assert v93._mcts.tie_break_q_threshold == 0.10
+    monkeypatch.setitem(scoring.ENGINE_VERSIONS[36], "value_checkpoint", ckpt)
+    v36 = scoring.get_player(36, seed=0)
+    assert v36.name == "scoring-v36"
+    assert isinstance(v36._mcts, ValueMCTS)
+    assert v36._mcts.sims == 100
+    assert v36._mcts.tie_break_q is True
+    assert v36._mcts.tie_break_q_threshold == 0.05
+    for temp in (92, 93):
+        with pytest.raises(ValueError):
+            scoring.get_player(temp, seed=0)
     # v8 is unchanged (tie-break off by default).
     monkeypatch.setitem(scoring.ENGINE_VERSIONS[8], "value_checkpoint", ckpt)
     v8 = scoring.get_player(8, seed=0)
