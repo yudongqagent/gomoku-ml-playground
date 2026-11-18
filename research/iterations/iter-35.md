@@ -310,6 +310,7 @@ values (`/tmp/diag_rollout.py`), and exact threat analysis
 |---|---|---|---|---|---|
 | 4 (vs v7) | B | 50 | ply 44 (3,5) | (13,7) 3/3, (14,7) 2D+1W | **clean VCF-prevention (VCF 3→0)** |
 | 7 (vs v7) | W | 31 | none in window | — | horizon loss |
+| 10 (vs v7) | B | 52 | ply 44 (7,10) | (3,6) 1W+1D+1L | **clean VCF-prevention (VCF 1→0, creators 0, setups 0)** |
 | 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
 
 **Game 4, ply 44 (Black to move) — missed VCF prevention.**
@@ -338,6 +339,29 @@ second but is not a prevention — it leaves (13,7) live).
 no saving move at any of the last 4 White turns (4
 qualifying turns, 0 saves). Class 3.
 
+**Game 10, ply 44 (Black to move) — missed VCF prevention
+(2nd instance).** The actual (7,10) loses 3/3; (3,6) SAVES
+[1, 0, −1] (2/3 non-losses). Exact analysis: after (7,10)
+White holds **1 VCF start** [(4,6)], 0 creators, 1 setup
+[(3,6)]; after (3,6) White holds **0 VCF starts, 0 creators,
+0 setups** — the ONLY clean prevention among the tested
+alternatives ((1,9), (0,9), (7,4) remove the VCF start but
+leave a creator + 7–9 setups, and all lose 3/3; (4,6)
+occupies White's VCF square but creates TWO new VCF starts
+and loses 3/3). The root here is the OPPOSITE of g4's flat
+tie: the search is CONFIDENT in the loser — (7,10) holds 96
+visits, our-q +0.595 (breadth ours four=10 after the move),
+while the save (3,6) holds 1 visit, our-q +0.195. The search
+sees Black's attack and rates it winning; it cannot see that
+White's VCF (3+ plies deep) lands first. The rollout leaf
+cannot distinguish them either ((7,10) +0.1933 vs (3,6)
++0.1951), and ranks the losers (1,9)/(0,9) highest (+0.2500,
+the must-block value). The v29 defensive check DOES
+reproduce the save here: `_vcf_root_move` returns (3,6)
+(the highest-prior prevention — the partial preventions rank
+below it by prior). **VCF-prevention mechanism: 2 verified
+instances, both reproduced by the VCF check.**
+
 **Game 77, ply 13 (White to move) — search-horizon value
 error, no exact signature.** The actual (7,6) loses 2/3;
 (7,4) and (8,7) win 3/3, (7,5) wins 2/3. The root is flat
@@ -355,9 +379,10 @@ the loser on every count. The 400-sim deeper-search proposal
 (7,9) loses 3/3 — deeper search does not find the save.
 Class 7 (search-horizon value error), no patchable signature.
 
-**Running tally: VCF-prevention 1, horizon 1, search-horizon
+**Running tally: VCF-prevention 2, horizon 1, search-horizon
 (no signature) 1.** The patch rule needs ≥3 verified
-instances of ONE mechanism.
+instances of ONE mechanism — one more VCF-prevention
+instance triggers it.
 
 ## 3. Patch / fallback (v35)
 
