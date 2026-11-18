@@ -459,6 +459,23 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "value_checkpoint": "ml/runs/ml2-h1/value-net.pt",
          "value_checkpoint_env": "GOMOKU_V30_CHECKPOINT",
          "value_weight": 0.5},
+    # v31 (iteration 31, ML batch 2): H2 — v8's search + a LARGER
+    # value net (ResNet 32ch/4 blocks, the round-1/2 architecture)
+    # trained to predict v18's rollout-leaf value on quiet positions
+    # from the DEDUPED B1 dataset (3,244 unique games; see
+    # research/iterations/iter-31.md). v24 proved distillation
+    # works as ML at v8's size (holdout sign 0.7766 vs v8's 0.504
+    # on the same rollout labels) but plays only at v8's level
+    # (0.515 h2h) — v31 tests whether scale breaks that ceiling.
+    # value_weight is the §1.3 α sweep winner for the MIXED form
+    # (0.5): the re-sweep (20 games each vs v8) gave 0.70 at 0.5,
+    # 0.525 at 1.0, 0.475 at 2.0 — monotone decreasing this time.
+    # (The B1-only form's sweep also picked 0.5, with 0.55/0.20/
+    # 0.50; its JSONs are the *-b1only.json files.)
+    31: {"name": "scoring-v31", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml2-h2/value-net.pt",
+         "value_weight": 0.5},
     # v32 (iteration 32, ML batch 2): H3 — v8's ValueMCTS + learned
     # value leaf PLUS an OFFENSIVE-ONLY VCF-at-root check (see
     # gomoku_ml.mcts_value.ValueMCTS ``vcf_root`` /

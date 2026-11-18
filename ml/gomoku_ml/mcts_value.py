@@ -98,9 +98,10 @@ class ValueMCTS(HeuristicMCTS):
             default, matching v6 and the ladder MCTS).
         device: torch device string (CPU here; there is no GPU).
         value_weight: shrink applied to the net value in quiet
-            positions (batch 4 H3, v11 — per-version α; default
+            positions (batch 4 H3, v11 — per-version α; None means
             ``VALUE_WEIGHT`` = 0.25, v8's swept value, so v8 is
-            unchanged). Terminal cases are exact and unaffected.
+            unchanged; v24/v30/v31's swept α is passed through the
+            registry). Terminal cases are exact and unaffected.
         vcf_root: enable the VCF-at-root check (v32, ML batch 2
             H3): an offensive VCF start is played immediately,
             before the search — the same hook as v29's in
@@ -125,12 +126,17 @@ class ValueMCTS(HeuristicMCTS):
         c_puct: float = 1.5,
         rng: np.random.Generator | None = None,
         device: str = "cpu",
-        value_weight: float = VALUE_WEIGHT,
+        value_weight: float | None = None,
         vcf_root: bool = False,
         vcf_defensive: bool = False,
     ) -> None:
         super().__init__(sims=sims, c_puct=c_puct, rng=rng, vcf_root=vcf_root)
-        self.value_weight = float(value_weight)
+        # None-tolerant (ML batch 1 H1's form): the registry dispatch
+        # passes None for versions without a swept α (v8, v32), and
+        # float(None) would crash — None means VALUE_WEIGHT (0.25).
+        self.value_weight = (
+            VALUE_WEIGHT if value_weight is None else float(value_weight)
+        )
         # The parent's vcf_root flag is stored but the parent's
         # choose_move is overridden below, so the hook is applied
         # explicitly there (with the defensive step gated by
