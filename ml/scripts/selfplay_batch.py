@@ -22,9 +22,18 @@ batch-1 judge). The judge is recorded in the output JSON.
 
 The output JSON is flushed after every game, and a partial
 ``--out`` from a killed run is auto-resumed (same engine pair,
-game count and swap flag; the placement RNG restarts, so resumed
-openings may repeat earlier ones — recorded as
-``resumed_from_game`` in the JSON).
+game count and swap flag).
+
+Per-game seeding (ML batch 3 tooling): before every game ``i``,
+each engine is reseeded with ``base_seed + i`` and the swap
+placement RNG is rebuilt from ``placement_seed + i``, so each game
+is determined by its index alone. A resumed run therefore
+reproduces the uninterrupted run exactly — the old scheme created
+the engines once, so on resume their RNG streams restarted and the
+resumed segment replayed the prefix (batch 10's seed-replay bug:
+v34's vs-v27 leg had 63 unique games in 100). The summary carries
+a ``uniqueness`` audit (distinct-game count and de-duplicated
+win rate) for every leg.
 """
 
 from __future__ import annotations
@@ -44,14 +53,34 @@ from gomoku_ml import baseline, evaluate, game, research, scoring  # noqa: E402
 
 
 def resolve_engine(name: str, seed: int):
-    """Build a stateful player for ``v0``/``v1``/``v2``/..."""
+    """Build a stateful player for ``v0``/``v1``/``v2``/...
+
+    Returns ``(player, choose_move, name)`` — the player object is
+    kept so the driver can reseed it before every game (per-game
+    seeding; see the module docstring).
+    """
     if name == "v0":
         player = baseline.HeuristicPlayer(seed=seed)
-        return player.choose_move, "v0"
+        return player, player.choose_move, "v0"
     if name.startswith("v") and name[1:].isdigit():
         player = scoring.get_player(int(name[1:]), seed=seed)
-        return player.choose_move, player.name
+        return player, player.choose_move, player.name
     raise ValueError(f"unknown engine: {name!r} (want v0, v1, v2, ...)")
+
+
+def reseed_player(player, seed: int) -> None:
+    """Reset ``player``'s RNG stream to a fresh generator from
+    ``seed``. :class:`ScoringPlayer` has a ``reseed`` method (it
+    also resets its inner MCTS engine, which shares the RNG
+    object); the frozen baseline players expose a public ``rng``
+    attribute, so they are reset directly (``baseline.py`` stays
+    untouched)."""
+    if hasattr(player, "reseed"):
+        player.reseed(seed)
+    else:
+        import numpy as np
+
+        player.rng = np.random.default_rng(seed)
 
 
 def play_recorded_game(choose_black, choose_white, board, player_to_move):
@@ -104,29 +133,31 @@ def _summary(args, name_a, name_b, games, wins, losses, draws, t0,
         "judge": args.judge if args.swap_rule else None,
         "seed_a": args.seed_a,
         "seed_b": args.seed_b,
+        "seeding": "per-game",
         "wins": wins,
         "losses": losses,
         "draws": draws,
         "win_rate": round(evaluate.win_rate(wins, losses, draws), 4),
         "win_rate_ci_95": [round(lo, 4), round(hi, 4)],
+        "uniqueness": evaluate.uniqueness_audit(games),
         "elapsed_seconds": round(time.time() - t0, 1),
         "records": games,
     }
 
 
 def run_batch(args) -> dict:
-    choose_a, name_a = resolve_engine(args.engine_a, args.seed_a)
-    choose_b, name_b = resolve_engine(args.engine_b, args.seed_b)
-    placement_rng = np_random(args.placement_seed)
+    player_a, choose_a, name_a = resolve_engine(args.engine_a, args.seed_a)
+    player_b, choose_b, name_b = resolve_engine(args.engine_b, args.seed_b)
     scorer = scoring.score_attack
     games: list[dict] = []
     wins = losses = draws = 0
     resumed = False
     resumed_from_game = None
     # Auto-resume: this VM is replaced without warning, so a partial
-    # --out from a killed run is continued, not restarted. The
-    # placement RNG restarts (openings may repeat earlier ones);
-    # alternation is preserved because the loop index is absolute.
+    # --out from a killed run is continued, not restarted. Per-game
+    # seeding (below) makes every game index-determined, so a resumed
+    # run reproduces the uninterrupted run exactly; alternation is
+    # preserved because the loop index is absolute.
     if os.path.exists(args.out):
         try:
             with open(args.out, encoding="utf-8") as f:
@@ -148,13 +179,21 @@ def run_batch(args) -> dict:
                 resumed = True
                 resumed_from_game = len(games)
                 print(f"== resuming from game {resumed_from_game} "
-                      f"({wins}W-{losses}L-{draws}D so far; RNG restarts) ==",
+                      f"({wins}W-{losses}L-{draws}D so far; per-game "
+                      f"seeding reproduces the uninterrupted run) ==",
                       file=sys.stderr)
         except (OSError, ValueError, KeyError) as e:
             print(f"== ignoring unreadable prior {args.out}: {e} ==",
                   file=sys.stderr)
     t0 = time.time()
     for i in range(len(games), args.games):
+        # Per-game seeding: each game is determined by its index
+        # alone (base_seed + i), so resume is exact and games cannot
+        # replay each other. The placement RNG is rebuilt per game
+        # for the same reason (swap-rule openings).
+        reseed_player(player_a, args.seed_a + i)
+        reseed_player(player_b, args.seed_b + i)
+        placement_rng = np_random(args.placement_seed + i)
         rec: dict = {"game": i}
         if args.swap_rule:
             a_opens = (i % 2 == 0)

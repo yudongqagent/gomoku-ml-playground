@@ -7,9 +7,10 @@ heuristic-MCTS ladder opponent (``mcts`` — not addressable through
 shape as ``selfplay_batch.py`` output (``records`` with full move
 lists), so ``classify_losses.py`` and ``workup_loss.py`` work on it
 unchanged. Resumable: if ``--out`` already holds a partial (incomplete)
-match, the saved games stand and the remaining games continue with
-fresh players (the MCTS tie-break RNG restarts — recorded in the
-JSON as ``resumed_from_game``); a complete ``--out`` is left alone.
+match, the saved games stand and the remaining games continue — and
+per-game seeding (see ``selfplay_batch.py``) makes the resumed run
+reproduce the uninterrupted run exactly. A complete ``--out`` is
+left alone.
 
 Fast-loop seed policy (recorded in research/iterations/iter-8.md §4):
 iteration k uses seed-a = 1000 + k, seed-b = 2000 + k — fresh games,
@@ -36,21 +37,24 @@ import common  # noqa: E402
 common.ensure_ml_on_path()
 
 from gomoku_ml import baseline, evaluate, game, scoring  # noqa: E402
-from selfplay_batch import play_recorded_game  # noqa: E402
+from selfplay_batch import play_recorded_game, reseed_player  # noqa: E402
 
 
 def resolve_opponent(name: str, seed: int):
     """Build a stateful opponent player: ``v0``/``v1``/... or ``mcts``
-    (the heuristic-MCTS ladder opponent, 100 sims)."""
+    (the heuristic-MCTS ladder opponent, 100 sims). Returns
+    ``(player, choose_move, name)`` — the player object is kept so
+    the driver can reseed it before every game (per-game seeding;
+    see ``selfplay_batch.py``)."""
     if name == "mcts":
         player = baseline.HeuristicMCTSPlayer(sims=100, seed=seed)
-        return player.choose_move, "mcts"
+        return player, player.choose_move, "mcts"
     if name == "v0":
         player = baseline.HeuristicPlayer(seed=seed)
-        return player.choose_move, "v0"
+        return player, player.choose_move, "v0"
     if name.startswith("v") and name[1:].isdigit():
         player = scoring.get_player(int(name[1:]), seed=seed)
-        return player.choose_move, player.name
+        return player, player.choose_move, player.name
     raise ValueError(f"unknown opponent: {name!r} (want v0, v1, ..., mcts)")
 
 
@@ -75,11 +79,13 @@ def _write_result(args, name_a, name_b, games, wins, losses, draws,
         "judge": None,
         "seed_a": args.seed_a,
         "seed_b": args.seed_b,
+        "seeding": "per-game",
         "wins": wins,
         "losses": losses,
         "draws": draws,
         "win_rate": round(evaluate.win_rate(wins, losses, draws), 4),
         "win_rate_ci_95": [round(lo, 4), round(hi, 4)],
+        "uniqueness": evaluate.uniqueness_audit(games),
         "elapsed_seconds": round(time.time() - t0, 1),
         "resumed": resumed,
         "resumed_from_game": resumed_from_game,
@@ -107,7 +113,7 @@ def main() -> int:
 
     player_a = scoring.get_player(args.version_a, seed=args.seed_a)
     choose_a = player_a.choose_move
-    choose_b, name_b = resolve_opponent(args.opponent, args.seed_b)
+    player_b, choose_b, name_b = resolve_opponent(args.opponent, args.seed_b)
     print(f"== fast loop: {player_a.name} vs {name_b}, {args.games} games "
           f"(seeds {args.seed_a}/{args.seed_b}) ==", file=sys.stderr)
     games: list[dict] = []
@@ -123,20 +129,24 @@ def main() -> int:
             return 0
         # Resume a partial match: the saved games stand (played under
         # the registered protocol); the remaining games continue with
-        # fresh players, so the MCTS tie-break RNG restarts instead
-        # of continuing the pre-kill stream. The games remain fair
-        # games vs the opponent at these seeds with alternating
-        # colours; the restart is recorded in the JSON
-        # (resumed_from_game) and the iteration log.
+        # per-game seeding, so the resumed run reproduces the
+        # uninterrupted run exactly (see selfplay_batch.py). The
+        # restart is recorded in the JSON (resumed_from_game) and
+        # the iteration log.
         games = prev["records"]
         wins, losses, draws = prev["wins"], prev["losses"], prev["draws"]
         start_game = len(games)
         resumed = True
         print(f"== resuming from game {start_game} "
-              f"({wins}W-{losses}L-{draws}D so far; RNG restarts) ==",
+              f"({wins}W-{losses}L-{draws}D so far; per-game seeding "
+              f"reproduces the uninterrupted run) ==",
               file=sys.stderr)
     t0 = time.time()
     for i in range(start_game, args.games):
+        # Per-game seeding: each game is determined by its index
+        # alone (base_seed + i) — see selfplay_batch.py.
+        reseed_player(player_a, args.seed_a + i)
+        reseed_player(player_b, args.seed_b + i)
         a_is_black = (i % 2 == 0)
         a_colour = game.BLACK if a_is_black else game.WHITE
         if a_is_black:

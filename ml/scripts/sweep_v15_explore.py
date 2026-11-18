@@ -108,7 +108,7 @@ def run_sweep(args) -> dict:
     else:
         name_a = "sweep-control-v7"
     choose_a = sweep.choose_move
-    choose_b, name_b = resolve_engine(args.opponent, args.seed_b)
+    _, choose_b, name_b = resolve_engine(args.opponent, args.seed_b)
     games: list[dict] = []
     wins = losses = draws = 0
     t0 = time.time()
