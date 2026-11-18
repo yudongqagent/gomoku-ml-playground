@@ -296,7 +296,7 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 19/22 complete at this writing)
+### 2.1 Workups (running — 20/22 complete at this writing)
 
 **Runtime interruption (recorded, no workups lost).** The VM
 was replaced mid-chain (uptime reset; the chain died during
@@ -336,6 +336,8 @@ values (`~/workspace/b10h3-logs/scripts/diag_rollout.py`), and exact threat anal
 | 91 (vs v7) | W | 29 | ply 23 (5,5) | (8,5) 2W+1L | **clean VCF-prevention — SAME position as g73 ply 23 (transposition; see note)** |
 | 93 (vs v7) | W | 57 | ply 49 (8,5) | (5,4) 3W (400-sim proposal) | none (save leaves MORE setups, 6 vs 4) |
 | 96 (vs v7) | B | 30 | none in window | — | horizon loss |
+| 4 (vs v0) | B | 60 | ply 52 (11,3) | (9,4) 3W, (5,8) 2W+1D (400-sim) | setup signature (2→0) — see note |
+| 32 (vs v0) | B | 60 | ply 52 (3,11) | (4,9) 3W | setup signature (2→0) — TRANSPOSE of v0-g4 ply 52 |
 | 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
 
 **Game 4, ply 44 (Black to move) — missed VCF prevention.**
@@ -557,6 +559,30 @@ at any of the last 4 Black turns (4 qualifying turns, 0
 saves). Class 3 (9th horizon loss). All 19 vs-v7 losses are
 now worked up; the 3 vs-v0 losses remain.
 
+**Games 4 and 32 vs v0, ply 52 — search-horizon with a
+setup signature (2 game-instances, 1 distinct position).**
+Both are Black, 60-ply losses vs v0. In g4 the actual
+(11,3) loses 3/3; (9,4) SAVES [1,1,1] and (5,8) (the
+400-sim proposal) SAVES [1,0,1]. In g32 the actual (3,11)
+loses 3/3; (4,9) SAVES [1,1,1]. **Transpose note:** g32's
+ply-52 board is the TRANSPOSE (x↔y) of g4's ply-52 board —
+the same position up to board symmetry (verified: the
+transposed move set is identical; the root dumps match
+move-for-move under the transpose, including visit counts,
+q, and priors). So the two games are ONE distinct
+position. In both, neither side holds a VCF start (the
+check does not fire; v35 plays like v27), but BOTH saves
+remove ALL opponent setups (2→0) while the losers leave 2
+— the only positions in the corpus with a setup signature.
+(5,8) is additionally the best-q move (−0.033 vs the
+actual's −0.109) and the best-leaf move (+0.1209), but
+visits rank it 5th (5 vs 11) — promoting it would need the
+CLOSED q-based root-decisions lever. 'Minimise setups' is
+a single-distinct-position observation, not a mechanism
+(needs ≥3; and a 2-ply setup-minimisation rule is v3's
+territory, REJECTED). Recorded for future work, not
+patched. Class 7 for both games.
+
 **Game 77, ply 13 (White to move) — search-horizon value
 error, no exact signature.** The actual (7,6) loses 2/3;
 (7,4) and (8,7) win 3/3, (7,5) wins 2/3. The root is flat
@@ -578,7 +604,8 @@ Class 7 (search-horizon value error), no patchable signature.
 distinct positions (check reproduces the save at 6
 game-instances / 5 distinct positions, picks the losing
 prevention at 1), horizon 9, search-horizon (no signature)
-3.** The patch rule (§1.1)
+3, setup-signature 2 game-instances / 1 distinct position
+(see note).** The patch rule (§1.1)
 is satisfied at 3 VCF-prevention instances with the patch
 reproducing all three saves (g4, g10, g21). The remaining
 workups complete the classification table.
