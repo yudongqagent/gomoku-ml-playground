@@ -296,7 +296,7 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 10/22 complete at this writing)
+### 2.1 Workups (running — 12/22 complete at this writing)
 
 Same-engine playout oracle (`workup_loss.py`, v27 vs v7 / v27
 vs v0, seeds 0/1/2, last 4 turns, top-5 + 400-sim + VCF
@@ -317,6 +317,8 @@ values (`/tmp/diag_rollout.py`), and exact threat analysis
 | 32 (vs v7) | B | 32 | ply 24 (10,2) | (6,6) 2W+1D | VCF-prevention — but the check picks the LOSING prevention (10,2) by prior noise (see below) |
 | 35 (vs v7) | W | 55 | none in window | — | horizon loss |
 | 44 (vs v7) | B | 48 | ply 40 (12,10) | (10,13) 1W+2D, (9,12) 2W+1L, (11,10) 3W | **clean VCF-prevention (VCF 1→0)** |
+| 45 (vs v7) | W | 23 | none in window | — | horizon loss |
+| 56 (vs v7) | B | 62 | none in window | — | horizon loss |
 | 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
 
 **Game 4, ply 44 (Black to move) — missed VCF prevention.**
@@ -448,6 +450,14 @@ opposite of g32, where the priors were noise-tied. The
 check reproduces the save at 4 of the 5 VCF-prevention
 instances so far.
 
+**Game 45 (White, 23 plies) — horizon loss.** No saving move
+at any of the last 4 White turns (3 qualifying turns, 0
+saves). Class 3 (5th horizon loss).
+
+**Game 56 (Black, 62 plies) — horizon loss.** No saving move
+at any of the last 4 Black turns (4 qualifying turns, 0
+saves). Class 3 (6th horizon loss).
+
 **Game 77, ply 13 (White to move) — search-horizon value
 error, no exact signature.** The actual (7,6) loses 2/3;
 (7,4) and (8,7) win 3/3, (7,5) wins 2/3. The root is flat
@@ -466,7 +476,7 @@ the loser on every count. The 400-sim deeper-search proposal
 Class 7 (search-horizon value error), no patchable signature.
 
 **Running tally: VCF-prevention 5 (check reproduces the save
-at 4, picks the losing prevention at 1), horizon 4,
+at 4, picks the losing prevention at 1), horizon 6,
 search-horizon (no signature) 1.** The patch rule (§1.1)
 is satisfied at 3 VCF-prevention instances with the patch
 reproducing all three saves (g4, g10, g21). The remaining
