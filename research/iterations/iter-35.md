@@ -296,7 +296,7 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 13/22 complete at this writing)
+### 2.1 Workups (running — 14/22 complete at this writing)
 
 **Runtime interruption (recorded, no workups lost).** The VM
 was replaced mid-chain (uptime reset; the chain died during
@@ -330,6 +330,7 @@ values (`~/workspace/b10h3-logs/scripts/diag_rollout.py`), and exact threat anal
 | 45 (vs v7) | W | 23 | none in window | — | horizon loss |
 | 56 (vs v7) | B | 62 | none in window | — | horizon loss |
 | 62 (vs v7) | B | 24 | ply 16 (4,5) | (3,5) 2W+1L, (4,4) 2W+1L | none (loser, saves, and other loser all 0/0/0) |
+| 65 (vs v7) | W | 41 | none in window | — | horizon loss |
 | 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
 
 **Game 4, ply 44 (Black to move) — missed VCF prevention.**
@@ -486,6 +487,10 @@ actual lowest (+0.0199). No root, leaf, or exact measure
 distinguishes the save. Class 7. The VCF check would not
 fire here (no VCF starts anywhere).
 
+**Game 65 (White, 41 plies) — horizon loss.** No saving move
+at any of the last 4 White turns (4 qualifying turns, 0
+saves). Class 3 (7th horizon loss).
+
 **Game 77, ply 13 (White to move) — search-horizon value
 error, no exact signature.** The actual (7,6) loses 2/3;
 (7,4) and (8,7) win 3/3, (7,5) wins 2/3. The root is flat
@@ -504,7 +509,7 @@ the loser on every count. The 400-sim deeper-search proposal
 Class 7 (search-horizon value error), no patchable signature.
 
 **Running tally: VCF-prevention 5 (check reproduces the save
-at 4, picks the losing prevention at 1), horizon 6,
+at 4, picks the losing prevention at 1), horizon 7,
 search-horizon (no signature) 2.** The patch rule (§1.1)
 is satisfied at 3 VCF-prevention instances with the patch
 reproducing all three saves (g4, g10, g21). The remaining
