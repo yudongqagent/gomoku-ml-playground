@@ -296,7 +296,9 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 13/22 complete at this writing)
+### 2.1 Workups (running — 12/22 complete at this writing;
+g62's ply-16 finding is established from its in-progress
+workup log, JSON pending)
 
 Same-engine playout oracle (`workup_loss.py`, v27 vs v7 / v27
 vs v0, seeds 0/1/2, last 4 turns, top-5 + 400-sim + VCF
