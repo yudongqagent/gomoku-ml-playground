@@ -857,6 +857,183 @@
         2
       ],
       "note": "OPEN WEAKNESS (xfail): White holds 2 VCF starts; (6,6) saves 2W+1D but the check picks (10,2) by prior noise (0.1381 vs 0.1380) and it loses 3/3."
+    },
+    {
+      "id": "search-first-fast-v0-g2-ply12",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          8,
+          5
+        ]
+      ],
+      "white": [
+        [
+          6,
+          7
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          4,
+          7
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          6,
+          8
+        ]
+      ],
+      "to_move": "black",
+      "expected": [
+        [
+          4,
+          8
+        ]
+      ],
+      "played_before_patch": [
+        8,
+        8
+      ],
+      "note": "fast loop vs v0 g2: plain check overrode the search's 68-visit save (4,8) and played (8,8) by prior noise; search-first plays (4,8)."
+    },
+    {
+      "id": "search-first-fast-v0-g3-ply9",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "white": [
+        [
+          6,
+          6
+        ],
+        [
+          9,
+          7
+        ],
+        [
+          4,
+          7
+        ],
+        [
+          4,
+          5
+        ]
+      ],
+      "to_move": "white",
+      "expected": [
+        [
+          5,
+          9
+        ]
+      ],
+      "played_before_patch": [
+        5,
+        5
+      ],
+      "note": "fast loop vs v0 g3: plain check played (5,5) [loses 3/3]; the search's prevention (5,9) saves 3/3; search-first plays (5,9)."
+    },
+    {
+      "id": "search-first-fast-v0-g5-ply9",
+      "black": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          8,
+          5
+        ]
+      ],
+      "white": [
+        [
+          6,
+          6
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          7,
+          4
+        ],
+        [
+          5,
+          4
+        ]
+      ],
+      "to_move": "white",
+      "expected": [
+        [
+          9,
+          5
+        ]
+      ],
+      "played_before_patch": [
+        5,
+        5
+      ],
+      "note": "fast loop vs v0 g5: plain check played (5,5) [loses 3/3]; the search's prevention (9,5) saves 3/3; search-first plays (9,5)."
     }
   ]
 }

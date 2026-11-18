@@ -439,28 +439,36 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
     # v35 (iteration 35, batch 10): H3 — v27 + the VCF-at-root
-    # check (see research/iterations/iter-35.md). The forensics on
-    # v27's 22 battery losses found 5 missed VCF preventions (the
-    # search cannot see the opponent's VCF 3+ plies out; the exact
-    # depth-3 check can) and 0 missed forced wins. The check is
-    # v29's FULL check (offensive step first, then defensive) —
-    # a defensive-only variant was tried and refuted by the
-    # tactical mechanism check (27/29: in race positions, where
-    # both sides hold a VCF start, the defensive-only check
-    # blocked instead of taking our forced win; the offensive
-    # step's priority is load-bearing). The check reproduces the
-    # verified save at 4 of the 5 VCF-prevention positions (g4
-    # ply 44, g10 ply 44, g21 ply 33, g44 ply 40); at g32 ply 24
-    # it picks the losing prevention by prior noise (documented
-    # open weakness, xfail in test_regression_v35.py). Everything
-    # else is v27 unchanged: 100 sims, c_puct 1.5, v1 priors,
-    # rollout leaf both colours, tau=0.05 threshold tie-break.
-    # Versions 30-32 are ML batch 2's, 33-34 the parallel
-    # batch-10 workstreams'.
+    # check, SEARCH-FIRST defensive (see
+    # research/iterations/iter-35.md §3-§4). The forensics on
+    # v27's 22 battery losses found 7 missed VCF preventions
+    # across 6 distinct positions (the search cannot see the
+    # opponent's VCF 3+ plies out; the exact depth-3 check can)
+    # and 0 missed forced wins. The check is v29's FULL check
+    # (offensive step first, then defensive) — a defensive-only
+    # variant was tried and refuted by the tactical mechanism
+    # check (27/29: in race positions the defensive-only check
+    # blocked instead of taking our forced win). The defensive
+    # step is SEARCH-FIRST (the fast loop's 1 refinement): the
+    # search runs first, and the check overrides ONLY when the
+    # search's chosen move is NOT a prevention — the plain check
+    # overrode a correct search prevention by prior noise in 3
+    # verified fast-loop instances (g2 ply 12, g3 ply 9, g5 ply
+    # 9). Search-first is weakly dominant over v27: it overrides
+    # only a move that loses by force. It fixes 3 of the 6
+    # forensics positions (g4, g10, g21 — where the search plays
+    # a non-prevention) and gives up g44/g73 (where the search
+    # plays a prevention, the wrong one, and the check's prior
+    # picked the right one) — documented limitations, xfails in
+    # test_regression_v35.py. Everything else is v27 unchanged:
+    # 100 sims, c_puct 1.5, v1 priors, rollout leaf both
+    # colours, tau=0.05 threshold tie-break. Versions 30-32 are
+    # ML batch 2's, 33-34 the parallel batch-10 workstreams'.
     35: {"name": "scoring-v35", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
-         "tie_break_q_threshold": 0.05, "vcf_root": True},
+         "tie_break_q_threshold": 0.05, "vcf_root": True,
+         "vcf_root_search_first": True},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1086,6 +1094,9 @@ class ScoringPlayer:
                         "root_decision", "visits"
                     ),
                     vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
+                    vcf_root_search_first=ENGINE_VERSIONS[version].get(
+                        "vcf_root_search_first", False
+                    ),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(

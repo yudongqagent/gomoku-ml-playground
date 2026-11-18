@@ -689,23 +689,38 @@ one-off check over the 23 saves listed in §2.1).
 ### 3.0 Design
 
 **v35 = v27 + the VCF-at-root check** (v29's `_vcf_root_move`,
-unchanged — the full check, offensive step first, then
-defensive). Everything else is v27 unchanged: 100 sims,
+split into `_vcf_offensive_move` / `_vcf_defensive_move`
+with identical behaviour — the split is a pure refactor,
+verified by `test_mcts_heuristic.py` 98 passed, 1 xfailed),
+with a **SEARCH-FIRST defensive step** (the fast loop's 1
+refinement, §4.2): the search runs first, and the defensive
+check overrides ONLY when the search's chosen move is NOT a
+prevention (leaves opponent VCF starts live — tested by
+`_leaves_opp_vcf`, which re-tests only the opponent's
+ORIGINAL VCF starts on the resulting board, by monotonicity).
+The offensive step still short-circuits (a VCF start wins
+by force). Everything else is v27 unchanged: 100 sims,
 c_puct 1.5, sharp v1 priors, rollout leaf both colours,
 τ=0.05 threshold tie-break, most-visited root. The registry
-entry (`scoring.py`) is v27's entry + `"vcf_root": True`;
-no code in `mcts_heuristic.py` changed for v35 (the
-`_vcf_root_move` implementation is v29's, byte-identical).
+entry (`scoring.py`) is v27's entry + `"vcf_root": True` +
+`"vcf_root_search_first": True`.
 
 **Why this is the patch for the verified mechanism.** The
-forensics (§2) found 5 missed VCF preventions: positions
-where v27's 100-sim search (2-ply rollout leaf) cannot see
-the opponent's VCF 3+ plies out, so it plays a move leaving
-VCF starts live — and the exact depth-3 VCF check sees the
-threat and plays a prevention. The check reproduces the
-verified save at 4 of the 5 (g4 ply 44 → (13,7), g10 ply 44
-→ (3,6), g21 ply 33 → (5,7), g44 ply 40 → (10,13)); at g32
-ply 24 it picks the losing prevention by prior noise (a
+forensics (§2) found 7 missed VCF preventions across 6
+distinct positions: positions where v27's 100-sim search
+(2-ply rollout leaf) cannot see the opponent's VCF 3+ plies
+out, so it plays a move leaving VCF starts live — and the
+exact depth-3 VCF check sees the threat and plays a
+prevention. Search-first v35 reproduces the verified save
+at 3 of the 6 distinct positions (g4 ply 44 → (13,7), g10
+ply 44 → (3,6), g21 ply 33 → (5,7)) — the ones where v27's
+search plays a NON-prevention. At g44 and g73 the search
+plays a prevention (the wrong one) and search-first does
+not override — a deliberate trade (see §4.2): the plain
+check's prior-based choice among preventions is noise
+(1e-4 margins), and the fast loop verified 3 instances
+where it overrode a correct search prevention. At g32 the
+check picks the losing prevention by prior noise (a
 documented limitation, xfail in `test_regression_v35.py`).
 The mechanism spans flat roots (g4, g21: visit ties the
 threshold does not fire on) and concentrated roots (g10:
@@ -739,11 +754,11 @@ is NOT the CLOSED combination-stacking lever (v17: the
 combination does not add): v17 stacked mechanisms without a
 forensics finding that the combination addresses a specific
 verified mechanism. Here the forensics VERIFIED that the
-VCF check fixes v27's specific losses (4 of 5
-VCF-prevention instances, each with playout-verified saves
-and the check reproducing the save). The combination is
-mechanism-driven, and the battery measures whether it adds
-strength against v27 itself.
+VCF check fixes v27's specific losses (3 of 6 distinct
+VCF-prevention positions under search-first, each with
+playout-verified saves and the check reproducing the save).
+The combination is mechanism-driven, and the battery
+measures whether it adds strength against v27 itself.
 
 **Cost.** The VCF check is v29's, so v35 inherits its cost
 (~1.65s/move mean on quiet positions, ~7s/move in
@@ -754,21 +769,25 @@ not acted on — the battery measures strength.
 ### 3.1 Mechanism checks (post-implementation, pre-eval)
 
 - **Regression tests** (`ml/tests/test_regression_v35.py`):
-  **6 passed, 1 xfailed** — v35 plays a saving prevention
-  at all 4 VCF-prevention positions through the full
-  `choose_move` dispatch (g4 → (13,7), g10 → (3,6), g21 →
-  (5,7), g44 → (10,13)); g32 is the documented xfail (the
-  check picks (10,2) by prior noise); the race test pins
-  the offensive step's priority (v35 plays (8,3) on
-  `vcf-race-block-or-win`).
+  **8 passed, 2 xfailed** — search-first v35 plays a saving
+  prevention at the 3 forensics positions where the search
+  plays a non-prevention (g4 → (13,7), g10 → (3,6), g21 →
+  (5,7)) and plays the search's prevention at the 3
+  fast-loop override-harm positions (g2 → (4,8), g3 ply 9 →
+  (5,9), g5 ply 9 → (9,5)); g32 (check picks the losing
+  prevention by prior noise) and g44 (search-first does not
+  override the search's losing prevention (12,10)) are the
+  documented xfails; the race test pins the offensive step's
+  priority (v35 plays (8,3) on `vcf-race-block-or-win`).
 - **Tactical** (`eval_tactical_full.py --version 35 --suite
   both --seed 100`): **20/20 old + 29/29 hard** on the
-  corrected suite. Clause 3 is expected to PASS (the battery
+  corrected suite (re-verified after the search-first
+  change). Clause 3 is expected to PASS (the battery
   re-runs this as the official clause-3 measurement).
 - **v29 unaffected:** `test_mcts_heuristic.py` 98 passed, 1
-  xfailed (run after the flag was added; the flag has since
-  been removed, restoring `mcts_heuristic.py` to v29's
-  code — the full suite re-runs at §6).
+  xfailed (re-run after the `_vcf_root_move` split — the
+  split is behaviour-identical; the full suite re-runs
+  at §6).
 
 ## 4. Fast loop
 
@@ -822,25 +841,64 @@ only by playouts. Those 5 are tested in §4.2.
 games per colour is too few to call a White regression;
 the battery's 50/50 split is the verdict.
 
-### 4.2 Design question raised by game 2 (UNRESOLVED at this writing)
+### 4.2 Design decision: search-first defensive (RESOLVED)
 
-The check's defensive step currently runs BEFORE the
-search and overrides it entirely when it fires. Game 2
-shows the override can cost a game the search would have
-won. The alternative — search-first defensive (run the
-search; override only if the search's chosen move is NOT
-a prevention) — would fix game 2 but UNFIX g73 (there the
-search played a prevention, the wrong one, and the check's
-prior picked the right one). The prior's margin
-distinguishes them: in g73 the prior margin is 0.0045
-(0.0538 vs 0.0493 — informative); in game 2 and g32 it is
-~1e-4 (noise). But a margin threshold is a fitted
-constant, which the pre-registration forbids. The decision
-(see §4.4) waits on (a) the check-fire audit of games 3/5/9
-and (b) the vs-v27 fast-loop leg — if override harm
-recurs, the design changes; if game 2 is a lone instance
-against the forensics' 5 fixed positions, v35 stands as
-v29's check.
+The 5 equivalent-prevention disagreements from §4.1 were
+tested with same-engine playouts (v35 vs v0, seeds 0/1/2;
+log `~/workspace/b10h3-logs/disagreement-playouts.log`):
+- g3 ply 9: check's (5,5) loses 3/3; search's (5,9) SAVES
+  [1,1,1]. **Override HARM.**
+- g5 ply 9: check's (5,5) loses 3/3; search's (9,5) SAVES
+  [1,1,1]. **Override HARM.**
+- g3 ply 11, g5 ply 17, g5 ply 19: both moves lose 3/3.
+  Neutral.
+- (g3 ply 15, the 6th disagreement, is not
+  equivalent-prevention: the search's (8,6) leaves 4 VCF
+  starts, so the check is right there — and search-first
+  also overrides there, since (8,6) is not a prevention.)
+
+**Tally.** Override HARM: 3 instances (fast-loop g2 ply 12,
+g3 ply 9, g5 ply 9 — in each, the search plays the right
+prevention and the plain check picks a losing one by prior
+noise). Override HELP (check picks the right prevention
+where the search plays the wrong one): 2 instances
+(forensics g44, g73). Neutral: 3 (both lose) + g32 (both
+designs fail).
+
+**Decision: SEARCH-FIRST.** The defensive check overrides
+only when the search's chosen move is NOT a prevention.
+Evidence: (1) net position count — search-first fixes 3
+forensics positions (g4, g10, g21 — where the search plays
+a non-prevention; verified: g4's (3,5) and g21's (11,6)
+leave 3 VCF starts each) with 0 observed harms, vs the
+plain check's 5 fixes and 3 harms (net +3 vs +2); (2)
+weak dominance — search-first overrides only a move that
+loses by force (opponent VCF), so it can only help, never
+harm, relative to v27, while the plain check turned 3 v27
+wins into losses; (3) principle — the check corrects the
+search's BLIND SPOT (missing the VCF entirely), not its
+JUDGMENT (choosing among preventions), where 100 sims of
+visits/q beat a static prior. The trade is explicit:
+search-first gives up g44/g73 (documented xfails). A
+margin threshold (trust the search when its preference is
+strong, the prior when weak) would need a fitted constant,
+which the pre-registration forbids — and the visit/q
+dominance test does not distinguish g2 from g73 (in both,
+the search's move dominates the check's in visits AND q;
+only the magnitude differs). This is the fast loop's 1
+refinement; no further design changes.
+
+**Implementation** (this commit): `_vcf_root_move` split
+into `_vcf_offensive_move` / `_vcf_defensive_move`
+(behaviour-identical for v29 — `test_mcts_heuristic.py`
+98 passed, 1 xfailed); new flag
+`vcf_root_search_first` (default False); new helper
+`_leaves_opp_vcf` (re-tests only the opponent's ORIGINAL
+VCF starts on the resulting board, by monotonicity);
+`choose_move` runs the search first and overrides only a
+non-prevention. Cost: the search now runs even when the
+defensive check would have fired, plus one VCF gate per
+move — the battery measures the pace.
 
 ### 4.3 vs v27 (10 games, seeds 1036/2036)
 

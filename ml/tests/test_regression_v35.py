@@ -10,7 +10,16 @@ xfail with its reason — a documented open weakness and the next
 iteration's target — never silently dropped.
 
 The check is v29's FULL check (offensive step first, then
-defensive): a defensive-only variant was tried and refuted by the
+defensive) with a SEARCH-FIRST defensive step: the search runs
+first, and the check overrides ONLY when the search's chosen
+move is NOT a prevention (leaves opponent VCF starts live).
+When the search already plays a prevention, its visits/q
+signal chooses among preventions, not the prior — the plain
+check overrode a correct search prevention by prior noise in
+3 verified fast-loop instances (iter-35 §4.2). The
+``search-first-fast-v0-*`` positions pin that behaviour: v35
+must play the search's prevention there, not the check's.
+A defensive-only variant was tried and refuted by the
 tactical mechanism check (27/29 — in race positions, where both
 sides hold a VCF start, the defensive-only check blocked instead
 of taking our forced win; iter-35 §3). The race test below pins
@@ -39,10 +48,21 @@ TACTICAL_HARD_PATH = os.path.join(
 # while (6,6) saves 2W+1D. The search also prefers (10,2) (7
 # visits vs 5), so VCF-filtered search would likely pick it too.
 # See iter-35.md §2.1 (game 32). Documented open weakness.
+# vcf-prev-v27v7-g44-ply40: the search plays (12,10), which IS
+# a prevention (removes White's VCF start) but loses 3/3; the
+# plain check's prior picked the saving (10,13), but search-first
+# v35 does not override a prevention — it plays the search's
+# (12,10). The trade for the 3 fast-loop override-harm fixes
+# (see iter-35.md §4.2). Documented limitation.
 XFAIL = {
     "vcf-prev-v27v7-g32-ply24": (
         "check picks the losing prevention (10,2) by prior noise "
         "(0.1381 vs 0.1380); (6,6) saves; see iter-35.md §2.1"
+    ),
+    "vcf-prev-v27v7-g44-ply40": (
+        "search-first does not override a prevention: the search "
+        "plays (12,10), a losing prevention; the plain check's "
+        "prior picked the saving (10,13); see iter-35.md §4.2"
     ),
 }
 
