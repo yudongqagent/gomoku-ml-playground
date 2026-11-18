@@ -137,7 +137,23 @@ the heuristic. The work continues autonomously; he runs nothing.
   the distillation ceiling (v31 0.40, worse than v8 despite better
   holdout); the VCF check is near-neutral on an already-tactically-
   perfect engine (v32 0.37). v8 stays ML champion. Batch 10
-  (heuristic) is next.
+  (heuristic) complete 2026-11-18: 0/3; v33 closest (0.55 vs v27);
+  v34 owns the first perfect heuristic leg ever (20-0, Elo
+  estimate saturated — clause 2 recorded PASS on the leg-result
+  reading: 20-0 strictly dominates v27's 19-0-1, and the plan
+  pre-registered 20-0 as the condition for beating 636.4); v35
+  ties v27's Elo exactly (636.4). The tie-break lever and
+  VCF-prevention for the v27 family are now CLOSED. Two program
+  findings: (1) a resume seed-replay bug in selfplay_batch.py —
+  resumed segments replay the prefix (v34: 63 unique games in
+  100), and engine determinism alone collapses vs-v0 legs to
+  41–45 unique; no verdict turns on it (all clause-1 calls stand
+  on the de-dup cut; v27's bar pass survives at 0.7766), but
+  per-game seeding + uniqueness audit become standard battery
+  hygiene from ML batch 3; (2) the ladder is saturated at the top
+  (20-0 yields no finite Elo) — batch 11 needs a stronger anchor
+  or more games per leg, a re-basing decision. ML batch 3 is
+  next.
 - **Dataset-dedup finding (ML batch 1):** the "10k dataset" is
   3,244 unique games, not 7,099 — and v8's "4,350" was 1,449
   unique. The B1 parallel generator seeds worker *w* with
