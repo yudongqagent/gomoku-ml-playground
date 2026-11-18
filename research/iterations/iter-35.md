@@ -772,6 +772,68 @@ not acted on — the battery measures strength.
 
 ## 4. Fast loop
 
+### 4.1 vs v0 (10 games, seeds 1035/2035): v35 6W-4L-0D (0.60)
+
+Weak for a v27-based engine (v27 is 96W-3L-1D, 0.965, vs
+v0) — but 10 games is a small sample (CI [0.31, 0.83]).
+All 4 losses were worked up (workup JSONs in
+`~/workspace/b10h3-logs/fast-workup-v35v0-g{2,3,5,9}.json`).
+
+**Game 2 (Black, 20 plies) — OVERRIDE HARM, the check
+overrides a correct search.** The losing move is ply 12
+(8,8): actual loses 3/3, (4,8) SAVES [1,1,1]. White holds
+2 VCF starts [(4,8), (8,8)]; BOTH are preventions (0/0/0
+after either). v35's check returns (8,8) — the loser —
+by prior noise (priors display tied at 0.2101; (8,8)'s
+must exceed (4,8)'s by <1e-4, the same flaw as g32 in
+§2.1). But **v27's search plays (4,8)** — the save — with
+68 visits and our-q +0.108 vs (8,8)'s 19 visits / −0.051.
+The search KNOWS the answer; the check overrides it and
+plays the loser. This is the first LIVE instance of the
+g32 flaw costing a game (in forensics it was only a
+regression-test xfail). The check helps when the search
+MISSES the prevention entirely (g4, g10, g21, g44, g73)
+but hurts when the search FINDS the right prevention and
+the check picks a different one by prior noise.
+
+**Games 3, 5, 9 (all White, 29 plies) — horizon losses.**
+No saving move at any of the last 4 White turns in any of
+the three. Whether the check fired EARLIER in these games
+(and caused harm the last-4-turns workup cannot see) is
+audited separately (audit log
+`~/workspace/b10h3-logs/audit-fast-v0.log`).
+
+**White-side note:** v35 went 2W-3L as White in this leg
+(g1, g7 wins; g3, g5, g9 losses) and 4W-1L as Black. Five
+games per colour is too few to call a White regression;
+the battery's 50/50 split is the verdict.
+
+### 4.2 Design question raised by game 2 (UNRESOLVED at this writing)
+
+The check's defensive step currently runs BEFORE the
+search and overrides it entirely when it fires. Game 2
+shows the override can cost a game the search would have
+won. The alternative — search-first defensive (run the
+search; override only if the search's chosen move is NOT
+a prevention) — would fix game 2 but UNFIX g73 (there the
+search played a prevention, the wrong one, and the check's
+prior picked the right one). The prior's margin
+distinguishes them: in g73 the prior margin is 0.0045
+(0.0538 vs 0.0493 — informative); in game 2 and g32 it is
+~1e-4 (noise). But a margin threshold is a fitted
+constant, which the pre-registration forbids. The decision
+(see §4.4) waits on (a) the check-fire audit of games 3/5/9
+and (b) the vs-v27 fast-loop leg — if override harm
+recurs, the design changes; if game 2 is a lone instance
+against the forensics' 5 fixed positions, v35 stands as
+v29's check.
+
+### 4.3 vs v27 (10 games, seeds 1036/2036)
+
+TODO.
+
+### 4.4 Fast-loop verdict
+
 TODO.
 
 ## 5. Battery
