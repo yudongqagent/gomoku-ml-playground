@@ -1738,3 +1738,142 @@ def test_v29_choose_move_deterministic_for_same_seed():
     a = scoring.get_player(29, seed=42)
     b = scoring.get_player(29, seed=42)
     assert a.choose_move(board, to_move) == b.choose_move(board, to_move)
+
+
+def _v34_mcts(rng=None):
+    return HeuristicMCTS(
+        sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+        tie_break_q_threshold=0.05, tie_break_q_tactical_only=True,
+        rng=rng,
+    )
+
+
+def _large_gap_root():
+    # 2-way tie at 8 visits, q gap 0.30 (our-q -0.1 vs -0.4):
+    # v27 fires on this root (gap > tau=0.05). value_sum =
+    # -our_q * visits.
+    return _root_with_children([(100, 8, 0.8), (101, 8, 3.2)])
+
+
+def _tactical_board():
+    # Black open three at (5,7)-(7,7), both ends empty.
+    return _board_with([(5, 7), (6, 7), (7, 7)], [])
+
+
+def _quiet_board():
+    # One Black stone, one White stone: no open three or better
+    # for either side.
+    return _board_with([(7, 7)], [(8, 7)])
+
+
+def test_v34_gate_fires_in_tactical_position():
+    # Large gap + tactical board: v34 fires exactly like v27 and
+    # picks the higher-q child (100, our-q -0.1) — on BOTH root
+    # paths (the live _choose_root_child and the test-only
+    # _pick_root_move, which must stay in sync).
+    board = _tactical_board()
+    mcts = _v34_mcts()
+    assert mcts._choose_root_child(_large_gap_root(), board, 1) == 100
+    assert mcts._pick_root_move(_large_gap_root(), board) == 100
+
+
+def test_v34_gate_blocks_fire_in_quiet_position():
+    # Large gap + quiet board: the gate blocks the fire and the
+    # choice is v18's — with no RNG, the first in dict order
+    # (100); with an RNG, the choice ranges over ALL tied
+    # children (never restricted to the q-tied subset). Both
+    # root paths.
+    board = _quiet_board()
+    mcts = _v34_mcts()
+    assert mcts._choose_root_child(_large_gap_root(), board, 1) == 100
+    assert mcts._pick_root_move(_large_gap_root(), board) == 100
+    rng_mcts = _v34_mcts(rng=np.random.default_rng(0))
+    picks = {
+        rng_mcts._choose_root_child(_large_gap_root(), board, 1)
+        for _ in range(30)
+    }
+    assert picks == {100, 101}
+    picks = {
+        rng_mcts._pick_root_move(_large_gap_root(), board)
+        for _ in range(30)
+    }
+    assert picks == {100, 101}
+    # Control: v27 (no gate) fires on the same quiet board and
+    # always picks the higher-q child.
+    mcts27 = HeuristicMCTS(
+        sims=10, leaf_mode="rollout2_v1_both", tie_break_q=True,
+        tie_break_q_threshold=0.05, rng=np.random.default_rng(0),
+    )
+    assert {
+        mcts27._choose_root_child(_large_gap_root(), board, 1)
+        for _ in range(10)
+    } == {100}
+
+
+def test_v34_gate_blocks_without_board():
+    # Without a board the position cannot be shown tactical, so
+    # the gate blocks the fire (both paths; RNG ranges over all
+    # tied children).
+    rng_mcts = _v34_mcts(rng=np.random.default_rng(0))
+    picks = {
+        rng_mcts._choose_root_child(_large_gap_root(), None, None)
+        for _ in range(30)
+    }
+    assert picks == {100, 101}
+    picks = {rng_mcts._pick_root_move(_large_gap_root()) for _ in range(30)}
+    assert picks == {100, 101}
+
+
+def test_v34_gate_needs_both_conditions():
+    # Small gap (0.016, the documented fl2-g6/g8 misfire) on a
+    # TACTICAL board: the threshold still blocks — the gate is an
+    # additional condition, not a replacement for the threshold.
+    root = _root_with_children([(100, 8, -0.48), (101, 8, -0.608)])
+    mcts = _v34_mcts()
+    assert mcts._choose_root_child(root, _tactical_board(), 1) == 100
+    assert mcts._pick_root_move(root, _tactical_board()) == 100
+
+
+def test_v34_registered_with_tactical_gate():
+    # v34 = v27 + the tactical gate; v27's entry is unchanged
+    # (tactical_only False) and no earlier version sets the flag.
+    v34 = scoring.get_player(34, seed=0)
+    assert v34.name == "scoring-v34"
+    assert v34._mcts.leaf_mode == "rollout2_v1_both"
+    assert v34._mcts.tie_break_q is True
+    assert v34._mcts.tie_break_q_threshold == 0.05
+    assert v34._mcts.tie_break_q_tactical_only is True
+    assert v34._mcts.sims == 100
+    v27 = scoring.get_player(27, seed=0)
+    assert v27._mcts.tie_break_q_tactical_only is False
+    v23 = scoring.get_player(23, seed=0)
+    assert v23._mcts.tie_break_q_tactical_only is False
+
+
+def test_has_forcing_threat():
+    # Empty board: no threat.
+    assert scoring._has_forcing_threat(game.empty_board()) is False
+    # Open three (both ends open): threat.
+    assert scoring._has_forcing_threat(_tactical_board()) is True
+    # Closed three (one end blocked): not a threat.
+    assert scoring._has_forcing_threat(
+        _board_with([(5, 7), (6, 7), (7, 7)], [(4, 7)])
+    ) is False
+    # Gap three (3 stones in a window, both ends open): threat —
+    # the window holds 3 stones of one side, 0 of the other.
+    assert scoring._has_forcing_threat(
+        _board_with([(5, 7), (6, 7), (8, 7)], [])
+    ) is True
+    # Four: threat even with a blocked end (the empty cell in the
+    # window is a winning square).
+    assert scoring._has_forcing_threat(
+        _board_with([(5, 7), (6, 7), (7, 7), (8, 7)], [(4, 7)])
+    ) is True
+    # The opponent's open three counts too (either side).
+    assert scoring._has_forcing_threat(
+        _board_with([], [(3, 3), (4, 3), (5, 3)])
+    ) is True
+    # Two stones: no threat.
+    assert scoring._has_forcing_threat(
+        _board_with([(3, 3), (4, 3)], [])
+    ) is False

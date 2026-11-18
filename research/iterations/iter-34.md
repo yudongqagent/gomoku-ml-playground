@@ -239,11 +239,46 @@ seeds 1001/2001, 1002/2002, ... (iteration k uses 1000+k /
 
 ### 1.3 Mechanism check (post-implementation, pre-fast-loop)
 
-(TODO — after implementation, before any fast-loop game: root
-dumps on the 3 tie-fix positions + the no-threat suite
-positions + the fl2-g2 ply-22 position, and the full tactical
-suites at `--seed 100`. Verifies the dispatch does what §1
-says it does.)
+After implementation and before any fast-loop game, v34 was run
+on the 4 tactical positions (fresh-seed-0 root dumps,
+`/tmp/dump_v34_mechanism.py`) and on the full tactical suites at
+`--seed 100`, plus the fl2-g2 ply-22 murky-fire position. This
+is an implementation check, not pre-registration evidence and
+not an eval — it verifies the dispatch does what §1 says it
+does.
+
+**Root dumps reproduce iter-27 §1.3 exactly on the three tie
+fixes, and v34 == v27 on every dumped position:**
+
+| Position | Tactical? | Root state (fresh seed 0) | v34 | v27 |
+|---|---|---|---|---|
+| prev-v1v0s-g26 | YES (White threat) | 4-way tie at 3 visits; gap 0.4167 | FIRES → (9,4) EXPECTED | (9,4) |
+| prev-v1v1s-g79 | YES (both) | 7-way tie at 3 visits; gap 0.4167 | FIRES → (8,7) EXPECTED | (8,7) |
+| prev-v1bl-g2 | YES (White threat) | 2-way tie at 8 visits; gap 0.1306 | FIRES → (7,5) EXPECTED | (7,5) |
+| winning-quiet-setup-2 | NO | NOT a tie: 79 visits on (9,7) | (9,7), as v27 | (9,7) |
+| fl2-g2 ply 22 | YES (White threat) | 2-way tie at 8 visits; gap 0.1481 | FIRES → (5,0), as v27 | (5,0) |
+
+All 11 other no-threat suite positions (7 setup positions, both
+vcf-two-four-sequence positions, old-suite double-threat-create)
+have a UNIQUE visit leader (99 visits) at fresh seed 0 — the
+gate changes nothing there, and v34 picks identically to v27
+(and correctly) at all of them. The fl2-g2 ply-22 fire is
+reproduced exactly, as pre-registered in §1.2 diagnostic 4:
+the position IS tactical, so v34 fires there too.
+
+**Full suites at `--seed 100`: old 20/20, hard 29/29**, with
+the three tie fixes choosing (8,4), (6,7), (7,5) — identical
+choices to v27's battery run. Clause 3 is on track (the final
+verdict re-runs the suites on the final tree, §3.1).
+
+**Unit tests (new):** 6 v34 tests in
+`ml/tests/test_mcts_heuristic.py` (gate fires on a tactical
+board, blocks on a quiet board with RNG over ALL tied children,
+blocks without a board, still needs the threshold on a tactical
+board, registry entry, `_has_forcing_threat` cases) — all pass,
+on BOTH root paths (`_choose_root_child` and `_pick_root_move`).
+`ml/tests/test_regression_v34.py` (12 positions copied from
+v27's file, same 2 xfails): 11 passed, 2 xfailed.
 
 ### 1.4 Battery (the verdict — pre-registered seeds and commands)
 
