@@ -434,7 +434,82 @@ loop continues to the vs-v27 leg (§4.2).
 
 ### 4.2 Leg 2 — vs v27 (seeds 1038/2038)
 
-TODO.
+**Result: 4W-3L-3D (0.5500, 95% CI [0.2737, 0.7986])** — as Black
+3W-0L-2D (games 2, 4, 6 won; 0, 8 drawn), as White 1W-3L-1D
+(game 5 won; 1, 7, 9 lost; 3 drawn). Artefact:
+`research/iterations/fast-v33-vs-v27.json`. Run on the
+optimised code (see §2.3). The leg was interrupted by a runtime
+restart after game 7 and resumed from the partial file (games
+8–9 played after the restart; `resumed: true, resumed_from_game:
+8` in the JSON). Three games went to the 225-ply cap (0, 3, 8)
+— v33 vs v27 is very drawish. 8 distinct lines in 10 games:
+games 0=8 (identical 225-ply draws) and games 1=9 (identical
+29-ply White losses) duplicated exactly, so there are TWO
+distinct losses to work up (games 1 and 7, both White losses
+in 29 plies).
+
+**Defence:** `classify_losses.py` — 3 losses, 3 via open four,
+0 missed blocks, 0 clean missed preventions (13 threatened
+turns). Defence stays solved.
+
+**Filter replay** (`replay_vcf_filter.py`, raw JSON in
+`/tmp/replay-v33-vs-v27.json`): 428 v33 turns, 31 scan turns,
+offensive fired 10, gate open 53, filter engaged 45 (singleton
+1). Pool sizes: min 0, median 3, mean 3.19, max 10.
+**Mismatches: 0** — second leg in a row with zero replay
+mismatches. Check time (optimised code): median 69.0ms, p90
+509.6ms, max 41.5s, mean 783.9ms — cheaper than the vs-v0 leg
+(mean 1.67s), since v27's games are less creator-rich.
+
+**Workup — game 1** (`workup_loss.py`, last 4 turns, top-5 +
+deep-400 + VCF alternatives, seeds 0/1/2; raw JSON in
+`~/workspace/b10h1-logs/workup-v33-v27-g1.json`): **4
+qualifying turns, 0 with a saving move.** Every tested
+alternative (17 across plies 21, 23, 25, 27) loses 3/3. The
+game was lost by force before ply 21; there is no single
+losing move in the window.
+
+**Workup — game 7** (same settings): started, then KILLED
+after ~11 min — playouts from game 7's positions hit the
+225-ply draw cap, so each alternative cost 20–45 min and the
+full workup would have taken hours. Partial result recorded:
+ply 21 qualifies (actual (12,11) loses 3/3), first alternative
+(13,12) loses 3/3 — the same signature as game 1. The kill is
+a cost decision, not a missing result: the decision-relevant
+question (did the filter pick wrong?) is answered by the
+targeted pool tests below, which use short playouts from near
+the end of the 29-ply games.
+
+**§1.4 pool check in the losses** (`targeted_playout.py`,
+seeds 0/1/2): at BOTH tested filter engagements in losses, the
+pool contained NO winner — the v32 caveat realised twice:
+- Game 1, ply 21, pool [(11,5), (10,5)], recorded (10,5):
+  (11,5) loses 3/3, exactly like the actual. Exact analysis:
+  after either prevention Black has 0 VCF starts, 2 creators
+  [(4,3), (8,7)], setups 88 vs 93 — the position is lost by
+  force regardless of which prevention is chosen.
+- Game 7, ply 23, pool [(8,9), (11,9), (6,9)], recorded (8,9):
+  ALL THREE pool members lose 3/3. Exact analysis: after any
+  of the three, Black has 0 VCF starts, 0 creators, and the
+  SAME 3 setups [(7,6), (6,8), (7,8)] — the three preventions
+  are tactically equivalent by the exact threat profile, and
+  all lose.
+
+The filter did NOT pick wrong in either loss: at every tested
+engagement the search's pick was as good as any pool member.
+The earlier engagements (game 1 ply 9; game 7 plies 5, 17, 19)
+were not tested by playout — outside the last-4-turns window,
+where playout outcomes are dominated by later play, and
+cost-prohibitive (long playouts). The §1.4 gate itself was
+satisfied positively in leg 1 (§4.1).
+
+**No patchable weakness class in this leg either.** Both
+losses are horizon/drift losses against the bar reference with
+no identified losing move and no filter failure. v33 at n=10
+vs v27 (0.55, CI includes 0.50) is consistent with
+roughly-equal strength; the 100-game battery is the verdict.
+No code change follows from the fast loop — v33 proceeds to
+the battery as designed.
 
 ## 5. Battery
 
