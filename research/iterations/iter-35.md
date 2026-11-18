@@ -296,9 +296,7 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 9/22 complete at this writing;
-g44's ply-40 finding is established from its in-progress
-workup log, JSON pending)
+### 2.1 Workups (running — 10/22 complete at this writing)
 
 Same-engine playout oracle (`workup_loss.py`, v27 vs v7 / v27
 vs v0, seeds 0/1/2, last 4 turns, top-5 + 400-sim + VCF
@@ -318,7 +316,7 @@ values (`/tmp/diag_rollout.py`), and exact threat analysis
 | 30 (vs v7) | B | 24 | none in window | — | horizon loss |
 | 32 (vs v7) | B | 32 | ply 24 (10,2) | (6,6) 2W+1D | VCF-prevention — but the check picks the LOSING prevention (10,2) by prior noise (see below) |
 | 35 (vs v7) | W | 55 | none in window | — | horizon loss |
-| 44 (vs v7) | B | 48 | ply 40 (12,10) | (10,13) 1W+2D | **clean VCF-prevention (VCF 1→0)** |
+| 44 (vs v7) | B | 48 | ply 40 (12,10) | (10,13) 1W+2D, (9,12) 2W+1L, (11,10) 3W | **clean VCF-prevention (VCF 1→0)** |
 | 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
 
 **Game 4, ply 44 (Black to move) — missed VCF prevention.**
@@ -432,7 +430,11 @@ saves). Class 3 (4th horizon loss).
 (4th fixed by the check).** The actual (12,10) loses 3/3;
 (10,13) SAVES [0, 1, 0]. White holds 1 VCF start [(10,13)]
 on the current board; (10,13) occupies it (a clean
-prevention — 0 VCF starts, 0 creators after). The actual
+prevention — 0 VCF starts, 0 creators after). (9,12) and
+(11,10) also save at ply 40 ((11,10) wins 3/3 — it is a
+four-creator like the loser, and the difference between
+the two forcing moves is beyond the search's horizon);
+(9,12) also saves at ply 42. The actual
 (12,10) ALSO removes White's VCF start (it is a prevention
 by the check's definition too) but loses: it is a forcing
 move (creates a four, rollout leaf +0.2500, the must-block
