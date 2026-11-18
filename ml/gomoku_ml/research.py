@@ -322,6 +322,49 @@ def play_match(
 
 # --- ladder ---------------------------------------------------------------
 
+#: Ladder opponent order (the dict order in the original
+#: ``ladder_for_player``). Keep this order: the player's seeded RNG
+#: advances across legs (tie-breaks only), so leg order is part of
+#: the measurement — a leg played after other legs is only identical
+#: to the uninterrupted ladder when the player's RNG state is the
+#: same (see ``eval_version.py --out``).
+LADDER_OPPONENTS = ("random", "heuristic", "mcts")
+
+
+def ladder_opponent(name: str, mcts_sims: int = 100, seed: int = 0):
+    """Build one ladder opponent by name (see
+    :func:`ladder_for_player`)."""
+    if name == "random":
+        return baseline.RandomPlayer(seed=seed)
+    if name == "heuristic":
+        return baseline.HeuristicPlayer(seed=seed)
+    if name == "mcts":
+        return baseline.HeuristicMCTSPlayer(sims=mcts_sims, seed=seed)
+    raise ValueError(f"unknown ladder opponent: {name!r}")
+
+
+def ladder_leg_for_player(
+    choose_fn: ChooseFn,
+    opponent: str,
+    games_per_opponent: int = 10,
+    mcts_sims: int = 100,
+    seed: int = 0,
+) -> dict:
+    """Play one ladder leg (``games_per_opponent`` games, alternating
+    colours) against the named ladder opponent. The opponent is
+    constructed fresh with ``seed`` (as in
+    :func:`ladder_for_player`), so a leg is reproducible on its own
+    — EXCEPT that the player's own seeded RNG advances across legs,
+    so a leg played after other legs only matches the uninterrupted
+    ladder when the player's RNG state is restored to the state it
+    had after the previous legs (``eval_version.py --out`` saves and
+    restores it).
+    """
+    opp = ladder_opponent(opponent, mcts_sims=mcts_sims, seed=seed)
+    return play_match(choose_fn, opp.choose_move, games_per_opponent,
+                      seed=seed)
+
+
 def ladder_for_player(
     choose_fn: ChooseFn,
     games_per_opponent: int = 10,
@@ -338,15 +381,10 @@ def ladder_for_player(
     random/heuristic only — the mcts matchup is reported but does not
     enter the estimate, since its strength on this scale is unknown).
     """
-    opponents = {
-        "random": baseline.RandomPlayer(seed=seed),
-        "heuristic": baseline.HeuristicPlayer(seed=seed),
-        "mcts": baseline.HeuristicMCTSPlayer(sims=mcts_sims, seed=seed),
-    }
     matchups: dict[str, dict] = {}
-    for name, opp in opponents.items():
-        matchups[name] = play_match(
-            choose_fn, opp.choose_move, games_per_opponent, seed=seed
+    for name in LADDER_OPPONENTS:
+        matchups[name] = ladder_leg_for_player(
+            choose_fn, name, games_per_opponent, mcts_sims, seed
         )
     return {
         "matchups": matchups,

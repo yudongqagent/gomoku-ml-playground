@@ -4,6 +4,8 @@ Match counts are kept small so the suite stays fast; the real
 head-to-head numbers come from dedicated runs, not these tests.
 """
 
+import json
+
 import numpy as np
 
 from gomoku_ml import baseline, evaluate, game, research, scoring
@@ -106,6 +108,44 @@ def test_ladder_for_player_shape():
     assert elo["anchors"] == evaluate.LADDER_ANCHORS
     # The mcts matchup must not enter the Elo estimate (unanchored).
     assert "mcts" not in elo["per_opponent"]
+
+
+def test_ladder_leg_composition_matches_ladder():
+    # The per-leg refactor (batch 10 tooling) must be behaviour-
+    # identical to ladder_for_player: two identical players, one
+    # running the whole ladder, the other the legs one at a time in
+    # the same order, must produce exactly the same matchups. This
+    # is what makes leg-level resume in eval_version.py exact.
+    a = scoring.ScoringPlayer(seed=7)
+    whole = research.ladder_for_player(
+        a.choose_move, games_per_opponent=2, mcts_sims=5, seed=8
+    )
+    b = scoring.ScoringPlayer(seed=7)
+    legs = {
+        name: research.ladder_leg_for_player(
+            b.choose_move, name, games_per_opponent=2, mcts_sims=5,
+            seed=8,
+        )
+        for name in research.LADDER_OPPONENTS
+    }
+    assert legs == whole["matchups"]
+    assert set(research.LADDER_OPPONENTS) == {"random", "heuristic", "mcts"}
+
+
+def test_rng_state_json_round_trip():
+    # eval_version.py --out saves the player's RNG state in the
+    # partial file and restores it on resume; the state must survive
+    # a JSON round-trip exactly, or the resumed ladder would differ
+    # from the uninterrupted one.
+    rng = np.random.default_rng(100)
+    rng.choice([1, 2, 3])
+    rng.choice([4, 5])
+    state = json.loads(json.dumps(rng.bit_generator.state))
+    restored = np.random.default_rng(999)
+    restored.bit_generator.state = state
+    assert [int(rng.choice([10, 20, 30])) for _ in range(5)] == [
+        int(restored.choice([10, 20, 30])) for _ in range(5)
+    ]
 
 
 def test_run_tactical_shape():
