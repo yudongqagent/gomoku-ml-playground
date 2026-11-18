@@ -1063,6 +1063,9 @@ class ScoringPlayer:
                         "root_decision", "visits"
                     ),
                     vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
+                    vcf_root_defensive_only=ENGINE_VERSIONS[version].get(
+                        "vcf_root_defensive_only", False
+                    ),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(
