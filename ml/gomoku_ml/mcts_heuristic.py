@@ -943,6 +943,21 @@ class HeuristicMCTS:
     signal (documented gaps >= 0.130) from gradient noise (the
     documented misfire gap is 0.016).
 
+    ``tie_break_q_tactical_only`` is v34 (batch 10, H2): the
+    tie-break fires ONLY when the root position is tactical —
+    either side holds an open three or better on the board
+    (:func:`gomoku_ml.scoring._has_forcing_threat`) — in
+    addition to v27's gap condition. In a quiet position the
+    tie-break does not fire at all and the choice is v18's (RNG
+    over ALL tied children, else first). Without a board (the
+    synthetic-root tests) the position cannot be shown tactical,
+    so the gate blocks the fire. Default False: v27 and all
+    earlier versions are unaffected. See
+    ``research/iterations/iter-34.md`` §1.1 for the
+    pre-registered rule: a large gap in a murky midgame is not
+    the same evidence as in a tactical position (the documented
+    0.1481-gap fire separated two verified losers).
+
     ``root_decision`` (v9, batch 4 H1; v12, batch 5 H1) selects the
     root move choice: ``"visits"`` (default, v6/v7 behaviour —
     most-visited, ties by RNG), ``"q"``, ``"tie-q"``, ``"blend"``,
@@ -965,6 +980,7 @@ class HeuristicMCTS:
         root_decision: str = "visits",
         tie_break_q: bool = False,
         tie_break_q_threshold: float = 0.0,
+        tie_break_q_tactical_only: bool = False,
         vcf_root: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
@@ -991,6 +1007,7 @@ class HeuristicMCTS:
         self.root_decision = root_decision
         self.tie_break_q = tie_break_q
         self.tie_break_q_threshold = tie_break_q_threshold
+        self.tie_break_q_tactical_only = tie_break_q_tactical_only
         self.vcf_root = vcf_root
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
@@ -1164,7 +1181,9 @@ class HeuristicMCTS:
             return int(self.rng.choice(moves))
         return moves[0]
 
-    def _pick_root_move(self, root: _Node) -> int:
+    def _pick_root_move(
+        self, root: _Node, board: np.ndarray | None = None
+    ) -> int:
         """Final root selection: the most-visited child. On an exact
         top-visit tie, v23 (``tie_break_q=True``) breaks it by
         correctly-signed q (our-q = ``-child.q`` — ``child.q`` is
@@ -1176,11 +1195,19 @@ class HeuristicMCTS:
         the second-highest DISTINCT our-q among the tied children
         by strictly more than ``tie_break_q_threshold``; below the
         threshold the tie-break does not fire at all and the choice
-        is v18's (RNG over ALL tied children, else first). With
-        ``tie_break_q=False`` (v18 and earlier) a tie is broken by
-        RNG choice among ALL tied children, else first. A unique
-        visit leader is untouched either way. Pre-registered rules:
-        iter-23.md §1.1, iter-27.md §1.1."""
+        is v18's (RNG over ALL tied children, else first). v34
+        (``tie_break_q_tactical_only=True``) gates it further on
+        the position: the tie-break fires ONLY when the root
+        position is tactical (either side holds an open three or
+        better — ``scoring._has_forcing_threat``); without a board
+        the position cannot be shown tactical, so the gate blocks
+        the fire. With ``tie_break_q=False`` (v18 and earlier) a
+        tie is broken by RNG choice among ALL tied children, else
+        first. A unique visit leader is untouched either way.
+        Pre-registered rules: iter-23.md §1.1, iter-27.md §1.1,
+        iter-34.md §1.1. NOTE: this method is test-only —
+        ``choose_move`` dispatches through :meth:`_choose_root_child`
+        (the live definition); keep the two in sync."""
         best_visits = max(c.visit_count for c in root.children.values())
         best = [
             m for m, c in root.children.items() if c.visit_count == best_visits
@@ -1193,13 +1220,24 @@ class HeuristicMCTS:
             distinct = sorted(set(our_q.values()), reverse=True)
             q_second = distinct[1] if len(distinct) > 1 else q_max
             if q_max - q_second > self.tie_break_q_threshold:
-                best = [m for m in best if our_q[m] == q_max]
-                if len(best) == 1:
-                    return best[0]
-                # Else fall through to RNG/first on the q-tied
-                # subset (v23 rule 4).
-            # Else (gap <= threshold): fall through with `best`
-            # unchanged — v18's RNG/first over ALL tied children.
+                # v34's tactical gate: the fire needs a tactical
+                # position too (checked only when the tie-break
+                # would otherwise fire, so the board scan costs
+                # nothing on the ~91% of searched moves with no
+                # tie). Without a board the position cannot be
+                # shown tactical, so the gate blocks the fire.
+                if not self.tie_break_q_tactical_only or (
+                    board is not None
+                    and scoring._has_forcing_threat(board)
+                ):
+                    best = [m for m in best if our_q[m] == q_max]
+                    if len(best) == 1:
+                        return best[0]
+                    # Else fall through to RNG/first on the q-tied
+                    # subset (v23 rule 4).
+            # Else (gap <= threshold, or v34's tactical gate blocks
+            # the fire): fall through with `best` unchanged — v18's
+            # RNG/first over ALL tied children.
         if self.rng is not None:
             return int(self.rng.choice(best))
         return best[0]
@@ -1338,9 +1376,12 @@ class HeuristicMCTS:
         backup (iter-9.md §1.0 sign correction; iter-7 §2.6 read
         raw q as our value and got the finding backwards).
 
-        ``board``/``player`` are needed only by
-        ``"tie-prior-forcing"`` (to test forcing-ness); when they
-        are absent that rule degrades to plain ``"tie-prior"``.
+        ``board``/``player`` are needed by
+        ``"tie-prior-forcing"`` (to test forcing-ness) and by
+        v34's tactical gate on the q-gap tie-break (to test
+        whether either side holds an open three or better); when
+        they are absent the former degrades to plain
+        ``"tie-prior"`` and the latter blocks the fire.
         ``choose_move`` always passes them.
 
         * ``"visits"`` (v6/v7): most-visited; ties by RNG/first.
@@ -1438,23 +1479,36 @@ class HeuristicMCTS:
                     if root.children[m].prior == best_p
                 ]
             elif self.tie_break_q:
-                # v23/v27 (batch 8 H3 / batch 9 H1): q-aware visit-tie
-                # break, gated on the q gap by tie_break_q_threshold.
-                # Only reachable when root_decision is "visits" (the
-                # other rules branch above) and tie_break_q is True —
-                # v23 and v27 are the only versions that set it, so
-                # every other version's behaviour is unchanged. Same
-                # rule as _pick_root_move, same candidate set (with
-                # sims >= 1 the visited filter is a no-op here).
-                # Default threshold 0.0 reproduces v23 exactly (any
-                # positive gap fires); v27 sets 0.05.
+                # v23/v27/v34 (batch 8 H3 / batch 9 H1 / batch 10
+                # H2): q-aware visit-tie break, gated on the q gap
+                # by tie_break_q_threshold and (v34 only) on the
+                # position being tactical. Only reachable when
+                # root_decision is "visits" (the other rules branch
+                # above) and tie_break_q is True — v23, v27 and v34
+                # are the only versions that set it, so every other
+                # version's behaviour is unchanged. Same rule as
+                # _pick_root_move, same candidate set (with sims >=
+                # 1 the visited filter is a no-op here). Default
+                # threshold 0.0 reproduces v23 exactly (any positive
+                # gap fires); v27 sets 0.05. v34 additionally
+                # requires a tactical root position (either side
+                # holds an open three or better —
+                # scoring._has_forcing_threat); without a board the
+                # position cannot be shown tactical, so the gate
+                # blocks the fire. The board scan runs only when
+                # the tie-break would otherwise fire.
                 our_q = {m: -root.children[m].q for m in cands}
                 q_max = max(our_q.values())
                 distinct = sorted(set(our_q.values()), reverse=True)
                 q_second = distinct[1] if len(distinct) > 1 else q_max
                 if q_max - q_second > self.tie_break_q_threshold:
-                    cands = [m for m in cands if our_q[m] == q_max]
-                # Else (gap <= threshold): cands unchanged — v18's
+                    if not self.tie_break_q_tactical_only or (
+                        board is not None
+                        and scoring._has_forcing_threat(board)
+                    ):
+                        cands = [m for m in cands if our_q[m] == q_max]
+                # Else (gap <= threshold, or v34's tactical gate
+                # blocks the fire): cands unchanged — v18's
                 # RNG/first over ALL tied children.
         return self._rng_or_first(cands)
 

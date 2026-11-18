@@ -438,6 +438,23 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v34 (iteration 34, batch 10): H2 — v27 + a TACTICAL GATE on
+    # the q-gap tie-break (see gomoku_ml.mcts_heuristic
+    # ``tie_break_q_tactical_only`` and research/iterations/
+    # iter-34.md). The tie-break fires ONLY when the root position
+    # is tactical — either side holds an open three or better on
+    # the board (``scoring._has_forcing_threat``) — AND the q gap
+    # exceeds τ=0.05; in a quiet position the choice is v18's
+    # (RNG over ALL tied children). The τ=0.05/0.10 sweep tied, so
+    # a flat threshold change is not the lever — the CONDITION is
+    # (batch 9's caution: the threshold fired on a signal-sized
+    # gap, 0.1481, between two verified losers in a murky
+    # midgame). Everything else is v27 unchanged: 100 sims,
+    # c_puct 1.5, v1 priors, rollout leaf both colours.
+    34: {"name": "scoring-v34", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05, "tie_break_q_tactical_only": True},
 }
 
 # --- weights --------------------------------------------------------------
@@ -757,6 +774,51 @@ def _is_forcing(board: np.ndarray, move: int, player: int) -> bool:
     )
 
 
+def _has_forcing_threat(board: np.ndarray) -> bool:
+    """Does either side hold an open three or better on ``board``?
+
+    v34's tactical gate (research/iterations/iter-34.md §1.1): the
+    root position is tactical iff some 5-window contains >= 3 stones
+    of one player and 0 stones of the opponent, with both outside
+    cells empty when exactly 3 (an open three), or 4-5 stones
+    regardless of the outside (a four / five — the empty cell inside
+    the window is a winning square). Classified with the scorer's
+    own ``_score_from_counts`` on the window's ACTUAL stone counts
+    (no +1 for a move being placed), so the condition is exactly
+    the scorer's notion of an open three or better. Called only
+    when v27's tie-break would otherwise fire (a few times per
+    game), so the full 572-window scan is cheap.
+    """
+    flat = board.reshape(-1).tolist()
+    for cells, before, after, _di in _WINDOWS:
+        for player in (game.BLACK, game.WHITE):
+            opp = -player
+            own = 0
+            o = 0
+            empty_idx = -1
+            for i, c in enumerate(cells):
+                v = flat[c]
+                if v == player:
+                    own += 1
+                elif v == opp:
+                    o += 1
+                else:
+                    empty_idx = i
+            if o > 0 or own < 3:
+                continue
+            open_ends = 0
+            if before != -1 and flat[before] == game.EMPTY:
+                open_ends += 1
+            if after != -1 and flat[after] == game.EMPTY:
+                open_ends += 1
+            _score, kind = _score_from_counts(
+                own, 0, empty_idx, open_ends, flat, before, after
+            )
+            if kind in (_KIND_FOUR, _KIND_OPEN_THREE, _KIND_FIVE):
+                return True
+    return False
+
+
 def _move_is_safe(board: np.ndarray, move: int, player: int,
                   creators: list[int]) -> bool:
     """Is ``move`` safe against the opponent's ``creators`` (computed
@@ -1067,6 +1129,9 @@ class ScoringPlayer:
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(
                         "tie_break_q_threshold", 0.0
+                    ),
+                    tie_break_q_tactical_only=ENGINE_VERSIONS[version].get(
+                        "tie_break_q_tactical_only", False
                     ),
                 )
 
