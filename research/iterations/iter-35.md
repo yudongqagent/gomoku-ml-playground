@@ -684,6 +684,61 @@ audit (0 opponent VCF starts after). The audit script is
 inline in the workup notes (not a saved file — it is a
 one-off check over the 23 saves listed in §2.1).
 
+### 2.4 H2's missed-prevention finding (cross-validation)
+
+H2 (v34, iter-34 §3.6) independently found clean missed
+preventions are non-zero for the first time: 6 in 468
+threatened turns (1.3%), 4 distinct, all as White. Three
+dumped instances, all shared identically with v27 (v27
+plays the same unsafe move), NOT gate-caused (unique visit
+leaders), in two flavours: leaf-knows-but-visits-don't
+(g31-ply21: safe moves at 4 visits with BETTER q) and
+leaf-blind (g61-ply21, swap g73-ply35: the leaf itself
+ranks the unsafe move best).
+
+**Does my corpus contain H2's profile? NO (0 of 4).** My
+4 true missed preventions (actual is NOT a prevention):
+g4 (flat root, 4-visit tie; leaf ranks (10,5) best, not
+the actual), g10 (unique leader at 96 visits, but the
+leaf ranks OTHER losers best, not the actual — a weak
+leaf-knows flavour at best: the save's leaf edge is
+0.0018), g21 (flat root, 6-visit tie; leaf prefers the
+saves), g91 (9-visit tie; leaf ranks (3,8) best, not the
+actual (5,5)). H2's instances are CONFIDENT misses
+(unique leader + leaf agrees); mine are UNCERTAIN misses
+(ties) or leaf-disagreements. The two sets are
+complementary slices of the same phenomenon (the search
+plays a non-prevention when the opponent holds VCF
+starts), differing only in the search's confidence
+profile. (g44/g73 are not missed preventions at all —
+the actual IS a prevention that loses.)
+
+**Does v35 fix H2's instances? YES, all 3 dumped ones**
+(tested with `test_vcf_check.py` against H2's batch files,
+copied to `~/workspace/b10h3-logs/batch-v34-*.json`):
+g31-ply21 → (8,10) [safe: (8,10), (9,11)]; g61-ply21 →
+(4,5) [safe: (3,5), (4,5), (8,5)]; swap g73-ply35 →
+(10,6) [safe: (11,5), (10,6)]. Search-first overrides
+because the search's move is a non-prevention — the fix
+does not depend on WHY the search chose it (tie,
+confident leader, leaf-blind). This is independent
+cross-validation of the v35 patch from a different
+battery: the VCF-prevention mechanism generalises beyond
+v27's own 22 losses. The 4th distinct instance (swap
+g43/g91 ply 17) was not dumped by H2 and is not tested
+here.
+
+**Is the leaf-blind flavour worth patching separately?
+Not for v35.** The fast loop's 1 refinement is used, and
+a leaf-value fix is a different mechanism from the
+pre-registered VCF-prevention patch. As a future lead:
+if the rollout leaf systematically ranks unsafe moves
+best (2 of H2's 3 dumped instances), the value function
+misjudges VCF-threat positions — worth a dedicated
+forensics pass with more instances (H2 has 4 distinct;
+the rate is 1.3% of threatened turns, so a larger corpus
+is needed). Recorded, not patched.
+
 ## 3. Patch (v35)
 
 ### 3.0 Design
