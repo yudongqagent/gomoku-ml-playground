@@ -286,7 +286,78 @@ made after any eval on the basis of cost alone.
 
 ## 2. Forensics (Phase 1)
 
-TODO — filled in as the workups complete.
+### 2.0 Defence classification (all 22 losses)
+
+`classify_losses.py` on both battery batches (re-run on this
+branch before §2.1): **22/22 losses via open four, 0 missed
+blocks, 0 clean missed preventions in 83 threatened turns**
+(vs v7: 19/19, 69 threatened turns; vs v0: 3/3, 14 threatened
+turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
+the mechanism (if any) is not a missed block or a missed
+prevention in the classifier's sense.
+
+### 2.1 Workups (running — 3/22 complete at this writing)
+
+Same-engine playout oracle (`workup_loss.py`, v27 vs v7 / v27
+vs v0, seeds 0/1/2, last 4 turns, top-5 + 400-sim + VCF
+alternatives). Workup JSONs in `~/workspace/b10h3-logs/`.
+Each completed workup is diagnosed with a root dump
+(`diag_root.py`, 100 sims, seed 0), the rollout-leaf 1-ply
+values (`/tmp/diag_rollout.py`), and exact threat analysis
+(`targeted_playout.py --no-playout`).
+
+| Game | v27 | Plies | Losing move (verified) | Save (playout) | Exact class of the save |
+|---|---|---|---|---|---|
+| 4 (vs v7) | B | 50 | ply 44 (3,5) | (13,7) 3/3, (14,7) 2D+1W | **clean VCF-prevention (VCF 3→0)** |
+| 7 (vs v7) | W | 31 | none in window | — | horizon loss |
+| 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
+
+**Game 4, ply 44 (Black to move) — missed VCF prevention.**
+The actual (3,5) loses 3/3; (13,7) WINS 3/3 and (14,7) draws
+2/3 + wins 1/3. Exact analysis: after (3,5) White holds **3
+VCF starts** [(10,5), (11,6), (13,7)], 0 creators, 4 setups;
+after (13,7) White holds **0 VCF starts, 0 creators, 0
+setups**; after (14,7) 0 VCF starts, 0 creators, 1 setup.
+Both saves are clean VCF-preventions. The root is extremely
+flat (94 children, top move 4 visits): (3,5), (13,7), (14,7)
+tie at 4 visits; our-q prefers the LOSER (−0.032 vs −0.071
+for (13,7)), gap 0.039 < τ=0.05, so the threshold correctly
+does not fire and the choice is RNG over the tied triple —
+and even if it fired, it would pick the loser (higher q).
+The rollout leaf ranks a DIFFERENT loser highest: (10,5)
++0.1928 (loses 3/3), (14,7) +0.1433, (13,7) +0.1328, actual
+(3,5) +0.0924. No root or leaf measure separates the saves
+from the losers — but the exact VCF signature does: the
+v29 defensive check would play (13,7) here (opponent holds
+VCF starts; (13,7) is the highest-prior prevention, prior
+0.0536 vs (14,7)'s 0.0496; (10,5), prior 0.0504, is tested
+second but is not a prevention — it leaves (13,7) live).
+**This is the VCF-prevention mechanism: 1 verified instance.**
+
+**Game 7 (White, 31 plies) — horizon loss.** The workup finds
+no saving move at any of the last 4 White turns (4
+qualifying turns, 0 saves). Class 3.
+
+**Game 77, ply 13 (White to move) — search-horizon value
+error, no exact signature.** The actual (7,6) loses 2/3;
+(7,4) and (8,7) win 3/3, (7,5) wins 2/3. The root is flat
+(83 children, top move 6 visits): actual 6 visits, our-q
+−0.007; (8,7) 5 visits, our-q +0.010 (the BEST q — but one
+visit short of the tie, promotable only by the CLOSED q-based
+root-decisions lever); (7,4) 4 visits, our-q −0.034; (7,5)
+2 visits, our-q −0.073. The saves are heterogeneous in q.
+The rollout leaf prefers two saves over the actual ((7,4)
++0.1026, (8,7) +0.0871 vs actual +0.0643) but ranks (7,5)
+lowest (−0.0133). Exact analysis: NO signature — the loser
+leaves 0 VCF starts, 0 creators, 2 setups; the saves (7,4)
+and (8,7) leave MORE setups (3), and (7,5) is identical to
+the loser on every count. The 400-sim deeper-search proposal
+(7,9) loses 3/3 — deeper search does not find the save.
+Class 7 (search-horizon value error), no patchable signature.
+
+**Running tally: VCF-prevention 1, horizon 1, search-horizon
+(no signature) 1.** The patch rule needs ≥3 verified
+instances of ONE mechanism.
 
 ## 3. Patch / fallback (v35)
 
