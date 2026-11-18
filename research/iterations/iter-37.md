@@ -47,7 +47,12 @@ code was ported into this worktree — reuse, don't re-derive):**
   `gomoku-ml1-h2` (sha256 `92664381…`, `2b7930bc…`, `1844f241…`
   all match iter-31's record).
 - `ml/scripts/sweep_alpha.py`: v31's parameterised version,
-  copied VERBATIM from `gomoku-ml2-h2` (sha256 `a2b2c0c7…`).
+  copied VERBATIM from `gomoku-ml2-h2` (sha256 `a2b2c0c7…`) —
+  then ONE adaptation: the `resolve_opponent` unpack changed
+  from 2 values to 3 (`player, choose_move, name`) for the
+  batch-3 per-game-seeding signature (the sweep itself keeps
+  v24/v31's fixed-seed protocol — see the comment at the call
+  site; it only SELECTS α).
 - `ml/scripts/find_losing_moves.py`: copied VERBATIM from
   `gomoku-ml1` (sha256 `24814e64…`).
 - `ml/gomoku_ml/mcts_value.py`: the per-version `value_weight`
@@ -409,15 +414,157 @@ selfplay_batch.py --engine-a v37 --engine-b v7 --games 100 --swap-rule --placeme
 
 ## 2. Data generation (actuals)
 
-TODO — labelling results.
+**Labelling COMPLETE 2026-11-18 14:10:45 UTC** (started 13:45:49
+UTC; 24.9 min total, no interruptions): `generate_distill_data.py
+label --label-mode rollout2` over v24's exact games files
+(copied verbatim into `ml/runs/ml3-h2/games-{v7,v18,random}.json`).
+Full log `ml/runs/ml3-h2/label.log` (LABEL_JSON lines).
+
+| Source | Games | Plies | Quiet positions | ±1 labels | Gradient labels | Held-out games | Label time |
+|---|---|---|---|---|---|---|---|
+| v7 self-play (50 sims, seeds 50000+) | 488 | 25,277 | 21,595 (19,545 train / 2,050 holdout) | 1,347 (6.2%) | 20,248 | 48 | 887.2 s |
+| v18 self-play (50 sims, seeds 60000+) | 229 | 11,511 | 9,932 (9,142 train / 790 holdout) | 736 (7.4%) | 9,196 | 22 | 351.1 s |
+| Random playouts (seeds 70000+) | 100 | 11,009 | 5,700 (5,162 train / 538 holdout) | 1,856 (32.6%) | 3,844 | 10 | 207.3 s |
+| **Total** | **817** | **47,797** | **37,227 (33,849 train / 3,378 holdout)** | **3,939 (10.6%)** | **33,288** | **80** | **1,445.6 s** |
+
+Position counts match v24's shards EXACTLY (verified
+per-source: same shard counts, same per-shard position counts
+in the train dirs) — the same 37,227 positions, only the labels
+differ, as pre-registered. The 2-ply labels are hotter than
+v24's 1-ply labels on every source (±1: 6.2% vs 3.8% v7, 7.4%
+vs 5.1% v18, 32.6% vs 28.5% random; train mean|v|: v7 0.1570,
+v18 0.1775, random 0.4022; pooled train mean|v| 0.1999) — the
+4-ply horizon finds more forced wins, as the §0 measurement
+predicted (10.6% ±1 pooled vs v24's 7.9%).
+
+Memmap bundle `ml/runs/ml3-h2/data-mmap/` built from
+`ml/runs/ml3-h2/data-train/` (symlinks to the three train dirs
+only — holdouts excluded; recursive glob follows the symlinked
+dirs, 737 shards found): 33,849 samples, planes (33849, 8, 15,
+15), mean|v| 0.1999.
 
 ## 3. Training (actuals)
 
-TODO — training log.
+**Training COMPLETE 2026-11-18 14:29 UTC** (started 14:13:25 UTC,
+~16 min, no interruptions — a VM replacement happened minutes
+AFTER completion, killing only the wait loop): config
+`ml/configs/ml3-h2.yaml`, 15 epochs, batch 64, memmap bundle
+(33,849 samples; 32,157 train / 1,692 val, seed-0 split).
+Run dir `ml/runs/ml3-h2-train/`; log `ml/runs/ml3-h2/train.log`.
+RSS stayed low (memmap path). 7,545 steps, ~46–78 s/epoch.
+
+| Epoch | Train loss | Val loss |
+|---|---|---|
+| 1 | 0.1079 | 0.1237 |
+| 2 | 0.1017 | 0.1226 |
+| 3 | 0.1004 | 0.1180 |
+| 4 | 0.0981 | 0.1165 |
+| 5 | 0.0967 | 0.1148 |
+| 6 | 0.0944 | 0.1152 |
+| 7 | 0.0926 | 0.1109 |
+| 8 | 0.0899 | 0.1102 |
+| 9 | 0.0872 | 0.1093 |
+| 10 | 0.0855 | 0.1066 |
+| 11 | 0.0834 | 0.1035 |
+| 12 | 0.0814 | 0.1005 |
+| 13 | 0.0799 | 0.0988 |
+| 14 | 0.0794 | 0.0988 |
+| 15 | 0.0788 | **0.0986** |
+
+Val loss decreased monotonically (one tiny bump at epoch 6,
+0.1148 → 0.1152) — no overfitting by epoch 15, but the
+pre-registered plan is 15 epochs and the battery is the verdict,
+so no extension. **Best checkpoint: epoch 15 (`best.pt`, step
+7545, val 0.0986) = final.pt** (same step/epoch; the `--out`
+copy at `ml/runs/ml3-h2/value-net.pt` is verified
+bit-identical in weights to `best.pt`, max |Δ| 0.0), so the
+registry path holds the best-by-val-loss checkpoint as
+pre-registered. (Absolute val loss is not comparable to v24's
+0.0617 — the 2-ply labels are hotter, mean|v| 0.20 vs 0.06, so
+the target variance is higher; sign accuracy is the comparable
+metric.) Architecture verified: ResNet 16ch/2 blocks, 126,759
+params, 48 tensors — identical counts to v24's and v8's
+checkpoints (iter-24's "126,586" was a miscount).
 
 ## 4. Holdout diagnostics (actuals)
 
-TODO — holdout results.
+Game-level holdout (every 10th game, never trained on — the SAME
+80 games / 3,378 positions v24 held out), targets = 2-ply labels
+unless noted. v37 net = `ml/runs/ml3-h2/value-net.pt`; v24 net =
+`gomoku-ml1-h1/ml/runs/ml1-h1/value-net.pt`; v8 net =
+`ml/runs/b3-h2/value-net.pt`. Raw outputs in
+`ml/runs/ml3-h2/holdout-{2ply,1ply}-{v7,v18,random}.txt`.
+Sanity check: this run reproduces v24's published 1-ply numbers
+EXACTLY on its own holdout (v7 0.7713, v18 0.8384, random 0.7055,
+pooled 0.7766) — the eval setup is sound.
+
+### (a) v37 net on its own 2-ply holdout (in-distribution)
+
+| Holdout | n pos | v37 sign (full) | v37 sign (no-hist) | v37 MSE | v37 mean\|v\| | v24 sign (full) | v8 sign (full) |
+|---|---|---|---|---|---|---|---|
+| v7 | 2,050 | 0.7395 | 0.5163 | 0.0781 | 0.090 | 0.7348 | 0.5572 |
+| v18 | 790 | 0.8436 | 0.5846 | 0.0819 | 0.104 | 0.8115 | 0.4897 |
+| random | 538 | 0.6623 | 0.6604 | 0.2675 | 0.290 | 0.6529 | 0.5009 |
+| **pooled** | **3,378** | **0.7519** | **0.5568** | — | — | **0.7398** | **0.5316** |
+
+**Verdict: the distillation learned the deeper label function —
+the §1.5 stop condition (chance-level holdout) does NOT
+trigger.** Pooled in-distribution sign agreement 0.7519 vs 0.50
+chance. But it is LOWER than v24's 0.7766 on 1-ply labels — the
+2-ply function is harder to learn, as expected (a 4-ply lookahead
+compressed into a static evaluation). And v24's 1-ply-trained
+net already captures the 2-ply function at 0.7398 — the marginal
+gain from training on 2-ply labels is only +0.012 in holdout
+terms (the two label functions correlate at r=0.72, §0).
+
+**The net is catastrophically history-dependent on engine
+positions — the v31 pattern, from a different cause.** The
+no-history view collapses to near chance on v7 (0.7395 → 0.5163,
+MSE 0.078 → 0.436, mean|v| ballooning 0.090 → 0.436) and badly
+on v18 (0.8436 → 0.5846), while v24's net is history-robust on
+the same positions (v7 0.7713 both views; v18 0.8344
+no-history). Random positions are unaffected (0.6623 → 0.6604)
+— their values are visible in the current board. Mechanism
+(hypothesis, consistent with the numbers): the 2-ply label is a
+harder function of the CURRENT board than the 1-ply label, so
+with 33,849 samples the optimizer grabbed the history planes as
+a shortcut (game phase / last-move character correlates with the
+label) instead of learning the true board→label mapping. At
+inference the leaves get SEARCH-PATH history — neither the
+real-game history of the full-planes view nor the zeroed history
+of the no-history view — so the operating point lies between the
+two views, but on engine positions both bounds are worse than
+v24's. **This foreshadows that v37 may play worse than v24**
+(the same warning sign v31 showed before scoring 0.40 vs v8) —
+but holdout is diagnostic, not the verdict: the α sweep and the
+battery measure played strength, and they proceed as
+pre-registered. No retrain is authorised by §1.5 on holdout
+grounds (the stop rule is chance-level own-holdout, which did
+not trigger); a training change (e.g. history augmentation)
+would need a fast-loop loss to motivate it, and none exists yet.
+
+**By side to move** (v37 net, 2-ply holdout, full planes;
+`/tmp/by_side.py`): Black-to-move sign 0.7269 (1182/1626), MSE
+0.1242; White-to-move sign **0.7775** (1237/1591), MSE 0.0939.
+**No White collapse** — White is BETTER than Black in holdout.
+The engine-only data did not reintroduce a side skew (contrast
+v25/v31's B1-data White collapses).
+
+### (c) Reverse transfer: v37 net on v24's 1-ply labels
+
+| Holdout | v37 sign (full) | v37 sign (no-hist) | v24 sign (full) |
+|---|---|---|---|
+| v7 | 0.7550 | 0.5409 | 0.7713 |
+| v18 | 0.8449 | 0.5848 | 0.8384 |
+| random | 0.6482 | 0.6750 | 0.7055 |
+| **pooled** | **0.7590** | — | **0.7766** |
+
+The deeper net reproduces the shallower function at 0.7590 vs
+v24's 0.7766 — decent reverse transfer (it beats v24 on v18,
+0.8449 vs 0.8384, with lower MSE 0.0624 vs 0.0691) but not full,
+and the no-history collapse persists (0.54 on v7). The two nets
+encode overlapping but distinct value functions, as expected
+from their different label depths.
 
 ## 5. α sweep and fast loops
 

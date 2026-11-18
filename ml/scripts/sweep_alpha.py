@@ -109,7 +109,13 @@ def run_match(alpha: float, args) -> dict:
     player_a = scoring.get_player(args.version, seed=args.seed_a)
     player_a._mcts.value_weight = alpha
     choose_a = player_a.choose_move
-    choose_b, name_b = resolve_opponent(args.opponent, args.seed_b)
+    # NB: resolve_opponent returns (player, choose_move, name) since
+    # the batch-3 per-game-seeding change; the player object is
+    # unused here (the sweep keeps v24/v31's fixed-seed protocol —
+    # it only SELECTS alpha, and all arms share the protocol, so the
+    # comparison is fair within the sweep; the battery drivers carry
+    # the per-game seeding).
+    _player_b, choose_b, name_b = resolve_opponent(args.opponent, args.seed_b)
     print(f"== alpha {alpha}: scoring-v{args.version} vs {name_b}, {args.games} games "
           f"(seeds {args.seed_a}/{args.seed_b}) ==", file=sys.stderr)
     t0 = time.time()
