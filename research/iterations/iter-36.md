@@ -290,9 +290,39 @@ Fast-loop dev seeds 1001/2001, 1002/2002, ... (iteration k uses
 
 ### 1.3 Mechanism check (post-implementation, pre-sweep)
 
-(TODO — after implementation, before any sweep game: root dumps
-on the 8 tied tactical-hard positions at both τ, verifying the
-dispatch does what §1.1 says, especially prev-v1v1s-g45.)
+After implementation and before any sweep game, v92 (τ=0.05)
+and v93 (τ=0.10) were run on the 8 tied tactical-hard positions
+(fresh-seed-0 root dumps, `/tmp/mech_v36.py`). This is an
+implementation check, not pre-registration evidence and not an
+eval — it verifies the dispatch does what §1.1 says it does.
+
+**Root dumps reproduce §0 exactly** (same ties, same q values,
+same priors — the search is unchanged; only the final selection
+differs). All 8 positions are threat-filtered pools, as in §0:
+
+| Position | Root state (fresh seed 0) | Gap | τ=0.05 | τ=0.10 |
+|---|---|---|---|---|
+| prev-v1v0s-g13 | 4-way tie at 4 visits | 0.0097 | no fire → (11,7) EXPECTED | no fire → (11,7) EXPECTED |
+| prev-v2v0-g2 | 2-way tie at 4 visits | 0.0036 | no fire → (6,5) EXPECTED | no fire → (6,5) EXPECTED |
+| prev-v2v1s-g12 | 2-way tie at 4 visits | 0.0126 | no fire → (13,2) EXPECTED | no fire → (13,2) EXPECTED |
+| prev-v2v1s-g28 | 2-way tie at 4 visits | 0.0002 | no fire → (4,9) EXPECTED | no fire → (4,9) EXPECTED |
+| prev-v1v0s-g48 | 2-way tie at 5 visits | 0.0087 | no fire → (4,9) EXPECTED | no fire → (4,9) EXPECTED |
+| prev-v1v1s-g79 | 4-way tie at 6 visits | 0.0125 | no fire → (8,7) EXPECTED | no fire → (8,7) EXPECTED |
+| prev-v2v1s-g30 | 2-way tie at 4 visits | 0.0356 | no fire → (5,4) EXPECTED | no fire → (5,4) EXPECTED |
+| prev-v1v1s-g45 | 2-way tie at 5 visits | 0.0527 | **FIRES → (11,7) EXPECTED** | no fire → (12,7) EXPECTED |
+
+Exactly one position fires at τ=0.05 (prev-v1v1s-g45, gap
+0.0527 — the only measured tactical gap above 0.05), and the
+fired pick (11,7) is an expected move — v8's RNG picked the
+other expected move (12,7). At τ=0.10 nothing fires and every
+choice equals v8's, including the RNG picks (the no-fire code
+path consumes RNG identically to v8 — verified: all 8 choices
+match v8's move-for-move at both τ except the single fire).
+Note prev-v1v1s-g79: the q-max move is (7,9) but the gap
+(0.0125) is below both thresholds, so all three versions play
+(8,7) by RNG — both are expected moves. **Expected tactical:
+20/20 old + 29/29 hard at both τ** — the sweep's tactical gate
+(§1.2 rule 1) should pass for both candidates.
 
 ### 1.4 Battery (the verdict — pre-registered seeds and commands)
 
