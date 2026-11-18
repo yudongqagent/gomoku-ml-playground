@@ -501,40 +501,303 @@ fl2-g7-ply37 (the gate's documented cost).
 
 ## 3. v34 evaluation
 
-(TODO — battery on the FINAL version only.)
+Battery run Wed 2026-11-18 on the FINAL version (v34-as-batteried =
+v34-as-pre-registered; no patches in the fast loop). All numbers
+below were recomputed from the raw per-game records
+(`/tmp/verify_v34.py`) and cross-checked against the driver headers
+(all MATCH). Artefacts: `batch-v34-vs-v27.json`,
+`batch-v34-vs-v0.json`, `batch-v34-vs-v27-swap.json`,
+`ladder-v34.json`, `ladder-v34.log`, `tactical-v34.json` — all
+`complete=true`, 100 games per match leg.
+
+The battery chain ran across THREE process lifetimes (two runtime
+restarts SIGTERM'd it: first at 66/100 games of the vs-v27 leg,
+second at 25/100 of the swap leg). Auto-resume saved all progress
+(`resumed_from_game` 66 vs v27, 25 swap; the vs-v0 leg and the
+ladder ran clean in a single process each). Total chain time
+~5.3h. **The resume has a seed-replay side effect — see §3.8.**
+It does not change any verdict below (de-duplicated numbers are
+reported alongside nominal ones throughout).
 
 ### 3.1 Tactical (clause 3)
 
-(TODO)
+`eval_tactical_full.py --version 34 --suite both --seed 100`:
+**old 20/20, hard 29/29** on the corrected suite (the three
+tie-fix positions choose (8,4), (6,7), (7,5) — identical to v27).
+Clause 3 PASSES.
 
 ### 3.2 Head-to-head vs v27 (clause 1)
 
-(TODO)
+`batch-v34-vs-v27.json` (seeds 100/200, normal rules, 2253.6s
+for the resumed leg):
+
+- **45W-51L-4D over 100 games, win rate 0.4700, Wilson 95% CI
+  [0.3751, 0.5671].**
+- Colour split: as Black 31W-17L-2D (0.6400); as White
+  14W-34L-2D (0.3000). Black won 65/100 games overall. The
+  6-game margin is split evenly by colour: v27-as-Black beat
+  v34-as-White 34-14-2, while v34-as-Black beat v27-as-White
+  31-17-2 — v27 outplayed v34 by 3 games in each colour. There
+  is no colour-specific gate effect; v27 is just slightly
+  better (or equal within noise — the CI includes 0.50, so
+  "v27 is better" is not proven either).
+- De-duplicated (see §3.8): **29W-31L-3D over 63 unique games,
+  0.4841, CI [0.3652, 0.6049].** Pre-resume prefix (games 0-65,
+  all unique): 30W-33L-3D, 0.4773, CI [0.3614, 0.5957]. Same
+  conclusion on every cut: v34 does not beat v27.
+
+**Clause 1 FAILS** (win rate < 0.50 and CI lower bound 0.3751 <
+0.50, on both the nominal and the de-duplicated numbers).
 
 ### 3.3 Head-to-head vs v0
 
-(TODO)
+`batch-v34-vs-v0.json` (seeds 100/200, normal rules, 3015.7s):
+
+- **97W-3L-0D, 0.9700, CI [0.9155, 0.9897].** As Black
+  47W-3L-0D (0.9400, all 3 losses as Black, as in v27's
+  battery); as White 50W-0L-0D (1.0000).
+- Nominally this equals v18's 0.97 and is one win better than
+  v27's 96W-3L-1D (0.9650) — but the nominal comparison is
+  mostly duplication noise (§3.8): de-duplicated, v34 is
+  **38W-3L-0D over 41 unique games, 0.9268, CI [0.8057,
+  0.9748]**, vs v27's de-duplicated 37W-3L-1D over 41 unique,
+  0.9146. Same 3 losses, one fewer draw — v34 is one game
+  better than v27 vs v0 on unique games. The two engines play
+  nearly identically against v0: 26 of the 41 unique games are
+  shared move-for-move, all with the same result — the
+  pre-registered expectation (gate bite vs v0 ≈ zero) holds.
 
 ### 3.4 Swap match vs v27
 
-(TODO)
+`batch-v34-vs-v27-swap.json` (seeds 100/200, balanced placement,
+placement_seed 11, tempo judge, 4866.3s):
+
+- **56W-42L-2D, 0.5700, CI [0.4722, 0.6627].** As Black
+  36W-12L-1D (0.7449, 49 games); as White 20W-30L-1D (0.4020,
+  51 games).
+- De-duplicated: 55W-41L-2D over 98 unique, 0.5714, CI
+  [0.4726, 0.6649] — essentially unchanged (only 2 duplicate
+  games in the swap leg).
+- The swap edge is positive but not significant (CI includes
+  0.50), and it points the OTHER way from the normal-rules leg
+  (0.47). With both CIs straddling 0.50 and overlapping
+  heavily, no firm conclusion — v34 is statistically
+  indistinguishable from v27 under swap too.
 
 ### 3.5 Ladder (clause 2)
 
-(TODO)
+`eval_version.py --version 34 --ladder-games 20 --mcts-sims 100
+--seed 100` (`ladder-v34.json`, `resumed=false` — clean single
+run):
+
+| Leg | v34 | v27 (bar reference) |
+|---|---|---|
+| vs random | 20W-0L-0D | 20W-0L-0D |
+| vs heuristic | **20W-0L-0D** | 19W-0L-1D |
+| vs mcts | **15W-5L-0D** (Black 8-2, White 7-3) | 13W-7L-0D |
+| Ladder Elo | estimate **None**, interval **[286.6, None]** | 636.4, [240.3, 1032.5] |
+
+v34 beats v27 on EVERY ladder leg. The 20-0 heuristic leg is
+the first perfect heuristic leg in the program (v18 and v27
+both stopped at 19-0-1), and the 15-5 mcts leg ties v29's
+program best.
+
+The Elo point estimate is `None` because the instrument
+saturates at a perfect score: `_elo_from_score`
+(`evaluate.py:126`) returns None for score 0 or 1 (the logistic
+formula diverges), and with both anchored legs at 1.0 there is
+no finite per-opponent estimate and no upper bound — only the
+Wilson-lower-bound-derived floor of 286.6. Clause 2 as written
+("ladder Elo > 636.4") therefore has three readings:
+
+1. **Leg result (the plan's own operationalization):** the
+   batch-10 plan states "beating [636.4] effectively requires
+   a 20-0 leg" — v34 has exactly that, beating v27's 19-0-1
+   leg head-on. **PASS.**
+2. **Point estimate:** undefined (None) — the clause is not
+   evaluable as a number comparison. **UNDECIDED.**
+3. **Interval lower bound:** 286.6 < 636.4. **FAIL.**
+
+Reading 1 is the faithful one — the plan defines what beating
+636.4 means in practice, and v34 meets it — so clause 2 is
+recorded as PASS (leg result) with the estimator saturation
+stated here in full. The ambiguity is flagged to the
+coordinator; it does not affect the overall verdict (clause 1
+fails regardless). Program note: the ladder cannot distinguish
+a 20-0 performance from infinite strength — at the top of the
+ladder the instrument is saturated, and a stronger anchor (or
+more games per leg) is needed to rank future versions.
 
 ### 3.6 Defence classification
 
-(TODO)
+`classify_losses.py` on the three battery batches:
+
+| Batch | Losses | Via open four | Missed blocks | Clean missed preventions | Threatened turns |
+|---|---|---|---|---|---|
+| vs v27 | 51 | 51 | 0 | 3 (3 games) | 228 |
+| vs v0 | 3 | 3 | 0 | 0 | 14 |
+| swap vs v27 | 42 | 42 | 0 | 3 (3 games) | 226 |
+| **Pooled** | **96** | **96** | **0** | **6 (6 games)** | **468** |
+
+0 missed blocks holds — defence is still solved in the block
+sense. But the clean missed preventions are **non-zero for the
+first time in the program** (v27: 0 in 183 threatened turns;
+v29: 0 in 463). The 6 are really 4 distinct turns: games 31
+and 97 (vs v27) are the same game replayed (§3.8), as are swap
+games 43 and 91. All 6 are v34 as White.
+
+Are they gate-caused? NO — verified on three of the four
+distinct instances (vs-v27 g31-ply21, g61-ply21; swap
+g73-ply35) with fresh 100-sim root dumps for v34 AND v27:
+
+- g31-ply21: played (9,6), unsafe; safe (8,10), (9,11) exist.
+  (9,6) is the UNIQUE visit leader (5 visits) for BOTH
+  engines — no tie, so the tie-break (gated or not) never
+  fires. The safe moves sit at 4 visits with BETTER q
+  (−0.6875 vs −0.8117): the leaf knows, the visit count
+  doesn't. Identical dumps for v27.
+- g61-ply21: played (8,1), unsafe; safe (3,5), (4,5), (8,5)
+  exist. (8,1) unique leader at 11 visits, both engines
+  identical — and here even the leaf ranks the unsafe move
+  best (−0.6364 vs −0.6755…−0.8420 for the safe moves).
+- swap g73-ply35: played (11,9), unsafe; safe (11,5), (10,6)
+  exist. (11,9) unique leader (5 visits), both engines
+  identical; safe moves at 3 visits with worse q.
+
+So the prevention misses are **search-level misses shared
+identically with v27, not a v34 regression and not
+gate-caused**. The rate is low (6/468 = 1.3% of threatened
+turns) and the opponent is stronger than in any previous
+battery (v27, not v7) — more creator situations arise. Flag
+for H3's v35 forensics: v27 itself misses preventions the
+exact analysis catches, in two flavours (leaf-knows-but-visits-don't,
+g31; leaf-blind, g61/g73). The fourth distinct instance (swap
+g43/g91 ply 17) was not individually dumped.
 
 ### 3.7 Test suites (clause 4)
 
-(TODO)
+- ml pytest (full suite, run on the final code): **414 passed,
+  7 skipped, 61 xfailed, 0 failures** (814.39s, contended).
+  (Counts differ from ML batch 2's 423/1/58 because that
+  branch is not merged to master; 0 failures is what matters.)
+- npm test **55/55**; `npx tsc --noEmit` clean.
+- `ml/gomoku_ml/baseline.py`: **0 lines changed** vs `a4ed543`
+  (frozen file untouched).
+- Clause 4 PASSES.
+
+### 3.8 Battery hygiene finding: duplicated games (program-level)
+
+Counting unique move-lists per batch:
+
+| Batch | Games | Unique | Cause |
+|---|---|---|---|
+| vs v27 | 100 | **63** | resume seed-replay (below) + determinism |
+| vs v0 | 100 | **41** | engine determinism (no resume involved) |
+| swap vs v27 | 100 | 98 | — |
+
+**Resume seed-replay.** `selfplay_batch.py` creates each engine
+ONCE with the fixed seeds (`--seed-a 100`, `--seed-b 200`), so
+each engine's RNG is a single stream across the run. On
+auto-resume the engines are re-created with the same seeds and
+their streams restart from the beginning. In the vs-v27 leg
+(resumed from game 66) this replayed games 0-33 EXACTLY as
+games 66-99 — all 34 pairs duplicated move-for-move (the colour
+schedule aligns: game i and game i+66 have the same
+`a_colour`). The driver's docstring warns only that "the
+placement RNG restarts" — the engine-RNG restart is the
+bigger effect. (The replay is not always exact: v27's vs-v7
+leg, resumed from 53, has 94 unique games — the more the
+engines diverge, the more process-level variation breaks the
+replay. v34-vs-v27 games are short and forcing enough that
+the replay was perfect.)
+
+**Engine determinism.** The vs-v0 leg ran in ONE process with
+no resume, yet has only 41 unique games (one move-list
+repeated 16 times). v0 is near-deterministic and v34's RNG
+matters only at root ties, so most seed draws collapse to the
+same short game. v27's vs-v0 batch shows the SAME 41-unique
+phenomenon (de-duplicated 37W-3L-1D, 0.9146, vs nominal
+96W-3L-1D, 0.9650) — so the nominal vs-v0 win rates in the
+program are inflated by duplication, on both sides equally.
+
+**No verdict is overturned by de-duplication:**
+v27's bar pass survives (vs v7 de-duplicated: 71W-19L-4D over
+94 unique, 0.7766, CI [0.6825, 0.8490]; swap de-duplicated
+0.7892 over 83 unique). v34's clause-1 failure survives
+(0.4841 de-duplicated). But every past battery's nominal CI
+overstates the effective sample size. Recommendations for the
+coordinator: (1) per-game seeding (`seed + game_index`) so
+resumed runs cannot replay; (2) a uniqueness audit
+(unique move-lists + de-duplicated aggregates) as standard
+battery hygiene in every iteration log.
 
 ## 4. Bar check (v34 vs v27)
 
-(TODO)
+| Clause | Requirement | v34 result | Verdict |
+|---|---|---|---|
+| 1 | h2h vs v27 ≥ 100 games, win rate > 0.50, Wilson 95% CI lower > 0.50 | 45W-51L-4D, 0.4700, CI [0.3751, 0.5671] (de-dup: 29W-31L-3D over 63 unique, 0.4841) | **FAIL** |
+| 2 | Ladder Elo > 636.4 | Heuristic leg 20W-0L-0D (first ever; beats v27's 19-0-1 — the plan's stated requirement); mcts leg 15-5 (ties program best); Elo point estimate None (instrument saturated at a perfect score), interval [286.6, None] | **PASS (leg result)** — see §3.5 for the three readings |
+| 3 | Tactical ≥ 20/20 + 29/29 (corrected suite) | 20/20 old, 29/29 hard | **PASS** |
+| 4 | All test suites green | pytest 414/7/61, 0 failures; npm 55/55; tsc clean; baseline.py untouched | **PASS** |
+
+**v34 is REJECTED, 3/4 clauses.** No v18 challenge match is
+triggered (it requires all 4 clauses). v18 stays the strength
+champion; v27 stays the bar reference.
 
 ## 5. What this means
 
-(TODO)
+**The hypothesis is refuted.** The tactical gate does not
+improve on v27: v34 loses the clause-1 leg on points (0.47
+nominal, 0.4841 de-duplicated) and is statistically
+indistinguishable from v27 on every other leg (swap 0.57 with
+CI straddling 0.50; vs v0 one unique game better; ladder legs
+better but the Elo instrument saturated). The pre-registered
+expectation — v34 ≈ v27 — was right, and the fast loop
+supplied the mechanism for the small deficit: quiet-position
+fires DO sometimes carry real signal (fast-loop game 7 ply 37,
+where v27's blocked fire was the only saving move), so
+blocking them costs games at least as often as it saves any.
+The batch-9 caution that motivated the gate (a large gap
+between two verified losers in a murky midgame) turned out to
+be a tactical position anyway (§1.2) — the gate fires there
+too, by design. There is no evidence that quiet-position fires
+are systematically worse than tactical ones.
+
+**The gate is a near-no-op.** Against v0 the two engines play
+nearly identically (26/41 unique games shared move-for-move);
+in the fast loop, 180 turns compared across lost games yielded
+only 3 gate-caused differences. v34's main observable
+difference from v27 is one lost fast-loop game and a 6-game
+nominal deficit over 100 battery games — both consistent with
+"the gate changes almost nothing, and what it changes is
+slightly bad."
+
+**The tie-break lever is now doubly bounded — CLOSED.** v23's
+unconditional q-aware tie-break hurt vs v0 (0.91); v27's
+τ=0.05 threshold fixed it (0.9650) and passed the bar; v34's
+tactical conditioning of the same threshold adds nothing.
+Further conditions on the tie-break (position-dependent
+thresholds, phase-dependent thresholds, different τ per
+colour) should not be tried without a new mechanism — the
+space has been explored from three directions and the
+threshold version is the local optimum.
+
+**Two program-level findings ride along with this rejection:**
+(1) the resume seed-replay bug (§3.8) — resumed batteries
+replay earlier games, overstating effective sample size
+(63 unique, not 100, in the clause-1 leg); per-game seeding
+and a uniqueness audit are the fixes; (2) the ladder is
+saturated at the top — a 20-0 heuristic leg, the best in the
+program, yields no finite Elo estimate, so the ladder can no
+longer rank versions that beat the heuristic anchor outright.
+Both are coordinator-level tooling decisions, flagged here
+rather than fixed in this branch (changing the driver or the
+anchors mid-batch would break comparability with v27's bar).
+
+**Defence:** 0 missed blocks holds, but clean missed
+preventions are non-zero for the first time (6 in 468
+threatened turns, 1.3%) — verified shared with v27, not a
+v34 regression. The prevention misses are a v27-family
+search-level property (unique visit leaders; in 2 of 3 dumped
+instances the leaf itself ranks the unsafe move best) and
+belong to H3's v35 forensics, not to this workstream.
