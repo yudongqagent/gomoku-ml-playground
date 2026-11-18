@@ -513,8 +513,10 @@ picked (3,8). The rollout leaf prefers the forcing moves
 ((3,8) and (4,7) both +0.2500) over the quiet prevention
 (8,5) (+0.0871) — the same motif as g44. The check picks
 (8,5): it holds the highest prior (0.0538) among
-preventions. The check reproduces the save at 5 of the 6
-VCF-prevention instances so far.
+preventions. (8,5) also saves at ply 25 ([1,−1,1]), as does
+(5,8) ([1,1,1]) — the earliest saving turn is ply 23. The
+check reproduces the save at 5 of the 6 VCF-prevention
+instances so far.
 
 **Game 77, ply 13 (White to move) — search-horizon value
 error, no exact signature.** The actual (7,6) loses 2/3;
