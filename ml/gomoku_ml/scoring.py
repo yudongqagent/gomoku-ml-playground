@@ -438,29 +438,29 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
-    # v35 (iteration 35, batch 10): H3 — v27 + the DEFENSIVE VCF
+    # v35 (iteration 35, batch 10): H3 — v27 + the VCF-at-root
     # check (see research/iterations/iter-35.md). The forensics on
     # v27's 22 battery losses found 5 missed VCF preventions (the
     # search cannot see the opponent's VCF 3+ plies out; the exact
-    # depth-3 check can) and 0 missed forced wins, so v35 is
-    # defensive-only: the check fires only when the opponent holds
-    # a VCF start, and plays the highest-prior prevention; when we
-    # hold a VCF start of our own, v35 falls through to v27's
-    # search (which already finds offensive VCF starts — v27 is
-    # 29/29 on the hard tactical suite including all VCF
-    # positions). The check reproduces the verified save at 4 of
-    # the 5 VCF-prevention positions (g4 ply 44, g10 ply 44, g21
-    # ply 33, g44 ply 40); at g32 ply 24 it picks the losing
-    # prevention by prior noise (documented open weakness, xfail
-    # in test_regression_v35.py). Everything else is v27
-    # unchanged: 100 sims, c_puct 1.5, v1 priors, rollout leaf
-    # both colours, tau=0.05 threshold tie-break. Versions 30-32
-    # are ML batch 2's, 33-34 the parallel batch-10 workstreams'.
+    # depth-3 check can) and 0 missed forced wins. The check is
+    # v29's FULL check (offensive step first, then defensive) —
+    # a defensive-only variant was tried and refuted by the
+    # tactical mechanism check (27/29: in race positions, where
+    # both sides hold a VCF start, the defensive-only check
+    # blocked instead of taking our forced win; the offensive
+    # step's priority is load-bearing). The check reproduces the
+    # verified save at 4 of the 5 VCF-prevention positions (g4
+    # ply 44, g10 ply 44, g21 ply 33, g44 ply 40); at g32 ply 24
+    # it picks the losing prevention by prior noise (documented
+    # open weakness, xfail in test_regression_v35.py). Everything
+    # else is v27 unchanged: 100 sims, c_puct 1.5, v1 priors,
+    # rollout leaf both colours, tau=0.05 threshold tie-break.
+    # Versions 30-32 are ML batch 2's, 33-34 the parallel
+    # batch-10 workstreams'.
     35: {"name": "scoring-v35", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
-         "tie_break_q_threshold": 0.05, "vcf_root": True,
-         "vcf_root_defensive_only": True},
+         "tie_break_q_threshold": 0.05, "vcf_root": True},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1086,9 +1086,6 @@ class ScoringPlayer:
                         "root_decision", "visits"
                     ),
                     vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
-                    vcf_root_defensive_only=ENGINE_VERSIONS[version].get(
-                        "vcf_root_defensive_only", False
-                    ),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(

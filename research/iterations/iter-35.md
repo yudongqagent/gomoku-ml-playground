@@ -510,9 +510,91 @@ is satisfied at 3 VCF-prevention instances with the patch
 reproducing all three saves (g4, g10, g21). The remaining
 workups complete the classification table.
 
-## 3. Patch / fallback (v35)
+## 3. Patch (v35)
 
-TODO.
+### 3.0 Design
+
+**v35 = v27 + the VCF-at-root check** (v29's `_vcf_root_move`,
+unchanged — the full check, offensive step first, then
+defensive). Everything else is v27 unchanged: 100 sims,
+c_puct 1.5, sharp v1 priors, rollout leaf both colours,
+τ=0.05 threshold tie-break, most-visited root. The registry
+entry (`scoring.py`) is v27's entry + `"vcf_root": True`;
+no code in `mcts_heuristic.py` changed for v35 (the
+`_vcf_root_move` implementation is v29's, byte-identical).
+
+**Why this is the patch for the verified mechanism.** The
+forensics (§2) found 5 missed VCF preventions: positions
+where v27's 100-sim search (2-ply rollout leaf) cannot see
+the opponent's VCF 3+ plies out, so it plays a move leaving
+VCF starts live — and the exact depth-3 VCF check sees the
+threat and plays a prevention. The check reproduces the
+verified save at 4 of the 5 (g4 ply 44 → (13,7), g10 ply 44
+→ (3,6), g21 ply 33 → (5,7), g44 ply 40 → (10,13)); at g32
+ply 24 it picks the losing prevention by prior noise (a
+documented limitation, xfail in `test_regression_v35.py`).
+The mechanism spans flat roots (g4, g21: visit ties the
+threshold does not fire on) and concentrated roots (g10:
+96 visits on the loser) — the common thread is the
+search's horizon, not the root rule, so the fix is a
+search-external exact check, not a root-rule change (the
+root-decision lever is CLOSED and exhausted — iter-27 §5).
+
+**Why NOT defensive-only (refuted by the mechanism check).**
+The first design was defensive-only (the forensics verified
+missed preventions, not missed forced wins — 0 in the
+corpus): a `vcf_root_defensive_only` flag skipping the
+offensive step. The tactical mechanism check REFUTED it:
+defensive-only v35 scored **27/29** on the hard suite,
+failing both race positions (`vcf-race-block-or-win` and
+`-white`): in a race both sides hold a VCF start, and the
+defensive-only check blocked (8,11) instead of taking our
+forced win (8,3). The offensive step's priority is
+load-bearing — when we hold a VCF start we win by force,
+and the defensive step must not override it. The flag was
+removed (no version uses it) and v35 uses v29's full check.
+With the full check, v35 scores **20/20 old + 29/29 hard**
+at `--seed 100` (mechanism check, §3.1). The offensive step
+cannot hurt game strength (a VCF start wins by force — there
+is no better outcome), and it costs little (our
+four-creators are few in quiet positions).
+
+**On combination-stacking.** v35 combines v27's threshold
+tie-break with v29's VCF check — two passed mechanisms. This
+is NOT the CLOSED combination-stacking lever (v17: the
+combination does not add): v17 stacked mechanisms without a
+forensics finding that the combination addresses a specific
+verified mechanism. Here the forensics VERIFIED that the
+VCF check fixes v27's specific losses (4 of 5
+VCF-prevention instances, each with playout-verified saves
+and the check reproducing the save). The combination is
+mechanism-driven, and the battery measures whether it adds
+strength against v27 itself.
+
+**Cost.** The VCF check is v29's, so v35 inherits its cost
+(~1.65s/move mean on quiet positions, ~7s/move in
+creator-rich games; iter-29 §3.2). The battery will take
+roughly 2x a check-free version's pace. Cost is reported,
+not acted on — the battery measures strength.
+
+### 3.1 Mechanism checks (post-implementation, pre-eval)
+
+- **Regression tests** (`ml/tests/test_regression_v35.py`):
+  **6 passed, 1 xfailed** — v35 plays a saving prevention
+  at all 4 VCF-prevention positions through the full
+  `choose_move` dispatch (g4 → (13,7), g10 → (3,6), g21 →
+  (5,7), g44 → (10,13)); g32 is the documented xfail (the
+  check picks (10,2) by prior noise); the race test pins
+  the offensive step's priority (v35 plays (8,3) on
+  `vcf-race-block-or-win`).
+- **Tactical** (`eval_tactical_full.py --version 35 --suite
+  both --seed 100`): **20/20 old + 29/29 hard** on the
+  corrected suite. Clause 3 is expected to PASS (the battery
+  re-runs this as the official clause-3 measurement).
+- **v29 unaffected:** `test_mcts_heuristic.py` 98 passed, 1
+  xfailed (run after the flag was added; the flag has since
+  been removed, restoring `mcts_heuristic.py` to v29's
+  code — the full suite re-runs at §6).
 
 ## 4. Fast loop
 

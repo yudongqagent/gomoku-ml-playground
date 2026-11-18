@@ -952,16 +952,13 @@ class HeuristicMCTS:
     (:meth:`_vcf_root_move`): before the search, an offensive VCF
     start is played immediately, and a defensive VCF prevention
     is played when the opponent holds a VCF start. False (the
-    default) is v18 behaviour exactly.
-    ``vcf_root_defensive_only`` (v35, batch 10 H3) restricts the
-    VCF-at-root check to its defensive step (step 2): the
-    offensive VCF step is skipped and the engine falls through
-    to the search when it holds a VCF start of its own. Only
-    meaningful with ``vcf_root=True``; False (the default) is
-    v29's full check exactly. See
-    ``research/iterations/iter-35.md`` §3 for why v35 is
-    defensive-only (the forensics verified missed VCF
-    preventions, not missed forced wins).
+    default) is v18 behaviour exactly. The offensive step runs
+    FIRST and is load-bearing: in race positions (both sides hold
+    a VCF start) it plays our forced win instead of letting the
+    defensive step block — a defensive-only variant was tried for
+    v35 and refuted by the tactical mechanism check (27/29: it
+    blocked instead of winning both race positions; see
+    ``research/iterations/iter-35.md`` §3).
     """
 
     def __init__(
@@ -975,7 +972,6 @@ class HeuristicMCTS:
         tie_break_q: bool = False,
         tie_break_q_threshold: float = 0.0,
         vcf_root: bool = False,
-        vcf_root_defensive_only: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
             leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
@@ -1002,7 +998,6 @@ class HeuristicMCTS:
         self.tie_break_q = tie_break_q
         self.tie_break_q_threshold = tie_break_q_threshold
         self.vcf_root = vcf_root
-        self.vcf_root_defensive_only = vcf_root_defensive_only
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -1058,9 +1053,7 @@ class HeuristicMCTS:
            that starts a forced win (``evaluate.starts_forced_win``,
            depth 3 — the tactical suite's own VCF definition) is
            played immediately, highest v1 prior first (ties: lowest
-           flat move index — deterministic, no RNG). Skipped when
-           ``vcf_root_defensive_only`` is True (v35): the engine
-           falls through to the search instead.
+           flat move index — deterministic, no RNG).
         2. **Defensive VCF prevention.** If any opponent
            four-creating move starts a forced win for the opponent,
            play the highest-prior candidate move after which the
@@ -1106,13 +1099,7 @@ class HeuristicMCTS:
         """
         # 1. Offensive VCF — test in selection order, first VCF
         # start wins (identical to testing all and taking the max).
-        # Skipped when vcf_root_defensive_only (v35): the forensics
-        # verified missed preventions, not missed forced wins.
-        ours = (
-            evaluate.four_creating_moves(board, player)
-            if not self.vcf_root_defensive_only
-            else []
-        )
+        ours = evaluate.four_creating_moves(board, player)
         if ours:
             priors = _priors(board, player, self.prior_floor)
             ours.sort(key=lambda m: (-priors.get(m, 0.0), m))

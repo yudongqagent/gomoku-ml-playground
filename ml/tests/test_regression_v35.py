@@ -9,12 +9,12 @@ position. A position the current engine does NOT fix is kept as an
 xfail with its reason — a documented open weakness and the next
 iteration's target — never silently dropped.
 
-The defensive-only flag is also tested here: on a pure offensive
-VCF position (tactical vcf-1) the defensive-only check must NOT
-fire (v35 falls through to the search), while the full check (v29)
-fires and plays the VCF start. v35 is defensive-only because the
-forensics verified missed VCF preventions, not missed forced wins
-(iter-35 §3).
+The check is v29's FULL check (offensive step first, then
+defensive): a defensive-only variant was tried and refuted by the
+tactical mechanism check (27/29 — in race positions, where both
+sides hold a VCF start, the defensive-only check blocked instead
+of taking our forced win; iter-35 §3). The race test below pins
+the offensive step's priority.
 """
 
 import json
@@ -23,14 +23,13 @@ import os
 import pytest
 
 from gomoku_ml import game, scoring
-from gomoku_ml.mcts_heuristic import HeuristicMCTS
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 POSITIONS_PATH = os.path.join(
     HERE, "..", "gomoku_ml", "regression_positions_v35.json"
 )
-TACTICAL_PATH = os.path.join(
-    HERE, "..", "gomoku_ml", "tactical_positions.json"
+TACTICAL_HARD_PATH = os.path.join(
+    HERE, "..", "gomoku_ml", "tactical_positions_hard.json"
 )
 
 # Positions the current engine does not fix (open weaknesses).
@@ -95,29 +94,25 @@ def test_regression_positions_are_well_formed():
             )
 
 
-def test_v35_defensive_only_skips_offensive_vcf():
-    """On tactical vcf-1 (a pure offensive VCF: Black holds a VCF
-    start, White holds none), v35's defensive-only check returns
-    None (falls through to the search) while v29's full check
-    returns the VCF start (8, 3)."""
-    with open(TACTICAL_PATH, encoding="utf-8") as f:
+def test_v35_offensive_vcf_fires_first_in_race():
+    """On tactical vcf-race-block-or-win (a RACE: both sides hold
+    a VCF start), v35's check must play OUR VCF start (8, 3) —
+    the forced win — not a defensive prevention. A
+    defensive-only check played the block (8, 11) here and
+    failed the position (27/29); the offensive step's priority
+    is load-bearing (iter-35 §3)."""
+    with open(TACTICAL_HARD_PATH, encoding="utf-8") as f:
         positions = json.load(f)["positions"]
-    vcf1 = next(p for p in positions if p["id"] == "vcf-1")
+    race = next(p for p in positions if p["id"] == "vcf-race-block-or-win")
     board = game.empty_board()
-    for x, y in vcf1["black"]:
+    for x, y in race["black"]:
         board[y, x] = game.BLACK
-    for x, y in vcf1["white"]:
+    for x, y in race["white"]:
         board[y, x] = game.WHITE
-    player = int(vcf1["to_move"])
+    player = int(race["to_move"])
     v35 = scoring.get_player(35, seed=0)
-    v29 = scoring.get_player(29, seed=0)
-    assert v35._mcts._vcf_root_move(board, player) is None
-    full = v29._mcts._vcf_root_move(board, player)
-    assert full is not None and (full % 15, full // 15) == (8, 3)
-
-
-def test_vcf_root_defensive_only_flag_defaults_off():
-    """The flag defaults to False: a plain HeuristicMCTS with
-    vcf_root=True behaves exactly like v29 (full check)."""
-    mcts = HeuristicMCTS(leaf_mode="rollout2_v1_both", vcf_root=True)
-    assert mcts.vcf_root_defensive_only is False
+    move = v35.choose_move(board, player)
+    assert (move % 15, move // 15) == (8, 3), (
+        f"v35 played {(move % 15, move // 15)} in the race position, "
+        "expected the VCF start (8, 3)"
+    )
