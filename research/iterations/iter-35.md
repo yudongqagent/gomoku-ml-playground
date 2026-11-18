@@ -296,14 +296,14 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 12/22 complete at this writing)
+### 2.1 Workups (running — 13/22 complete at this writing)
 
 Same-engine playout oracle (`workup_loss.py`, v27 vs v7 / v27
 vs v0, seeds 0/1/2, last 4 turns, top-5 + 400-sim + VCF
 alternatives). Workup JSONs in `~/workspace/b10h3-logs/`.
 Each completed workup is diagnosed with a root dump
 (`diag_root.py`, 100 sims, seed 0), the rollout-leaf 1-ply
-values (`/tmp/diag_rollout.py`), and exact threat analysis
+values (`~/workspace/b10h3-logs/scripts/diag_rollout.py`), and exact threat analysis
 (`targeted_playout.py --no-playout`).
 
 | Game | v27 | Plies | Losing move (verified) | Save (playout) | Exact class of the save |
@@ -319,6 +319,7 @@ values (`/tmp/diag_rollout.py`), and exact threat analysis
 | 44 (vs v7) | B | 48 | ply 40 (12,10) | (10,13) 1W+2D, (9,12) 2W+1L, (11,10) 3W | **clean VCF-prevention (VCF 1→0)** |
 | 45 (vs v7) | W | 23 | none in window | — | horizon loss |
 | 56 (vs v7) | B | 62 | none in window | — | horizon loss |
+| 62 (vs v7) | B | 24 | ply 16 (4,5) | (3,5) 2W+1L | none (loser, save, and other loser all 0/0/0) |
 | 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
 
 **Game 4, ply 44 (Black to move) — missed VCF prevention.**
@@ -458,6 +459,23 @@ saves). Class 3 (5th horizon loss).
 at any of the last 4 Black turns (4 qualifying turns, 0
 saves). Class 3 (6th horizon loss).
 
+**Game 62, ply 16 (Black to move) — search-horizon value
+error, no exact signature (2nd).** The actual (4,5) loses
+3/3; (3,5) SAVES [1, 1, −1]. The position is completely
+quiet: no four-creators and no VCF starts for either side,
+and the loser, the save, and the other loser (6,5) are
+IDENTICAL on every exact count (0 VCF starts, 0 creators,
+0 setups after each). The root is flat (75 children, top
+6 visits, 4-way tie): the tie-break does not fire (q gap
+0.005 < τ=0.05) and RNG over the tied four picked (4,5);
+the save sits one visit below the tie (5 visits, our-q
+−0.016) — promotable only by the CLOSED q-based
+root-decisions lever. The rollout leaf ranks the loser
+(6,5) highest (+0.0583), the save second (+0.0458), the
+actual lowest (+0.0199). No root, leaf, or exact measure
+distinguishes the save. Class 7. The VCF check would not
+fire here (no VCF starts anywhere).
+
 **Game 77, ply 13 (White to move) — search-horizon value
 error, no exact signature.** The actual (7,6) loses 2/3;
 (7,4) and (8,7) win 3/3, (7,5) wins 2/3. The root is flat
@@ -477,7 +495,7 @@ Class 7 (search-horizon value error), no patchable signature.
 
 **Running tally: VCF-prevention 5 (check reproduces the save
 at 4, picks the losing prevention at 1), horizon 6,
-search-horizon (no signature) 1.** The patch rule (§1.1)
+search-horizon (no signature) 2.** The patch rule (§1.1)
 is satisfied at 3 VCF-prevention instances with the patch
 reproducing all three saves (g4, g10, g21). The remaining
 workups complete the classification table.
