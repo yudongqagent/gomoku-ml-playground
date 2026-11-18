@@ -43,9 +43,28 @@ CLASS_NAMES = ("quiet", "threatening", "forcing")
 
 def max_winning_moves_after(board: np.ndarray, player: int) -> int:
     """Max over candidate moves of the winning moves ``player`` holds
-    after playing that move (0 when no candidate creates a four)."""
+    after playing that move (0 when no candidate creates a four).
+
+    Exact optimisation for positions where ``player`` holds no
+    winning move (all quiet positions — the whole training set): a
+    NEW winning move after playing m must complete a five that
+    includes m (otherwise it was already a winning move), and a
+    five including m has a player stone within Chebyshev distance
+    2 of m (m's nearest stone in the five is at distance <= 2 —
+    distance 1 unless m is at an end with the winning move next
+    to it). So only empty points within distance 2 of a player
+    stone can create a winning move, and the enumeration is
+    restricted to those. When ``player`` already holds winning
+    moves the full candidate set is used (a far move leaves the
+    pre-existing winning moves intact, so the restriction would
+    not be exact there).
+    """
+    if scoring._winning_moves(board, player):
+        candidates = scoring._candidate_moves(board)
+    else:
+        candidates = scoring._near_empty(board, player, 2)
     best = 0
-    for m in scoring._candidate_moves(board):
+    for m in candidates:
         after = game.apply_move(board, m, player)
         n = len(scoring._winning_moves(after, player))
         if n > best:
