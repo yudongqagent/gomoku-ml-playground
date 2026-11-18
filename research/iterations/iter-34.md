@@ -322,9 +322,88 @@ unchanged. `baseline.py` is frozen and untouched.
 
 (TODO — the fast-loop worked games ARE the loss analysis.)
 
-### 2.1 Fast-loop iteration 1 — 10 games vs v27 + 10 games vs v0
+## 2. Loss analysis for iteration 34
 
-(TODO)
+### 2.1 Fast-loop iteration 1 — 10 games vs v27 + 10 games vs v0 (pre-patch engine)
+
+**Batches:** `research/iterations/fastloop1-v34-vs-v27.json`
+(seeds v34=1001 / v27=2001) and
+`research/iterations/fastloop1-v34-vs-v0.json` (seeds v34=1001 /
+v0=2001) — development seeds, distinct from the bar battery's
+100/200. **vs v27: 5W-4L-1D, win rate 0.5500, CI [0.2737,
+0.7986]**, 1186.8 s. Split: as Black 3W-2L (0.60), as White
+2W-2L-1D (0.50). **vs v0: 10W-0L-0D, win rate 1.0000, CI
+[0.7225, 1.0000]**, 351.0 s. Aggregates recomputed from the raw
+records, matching the drivers' headers exactly. Classifier (both
+batches): 4/4 losses via open four, 0 missed blocks, 0 clean
+missed preventions in 22 threatened turns (losses). Defence is
+still perfect. (n=10 per opponent — development signal, not the
+bar; the fast loop's job is finding weaknesses, not measuring
+strength.)
+
+**The gate changed NO move in any lost game.** A gate-difference
+scan (`/tmp/scan_v34_gate_diff.py`) replayed every v34 turn of
+all 4 losses and ran BOTH v34 and v27 (fresh seed 0) from each
+position: 87 turns compared, picks differ 0 times, gate-caused
+differences 0. v34 and v27 are move-identical on every turn of
+every lost game — so no loss in this iteration is attributable
+to the gate, in either direction.
+
+**Games 1 and 3 (White, 27 and 29 plies) have NO patchable
+losing move.** Their walk-backs
+(`research/iterations/walkback-fl1-g1.json`,
+`walkback-fl1-g3.json`, v1 oracle, seeds 0,1,2) nominate
+nothing: at every White turn the actual either does not lose at
+all seeds or loses 3/3 with 0 saving alternatives. Distributed
+drift.
+
+**Game 8 (Black, 56 plies) nominates ply 40 — and the stronger
+oracle refutes it.** The v1 oracle says actual (8,6) loses 3/3
+with save (13,6) winning 3/3. Under v34-vs-v27 playouts
+(`targeted_playout.py`, seeds 0,1,2): actual (8,6) [-1,-1,-1]
+(qualifies), but (13,6) is [-1,-1,-1] too — it loses 3/3 under
+strong play. The exact analysis shows (13,6) is the better move
+by the setups metric (White setups 5 → 1), but it does not save
+the game: the position at ply 40 is lost for Black with no
+verified save. (Ply 42's nomination is weaker — (13,6) saves
+only 1/3 under the v1 oracle, below the ≥2/3 bar — and the
+same move fails at the earlier ply 40, so it was not pursued.)
+Distributed drift.
+
+**Game 2 (Black, 64 plies) has ONE verified losing move — and
+it is unpatchable.** The v1 oracle nominates plies 48, 50, 54,
+56. The stronger oracle (v34-vs-v27 playouts, seeds 0,1,2)
+refutes ply 48 outright: actual (1,4) [-1,-1,-1] (qualifies),
+but the "save" (0,5) is [-1,-1,-1] too — the exact analysis
+shows (0,5) removes all 3 of White's VCF starts, yet the
+playout still loses (White's 3 setups remain). But ply 50
+CONFIRMS: actual (2,7) [-1,-1,-1] (qualifies) and (0,5) is
+[+1,+1,+1] — the save WINS 3/3. (Ply 48's (0,5) does not save
+but ply 50's does: White's ply-49 move changed the position.)
+The root dump at ply 50 (`/tmp/dump_v34_g2_ply50.py`, fresh
+seed 0) exonerates the gate twice over: the position is QUIET
+(no threat for either side), (2,7) is the UNIQUE visit leader
+(9 visits, our-q +0.0265) and (0,5) is second at 8 visits with
+WORSE q (+0.0004). This is a NEAR-TIE (9 vs 8), not an exact
+tie — the tie-break never applies — and (0,5) loses on visits
+AND on q, so no root rule can promote it: promoting it would
+require the CLOSED q-based root-decisions lever, and even q
+ranks the loser above the saver. The leaf itself ranks the
+loser above the saver; the miss is a search/leaf-horizon
+limitation, identical for v27 (v27's root state is
+byte-identical: same visits, same q, same pick). No patch —
+and no regression position: the save is a quiet edge move
+whose value is invisible to every instrument in the program
+(the exact analysis even scores it worse: White setups 2 → 3
+after (0,5)).
+
+**Iteration 1 verdict: no new patchable weakness class — but
+the loop does NOT stop here** (same pre-commitment as iter-23
+§2.1 / iter-27 §2.1: two consecutive barren iterations, 40
+games). Iteration 2 runs on fresh seeds (1002/2002); if it
+also finds no patchable class, the loop stops. No regression
+positions added: the one verified losing move has a verified
+save no root rule can promote.
 
 ### 2.2 Fast-loop iteration 2
 
