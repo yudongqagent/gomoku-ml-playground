@@ -296,7 +296,7 @@ turns) — reproducing iter-27 §3.6 exactly. Defence is solved;
 the mechanism (if any) is not a missed block or a missed
 prevention in the classifier's sense.
 
-### 2.1 Workups (running — 9/22 complete at this writing)
+### 2.1 Workups (running — 10/22 complete at this writing)
 
 Same-engine playout oracle (`workup_loss.py`, v27 vs v7 / v27
 vs v0, seeds 0/1/2, last 4 turns, top-5 + 400-sim + VCF
@@ -316,6 +316,7 @@ values (`/tmp/diag_rollout.py`), and exact threat analysis
 | 30 (vs v7) | B | 24 | none in window | — | horizon loss |
 | 32 (vs v7) | B | 32 | ply 24 (10,2) | (6,6) 2W+1D | VCF-prevention — but the check picks the LOSING prevention (10,2) by prior noise (see below) |
 | 35 (vs v7) | W | 55 | none in window | — | horizon loss |
+| 44 (vs v7) | B | 48 | ply 40 (12,10) | (10,13) 1W+2D | **clean VCF-prevention (VCF 1→0)** |
 | 77 (vs v7) | W | 21 | ply 13 (7,6) | (7,4) 3/3, (8,7) 3/3, (7,5) 2/3 | none (saves leave MORE setups, or identical counts) |
 
 **Game 4, ply 44 (Black to move) — missed VCF prevention.**
@@ -425,6 +426,24 @@ refutation of the mechanism.
 at any of the last 4 White turns (3 qualifying turns, 0
 saves). Class 3 (4th horizon loss).
 
+**Game 44, ply 40 (Black to move) — missed VCF prevention
+(4th fixed by the check).** The actual (12,10) loses 3/3;
+(10,13) SAVES [0, 1, 0]. White holds 1 VCF start [(10,13)]
+on the current board; (10,13) occupies it (a clean
+prevention — 0 VCF starts, 0 creators after). The actual
+(12,10) ALSO removes White's VCF start (it is a prevention
+by the check's definition too) but loses: it is a forcing
+move (creates a four, rollout leaf +0.2500, the must-block
+value) that White answers while keeping a stronger
+counter-threat. The search prefers the forcing move (8
+visits, our-q −0.044, best q among the top) over the quiet
+prevention (5 visits, our-q −0.088, rollout leaf −0.0871).
+Here the prior DOES distinguish the save: (10,13) holds
+the highest prior (0.0551), so the check returns it — the
+opposite of g32, where the priors were noise-tied. The
+check reproduces the save at 4 of the 5 VCF-prevention
+instances so far.
+
 **Game 77, ply 13 (White to move) — search-horizon value
 error, no exact signature.** The actual (7,6) loses 2/3;
 (7,4) and (8,7) win 3/3, (7,5) wins 2/3. The root is flat
@@ -442,8 +461,8 @@ the loser on every count. The 400-sim deeper-search proposal
 (7,9) loses 3/3 — deeper search does not find the save.
 Class 7 (search-horizon value error), no patchable signature.
 
-**Running tally: VCF-prevention 4 (check reproduces the save
-at 3, picks the losing prevention at 1), horizon 4,
+**Running tally: VCF-prevention 5 (check reproduces the save
+at 4, picks the losing prevention at 1), horizon 4,
 search-horizon (no signature) 1.** The patch rule (§1.1)
 is satisfied at 3 VCF-prevention instances with the patch
 reproducing all three saves (g4, g10, g21). The remaining
