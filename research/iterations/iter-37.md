@@ -669,7 +669,33 @@ are the motivation the next batch needs.
 
 ## 6. Validation battery
 
-TODO — battery results.
+### 6.1 Tactical — COMPLETE 2026-11-18 ~09:15 PST — **CLAUSE 3 PASSES**
+
+`eval_tactical_full.py --version 37 --suite both --seed 100`
+(log `ml/runs/ml3-h2/tactical-v37.log`):
+
+- Old suite: **20/20** ✓
+- Hard suite (corrected): **29/29** ✓ — including
+  **setup-v1v0s-g92: chose (9,6)**, the quiet setup v31 failed.
+
+**Mechanism check — the 2-ply labels FIXED the quiet-setup
+failure at the engine level** (`/tmp/diag_g92_v37.py`): v37's
+search at g92 ranks (9,6) FIRST with 69 visits and our-q +0.244,
+vs (5,4) 5 visits and our-q +0.077 — the v31 inversion
+((9,6) 1 visit, our-q −0.377; (5,4) 75 visits, our-q +0.788) is
+gone and reversed. The fix works through the SUBTREE, not the
+single-leaf ranking: v37's net raw values (no-history view)
+still slightly prefer (5,4) (+0.134) over (9,6) (+0.108) — both
+far below the teacher's +1.000 labels (distillation compression
+toward the mean) — but the gap closed from v31's catastrophic
+inversion to near-parity (0.026), and the search propagates the
+deeper values from the post-setup subtree back to the root,
+where the setup dominates. Note v8's raw net ALSO prefers (5,4)
+(+0.318 vs +0.264) yet passes in search — the single-leaf
+ranking was never the deciding level; the search-level behaviour
+is what the battery measures, and it is fixed.
+
+TODO — clause 1, ladder, secondaries, clause 4 re-run.
 
 ## 7. Verdict
 
