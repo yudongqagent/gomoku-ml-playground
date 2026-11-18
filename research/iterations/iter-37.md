@@ -697,6 +697,38 @@ is what the battery measures, and it is fixed.
 
 TODO — clause 1, ladder, secondaries, clause 4 re-run.
 
+### 6.2 h2h vs v8 (clause 1) — COMPLETE 2026-11-18 ~11:35 PST — **CLAUSE 1 PASSES**
+
+`fast_loop_match.py --version-a 37 --opponent v8 --games 100
+--seed-a 100 --seed-b 200` (raw
+`research/iterations/batch-v37-vs-v8.json`):
+
+- **72W-22L-6D, 0.7500, 95% CI [0.6570, 0.8245]** — the win rate
+  clears 0.50 AND the CI lower bound (0.657) clears 0.50 by a
+  wide margin. **v37 is the FIRST ML version ever to beat v8
+  head-to-head with a CI clear of 0.50** (v24 tied 0.515, v30
+  tied 0.525, v31 lost 0.40). The sweep (0.75) and fast loop
+  (0.70) did NOT flatter this time — the battery reproduces
+  them at full sample.
+- As Black 44W-6L-0D (**0.8800**); as White 28W-16L-6D
+  (**0.6200**) — a clear edge in both colours, and NO White
+  collapse (contrast v25/v31). Black won 60/100.
+- Uniqueness audit: **81 unique games of 100**; de-dup win rate
+  0.7407, CI [0.6360, 0.8237] — the clause-1 verdict stands on
+  the de-duplicated cut too. The 19 duplicates are engine
+  determinism (scattered same-parity pairs, e.g. [11,27],
+  [24,46], [32,56] — verified at game 67), NOT resume replay:
+  per-game seeding gives every game index a distinct seed, and
+  the duplicate pairs do not follow the prefix-repeat pattern
+  of the batch-10 bug.
+- **VM replacement during the leg:** killed after game 40
+  (35W-5L-1D, 0.8659 at the kill); the per-game flush saved all
+  games and the driver auto-resumed from game 41 (recorded as
+  `resumed_from_game: 41` in the JSON). The resumed segment
+  (games 41–99: 37W-17L-5D, 0.6712) regressed toward the mean
+  from the hot start, as expected — the final 0.75 is the
+  pooled number, not the hot start.
+
 ## 7. Verdict
 
 TODO — verdict.
