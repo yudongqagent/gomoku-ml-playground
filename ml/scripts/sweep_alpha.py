@@ -10,7 +10,12 @@ the verdict, not this sweep.
 The sweep sets ``player._mcts.value_weight`` directly per run, so
 the registry entry is touched only once (to the winner) afterwards.
 Ported from ML batch 2 H2's sweep_alpha.py (v31), with the engine
-version parameterised (``--version``) and the default moved to 38.
+version parameterised (``--version``) and the default moved to 38,
+and adapted to master's per-game seeding tooling (ML batch 3):
+``resolve_opponent`` now returns ``(player, choose_move, name)``
+and both players are reseeded with ``base_seed + game_index``
+before every game, so a resumed sweep reproduces the
+uninterrupted run exactly.
 
 Usage:
     python ml/scripts/sweep_alpha.py --version 38 \\
@@ -34,7 +39,7 @@ common.ensure_ml_on_path()
 
 from gomoku_ml import evaluate, game, scoring  # noqa: E402
 from fast_loop_match import resolve_opponent  # noqa: E402
-from selfplay_batch import play_recorded_game  # noqa: E402
+from selfplay_batch import play_recorded_game, reseed_player  # noqa: E402
 
 
 def _write_result(alpha, args, name_b, games, wins, losses, draws,
@@ -94,26 +99,30 @@ def run_match(alpha: float, args) -> dict:
             return prev
         # Resume a partial alpha: the saved games stand (played under
         # the pre-registered protocol); the remaining games continue
-        # with fresh players, so the MCTS tie-break RNG restarts
-        # instead of continuing the pre-kill stream. The 20 games
-        # remain 20 fair games vs the opponent at this alpha with
-        # alternating colours; the restart is recorded in the JSON
-        # (resumed_from_game) and the iteration log.
+        # with per-game seeding, so the resumed run reproduces the
+        # uninterrupted run exactly (see selfplay_batch.py). The
+        # restart is recorded in the JSON (resumed_from_game) and
+        # the iteration log.
         games = prev["records"]
         wins, losses, draws = prev["wins"], prev["losses"], prev["draws"]
         start_game = len(games)
         resumed = True
         print(f"== alpha {alpha}: resuming from game {start_game} "
-              f"({wins}W-{losses}L-{draws}D so far; RNG restarts) ==",
+              f"({wins}W-{losses}L-{draws}D so far; per-game seeding "
+              f"reproduces the uninterrupted run) ==",
               file=sys.stderr)
     player_a = scoring.get_player(args.version, seed=args.seed_a)
     player_a._mcts.value_weight = alpha
     choose_a = player_a.choose_move
-    choose_b, name_b = resolve_opponent(args.opponent, args.seed_b)
+    player_b, choose_b, name_b = resolve_opponent(args.opponent, args.seed_b)
     print(f"== alpha {alpha}: scoring-v{args.version} vs {name_b}, {args.games} games "
           f"(seeds {args.seed_a}/{args.seed_b}) ==", file=sys.stderr)
     t0 = time.time()
     for i in range(start_game, args.games):
+        # Per-game seeding: each game is determined by its index
+        # alone (base_seed + i) — see selfplay_batch.py.
+        reseed_player(player_a, args.seed_a + i)
+        reseed_player(player_b, args.seed_b + i)
         a_is_black = (i % 2 == 0)
         a_colour = game.BLACK if a_is_black else game.WHITE
         if a_is_black:
