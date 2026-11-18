@@ -45,9 +45,17 @@ the heuristic. The work continues autonomously; he runs nothing.
   title on the tie. The daily cross-track match pairing is
   therefore unchanged (v18 vs v8).
 - New heuristic versions are measured against v27 for the bar and
-  against v18 for strength. A new strength champion is declared when
-  a version beats v18's h2h-vs-v7 rate AND its ladder Elo on the same
-  battery (both measures, not one).
+  against v18 for strength. A new strength champion is declared by
+  DIRECT CHALLENGE: a version that passes the bar plays a 100-game
+  match against the current champion (v18); it takes the title if
+  it wins the match (win rate > 0.50 with Wilson 95% CI lower bound
+  > 0.50) AND its ladder Elo beats the champion's (636.4). A
+  bar-passer already clears the Elo clause by passing, so the
+  challenge match is the deciding test. (Rule changed 2026-11-17:
+  the old rule compared h2h-vs-v7 rates, which no longer appear on
+  a battery now that the bar reference is v27; the direct challenge
+  measures the same thing without the stale reference. v18 keeps
+  the title under both rules — v27 ties it on Elo.)
 
 ## Track B — ML model (learned nets)
 
@@ -123,7 +131,13 @@ the heuristic. The work continues autonomously; he runs nothing.
   also applied the pre-registered suite correction (add (9,7) to
   winning-quiet-setup-2's expected list — v23's verdict stands)
   and proved the theirs-term demotion drives v22's vs-MCTS
-  collapse (v28 13-7 vs v22's 5-15). ML batch 2 is next.
+  collapse (v28 13-7 vs v22's 5-15). ML batch 2 complete
+  2026-11-17: 0/3; v30 closest (0.525 vs v8, a tie); dedup +
+  colour-balance CLOSED as a strength lever; scale does not break
+  the distillation ceiling (v31 0.40, worse than v8 despite better
+  holdout); the VCF check is near-neutral on an already-tactically-
+  perfect engine (v32 0.37). v8 stays ML champion. Batch 10
+  (heuristic) is next.
 - **Dataset-dedup finding (ML batch 1):** the "10k dataset" is
   3,244 unique games, not 7,099 — and v8's "4,350" was 1,449
   unique. The B1 parallel generator seeds worker *w* with
@@ -137,3 +151,4 @@ the heuristic. The work continues autonomously; he runs nothing.
 |------|-----------|----|--------------|--------------|-------|
 | 2026-11-15 | v18 | v8 | 7–3 (10 games) | 0.70 [0.397, 0.892] | Setup probe: v18 as Black 4–1, as White 3–2; CI includes 0.50 (n=10 too small for a verdict); ~126s/game → daily 40-game match ≈1.4h; not a daily measurement |
 | 2026-11-16 | v18 | v8 | 22–16–2 (40 games) | 0.575 [0.422, 0.715] | Daily #1 (NORMAL rules — last one; series switches to swap from 2026-11-17): v18 as Black 17–2–1, as White 5–14–1; Black won 31/40; CI still includes 0.50 (n=40 can't prove the edge alone); ML win rate 0.425 vs probe 0.30 (within noise) |
+| 2026-11-17 | v18 | v8 | 34–6–0 (40 games) | 0.850 [0.709, 0.929] | Daily #2 — FIRST SWAP-RULES daily (new baseline for the swap series; not comparable to 2026-11-16's normal-rules 0.575): v18 as Black 19–1, as White 15–5; second player took Black 30/40, White 10/40; Black won 24/40; ML win rate 0.15. Under swap the colour edge is neutralised, so 0.85 is a cleaner strength signal — the gap is wider than the normal-rules number suggested. CI excludes 0.50: first daily where the heuristic edge is statistically clear. |
