@@ -480,7 +480,62 @@ JSONs `workup-fl1-g5.json` / `workup-fl1-g9.json`.)
 
 ### 2.2 Fast-loop iteration 2 (seeds 1041/2041)
 
-(TODO — running.)
+**Results:** vs v27 **4W-4L-2D** (win rate 0.5000, 95% CI
+[0.2366, 0.7634], 1933s); vs v0 **10W-0L-0D** (1.0000, CI
+[0.7225, 1.0000], 1163s). Combined fast loop: vs v27 10W-7L-3D
+(0.575), vs v0 20W-0L-0D. Classifier: 4 losses, all via open
+four, **0 missed blocks, 0 clean missed preventions in 21
+threatened turns** — defence stays solved across both
+iterations (29 threatened turns total, 0 preventions missed).
+
+**The 4 losses, worked up with `workup_loss.py` (same settings
+as iteration 1):**
+
+| Game | v40 colour | Earliest saving turn | Saving move(s) | Class |
+|---|---|---|---|---|
+| g0 (44 plies) | Black | none in window (lost before ply 32) | none (6/6 qualify, 0 save) | search horizon (already lost) |
+| g1 (33 plies) | White | none in window (lost before ply 21) | none (6/6 qualify, 0 save) | search horizon (already lost) |
+| g5 (27 plies) | White | ply 17 | (5,7) 3/3 (1-ply topk) | search horizon (leaf is RIGHT) |
+| g9 (31 plies) | White | ply 21 | (4,8) 3/3 (400 sims only) | search horizon |
+
+In g0 and g1 every tested turn qualifies (actual move loses
+3/3) and NO alternative saves — not even the 400-sim choice
+(g0 ply 38: (5,4) loses 3/3). The games were already lost
+before the earliest tested turn; the losing move lies earlier
+than the 6-turn window, i.e. a slow positional loss with no
+single identifiable blunder in the window. (A VM replacement
+killed the first g5/g9 workup run mid-game-5; the rerun
+completed both, logs `workup-fl2-g59.log`, JSONs
+`workup-fl2-g5.json` / `workup-fl2-g9.json`.)
+
+**Root-dump diagnosis at g5 ply 17 and g9 ply 21
+(`~/workspace/b11h2-logs/diag_fl2_g59.py`):**
+
+- g5 ply 17: the leaf is RIGHT — 1-ply leaf (ours) (9,4)
+  −0.0133 vs saving (5,7) **+0.2500**. But the backed-up root
+  q for (5,7) is −0.2314 (5 visits) vs (9,4) −0.0083 (29
+  visits): the deeper tree's weak-policy rollouts destroy the
+  advantage the leaf sees. A rollout-policy/search failure,
+  not a leaf-value error — no leaf patch addresses it. The
+  root also shows a 29-29 tie between the two losing moves
+  (9,4) and (5,8) with q gap 0.0030 < τ (tie-break cannot
+  fire; the game seed's RNG picked (9,4)). **The upgrade
+  fired in a real game subtree here:** (4,8)'s our-q is
+  −0.1735 under v40 vs −0.0485 under v27 — the only
+  root-dump difference between the versions in all 5
+  diagnosed fast-loop positions. It did not change the pick.
+- g9 ply 21: v40 and v27 byte-identical. The search is
+  confidently wrong: (7,5) leads 37 visits at our-q +0.1962
+  while the saving (4,8) is not in the top 8. The leaf does
+  not distinguish them ((7,5) +0.0067 vs (4,8) −0.0067) —
+  a horizon failure, not a leaf error.
+
+**Verdict: iteration 2 is BARREN.** Two consecutive barren
+iterations → the fast loop STOPS (per the §1 stop rule).
+v40 goes to the battery as designed, with NO refinement. The
+fast loop's combined record: vs v27 10W-7L-3D (0.575), vs v0
+20W-0L-0D; 0 missed blocks and 0 clean missed preventions in
+29 threatened turns across both iterations.
 
 ## 3. v40 evaluation
 
