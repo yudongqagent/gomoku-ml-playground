@@ -475,6 +475,22 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml3-h2/value-net.pt",
          "value_weight": 0.25},
+    # v38 (iteration 38, ML batch 3): H3 — v8's search + a MULTI-TASK
+    # value net (ResNet 16ch/2 blocks, v8's size): the value head is
+    # unchanged in form, trained on v24's positions with v24's
+    # rollout-leaf value labels, PLUS an auxiliary threat-
+    # classification head on the shared trunk (quiet / threatening /
+    # forcing — see gomoku_ml.threat; training-only, never used at
+    # inference). Targets the v26/v31 value-head failure: the net
+    # overvalues immediate threat patterns and undervalues quiet
+    # 2-ply setups, overriding a correct prior (setup-v1v0s-g92:
+    # prior ranks (9,6) 1st, v31's net values it -0.377 vs (5,4)'s
+    # +0.788). See research/iterations/iter-38.md. value_weight is
+    # the §1.6 α sweep winner (1.0 placeholder until the sweep).
+    38: {"name": "scoring-v38", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml3-h3/value-net.pt",
+         "value_weight": 0.5},
 }
 
 # --- weights --------------------------------------------------------------

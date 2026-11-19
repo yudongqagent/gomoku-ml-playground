@@ -53,7 +53,13 @@ from gomoku_ml import evaluate, runs  # noqa: E402
 from gomoku_ml.architectures import build_architecture  # noqa: E402
 from gomoku_ml.config import ConfigError, load_config  # noqa: E402
 from gomoku_ml.interrupt import InterruptFlag  # noqa: E402
-from gomoku_ml.train import load_checkpoint, load_shards, save_checkpoint, train  # noqa: E402
+from gomoku_ml.train import (  # noqa: E402
+    load_checkpoint,
+    load_shards,
+    load_threat_labels,
+    save_checkpoint,
+    train,
+)
 
 
 def _auto_eval(run, run_dir: str, cfg: dict, device: str) -> None:
@@ -138,6 +144,17 @@ def main() -> int:
             run.error(str(e))
             return 2
         run.info(f"loaded {len(planes)} samples from {data_dirs}")
+        # Multi-task (v38): threat labels ride alongside the planes
+        # when the config sets a positive threat_weight.
+        threats = None
+        if float(tr.get("threat_weight", 0.0)) > 0.0:
+            try:
+                threats = load_threat_labels(data_dirs)
+            except (FileNotFoundError, ValueError) as e:
+                run.error(str(e))
+                return 2
+            run.info(f"loaded {len(threats)} threat labels "
+                     f"(weight {float(tr['threat_weight'])})")
 
         arch = cfg["architecture"]
         model = build_architecture(arch["name"], arch["params"])
@@ -181,6 +198,8 @@ def main() -> int:
             weight_decay=float(tr["weight_decay"]),
             policy_weight=float(tr["policy_weight"]),
             value_weight=float(tr["value_weight"]),
+            threats=threats,
+            threat_weight=float(tr.get("threat_weight", 0.0)),
             warmup_steps=int(tr["warmup_steps"]),
             augmentation=bool(tr["augmentation"]),
             val_fraction=float(tr["val_fraction"]),

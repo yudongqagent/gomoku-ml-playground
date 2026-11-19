@@ -127,6 +127,95 @@ class _PolicyValueHeads(nn.Module):
         return policy, value
 
 
+class _PolicyValueThreatHeads(nn.Module):
+    """Policy + value + threat heads for the v38 multi-task net
+    (ML batch 3 H3, ``research/iterations/iter-38.md`` §1.3).
+
+    The policy and value branches are STRUCTURALLY IDENTICAL to
+    :class:`_PolicyValueHeads` (same layers, same attribute names —
+    the value head is unchanged in form). The threat branch mirrors
+    the value head's shape (1x1 conv -> flatten -> 225->64 -> 64->K
+    logits) and classifies the side-to-move's forcing threat
+    (``gomoku_ml.threat``: quiet / threatening / forcing). It is
+    TRAINING-ONLY: at inference ValueMCTS uses only the value head.
+    """
+
+    def __init__(self, channels: int, threat_classes: int = 3) -> None:
+        super().__init__()
+        self.policy_conv = nn.Conv2d(channels, 2, 1, bias=False)
+        self.policy_bn = nn.BatchNorm2d(2)
+        self.policy_fc = nn.Linear(2 * game.SIZE * game.SIZE, game.SIZE * game.SIZE)
+        self.value_conv = nn.Conv2d(channels, 1, 1, bias=False)
+        self.value_bn = nn.BatchNorm2d(1)
+        self.value_fc1 = nn.Linear(game.SIZE * game.SIZE, 64)
+        self.value_fc2 = nn.Linear(64, 1)
+        self.threat_conv = nn.Conv2d(channels, 1, 1, bias=False)
+        self.threat_bn = nn.BatchNorm2d(1)
+        self.threat_fc1 = nn.Linear(game.SIZE * game.SIZE, 64)
+        self.threat_fc2 = nn.Linear(64, threat_classes)
+
+    def forward(
+        self, trunk: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        p = F.relu(self.policy_bn(self.policy_conv(trunk)))
+        p = p.view(p.size(0), -1)
+        policy = self.policy_fc(p)
+        v = F.relu(self.value_bn(self.value_conv(trunk)))
+        v = v.view(v.size(0), -1)
+        v = F.relu(self.value_fc1(v))
+        value = torch.tanh(self.value_fc2(v))
+        t = F.relu(self.threat_bn(self.threat_conv(trunk)))
+        t = t.view(t.size(0), -1)
+        t = F.relu(self.threat_fc1(t))
+        threat = self.threat_fc2(t)
+        return policy, value, threat
+
+
+class GomokuMultiTaskNet(nn.Module):
+    """ResNet policy+value+threat network (v38, ML batch 3 H3).
+
+    Same trunk as :class:`GomokuNet` (stem + residual blocks); the
+    heads add a threat-classification branch on the shared trunk.
+    ``forward(x)`` returns ``(policy, value)`` — the existing I/O
+    contract, so ValueMCTS unpacks a 2-tuple unchanged;
+    ``forward(x, return_threat=True)`` returns
+    ``(policy, value, threat_logits)`` for training/eval.
+    """
+
+    has_threat_head = True
+
+    def __init__(
+        self,
+        channels: int = 128,
+        blocks: int = 10,
+        threat_classes: int = 3,
+        block_cls: type[nn.Module] = ResidualBlock,
+    ) -> None:
+        super().__init__()
+        self.channels = channels
+        self.blocks = blocks
+        self.threat_classes = threat_classes
+        self.stem = nn.Conv2d(8, channels, 3, padding=1, bias=False)
+        self.stem_bn = nn.BatchNorm2d(channels)
+        self.res_blocks = nn.Sequential(
+            *[block_cls(channels) for _ in range(blocks)]
+        )
+        self.heads = _PolicyValueThreatHeads(channels, threat_classes)
+
+    def forward(
+        self, x: torch.Tensor, return_threat: bool = False
+    ) -> tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        out = F.relu(self.stem_bn(self.stem(x)))
+        out = self.res_blocks(out)
+        policy, value, threat = self.heads(out)
+        if return_threat:
+            return policy, value, threat
+        return policy, value
+
+    def num_parameters(self) -> int:
+        return sum(p.numel() for p in self.parameters())
+
+
 class GomokuNet(nn.Module):
     """ResNet policy+value network.
 

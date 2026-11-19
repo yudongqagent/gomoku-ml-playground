@@ -94,6 +94,7 @@ DEFAULTS: dict = {
         "weight_decay": 1e-4,
         "policy_weight": 1.0,
         "value_weight": 1.0,
+        "threat_weight": 0.0,  # multi-task only (v38): 0 = single-task
         "augmentation": True,
         "val_fraction": 0.05,
         "checkpoint_every_epochs": 0,
@@ -242,6 +243,7 @@ def resolve_config(raw: dict, check_files: bool = True) -> dict:
     _require_number(cfg, "train", "weight_decay", minimum=0)
     _require_number(cfg, "train", "policy_weight", minimum=0)
     _require_number(cfg, "train", "value_weight", minimum=0)
+    _require_number(cfg, "train", "threat_weight", minimum=0)
     if not isinstance(tr["augmentation"], bool):
         raise ConfigError(f"train.augmentation must be true/false, got {tr['augmentation']!r}")
     _require_number(cfg, "train", "val_fraction", minimum=0, maximum=0.5)
