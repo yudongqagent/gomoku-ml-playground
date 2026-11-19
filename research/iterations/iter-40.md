@@ -409,7 +409,78 @@ seeds 1040/2040, 1041/2041 (iteration k uses 1040+k-1 /
 
 ## 2. Loss analysis for iteration 40
 
-(TODO — the fast-loop worked games ARE the loss analysis.)
+### 2.1 Fast-loop iteration 1 (seeds 1040/2040, 10 games vs v27 + 10 vs v0)
+
+**Results:** vs v27 **6W-3L-1D** (win rate 0.6500, 95% CI
+[0.3537, 0.8631], 2132s); vs v0 **10W-0L-0D** (1.0000, CI
+[0.7225, 1.0000], 1311s). Small samples — the CI on the v27 leg
+includes 0.50 — but no regression vs v27's own level, and v0
+is swept. Classifier (`classify_losses.py` on both legs): 3
+losses, all via open four, **0 missed blocks, 0 clean missed
+preventions in 8 threatened turns** — defence stays solved, and
+the upgrade introduces no new prevention failures.
+
+**The 3 losses, worked up with `workup_loss.py` (playout oracle,
+seeds 0/1/2, last 6-8 turns, top-3/5 1-ply alternatives + the
+400-sim MCTS choice):**
+
+| Game | v40 colour | Losing move (earliest saving turn) | Saving move(s) | Class |
+|---|---|---|---|---|
+| g2 (34 plies) | Black | ply 18 (7,4): actual loses 3/3 | (10,7) 3/3, (12,11) 2/3 (1-ply topk); (12,8) 3/3 (400 sims) | search horizon |
+| g5 (27 plies) | White | ply 15 (6,3): actual loses 3/3 | (9,6) 3/3 (400 sims only) | search horizon |
+| g9 (51 plies) | White | ply 41 (12,4): actual loses 3/3 | (11,3) [0,1,1] (400 sims only) | search horizon (+ tie-break non-fire) |
+
+In all 3, every later tested turn also qualifies with NO saving
+move — each game was lost at the earliest saving turn and never
+recoverable after. In all 3, the ONLY saving move (g2 excepted,
+where two 1-ply topk moves also save) is the 400-sim MCTS
+choice: deeper search finds what 100 sims misses.
+
+**Root-dump diagnosis at the 3 losing positions
+(`~/workspace/b11h2-logs/diag_fl1_g2.py`, `diag_fl1_g59.py`):**
+in ALL 3, v40's root dump is BYTE-IDENTICAL to v27's (same
+visits, same q, same pick) — the upgrade fires nowhere in these
+searches, and the losses are not caused by the upgrade. The
+positions are all quiet (no winning move either side), and the
+1-ply leaf differences are small gradient values, not
+categorical errors:
+
+- g2 ply 18: leaf (ours) (7,4) +0.0816 vs (10,7) −0.0521,
+  (12,8) +0.0458, (12,11) −0.1166. Root q all near zero
+  ((7,4) +0.0094, (12,8) −0.0039). The loss is a slow
+  positional squeeze beyond the 2-ply horizon.
+- g5 ply 15: leaf (6,3) +0.2500 vs (9,6) −0.0000 — the leaf
+  prefers the losing move, but by a rollout-end gradient in a
+  quiet position, with no must-block/VCF/terminal signature
+  to patch. Root: (6,3) 11v −0.0961 vs (9,6) 3v −0.1007 (q
+  essentially tied; the visit gap is prior-driven: 0.0566 vs
+  0.0329).
+- g9 ply 41: leaf (12,4) −0.1723 vs (11,3) −0.1771 — the leaf
+  does not distinguish them (0.005 apart). Root: (10,4) and
+  (12,4) TIE at 4 visits with q gap 0.0128 < τ=0.05, so the
+  tie-break does NOT fire and the RNG picks the loser (12,4).
+  The saving (11,3) is not in the top 8. This is the CLOSED
+  tie-break lever plus search horizon.
+
+**Verdict: iteration 1 is BARREN for patchable leaf classes.**
+All 3 losses are the search-horizon class (v35's forensics:
+10 of 22 v27 losses) — the leaf has no categorical error at
+any losing position, and the only fixes are more sims
+(CLOSED: not monotonic) or root-rule changes (CLOSED). No
+refinement is made. The fast loop continues to iteration 2
+(fresh seeds 1041/2041) per the two-consecutive-barren-
+iterations stop rule.
+
+(Note: the first workup run was killed by a VM replacement at
+~53 min, mid-game-2; the game-2 finding above is from the
+surviving log `~/workspace/b11h2-logs/workup-fl1.log`, and
+games 5/9 were worked up in a second run with
+`--last-turns 6 --topk 3`, logs `workup-fl1-g59.log`,
+JSONs `workup-fl1-g5.json` / `workup-fl1-g9.json`.)
+
+### 2.2 Fast-loop iteration 2 (seeds 1041/2041)
+
+(TODO — running.)
 
 ## 3. v40 evaluation
 
