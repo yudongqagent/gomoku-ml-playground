@@ -835,6 +835,24 @@ the averaging is wrong; g9: the q is already right) — so
 no loss-motivated retrain is authorised by §1.5. The
 battery is the verdict.
 
+## 6. Validation battery
+
+### 6.1 Tactical — COMPLETE 2026-11-19 ~23:40 UTC — **CLAUSE 3 PASSES**
+
+`eval_tactical_full.py --version 44 --suite both --seed 100`
+(log `ml/runs/ml4-h3/tactical-v44.log`):
+
+- Old suite: **20/20** ✓
+- Hard suite (corrected): **29/29** ✓ — including
+  **setup-v1v0s-g92: chose (9,6)**, the quiet setup v31
+  failed. (As §0 predicted: 3-ply labels both (9,6) and
+  (5,4) at +1.0000, so the choice between them comes from
+  the search, not the label — and the search picks (9,6).)
+- v1bl-g2 (the v40 regression position): passed, chose
+  (7,5) — no leaf-value tie-break regression from the
+  3-ply labels.
+
+
 
 
 
