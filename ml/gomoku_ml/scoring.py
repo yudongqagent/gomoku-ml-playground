@@ -452,11 +452,11 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # v24 is the augmentation, so the v42-vs-v24 comparison
     # isolates it. Search, priors, sims, threat check, terminal
     # cases: v8 unchanged. value_weight is the α-sweep winner
-    # (placeholder 1.0 = v24's winner until the §1.5 sweep sets it).
+    # (0.5: 9W-11L-0D vs v8 over 20 games, best of {0.5, 1.0, 2.0}).
     42: {"name": "scoring-v42", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h1/value-net.pt",
-         "value_weight": 1.0},
+         "value_weight": 0.5},
 }
 
 # --- weights --------------------------------------------------------------

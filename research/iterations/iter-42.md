@@ -566,7 +566,40 @@ point to be predictable.
 
 ## 5. α sweep and fast loops
 
-TODO.
+**α sweep — COMPLETE 2026-11-19 ~22:05 UTC** (20 games each vs
+v8, seeds 1001/2001; per-alpha JSONs
+`research/iterations/alpha-v42-<α>-vs-v8.json`). Interrupted
+twice by runtime restart drains (α=0.5 at game 9, α=2.0 at game
+11); both resumed cleanly via the sweep driver's auto-resume
+(completed alphas skipped, partial alpha continued from its
+saved game count with fresh players; RNG restarts recorded in
+the JSONs). Three sibling sweeps (v43, v44) shared the VM for
+much of the run, so games ran ~2–3x slower than solo (two
+225-ply draws took 521s and 705s).
+
+| α | W-L-D | Win rate | 95% CI | As Black | As White |
+|---|---|---|---|---|---|
+| **0.5** | **9-11-0** | **0.450** | **[0.2582, 0.6579]** | 7-3-0 | 2-8-0 |
+| 1.0 | 7-11-2 | 0.400 | [0.2188, 0.6134] | 5-4-1 | 2-7-1 |
+| 2.0 | 7-12-1 | 0.375 | [0.1998, 0.5905] | 5-4-1 | 2-8-0 |
+
+**Winner: α = 0.5** (pre-registered rule: best win rate; the
+no-signal rule does not apply — 9 vs 7 wins differ by 2).
+Registry `value_weight` updated 1.0 → 0.5. The pattern is
+monotone DECREASING in α — the more the dropout net's value is
+trusted, the worse v42 plays, and all three arms are BELOW
+0.50 on dev seeds (v24's winner was α=1.0 at 0.65; v38's was
+α=0.5 at 0.60). The α effect is almost entirely a WHITE
+effect in reverse of v37's: Black is 0.55–0.70 at every α
+while White is 0.20–0.25 at every α — v42's White loses to v8
+no matter the weight. The sweep selects α but proves nothing
+(20 games, heavily overlapping CIs) — the 100-game battery is
+the verdict. But the sweep's message is discouraging: the
+history-robust net plays WORSE than v24's net on dev seeds
+despite passing the gate — holdout robustness again fails to
+predict played strength (v31/v38's lesson, repeated).
+
+TODO — fast loops.
 
 ## 6. Validation battery
 
