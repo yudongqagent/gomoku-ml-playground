@@ -762,6 +762,80 @@ three grid points plus the mechanism (parity) makes 0.125
 the defensible pick, and the 100-game clause-1 leg is the
 real verdict.
 
+### 5.2 Fast loop iteration 1 (α=0.125, seeds 1001/2001)
+
+- vs v8: the α=0.125 sweep leg itself (20 games, same dev
+  seeds) — **14W-5L-1D (0.7250)**. As Black 7-3-0, as White
+  7-2-1. All 20 games unique.
+- vs v0: **5W-4L-1D (0.55)**, CI [0.2737, 0.7986], 963 s
+  (`research/iterations/fast-v44-vs-v0-iter1.json`). Better
+  than v37's 0.35 in the same loop, though both CIs are wide.
+- Loss classification (both matches): **9 losses, 9 via open
+  four, 0 missed blocks, 0 clean missed preventions in 46
+  threatened turns.** Defence as measured is clean — the
+  losses are positional drift into unstoppable open fours,
+  not blundered blocks. Same pattern as v37.
+- Losing moves (`find_losing_moves.py`, VCF solver depth 4;
+  raw `ml/runs/ml4-h3/losing-moves-sweep.txt` and
+  `losing-moves-v0.txt`): **6 of 9 losses were already lost**
+  at the first VCF moment. **THREE genuine blunders:**
+  vs v8 game 12 (Black, 84 plies), ply 48 — (3,6), 5 saves;
+  vs v0 game 5 (White, 33 plies), ply 17 — (8,4), 4 saves;
+  vs v0 game 9 (White, 23 plies), ply 15 — (10,4), 2 saves.
+
+**Workup — vs-v8 game 12, ply 48 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml4-h3/diag-v8-g12-ply48.txt`)
+shows a FLAT root: the actual (3,6) has the best our-q
+(+0.007), the most visits (6), and the 1-ply leaf agrees
+(actual −0.161 v22, saves −0.163/−0.161/−0.135/−0.168/−0.175;
+only (12,6) is better on the leaf, and its our-q is −0.098
+like the other saves). The prior even FAVOURS the saves
+(0.0535 vs 0.0242) — the q overrides it. The VCF (depth-4
+attacker moves, up to 8 plies) is beyond the 100-sim
+search's horizon AND beyond the 3-ply label's 5-ply horizon
+— the net agrees with the exact heuristic leaf, and both
+rank the loser first. Shared search-horizon limit (v37's
+g9 class), NOT a value-head failure: a perfect 3-ply-label
+net ranks the loser first too.
+
+**Workup — vs-v0 game 5, ply 17 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml4-h3/diag-v0-g5-ply17.txt`)
+shows a q-vs-LEAF inversion: the actual (8,4) has our-q
+−0.047 vs the saves' −0.127/−0.129, but the exact 1-ply
+leaf ranks the saves clearly first (+0.161/+0.118/+0.075/
++0.123 vs the actual's −0.014). The leaf is RIGHT; the
+backed-up root q inverts it through subtree averaging on a
+very flat root (top move 6 visits over 79 children). This
+is v40's "blunder dilution / visit allocation" class — a
+search problem, not a leaf problem (the leaf-blind
+direction is CLOSED). Not patchable within H3's remit:
+changing visit allocation is shared heuristic-track code,
+and "more sims" is a closed lever.
+
+**Workup — vs-v0 game 9, ply 15 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml4-h3/diag-v0-g9-ply15.txt`)
+shows the q RIGHT and the prior wrong: the saves (10,9)/
+(12,9) have BETTER our-q (−0.044/−0.046) than the actual
+(−0.119) and the exact leaf agrees (saves at the +0.250
+must-block cap vs the actual's +0.187), but only 6 visits
+each vs the actual's 11 — their priors (0.0392) are 3x the
+actual's (0.1238). EXACTLY v37's game-2 blunder class
+(and v31 iter-2's): a PRIOR problem in shared
+heuristic-track code (`_priors`), whose change would alter
+v8/v7 equally and invalidate the α sweep — NOT patchable
+within H3's remit (v44 = v8's search + distilled net).
+
+**Fast-loop STOP after iteration 1:** no patchable weakness
+class for v44 within H3's design space. The three blunders
+are one shared-horizon, one visit-allocation, one shared-prior
+— all in shared search code, none a value-head failure.
+The §4 history-robustness is NOT implicated in any blunder
+(g12: net agrees with exact leaf; g5: the leaf is right,
+the averaging is wrong; g9: the q is already right) — so
+no loss-motivated retrain is authorised by §1.5. The
+battery is the verdict.
+
+
 
 
 
