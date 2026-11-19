@@ -43,20 +43,29 @@ from gomoku_ml.architectures import load_model_from_checkpoint  # noqa: E402
 _HISTORY_PLANES = (2, 4, 5, 6, 7)
 
 
-def load_shards(data_dir: str) -> tuple[np.ndarray, np.ndarray, int]:
-    """Concatenate (planes, value) over all shards in ``data_dir``."""
-    planes_list, value_list = [], []
+def load_shards(data_dir: str) -> tuple[np.ndarray, np.ndarray, int, np.ndarray]:
+    """Concatenate (planes, value) over all shards in ``data_dir``.
+
+    Also returns the side to move per position (0 = Black, 1 =
+    White): Black plays ply 0 and the sides alternate, so the
+    within-game position index determines it exactly (the shards
+    store full games from the empty board).
+    """
+    planes_list, value_list, side_list = [], [], []
     paths = sorted(glob.glob(os.path.join(data_dir, "*.npz")))
     for path in paths:
         with np.load(path) as z:
-            planes_list.append(z["planes"])
+            planes = z["planes"]
+            planes_list.append(planes)
             value_list.append(z["value"])
+            side_list.append(np.arange(len(planes), dtype=np.int8) % 2)
     if not planes_list:
         raise FileNotFoundError(f"no .npz shards found under {data_dir}")
     return (
         np.concatenate(planes_list),
         np.concatenate(value_list),
         len(paths),
+        np.concatenate(side_list),
     )
 
 
@@ -79,8 +88,15 @@ def predict_values(
     return out
 
 
-def score_predictions(values: np.ndarray, targets: np.ndarray) -> dict:
-    """Sign agreement on non-draw positions + MSE over all positions."""
+def score_predictions(values: np.ndarray, targets: np.ndarray,
+                      mask: np.ndarray | None = None) -> dict:
+    """Sign agreement on non-draw positions + MSE over all positions.
+
+    With ``mask`` given, only the masked positions are scored (used
+    for the by-side-to-move split).
+    """
+    if mask is not None:
+        values, targets = values[mask], targets[mask]
     nonzero = targets != 0
     pred_sign = np.sign(values[nonzero])
     true_sign = np.sign(targets[nonzero])
@@ -109,14 +125,18 @@ def main() -> int:
 
     torch.set_num_threads(common.torch_threads(2))
     torch.set_num_interop_threads(1)
-    planes, targets, n_games = load_shards(args.data)
+    planes, targets, n_games, side = load_shards(args.data)
     print(f"hold-out: {n_games} games, {len(planes)} positions "
           f"({int((targets != 0).sum())} non-draw)", file=sys.stderr)
+    black_mask = side == 0
+    white_mask = side == 1
 
     results: dict = {
         "data": args.data,
         "games": n_games,
         "positions": int(len(planes)),
+        "black_to_move_positions": int(black_mask.sum()),
+        "white_to_move_positions": int(white_mask.sum()),
         "checkpoints": {},
     }
     for ckpt in args.checkpoint:
@@ -128,6 +148,19 @@ def main() -> int:
         entry = {
             "full_planes": score_predictions(full, targets),
             "no_history_planes": score_predictions(nohist, targets),
+            # By side to move (v30's hypothesis test: v25's White
+            # collapse predicts a White-to-move accuracy gap that
+            # colour-balanced training should close).
+            "by_side": {
+                "black_to_move": {
+                    "full_planes": score_predictions(full, targets, black_mask),
+                    "no_history_planes": score_predictions(nohist, targets, black_mask),
+                },
+                "white_to_move": {
+                    "full_planes": score_predictions(full, targets, white_mask),
+                    "no_history_planes": score_predictions(nohist, targets, white_mask),
+                },
+            },
         }
         results["checkpoints"][ckpt] = entry
         f, h = entry["full_planes"], entry["no_history_planes"]
@@ -138,6 +171,18 @@ def main() -> int:
         print(f"  no-history planes: sign agreement {h['sign_agreement']} "
               f"({h['correct']}/{h['non_draw_positions']}), "
               f"MSE {h['value_mse']}, mean|v| {h['mean_abs_value']}")
+        fb = entry["by_side"]["black_to_move"]["full_planes"]
+        fw = entry["by_side"]["white_to_move"]["full_planes"]
+        hb = entry["by_side"]["black_to_move"]["no_history_planes"]
+        hw = entry["by_side"]["white_to_move"]["no_history_planes"]
+        print(f"  by side (full):    Black-to-move {fb['sign_agreement']} "
+              f"({fb['correct']}/{fb['non_draw_positions']}), "
+              f"White-to-move {fw['sign_agreement']} "
+              f"({fw['correct']}/{fw['non_draw_positions']})")
+        print(f"  by side (no-hist): Black-to-move {hb['sign_agreement']} "
+              f"({hb['correct']}/{hb['non_draw_positions']}), "
+              f"White-to-move {hw['sign_agreement']} "
+              f"({hw['correct']}/{hw['non_draw_positions']})")
     print(json.dumps(results, indent=2))
     return 0
 
