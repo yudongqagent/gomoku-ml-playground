@@ -453,6 +453,28 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/b3-h2/value-net.pt",
          "tie_break_q": True, "tie_break_q_threshold": 0.05},
+    # v37 (iteration 37, ML batch 3): H2 — v8's PUCT MCTS with the
+    # value net distilled from v18's rollout leaf with DEEPER (2-ply)
+    # labels (see research/iterations/iter-37.md). The ONLY
+    # differences from v8 are the checkpoint (trained on the SAME
+    # 37,227 quiet positions as v24 — v7/v18 self-play + random
+    # playouts, same game-level holdout — but labelled with
+    # ``_rollout2_leaf_value``: the rollout-leaf value 2 plies
+    # ahead under the teacher's own rollout policy, a 4-ply-horizon
+    # value vs v24's 2-ply) and the swept α (``value_weight`` —
+    # 0.25, the α-sweep winner at 0.75 vs v8 over 20 games; the
+    # 2-ply labels are hotter than v24's, mean|v| ~0.20 vs ~0.06,
+    # so the smaller shrink wins — and the α effect is almost
+    # entirely a White effect: White goes 0.80 → 0.45 → 0.20 as α
+    # goes 0.25 → 0.5 → 1.0, while Black stays 0.70–0.80). Search,
+    # priors, sims, threat check, terminal cases: v8 unchanged, so
+    # the battery is a clean A/B of the deeper-teacher net — and,
+    # against v24's numbers, of 2-ply vs 1-ply labels on identical
+    # positions.
+    37: {"name": "scoring-v37", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml3-h2/value-net.pt",
+         "value_weight": 0.25},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1070,6 +1092,7 @@ class ScoringPlayer:
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(
                         "tie_break_q_threshold", 0.0
                     ),
+                    value_weight=ENGINE_VERSIONS[version].get("value_weight"),
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.

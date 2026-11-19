@@ -868,6 +868,67 @@ def _rollout_leaf_value(
     return _attack_gradient_v1(cur, p)
 
 
+def _rollout2_leaf_value(board: np.ndarray, player: int) -> float:
+    """v37 2-ply label: v18's rollout-leaf value evaluated 2 plies
+    ahead under the teacher's own rollout policy (ML batch 3 H2 —
+    see ``research/iterations/iter-37.md`` §1).
+
+    The teacher is v18's rollout leaf — the SAME teacher as v24,
+    for comparability. The label for a quiet position (``board``,
+    ``player`` to move) is:
+
+    * ply 1 (teacher's move): ``m1 = _rollout_move(board, player)``
+      — the teacher's own move policy (win if possible, block a
+      single opponent winning move, else the v1-argmax with
+      open-four priority). If the ply is terminal (``term1`` is
+      not None), the label is ``term1`` — from ``player``'s
+      perspective, as in :func:`_rollout_leaf_value` at ply 0.
+    * ply 2 (opponent's reply): ``m2 = _rollout_move(board+m1,
+      -player)``. If terminal, the label is ``-term2`` (``term2``
+      is from the opponent's perspective; negated to ``player``'s,
+      as in :func:`_rollout_leaf_value` at ply 1).
+    * otherwise the label is ``_rollout_leaf_value(board+m1+m2,
+      player)`` — ``player`` to move again at the resulting
+      position, blend=False (v24's setting).
+
+    The label is in [-1, 1] from the side-to-move perspective,
+    exactly like v24's. The function is defined on quiet positions
+    (the labelling pipeline only calls it where
+    ``_terminal_leaf_value == 0.0``); on non-quiet positions it
+    still answers, with the rollout's own convention: a winning
+    move or a double opponent threat returns the exact terminal
+    (±1), while a must-block (-0.25) plays the forced block and
+    continues — the same treatment :func:`_rollout_leaf_value`
+    gives must-blocks found INSIDE its rollout (iter-16 §2.1:
+    only the must-block at the START of a leaf evaluation is an
+    exact -0.25; interior ones are played through). The board is
+    not mutated (the rollout plays on copies via
+    :func:`gomoku_ml.game.apply_move`).
+
+    Effective horizon: 2 plies of rollout-policy play + the 2
+    plies inside :func:`_rollout_leaf_value` = 4 plies, vs v24's
+    2. The move-selection rule is deliberately the teacher's own
+    policy rather than a leaf-value argmax: maximising the noisy
+    leaf over ~40 candidates would inject optimizer's-curse bias
+    into the LABELS, and the rollout policy already plays the
+    setup move at the motivating position (it plays (9,6) at
+    setup-v1v0s-g92's root, and the unique refuting reply (4,3)
+    after the wrong (5,4) — iter-37 §0). A minimax reply was
+    measured and rejected: ~1.5 s/position (50x the cost) with NO
+    better discrimination at setup-v1v0s-g92 (both children
+    +1.000 either way — (5,4) does not lose the win within the
+    teacher's horizon, it only wins slower)."""
+    m1, term1 = _rollout_move(board, player)
+    if term1 is not None:
+        return term1
+    b1 = game.apply_move(board, m1, player)
+    m2, term2 = _rollout_move(b1, -player)
+    if term2 is not None:
+        return -term2
+    b2 = game.apply_move(b1, m2, -player)
+    return _rollout_leaf_value(b2, player)
+
+
 class HeuristicMCTS:
     """PUCT search with v1 priors and a terminal-aware leaf value.
 

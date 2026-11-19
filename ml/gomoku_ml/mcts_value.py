@@ -115,6 +115,10 @@ class ValueMCTS(HeuristicMCTS):
             v27's threshold tie-break on the root pool (see
             :meth:`_pick_pool_move`); defaults False / 0.0 reproduce
             v8 exactly.
+        value_weight: shrink factor applied to the net's value in
+            quiet positions (ML batch 1 H1: the α sweep — v8's
+            ``VALUE_WEIGHT`` 0.25 is the default when None, so v8 is
+            unchanged; v24's swept α is passed through the registry).
         device: torch device string (CPU here; there is no GPU).
     """
 
@@ -127,6 +131,7 @@ class ValueMCTS(HeuristicMCTS):
         rng: np.random.Generator | None = None,
         tie_break_q: bool = False,
         tie_break_q_threshold: float = 0.0,
+        value_weight: float | None = None,
         device: str = "cpu",
     ) -> None:
         super().__init__(
@@ -155,6 +160,7 @@ class ValueMCTS(HeuristicMCTS):
             )
         self.device = torch.device(device)
         self.net.to(self.device)
+        self.value_weight = VALUE_WEIGHT if value_weight is None else value_weight
         # Two intra-op threads: the harness shares this VM with the
         # parallel H1 workstream, and a batch=1 forward pass gains
         # nothing from more threads (see ml/README.md "Threading").
@@ -288,8 +294,10 @@ class ValueMCTS(HeuristicMCTS):
             _logits, value = self.net(x)
         self.leaf_net_evals += 1
         # Fast-loop iteration 2: shrink the net value toward the
-        # terminal value (0 here) — see VALUE_WEIGHT.
-        return float(value[0, 0].item()) * VALUE_WEIGHT
+        # terminal value (0 here) — see VALUE_WEIGHT. The shrink
+        # factor is per-instance (``self.value_weight``) so the
+        # ML batch 1 α sweep can vary it; the default is v8's 0.25.
+        return float(value[0, 0].item()) * self.value_weight
 
     def _run_one(
         self,
