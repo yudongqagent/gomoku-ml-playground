@@ -601,6 +601,70 @@ predict played strength (v31/v38's lesson, repeated).
 
 TODO — fast loops.
 
+**Fast loop iteration 1** (10 games each, seeds 1001/2001, α=0.5):
+- vs v8: **2W-7L-1D (0.25)**, CI [0.0809, 0.5578]. As Black 1-3-1
+  (0.30), as White 1-4-0 (0.20). All 10 games unique.
+- vs v0: **6W-4L-0D (0.60)**, CI [0.3127, 0.8318]. As Black 4-1-0
+  (0.80), as White 2-3-0 (0.40). All 10 games unique.
+- Loss classification (`classify_losses.py`, both matches):
+  **11 losses, 11 via open four, 0 missed blocks, 0 clean missed
+  preventions in 48 threatened turns.** Defence as measured is
+  clean — the losses are positional drift into unstoppable open
+  fours, not blundered blocks.
+- Losing moves (`find_losing_moves.py`, VCF solver depth 4; raw
+  `ml/runs/ml4-h1/losing-moves-{v8,v0}-k1.txt`): **8 of 11 losses
+  were already lost** at the first VCF moment (no saving reply
+  exists — positional decline, no single tactical blunder).
+  **THREE genuine blunders: vs v8 game 4 (Black, 34 plies), ply
+  24 — (8,9), with 3 saving moves ((8,4), (8,5), (12,5)); vs v0
+  game 1 (White, 25 plies), ply 13 — (10,5), with 1 saving move
+  ((6,9)); vs v0 game 9 (White, 21 plies), ply 13 — (9,10),
+  with 1 saving move ((9,6)).**
+
+**Workup verdict — vs-v8 game 4, ply 24 (VERIFIED):** `diag_root.py`
+(raw `ml/runs/ml4-h1/diag-v8-g4-ply24.txt`) shows the search's q
+is RIGHT and the prior is wrong: the save (8,5) has the BEST
+our-q (+0.056) but only 15 visits vs the actual's 23 — its v1
+prior (0.0462) is 3x the actual's (0.1345), and the most-visited
+root choice follows the prior. The 1-ply exact leaves AGREE the
+saves are better ((8,4)/(8,5) terminal +0.250, the must-block
+value, vs the actual's 0.000). This is the SAME category as v37
+iter-1's g2 blunder and v31 iter-2's: a PRIOR problem in shared
+heuristic-track code (`_priors`), whose change would alter v8/v7
+equally and invalidate the α sweep — NOT patchable within H1's
+remit (v42 = v8's search + distilled net). The net is not the
+problem here: its q already ranks the save first.
+
+**Workup verdict — vs-v0 game 1, ply 13 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml4-h1/diag-v0-g1-ply13.txt`) shows
+a NEAR-TIE: actual (10,5) 18 visits q −0.062 prior 0.1444 vs
+save (6,9) 14 visits q −0.106 prior 0.1430 — the priors differ
+by 0.0014 and the q gap is 0.044. The 1-ply exact leaves are
+MIXED (v22/v14 prefer the save, v20 prefers the actual). The
+VCF that decides it (depth-4, up to 8 plies) is beyond the
+100-sim search's horizon AND beyond the 2-ply label's horizon —
+the shared search-horizon limit (v24's d9 class), NOT a
+value-head failure.
+
+**Workup verdict — vs-v0 game 9, ply 13 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml4-h1/diag-v0-g9-ply13.txt`) shows
+the net AGREES with the exact leaves: actual (9,10) 23 visits
+q −0.018 prior 0.1299 vs save (9,6) 12 visits q −0.066 prior
+0.1286 — and ALL THREE exact heuristic leaves (v22/v20/v14)
+rank the loser first too (+0.168/+0.124/−0.070 vs
++0.131/+0.085/−0.129). Same shared-horizon class as game 1.
+
+**Fast-loop STOP after iteration 1:** no patchable weakness class
+for v42 within H1's design space. The one q-vs-prior blunder is
+a shared-prior issue; the other two are shared-horizon issues;
+the other 8 losses are positional with no single blunder. The §4
+history-dependence is NOT implicated in any blunder (g4: the
+net's q was already right; g1/g9: the net agrees with the exact
+leaves) — so no loss-motivated retrain is authorised by §1.6,
+and a history-augmentation retrain on holdout grounds alone
+would repeat v31's error of chasing a diagnostic. The battery
+is the verdict; it proceeds on the final v42 (α=0.5).
+
 ## 6. Validation battery
 
 TODO.
