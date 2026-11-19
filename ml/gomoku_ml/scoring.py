@@ -455,12 +455,13 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # epoch) so the net is robust to missing history — v37's net
     # collapses without history planes (v7 holdout 0.7395 ->
     # 0.5163). See research/iterations/iter-43.md. value_weight
-    # is the swept α (placeholder 1.0 until the §1.4 sweep sets
-    # it; v37's winner was 0.25).
+    # is the swept α (0.25 — the §1.5 no-signal rule: the sweep's
+    # three arms were within one win of each other (10/10/11 wins),
+    # so the rule picks v37's winner 0.25; see iter-43.md §5).
     43: {"name": "scoring-v43", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h2/value-net.pt",
-         "value_weight": 1.0},
+         "value_weight": 0.25},
 }
 
 # --- weights --------------------------------------------------------------

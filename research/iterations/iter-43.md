@@ -596,7 +596,47 @@ npm test / tsc are checked in §6.
 
 ## 5. α sweep and fast loops
 
-TODO — fill in when the sweep runs (gate must pass first).
+**α sweep — COMPLETE 2026-11-19 ~23:00 UTC** (20 games each vs
+v8, seeds 1001/2001; per-alpha JSONs
+`research/iterations/alpha-v43-<α>-vs-v8.json`). Interrupted
+once by a VM replacement at α=0.25 game 12; resumed cleanly
+(α=0.125 already complete, α=0.25 resumed from game 13 with
+per-game seeding). All 60 games unique (20/20 per leg).
+
+| α | W-L-D | Win rate | 95% CI | As Black | As White |
+|---|---|---|---|---|---|
+| 0.125 | 10-9-1 | 0.525 | [0.3205, 0.7215] | 6-4-0 | 4-5-1 |
+| **0.25** | **10-7-3** | **0.575** | **[0.3641, 0.7617]** | 9-1-0 | 1-6-3 |
+| 0.5 | 11-6-3 | 0.625 | [0.4095, 0.8002] | 7-1-2 | 4-5-1 |
+
+**Winner by the pre-registered rule: α = 0.25** — registry
+`value_weight` set to 0.25. The §1.5 **no-signal rule
+triggers**: the three arms' win counts are 10 / 10 / 11 —
+within one win of each other — so the rule picks v37's winner
+(0.25) and the sweep is recorded as finding no signal. This is
+the first time the no-signal rule has triggered in the program
+(v24: spread 6; v37: spread 5; v38: spread 7). The win-rate
+spread (0.525 → 0.575 → 0.625, monotone in α) is noted but
+does NOT override the rule: the entire spread is one flipped
+game (0.25 → 0.5) plus draw-vs-loss differences, all three CIs
+overlap heavily, and the rule exists precisely because 20-game
+sweeps cannot resolve differences this small. The sweep script's
+own nominal winner (0.5, by win rate) is recorded, not followed
+— following it would be post-hoc selection on noise. The
+battery is the verdict either way.
+
+**Colour-split concern (recorded, not acted on):** at α=0.25
+the split is extreme — Black 9-1 (0.90), White 1-6-3 (0.25) —
+while α=0.5 is balanced (Black 0.80, White 0.45). v37's α=0.25
+sweep had the OPPOSITE pattern (White 8-2). Ten games per
+colour cannot resolve whether v43-at-0.25 is genuinely
+White-weak or this is a cold draw; the fast loop (§5.1) and the
+battery (50 games per colour) are the arbiters. The α grid is
+NOT extended post-hoc.
+
+### 5.1 Fast loop, iteration 1
+
+TODO — fill in when the fast loop runs.
 
 ## 6. Validation battery
 
