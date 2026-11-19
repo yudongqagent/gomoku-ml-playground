@@ -221,6 +221,174 @@ def _priors(
     return priors
 
 
+# --- Setup-threat helpers (v39, batch 11 H1) ------------------------------
+# A "setup" for a player is a quiet move after which the player holds
+# >= 2 open-four creators (a creator is a move leaving >= 2 winning
+# moves); a setup is not itself an immediate win or a VCF start.
+# The setup-at-root check (HeuristicMCTS._setup_root_move) fires in
+# quiet positions where the opponent holds setups but no VCF starts
+# or creators — the leaf-blind flavour v39 addresses (see
+# research/iterations/iter-39.md §1.3). These helpers are the fast
+# window-filtered versions from the batch-11 mining script
+# (research/iterations/mine_setup_signature.py), A/B-validated
+# against the slow exact enumeration (0 mismatches — see
+# research/iterations/setup-mining-ab.json).
+
+# A single move is implausible as a full setup removal when the
+# opponent holds more than this many setups; the check skips such
+# positions (the mining's cap, iter-39 §1.1).
+_SETUP_CHECK_MAX_SETUPS = 6
+
+
+def _window_candidates(board: np.ndarray, player: int,
+                       min_stones: int) -> list[int]:
+    """Empty cells in a 5-window (any of the 4 directions) holding
+    >= ``min_stones`` ``player`` stones. Same shape as the v33
+    four-creator optimisation (iter-33 §2.3)."""
+    cands: set[int] = set()
+    for dy, dx, ys, xs in (
+        (0, 1, range(15), range(11)),
+        (1, 0, range(11), range(15)),
+        (1, 1, range(11), range(11)),
+        (1, -1, range(11), range(4, 15)),
+    ):
+        for y in ys:
+            for x in xs:
+                stones = 0
+                empties: list[int] = []
+                for i in range(5):
+                    v = board[y + i * dy, x + i * dx]
+                    if v == player:
+                        stones += 1
+                    elif v == game.EMPTY:
+                        empties.append(
+                            game.xy_to_move(x + i * dx, y + i * dy))
+                if stones >= min_stones:
+                    cands.update(empties)
+    return sorted(cands)
+
+
+def _creators_windowed(board: np.ndarray, player: int,
+                       limit: int = 0) -> list[int]:
+    """Creators for ``player`` (a move leaving them >= 2 winning
+    moves), via the v33 window filter: a creator completes a four,
+    so it sits in a 5-window holding >= 3 ``player`` stones. Valid
+    only when ``player`` holds NO winning move on ``board`` (else
+    nearly every move 'creates' a four — the pre-existing win
+    survives); in that case fall back to the full enumeration.
+    ``limit`` > 0 stops after that many found."""
+    if scoring._winning_moves(board, player):
+        cands = scoring._candidate_moves(board)
+    else:
+        cands = _window_candidates(board, player, 3)
+    out = []
+    for c in cands:
+        b2 = game.apply_move(board, c, player)
+        if len(scoring._winning_moves(b2, player)) >= 2:
+            out.append(c)
+            if limit > 0 and len(out) >= limit:
+                break
+    return out
+
+
+def _setup_creates_two(board: np.ndarray, m: int, player: int) -> bool:
+    """True iff playing ``m`` (a setup candidate for ``player`` on
+    ``board``) leaves ``player`` with >= 2 creators. Tighter than
+    enumerating all creators: a creator c after m must complete a
+    four that INCLUDES m (else c was already a creator before m —
+    ``player`` holds 0 creators on the input board, the
+    ``_setups_limited`` precondition — since a four not using m
+    exists with or without it). So c sits in a 5-window THROUGH m
+    holding >= 2 other ``player`` stones; only those windows'
+    empty cells are tested. Returns False when m leaves an
+    immediate winning move (not a setup)."""
+    b2 = game.apply_move(board, m, player)
+    if scoring._winning_moves(b2, player):
+        return False
+    x, y = m % 15, m // 15
+    cands: set[int] = set()
+    for dy, dx in ((0, 1), (1, 0), (1, 1), (1, -1)):
+        for i in range(5):
+            # 5-windows containing m: start i steps back along the
+            # direction (clipped to the board).
+            sy, sx = y - i * dy, x - i * dx
+            ey, ex = sy + 4 * dy, sx + 4 * dx
+            if not (0 <= sy < 15 and 0 <= sx < 15
+                    and 0 <= ey < 15 and 0 <= ex < 15):
+                continue
+            stones = 0
+            empties: list[int] = []
+            for j in range(5):
+                v = board[sy + j * dy, sx + j * dx]
+                if v == player:
+                    stones += 1
+                elif v == game.EMPTY:
+                    empties.append(
+                        game.xy_to_move(sx + j * dx, sy + j * dy))
+            if stones >= 2:
+                cands.update(empties)
+    cands.discard(m)  # m is occupied on b2
+    found = 0
+    for c in cands:
+        b3 = game.apply_move(b2, c, player)
+        if len(scoring._winning_moves(b3, player)) >= 2:
+            found += 1
+            if found >= 2:
+                return True
+    return False
+
+
+def _has_vcf_start(board: np.ndarray, player: int) -> bool:
+    """True iff ``player`` holds a VCF start on ``board`` (zero /
+    non-zero only — the setup check never needs the exact count).
+    A VCF start must be a four-creating move
+    (``starts_forced_win`` requires it), so only the four-creators
+    are tested, with early exit at the first start. An IMMEDIATE
+    winning move is itself a VCF start (``starts_forced_win``
+    returns True for it at once) but is NOT necessarily a
+    four-creating move, so winning moves are checked first — the
+    first version of this function missed exactly that (the
+    verification audit caught it on v35 g49/g65, iter-39 §2)."""
+    if scoring._winning_moves(board, player):
+        return True  # an immediate win is itself a VCF start
+    for m in evaluate.four_creating_moves(board, player):
+        if evaluate.starts_forced_win(board, player, m):
+            return True
+    return False
+
+
+def _setups_limited(board: np.ndarray, player: int,
+                    limit: int) -> list[int]:
+    """Setup moves for ``player`` (a quiet move after which the
+    player holds >= 2 creators), stopping after ``limit`` found.
+    limit <= 0 means no limit.
+
+    FAST VERSION (window-filtered; A/B-validated against the slow
+    exact version — see research/iterations/setup-mining-ab.json):
+    a setup move must lie in a 5-window holding >= 2 ``player``
+    stones. Proof: a setup leaves no winning move and creates >= 2
+    creators; take a creator c — playing c leaves >= 2 winning
+    moves, each completing a five that includes c (else it would
+    already be a winning move after the setup); since ``player``
+    holds 0 creators on the input board, c was not a creator
+    before the setup, so at least one of those fives includes the
+    setup move itself plus 2 other ``player`` stones. The creator
+    test itself is tightened the same way (see
+    :func:`_setup_creates_two`): a new creator's four must include
+    the setup move. PRECONDITION: ``player`` holds 0 creators on
+    ``board`` (both call sites check creators first); if the
+    player already held >= 2 creators, every quiet move would be
+    a setup and the filter would miss them.
+    """
+    out = []
+    for m in _window_candidates(board, player, 2):
+        if _setup_creates_two(board, m, player):
+            out.append(m)
+            if limit > 0 and len(out) >= limit:
+                break
+    return out
+
+
 def _terminal_leaf_value(board: np.ndarray, player: int) -> float:
     """Terminal-aware leaf value in [-1, 1] for ``player`` to move.
 
@@ -953,6 +1121,12 @@ class HeuristicMCTS:
     start is played immediately, and a defensive VCF prevention
     is played when the opponent holds a VCF start. False (the
     default) is v18 behaviour exactly.
+    ``setup_root`` (v39, batch 11 H1) enables the setup-at-root
+    check (:meth:`_setup_root_move`): AFTER the search, when the
+    opponent holds setups but no VCF starts or creators after the
+    search's chosen move, a full setup removal (0 VCF / 0 creators
+    / 0 setups after it) is played instead, ranked by the search.
+    False (the default) is v27 behaviour exactly.
     """
 
     def __init__(
@@ -966,6 +1140,7 @@ class HeuristicMCTS:
         tie_break_q: bool = False,
         tie_break_q_threshold: float = 0.0,
         vcf_root: bool = False,
+        setup_root: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
             leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
@@ -992,6 +1167,7 @@ class HeuristicMCTS:
         self.tie_break_q = tie_break_q
         self.tie_break_q_threshold = tie_break_q_threshold
         self.vcf_root = vcf_root
+        self.setup_root = setup_root
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -1130,6 +1306,111 @@ class HeuristicMCTS:
                 return c
         return None
 
+    def _is_setup_removal(self, board: np.ndarray, player: int,
+                          move: int) -> bool:
+        """True iff playing ``move`` leaves the opponent with 0 VCF
+        starts / 0 creators / 0 setups (a FULL setup removal, v39).
+        Checks in cost order (creators, setups with early exit,
+        VCF only when both are 0). The VCF re-check is a FULL
+        re-check on the resulting board (``_has_vcf_start`` tests
+        all four-creators there), NOT the original-starts subset:
+        VCF starts are NOT monotone under our move — occupying a
+        setup square can CREATE opponent VCF starts by removing one
+        of our own defensive replies in the forcing sequence
+        (mining batch-v33-vs-v27 g0 ply 29, iter-39 §2). Creators
+        and setups ARE monotone (our stone can only remove opponent
+        threats), so the creators-first order is safe — and it is
+        what satisfies ``_setups_limited``'s 0-creators
+        precondition."""
+        opp = -player
+        b2 = game.apply_move(board, move, player)
+        if _creators_windowed(b2, opp, limit=1):
+            return False
+        if _setups_limited(b2, opp, 1):
+            return False
+        return not _has_vcf_start(b2, opp)
+
+    def _setup_root_move(self, board: np.ndarray, player: int,
+                         root: "_Node", search_move: int) -> int | None:
+        """Setup-at-root check (v39, batch 11 H1 — see
+        ``research/iterations/iter-39.md`` §1.3). Runs AFTER the
+        search (search-first, the v35 shape): returns a full setup
+        removal to play INSTEAD of the search's move, or None to
+        keep the search's move.
+
+        The check fires ONLY in the quiet case: after the search's
+        move the opponent holds 0 VCF starts / 0 creators / >= 1
+        setups (and <= ``_SETUP_CHECK_MAX_SETUPS`` setups — above
+        that a single removal is implausible). When it fires, ALL
+        full removals among the candidates are collected (setup
+        squares first, then the creators-after-setup, then the
+        top-5 1-ply moves — the mining's second-pass order, minus
+        the lazy 400-sim proposal, which the forensics refuted:
+        it loses 3/3 at g26) and the one the SEARCH ranks highest
+        is played (most visits, then our-q, then prior; unvisited
+        removals rank below all visited ones, by prior among
+        themselves). Search-ranked selection is the fix for v35's
+        documented flaw (prior-based choice among preventions is
+        noise at 1e-4 margins). If the search's move is itself a
+        full removal the gate is closed (0 setups after it) and
+        None is returned. The board is not mutated.
+        """
+        opp = -player
+        after_search = game.apply_move(board, search_move, player)
+        # Gate: quiet case only (creators first — it also satisfies
+        # _setups_limited's 0-creators precondition).
+        if _has_vcf_start(after_search, opp):
+            return None
+        if _creators_windowed(after_search, opp, limit=1):
+            return None
+        setups = _setups_limited(after_search, opp,
+                                 _SETUP_CHECK_MAX_SETUPS + 1)
+        if not setups or len(setups) > _SETUP_CHECK_MAX_SETUPS:
+            return None
+        # Candidate removals, in priority order.
+        test_moves: list[int] = []
+        seen: set[int] = {search_move}
+
+        def _add(m: int) -> None:
+            if m not in seen and not game.is_winning_move(
+                    board, m, player):
+                seen.add(m)
+                test_moves.append(m)
+
+        for s in setups:
+            _add(s)
+        for s in setups:
+            b_setup = game.apply_move(board, s, opp)
+            for c in _creators_windowed(b_setup, opp):
+                _add(c)
+        flat = board.reshape(-1).tolist()
+        scored = sorted(
+            (
+                (scoring._score_move_flat(flat, m, player, 1.0), m)
+                for m in scoring._candidate_moves(board)
+            ),
+            key=lambda sm: (-sm[0], sm[1]),
+        )
+        for _s, m in scored[:5]:
+            _add(m)
+        removals = [m for m in test_moves
+                    if self._is_setup_removal(board, player, m)]
+        if not removals:
+            return None
+        children = root.children or {}
+
+        def _rank(m: int) -> tuple[int, float, float]:
+            node = children.get(m)
+            if node is None or node.visit_count == 0:
+                prior = node.prior if node is not None else 0.0
+                return (0, float("-inf"), prior)
+            # child.q is the OPPONENT's perspective; our q is -q.
+            q_ours = -node.value_sum / node.visit_count
+            return (node.visit_count, q_ours, node.prior)
+
+        removals.sort(key=_rank, reverse=True)
+        return removals[0]
+
     def choose_move(self, board: np.ndarray, player: int) -> int:
         # Immediate win (any winning move wins).
         wins = scoring._winning_moves(board, player)
@@ -1153,7 +1434,17 @@ class HeuristicMCTS:
         root = _Node(1.0)
         for _ in range(self.sims):
             self._run_one(root, board, player, None)
-        return self._choose_root_child(root, board, player)
+        search_move = self._choose_root_child(root, board, player)
+        # Setup-at-root (v39): after the search, a full setup
+        # removal overrides a non-removal search move (only in the
+        # quiet case — see _setup_root_move). v27 behaviour when
+        # setup_root is False (the default).
+        if self.setup_root:
+            setup_move = self._setup_root_move(board, player, root,
+                                               search_move)
+            if setup_move is not None:
+                return setup_move
+        return search_move
 
     def _rng_or_first(self, moves: list[int]) -> int:
         """Break a final tie: the seeded RNG's choice, or the first
