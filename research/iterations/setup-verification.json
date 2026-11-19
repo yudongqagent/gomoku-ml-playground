@@ -1,0 +1,279 @@
+{
+  "candidates": [
+    {
+      "file": "batch-v34-vs-v27.json",
+      "game": 55,
+      "ply": 34,
+      "winner_version": 34,
+      "v27_colour": "black",
+      "played": [
+        2,
+        7
+      ],
+      "setups_after_actual": 2,
+      "setup_squares": [
+        [
+          4,
+          12
+        ],
+        [
+          6,
+          12
+        ]
+      ],
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "actual_losses": 3,
+      "qualifies": true,
+      "removing_tests": [
+        {
+          "move": [
+            8,
+            12
+          ],
+          "source": "creator-after-setup",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false,
+          "audit": {
+            "vcf": 0,
+            "creators": 0,
+            "setups": 0
+          },
+          "audit_clean": true,
+          "verified_save": false
+        }
+      ],
+      "verified": false
+    },
+    {
+      "file": "batch-v35-vs-v27.json",
+      "game": 26,
+      "ply": 25,
+      "winner_version": 35,
+      "v27_colour": "white",
+      "played": [
+        9,
+        4
+      ],
+      "setups_after_actual": 1,
+      "setup_squares": [
+        [
+          6,
+          11
+        ]
+      ],
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "actual_losses": 3,
+      "qualifies": true,
+      "removing_tests": [
+        {
+          "move": [
+            6,
+            7
+          ],
+          "source": "1-ply-top5",
+          "playout": [
+            -1,
+            1,
+            -1
+          ],
+          "non_losses": 1,
+          "saves": false,
+          "audit": {
+            "vcf": 0,
+            "creators": 0,
+            "setups": 0
+          },
+          "audit_clean": true,
+          "verified_save": false
+        }
+      ],
+      "verified": false
+    },
+    {
+      "file": "batch-v35-vs-v27.json",
+      "game": 49,
+      "ply": 72,
+      "winner_version": 35,
+      "v27_colour": "black",
+      "played": [
+        0,
+        12
+      ],
+      "setups_after_actual": 3,
+      "setup_squares": [
+        [
+          1,
+          9
+        ],
+        [
+          3,
+          11
+        ],
+        [
+          1,
+          12
+        ]
+      ],
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "actual_losses": 3,
+      "qualifies": true,
+      "removing_tests": [
+        {
+          "move": [
+            1,
+            9
+          ],
+          "source": "setup-square",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false,
+          "audit": {
+            "vcf": 1,
+            "creators": 0,
+            "setups": 0
+          },
+          "audit_clean": false,
+          "verified_save": false
+        }
+      ],
+      "verified": false
+    },
+    {
+      "file": "batch-v35-vs-v27.json",
+      "game": 58,
+      "ply": 19,
+      "winner_version": 35,
+      "v27_colour": "white",
+      "played": [
+        6,
+        5
+      ],
+      "setups_after_actual": 3,
+      "setup_squares": [
+        [
+          3,
+          8
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          7,
+          8
+        ]
+      ],
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "actual_losses": 3,
+      "qualifies": true,
+      "removing_tests": [
+        {
+          "move": [
+            3,
+            8
+          ],
+          "source": "setup-square",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false,
+          "audit": {
+            "vcf": 0,
+            "creators": 0,
+            "setups": 0
+          },
+          "audit_clean": true,
+          "verified_save": false
+        }
+      ],
+      "verified": false
+    },
+    {
+      "file": "batch-v35-vs-v27.json",
+      "game": 65,
+      "ply": 88,
+      "winner_version": 35,
+      "v27_colour": "black",
+      "played": [
+        2,
+        6
+      ],
+      "setups_after_actual": 1,
+      "setup_squares": [
+        [
+          3,
+          2
+        ]
+      ],
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "actual_losses": 3,
+      "qualifies": true,
+      "removing_tests": [
+        {
+          "move": [
+            3,
+            2
+          ],
+          "source": "setup-square",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false,
+          "audit": {
+            "vcf": 1,
+            "creators": 0,
+            "setups": 0
+          },
+          "audit_clean": false,
+          "verified_save": false
+        }
+      ],
+      "verified": false
+    }
+  ],
+  "meta": {
+    "candidates_tested": 1,
+    "verified_instances": 0,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "ml_root": "/home/hatch/workspace/projects/gomoku-b10"
+  }
+}
