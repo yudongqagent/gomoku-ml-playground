@@ -489,3 +489,215 @@ selfplay_batch.py --engine-a v44 --engine-b v0 --games 100 --seed-a 100 --seed-b
 selfplay_batch.py --engine-a v44 --engine-b v37 --games 100 --openings research/openings-ml4.json --seed-a 100 --seed-b 200 --out research/iterations/batch-v44-vs-v37.json
 selfplay_batch.py --engine-a v44 --engine-b v7 --games 100 --swap-rule --placement balanced --placement-seed 11 --judge tempo --seed-a 100 --seed-b 200 --out research/iterations/batch-v44-vs-v7-swap.json
 ```
+
+## 2. Data generation (actuals)
+
+**Labelling COMPLETE 2026-11-19 ~20:11 UTC** (started 19:43 UTC;
+one VM replacement at ~19:46 UTC killed the run after 91 v7
+games — the label phase is resume-safe, so the relaunch skipped
+the existing 91 shards and lost nothing; the v7 LABEL_JSON below
+counts only the resumed segment): `generate_distill_data.py
+label --label-mode rollout3` over v24's exact games files
+(copied verbatim into `ml/runs/ml4-h3/games-{v7,v18,random}.json`).
+Full log `ml/runs/ml4-h3/label.log` (LABEL_JSON lines).
+
+| Source | Games | Plies | Quiet positions | ±1 labels | Gradient labels | Held-out games | Label time |
+|---|---|---|---|---|---|---|---|
+| v7 self-play (50 sims, seeds 50000+) | 488 | 25,277 | 21,595 (19,545 train / 2,050 holdout) | 1,567 (7.3%) | 20,028 | 48 | ~891 s (711.1 s resumed segment + ~180 s pre-kill) |
+| v18 self-play (50 sims, seeds 60000+) | 229 | 11,511 | 9,932 (9,142 train / 790 holdout) | 842 (8.5%) | 9,090 | 22 | 482.7 s |
+| Random playouts (seeds 70000+) | 100 | 11,009 | 5,700 (5,162 train / 538 holdout) | 1,949 (34.2%) | 3,751 | 10 | 263.5 s |
+| **Total** | **817** | **47,797** | **37,227 (33,849 train / 3,378 holdout)** | **4,358 (11.7%)** | **32,869** | **80** | **~1,637 s** |
+
+Position counts match v24's and v37's shards EXACTLY (verified
+per-source by counting shard contents: same shard counts, same
+per-shard position counts in the train dirs) — the same 37,227
+positions, only the labels differ, as pre-registered. The 3-ply
+labels are hotter than v37's 2-ply labels on every source (±1:
+7.3% vs 6.2% v7, 8.5% vs 7.4% v18, 34.2% vs 32.6% random; train
+mean|v|: v7 0.1681, v18 0.1775, random 0.4255; pooled train
+mean|v| 0.2099 vs v37's 0.1999) — the 5-ply horizon finds more
+forced wins, as the §0 measurement predicted (11.7% ±1 pooled
+vs v37's 10.6%). **And the parity shift is in the data:** train
+label means are positive on every source (v7 +0.0881, v18
++0.0586, random +0.2798; pooled train mean **+0.1094**) — the
+net will learn a value function centred near +0.11, not near
+−0.06 like v37's. The α sweep (§5) is where that shift gets
+absorbed.
+
+Memmap bundle `ml/runs/ml4-h3/data-mmap/` built from
+`ml/runs/ml4-h3/data-train/` (symlinks to the three train dirs
+only — holdouts excluded; recursive glob follows the symlinked
+dirs, 737 shards found): 33,849 samples, planes (33849, 8, 15,
+15), mean|v| 0.2099. (One service restart killed the first
+bundle-build attempt before it wrote anything; the detached
+re-run completed in ~30 s.)
+
+## 3. Training (actuals)
+
+**Training COMPLETE 2026-11-19 20:37 UTC** (started ~20:14 UTC,
+~23 min, no interruptions): config `ml/configs/ml4-h3.yaml`,
+15 epochs, batch 64, memmap bundle (33,849 samples; 32,157
+train / 1,692 val, seed-0 split). Run dir
+`ml/runs/ml4-h3-train/`; log `ml/runs/ml4-h3/train.log`. RSS
+stayed low (memmap path). 7,545 steps, ~60–151 s/epoch.
+
+| Epoch | Train loss | Val loss |
+|---|---|---|
+| 1 | 0.1115 | 0.1299 |
+| 2 | 0.1065 | 0.1282 |
+| 3 | 0.1052 | 0.1251 |
+| 4 | 0.1037 | 0.1261 |
+| 5 | 0.1023 | 0.1232 |
+| 6 | 0.1013 | 0.1254 |
+| 7 | 0.1002 | 0.1241 |
+| 8 | 0.0986 | 0.1208 |
+| 9 | 0.0971 | 0.1194 |
+| 10 | 0.0953 | 0.1196 |
+| 11 | 0.0924 | 0.1169 |
+| 12 | 0.0909 | 0.1169 |
+| 13 | 0.0909 | 0.1147 |
+| 14 | 0.0893 | 0.1138 |
+| 15 | 0.0897 | **0.1136** |
+
+Val loss decreased overall (small bumps at epochs 4, 6, 10) —
+no overfitting by epoch 15, but the pre-registered plan is 15
+epochs and the battery is the verdict, so no extension. **Best
+checkpoint: epoch 15 (`best.pt`, step 7545, val 0.1136)** — the
+`--out` copy at `ml/runs/ml4-h3/value-net.pt` is verified
+bit-identical in weights to `best.pt` (max |Δ| 0.0), so the
+registry path holds the best-by-val-loss checkpoint as
+pre-registered. (Absolute val loss is not comparable to v37's
+0.0986 or v24's 0.0617 — the 3-ply labels are hotter and
+shifted, mean|v| 0.21 vs 0.20 vs 0.06, so the target variance
+is higher; sign accuracy is the comparable metric.)
+Architecture verified: ResNet 16ch/2 blocks, 126,759 params,
+48 tensors — identical counts to v24's, v37's, and v8's
+checkpoints. Checkpoint md5: `d22af606f7d2ee0254f372da895ae7ad`.
+
+## 4. Holdout diagnostics (actuals)
+
+Game-level holdout (every 10th game, never trained on — the SAME
+80 games / 3,378 positions v24 and v37 held out), targets =
+3-ply labels unless noted. v44 net =
+`ml/runs/ml4-h3/value-net.pt`; v37 net =
+`ml/runs/ml3-h2/value-net.pt`; v8 net =
+`ml/runs/b3-h2/value-net.pt`. Raw outputs in
+`ml/runs/ml4-h3/holdout-3ply-{v7,v18,random}.txt` and
+`ml/runs/ml4-h3/holdout-2ply-{v7,v18,random}.txt`; Pearson r via
+`/tmp/holdout_r.py`.
+Sanity check: this run reproduces v37's published 2-ply numbers
+EXACTLY on its own holdout (v7 0.7395, v18 0.8436, random 0.6623
+— full planes; no-history 0.5163/0.5846/0.6604; MSEs
+0.0781/0.0819/0.2675) — the eval setup is sound. (Note: v37's
+holdout shards live in the H2 worktree,
+`gomoku-ml3-h2/ml/runs/ml3-h2/data/` — the merged ml-batch-3
+worktree holds only the checkpoint; the first (c) run failed on
+the wrong path and was re-run.)
+
+### (a) v44 net on its own 3-ply holdout (in-distribution)
+
+| Holdout | n pos | v44 sign (full) | v44 sign (no-hist) | v44 MSE | v44 mean\|v\| | v37 sign (full) | v8 sign (full) |
+|---|---|---|---|---|---|---|---|
+| v7 | 2,050 | 0.7460 | 0.7360 | 0.0847 | 0.0835 | 0.3145 | 0.4468 |
+| v18 | 790 | 0.7163 | 0.7035 | 0.1057 | 0.0808 | 0.3607 | 0.4339 |
+| random | 538 | 0.7786 | 0.7880 | 0.2624 | 0.3523 | 0.5403 | 0.5347 |
+| **pooled** | **3,378** | **0.7442** | **0.7368** | — | — | **0.3666** | **0.4583** |
+
+**Verdict: the distillation learned the deeper label function —
+the §1.5 stop condition (chance-level holdout) does NOT
+trigger.** Pooled in-distribution sign agreement 0.7442 vs 0.50
+chance. It is slightly LOWER than v37's 0.7519 on 2-ply labels
+and v24's 0.7766 on 1-ply labels — the 3-ply function is harder
+to learn, as expected (a 5-ply lookahead compressed into a
+static evaluation). Per-source, v44 is better than v37 on v7
+(0.7460 vs 0.7395) and random (0.7786 vs 0.6623) but worse on
+v18 (0.7163 vs 0.8436) — the strongest source is where v44's
+fit is weakest, a diagnostic curiosity the battery will speak
+to (no decision hinges on it).
+
+**The v44 net is HISTORY-ROBUST — the v37 collapse is GONE.**
+The no-history view drops only 0.007 pooled (0.7442 → 0.7368):
+v7 0.7460 → 0.7360, v18 0.7163 → 0.7035, random 0.7786 →
+0.7880 (no-history is BETTER on random). Compare v37: v7
+0.7395 → 0.5163, v18 0.8436 → 0.5846 — a 0.195 pooled
+collapse. History-dependence was the top ML-track risk, and
+the 3-ply net does not show it. Mechanism (hypothesis): the
+3-ply label is more determined by the current board than the
+2-ply label — the extra ply of greedy rollout play plus the
+parity shift make the target more of a "current position + one
+greedy move" function and less of a game-phase function, so
+the optimizer had less reason to grab the history shortcut.
+Or it is luck of the optimisation (different target, different
+init). Either way it is a measured fact, and it removes the
+§4 warning sign that hung over v37.
+
+**By side to move** (v44 net, 3-ply holdout; v30's method via
+the ported `eval_value_holdout.py`):
+
+| Holdout | Black (full) | White (full) | Black (no-hist) | White (no-hist) |
+|---|---|---|---|---|
+| v7 | 0.7667 (736/960) | 0.7249 (680/938) | 0.7625 (732/960) | 0.7090 (665/938) |
+| v18 | 0.6880 (269/391) | 0.7448 (289/388) | 0.6931 (271/391) | 0.7139 (277/388) |
+| random | 0.7584 (204/269) | 0.7992 (211/264) | 0.7472 (201/269) | 0.8295 (219/264) |
+| **pooled** | **0.7463 (1209/1620)** | **0.7421 (1180/1590)** | **0.7432 (1204/1620)** | **0.7302 (1161/1590)** |
+
+**No White collapse** — White is within 0.004 of Black pooled
+on full planes (0.7421 vs 0.7463) and within 0.013 on
+no-history planes. The engine-only data did not reintroduce a
+side skew (contrast v25/v31's B1-data White collapses, and
+v37's White-better split of 0.7775 vs 0.7269). The small
+per-source wiggles (White −0.042 on v7, +0.057 on v18) cancel
+in the pooled number and are within noise at n≈400/side.
+
+### (b) v37's net on the 3-ply labels (cross-depth)
+
+Sign agreement 0.3145 / 0.3607 / 0.5403 (pooled 0.3666) —
+BELOW chance on engine positions, exactly as §1.6 predicted:
+v37's net outputs values centred near −0.06 (its pessimistic
+2-ply target) while the 3-ply targets centre near +0.10, so
+the signs systematically disagree. **Pearson r (the
+pre-registered primary measure): v7 0.1825, v18 0.2926, random
+0.3483, pooled 0.3285** — vs v44's own pooled r of 0.3149
+(v7 0.2027, v18 0.1480, random 0.3508). The 2-ply-trained net
+captures the 3-ply function about as well in correlation terms
+as the 3-ply-trained net does (and better on v18, 0.2926 vs
+0.1480) — the same pattern as v37's §4, where v24's net
+already captured the 2-ply function at 0.7398 sign vs v37's
+own 0.7519. The marginal holdout gain from 3-ply labels is
+nil-to-negative — but holdout is diagnostic, not the verdict
+(v37's holdout marginal gain was also tiny, +0.012 sign, while
+its played-strength gain was +0.235).
+
+### (c) Reverse transfer: v44 net on v37's 2-ply labels
+
+Sign agreement 0.2862 / 0.2128 / 0.4597 — below chance on
+engine positions, the parity shift again (v44's net centres
+near +0.10, the 2-ply targets near −0.06). **Pearson r: v7
+0.1356, v18 0.1074, random 0.3981, pooled 0.3571** — vs v37's
+own pooled r of 0.3979 (v7 0.1987, v18 0.3455, random 0.4177).
+Decent reverse transfer (90% of v37's own correlation), and
+the MSEs are close to v37's own (0.0966/0.1195/0.3015 vs
+0.0781/0.0819/0.2675) — the v44 net's predictions are close in
+VALUE to the 2-ply targets, just shifted. The two nets encode
+overlapping but distinct value functions, as expected from
+their different label depths (and parities).
+
+### (d) v8's net on the 3-ply holdout
+
+Sign agreement 0.4468 / 0.4339 / 0.5347 (pooled 0.4583),
+Pearson r pooled 0.0955 (v7 0.0706, v18 −0.0352, random
+0.1145) — at/below chance, as on v24's/v37's labels. v8's net
+encodes a genuinely different value function, as expected from
+its different target (weak-self-play game outcomes).
+
+**A note on the low Pearson r values (0.15–0.42 even
+in-distribution):** r is dragged down by distillation
+compression — the nets predict small values (mean|v| ~0.08 on
+engine positions) while the targets carry ±1 spikes (10–12%
+of positions), so magnitudes barely track even when signs
+agree 74–75% of the time. r is used here ONLY for cross-depth
+comparison (where it is shift-invariant); the in-distribution
+fit measure is sign agreement, as in v24/v37.
+
+
+
