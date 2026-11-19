@@ -478,7 +478,45 @@ forensics turns from ordinary gate-open turns). The
 
 ## 4. v39 evaluation
 
-[To be written.]
+### 4.1 Legs
+
+**vs v27 (clause 1): 45W-46L-9D, 0.4950, Wilson 95% CI
+[0.3990, 0.5914] — FAILS** (win rate < 0.50, CI lower <
+0.50). De-duplicated: 45W-45L-9D over 99 unique games,
+0.5000, CI [0.4034, 0.5966] — also fails. Colour split: as
+Black 21W-23L-6D (0.480); as White 24W-23L-3D (0.510) — no
+White gap this time. Leg progression: 10/10 games 5W-4L-1D,
+24 games 12W-8L-4D, 33 games 13W-16L-4D, 47 games
+18W-23L-6D, 55 games 25W-24L-6D (a 7W-1L run), 69 games
+30W-33L-6D, 83 games 36W-40L-7D, final 45W-46L-9D (the last
+4 games went 3W-1L-0D — a late surge, not enough). The leg
+was interrupted twice by VM replacements and resumed from
+the partial files (games 34 and 96); per-game seeding
+reproduces the uninterrupted run exactly.
+
+**vs v0: 90W-3L-7D, 0.9350, CI [0.8688, 0.9690].**
+De-duplicated: 39W-2L-7D over 48 unique games, 0.8854, CI
+[0.7656, 0.9481] (the usual vs-v0 collapse — engine
+determinism, not seed-replay). Colour split: as Black
+42W-3L-5D (0.890); as White 48W-0L-2D (0.980). Losses at
+games 20, 44, 60 (all as Black). v27's vs-v0 was 96W-3L-1D
+(0.9650) — v39 draws 6 more games than v27 against v0.
+The check still costs wins against a weak opponent (the
+draws), even after the §3.3 refinement.
+
+**swap vs v27: [in progress].**
+
+### 4.2 Ladder
+
+[To be run.]
+
+### 4.3 Tactical
+
+[To be run.]
+
+### 4.4 Defence classification
+
+[To be run.]
 
 ## 5. Bar check (v39 vs v27)
 
