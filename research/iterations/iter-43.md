@@ -52,6 +52,14 @@ code was ported into this worktree — reuse, don't re-derive):**
 - `ml/scripts/find_losing_moves.py`: v31's parameterised version
   (takes match files as arguments), copied VERBATIM from
   `gomoku-ml3-h2` (sha256 `1f1ca6cc…` matches iter-37's record).
+- `ml/gomoku_ml/mcts_heuristic.py`: `_rollout2_leaf_value`
+  (v37's 2-ply label function — the ONLY diff from master in
+  this file), ported VERBATIM from `gomoku-ml3-h2`. Found
+  missing when the §2 spot re-labelling first ran
+  (`AttributeError: ... has no attribute '_rollout2_leaf_value'`
+  — the task's port list did not include it, because it lives
+  in a master file rather than a script); this tree's file is
+  now BYTE-IDENTICAL to `gomoku-ml3-h2`'s.
 - `ml/gomoku_ml/mcts_value.py`: the per-version `value_weight`
   port (ML batch 1 H1's change), applied by hand to this tree's
   file — the SAME 4-hunk shape as v37's (docstring,
@@ -410,7 +418,22 @@ selfplay_batch.py --engine-a v43 --engine-b v7 --games 100 --swap-rule --placeme
 
 ## 2. Data verification (actuals)
 
-TODO — fill in when §2 runs: spot re-labelling result.
+**Shard counts + label stats: PASS (§0).** v37's shards copied
+verbatim; every cell matches iter-37 §2 exactly (37,227
+positions, 33,849 train / 3,378 holdout, mean|v| 0.1570 /
+0.1775 / 0.4022 by source).
+
+**Spot re-labelling: PASS — 0 mismatches.** The ported label
+phase (`generate_distill_data.py label --label-mode rollout2`)
+re-ran on 20 games (7 v7 + 7 v18 + 6 random, the first games of
+each source — all train shards, no holdout routing) and the
+regenerated shards match v37's shards EXACTLY (888 quiet
+positions; planes, policy, value, moves, winner all
+bit-identical). Master's rollout-leaf teacher (with the ported
+`_rollout2_leaf_value`) is the same function v37 distilled —
+no teacher drift. (First attempt failed with `AttributeError`
+on the missing `_rollout2_leaf_value` — see the §0 port note;
+after the verbatim port, labelling took 21 s for the 20 games.)
 
 ## 3. Training (actuals)
 
