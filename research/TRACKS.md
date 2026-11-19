@@ -167,8 +167,21 @@ the heuristic. The work continues autonomously; he runs nothing.
   is the top ML-track risk (v37/v38 nets collapse without history
   planes; v24's is robust). Per-game seeding verified in
   production (9+ VM replacements, zero games lost; vs-v0 legs
-  now 95–100 unique). Batch 11 (heuristic) is next, with the
-  ladder re-based to 40 games per leg.
+  now 95–100 unique). Batch 11 (heuristic) complete 2026-11-19:
+  0/3; v39 closest (0.495 vs v27 — a coin flip); v40's handed
+  hypothesis refuted (the leaf does NOT mis-rank — it ranks the
+  unsafe move worst; the mis-ranking lives in backed-up root q /
+  visit allocation); v41's White forensics found no patchable
+  mechanism (the "White gap" is matchup-dependent). Setup-
+  prevention in this form and the leaf-blind direction are now
+  CLOSED; the White gap as a single-flaw framing is also closed.
+  The 40-game ladder re-basing worked (no saturation, intervals
+  narrowed; v39/v40 posted identical legs). Two defects recorded:
+  v35's _leaves_opp_vcf has a hole (VCF starts are NOT monotone
+  under our move) and exact leaf values break the tie-break
+  (v40's v1bl-g2 regression). ML batch 4 is next: history
+  robustness (v24 recipe + v37 net) and 3-ply labels, with
+  opening variety for ML-vs-ML legs.
 - **Dataset-dedup finding (ML batch 1):** the "10k dataset" is
   3,244 unique games, not 7,099 — and v8's "4,350" was 1,449
   unique. The B1 parallel generator seeds worker *w* with
@@ -184,3 +197,4 @@ the heuristic. The work continues autonomously; he runs nothing.
 | 2026-11-16 | v18 | v8 | 22–16–2 (40 games) | 0.575 [0.422, 0.715] | Daily #1 (NORMAL rules — last one; series switches to swap from 2026-11-17): v18 as Black 17–2–1, as White 5–14–1; Black won 31/40; CI still includes 0.50 (n=40 can't prove the edge alone); ML win rate 0.425 vs probe 0.30 (within noise) |
 | 2026-11-17 | v18 | v8 | 34–6–0 (40 games) | 0.850 [0.709, 0.929] | Daily #2 — FIRST SWAP-RULES daily (new baseline for the swap series; not comparable to 2026-11-16's normal-rules 0.575): v18 as Black 19–1, as White 15–5; second player took Black 30/40, White 10/40; Black won 24/40; ML win rate 0.15. Under swap the colour edge is neutralised, so 0.85 is a cleaner strength signal — the gap is wider than the normal-rules number suggested. CI excludes 0.50: first daily where the heuristic edge is statistically clear. |
 | 2026-11-18 | v18 | v8 | 34–5–1 (40 games) | 0.8625 [0.724, 0.938] | Daily #3 — swap rules: v18 as Black 18–1, as White 16–4–1; second player took Black 33/40, White 7/40; Black won 22/40, White 17, 1 draw. ML win rate 0.125 (5/40) vs 0.15 yesterday — no movement toward 0.50; CI still excludes 0.50. ~107 min (ran alongside ML batch 3). |
+| 2026-11-19 | v18 | v8 | 31–9–0 (40 games) | 0.7750 [0.625, 0.877] | Daily #4 — swap rules: v18 as Black 16–2, as White 15–7; second player took Black 30/40, White 10/40; Black won 23/40, White 17, 0 draws. ML win rate 0.225 (9/40) vs 0.125 yesterday — up, but CIs overlap ([0.625, 0.877] vs [0.724, 0.938]), so within noise; no clear movement toward 0.50 yet. 40/40 unique games. ~36 min (ran alongside batch 11 v39/v40 batteries). |
