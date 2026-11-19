@@ -1,0 +1,875 @@
+{
+  "games": [
+    {
+      "file": "batch-v33-vs-v27.json",
+      "game": 0,
+      "winner_version": 33,
+      "v27_colour": "white",
+      "plies": 35,
+      "turns": [
+        {
+          "ply": 27,
+          "played": [
+            5,
+            11
+          ],
+          "vcf_after": 0,
+          "creators_after": 0,
+          "setups_after": 0,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        },
+        {
+          "ply": 29,
+          "played": [
+            0,
+            6
+          ],
+          "vcf_after": 0,
+          "creators_after": 0,
+          "setups_after": 1,
+          "setups": [
+            [
+              5,
+              9
+            ]
+          ],
+          "preconditioned": true,
+          "capped": false,
+          "tests": [
+            {
+              "move": [
+                5,
+                9
+              ],
+              "source": "setup-square",
+              "vcf": 5,
+              "creators": 0,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                5,
+                6
+              ],
+              "source": "creator-after-setup",
+              "vcf": 14,
+              "creators": 0,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                8,
+                6
+              ],
+              "source": "creator-after-setup",
+              "vcf": 11,
+              "creators": 0,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                6,
+                8
+              ],
+              "source": "creator-after-setup",
+              "vcf": 5,
+              "creators": 0,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                2,
+                9
+              ],
+              "source": "creator-after-setup",
+              "vcf": 11,
+              "creators": 0,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                4,
+                9
+              ],
+              "source": "creator-after-setup",
+              "vcf": 9,
+              "creators": 0,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                7,
+                9
+              ],
+              "source": "creator-after-setup",
+              "vcf": 11,
+              "creators": 0,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                5,
+                10
+              ],
+              "source": "creator-after-setup",
+              "vcf": 14,
+              "creators": 0,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                3,
+                11
+              ],
+              "source": "creator-after-setup",
+              "vcf": 13,
+              "creators": 0,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                4,
+                8
+              ],
+              "source": "1-ply-top5",
+              "vcf": 12,
+              "creators": 0,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                5,
+                3
+              ],
+              "source": "1-ply-top5",
+              "vcf": 16,
+              "creators": 0,
+              "setups": 0,
+              "removes_all": false
+            }
+          ],
+          "removing_moves": []
+        },
+        {
+          "ply": 31,
+          "played": [
+            6,
+            8
+          ],
+          "vcf_after": null,
+          "creators_after": 1,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        },
+        {
+          "ply": 33,
+          "played": [
+            2,
+            9
+          ],
+          "vcf_after": null,
+          "creators_after": 2,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        }
+      ]
+    },
+    {
+      "file": "batch-v33-vs-v27.json",
+      "game": 1,
+      "winner_version": 33,
+      "v27_colour": "black",
+      "plies": 62,
+      "turns": [
+        {
+          "ply": 54,
+          "played": [
+            14,
+            7
+          ],
+          "vcf_after": null,
+          "creators_after": 1,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        },
+        {
+          "ply": 56,
+          "played": [
+            12,
+            3
+          ],
+          "vcf_after": 0,
+          "creators_after": 0,
+          "setups_after": 3,
+          "setups": [
+            [
+              9,
+              1
+            ],
+            [
+              12,
+              1
+            ],
+            [
+              6,
+              4
+            ]
+          ],
+          "preconditioned": true,
+          "capped": false,
+          "tests": [
+            {
+              "move": [
+                9,
+                1
+              ],
+              "source": "setup-square",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                12,
+                1
+              ],
+              "source": "setup-square",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                6,
+                4
+              ],
+              "source": "setup-square",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                13,
+                1
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                5,
+                5
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                14,
+                5
+              ],
+              "source": "1-ply-top5",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                9,
+                0
+              ],
+              "source": "1-ply-top5",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            }
+          ],
+          "removing_moves": []
+        },
+        {
+          "ply": 58,
+          "played": [
+            12,
+            1
+          ],
+          "vcf_after": null,
+          "creators_after": 1,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        },
+        {
+          "ply": 60,
+          "played": [
+            5,
+            5
+          ],
+          "vcf_after": null,
+          "creators_after": 2,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        }
+      ]
+    },
+    {
+      "file": "batch-v33-vs-v27.json",
+      "game": 2,
+      "winner_version": 33,
+      "v27_colour": "white",
+      "plies": 69,
+      "turns": [
+        {
+          "ply": 61,
+          "played": [
+            9,
+            4
+          ],
+          "vcf_after": 1,
+          "creators_after": 0,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        },
+        {
+          "ply": 63,
+          "played": [
+            8,
+            5
+          ],
+          "vcf_after": 3,
+          "creators_after": 0,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        },
+        {
+          "ply": 65,
+          "played": [
+            5,
+            9
+          ],
+          "vcf_after": null,
+          "creators_after": 2,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        },
+        {
+          "ply": 67,
+          "played": [
+            6,
+            12
+          ],
+          "vcf_after": null,
+          "creators_after": 2,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        }
+      ]
+    },
+    {
+      "file": "batch-v33-vs-v27.json",
+      "game": 7,
+      "winner_version": 33,
+      "v27_colour": "black",
+      "plies": 44,
+      "turns": [
+        {
+          "ply": 36,
+          "played": [
+            7,
+            13
+          ],
+          "vcf_after": 0,
+          "creators_after": 0,
+          "setups_after": 3,
+          "setups": [
+            [
+              9,
+              3
+            ],
+            [
+              12,
+              6
+            ],
+            [
+              5,
+              10
+            ]
+          ],
+          "preconditioned": true,
+          "capped": false,
+          "tests": [
+            {
+              "move": [
+                9,
+                3
+              ],
+              "source": "setup-square",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                12,
+                6
+              ],
+              "source": "setup-square",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                5,
+                10
+              ],
+              "source": "setup-square",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                8,
+                2
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                13,
+                7
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                3,
+                10
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                7,
+                10
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                6,
+                12
+              ],
+              "source": "1-ply-top5",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                5,
+                4
+              ],
+              "source": "1-ply-top5",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                4,
+                4
+              ],
+              "source": "1-ply-top5",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                6,
+                4
+              ],
+              "source": "1-ply-top5",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            }
+          ],
+          "removing_moves": []
+        },
+        {
+          "ply": 38,
+          "played": [
+            12,
+            2
+          ],
+          "vcf_after": 0,
+          "creators_after": 0,
+          "setups_after": 4,
+          "setups": [
+            [
+              9,
+              3
+            ],
+            [
+              11,
+              4
+            ],
+            [
+              12,
+              6
+            ],
+            [
+              5,
+              10
+            ]
+          ],
+          "preconditioned": true,
+          "capped": false,
+          "tests": [
+            {
+              "move": [
+                9,
+                3
+              ],
+              "source": "setup-square",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                11,
+                4
+              ],
+              "source": "setup-square",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                12,
+                6
+              ],
+              "source": "setup-square",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                5,
+                10
+              ],
+              "source": "setup-square",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                8,
+                2
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                10,
+                3
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                11,
+                2
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                11,
+                6
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                13,
+                7
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                3,
+                10
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                7,
+                10
+              ],
+              "source": "creator-after-setup",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            },
+            {
+              "move": [
+                8,
+                6
+              ],
+              "source": "1-ply-top5",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                13,
+                1
+              ],
+              "source": "1-ply-top5",
+              "vcf": null,
+              "creators": 0,
+              "setups": 1,
+              "removes_all": false
+            },
+            {
+              "move": [
+                5,
+                4
+              ],
+              "source": "1-ply-top5",
+              "vcf": null,
+              "creators": 1,
+              "setups": 0,
+              "removes_all": false
+            }
+          ],
+          "removing_moves": []
+        },
+        {
+          "ply": 40,
+          "played": [
+            3,
+            12
+          ],
+          "vcf_after": null,
+          "creators_after": 3,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        },
+        {
+          "ply": 42,
+          "played": [
+            7,
+            1
+          ],
+          "vcf_after": null,
+          "creators_after": 3,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        }
+      ]
+    },
+    {
+      "file": "batch-v33-vs-v27.json",
+      "game": 8,
+      "winner_version": 33,
+      "v27_colour": "white",
+      "plies": 79,
+      "turns": [
+        {
+          "ply": 71,
+          "played": [
+            5,
+            2
+          ],
+          "vcf_after": 4,
+          "creators_after": 0,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        },
+        {
+          "ply": 73,
+          "played": [
+            1,
+            2
+          ],
+          "vcf_after": 3,
+          "creators_after": 0,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        },
+        {
+          "ply": 75,
+          "played": [
+            3,
+            5
+          ],
+          "vcf_after": null,
+          "creators_after": 2,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        },
+        {
+          "ply": 77,
+          "played": [
+            5,
+            3
+          ],
+          "vcf_after": null,
+          "creators_after": 2,
+          "setups_after": null,
+          "setups": [],
+          "preconditioned": false,
+          "capped": false,
+          "tests": [],
+          "removing_moves": []
+        }
+      ]
+    }
+  ],
+  "meta": {}
+}
