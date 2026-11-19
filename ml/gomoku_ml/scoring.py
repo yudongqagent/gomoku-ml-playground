@@ -457,6 +457,17 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h1/value-net.pt",
          "value_weight": 0.5},
+    # v37 (iteration 37, ML batch 3) — HARNESS-ONLY entry for the
+    # v42-vs-v37 secondary leg of ML batch 4; v37 is not a shipped
+    # version on this branch. v8's PUCT MCTS with the value net
+    # distilled from v18's rollout leaf on 2-ply deeper-teacher
+    # labels; value_weight 0.25 is the ML-batch-3 α-sweep winner.
+    # Checkpoint copied verbatim from gomoku-ml3
+    # (md5 2fde492aae6d44cbe945e15bd5f1f959).
+    37: {"name": "scoring-v37", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml3-h2/value-net.pt",
+         "value_weight": 0.25},
 }
 
 # --- weights --------------------------------------------------------------
