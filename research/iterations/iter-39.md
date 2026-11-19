@@ -504,24 +504,124 @@ games 20, 44, 60 (all as Black). v27's vs-v0 was 96W-3L-1D
 The check still costs wins against a weak opponent (the
 draws), even after the §3.3 refinement.
 
-**swap vs v27: [in progress].**
+**swap vs v27: 55W-35L-10D, 0.6000, CI [0.5020, 0.6906].**
+De-duplicated: 53W-35L-10D over 98 unique games, 0.5918, CI
+[0.4929, 0.6839] — the de-dup CI does NOT clear 0.50 (lower
+0.4929), so the swap edge is not robust to de-duplication.
+Colour split: as Black 35W-14L-3D (0.702); as White
+20W-21L-7D (0.490) — the White gap persists (v39-as-White
+is a tie; v39-as-Black dominates). Under swap rules v39
+beats v27 (like v35's 0.62); under normal rules it ties
+(0.495). The swap rule neutralises the first-move edge and
+lets the check's skill show — but swap is a secondary
+metric, not a bar clause. Leg progression: 17 games
+10W-7L-0D, 33 games 18W-14L-1D, 50 games 25W-20L-5D, 68
+games 36W-25L-7D, 82 games 46W-28L-8D, final 55W-35L-10D.
 
 ### 4.2 Ladder
 
-[To be run.]
+**Elo 636.4, interval [332.1, 940.8] — TIES v27's 636.4,
+does not exceed it — FAILS clause 2.** Legs (40
+games/opponent, re-based this batch): random 40W-0L-0D
+(saturated); heuristic **38W-0L-2D** (0.9750 — the same
+rate as v27's 19W-0L-1D at 20 games, so the point estimate
+is identical; the interval narrows with 40 games but the
+estimate ties); mcts **32W-8L-0D** (0.8000 — a strength
+signal, not an Elo input; as Black 19W-1L-0D, as White
+13W-7L-0D — the White gap again). The 2 heuristic draws
+(as Black) are what a pass needed to avoid: v34's 20-0
+heuristic leg (the only one ever) is what a saturated pass
+needs, and at 40 games a 40-0 leg would be needed. The
+ladder was interrupted once by a VM replacement and
+resumed from the MCTS leg (auto-resume, RNG state
+restored); the ladder JSON is a committed artifact.
 
 ### 4.3 Tactical
 
-[To be run.]
+**20/20 old + 29/29 hard on the corrected suite
+(`eval_tactical_full.py --version 39 --suite both --seed
+100`) — clause 3 PASSES.** Including the corrected
+winning-quiet-setup-2, where v39 plays (9,7). The setup
+check does not disturb tactical play (the check's gate is
+closed on tactical positions — the opponent holds creators
+or VCF starts there, not bare setups).
 
 ### 4.4 Defence classification
 
-[To be run.]
+Pooled over the 3 battery legs (84 v39 losses): **all 84
+via open four; 0 missed blocks; 2 clean missed
+preventions in 399 threatened turns in losses (0.5%)**.
+Per leg: vs v27 — 46 losses, all via open four, 0 missed
+blocks, 0 clean missed preventions in 208 threatened
+turns; vs v0 — 3 losses, all via open four, 0 missed
+blocks, 0 in 14 threatened turns; swap vs v27 — 35
+losses, all via open four, 0 missed blocks, 2 clean missed
+preventions in 177 threatened turns (1.1% — swap games 15
+ply 18 and 72 ply 27; both are creator-prevention misses,
+outside the setup check's gate, which is closed when
+creators exist). Defence stays solved.
 
 ## 5. Bar check (v39 vs v27)
 
-[To be written.]
+| Clause | Requirement | v39 result | Verdict |
+|---|---|---|---|
+| 1 | h2h vs v27 ≥ 100 games, win rate > 0.50, Wilson 95% CI lower > 0.50 | 45W-46L-9D, 0.4950, CI [0.3990, 0.5914] (de-dup: 45W-45L-9D over 99 unique, 0.5000, CI [0.4034, 0.5966]) | **FAIL** |
+| 2 | Ladder Elo > 636.4 | Elo 636.4, interval [332.1, 940.8] — TIES v27, does not exceed | **FAIL** |
+| 3 | Tactical ≥ 20/20 + 29/29 (corrected suite) | 20/20 old, 29/29 hard | **PASS** |
+| 4 | All test suites green | pytest 411 passed, 7 skipped, 58 xfailed, 0 failures; npm 55/55; tsc clean; baseline.py untouched | **PASS** |
+
+**v39 is REJECTED, 2/4 clauses.** No v18 challenge match
+is triggered (it requires all 4 clauses). v18 stays the
+strength champion; v27 stays the bar reference.
 
 ## 6. What this means
 
-[To be written.]
+**The forensics was right; the patch was real; the bar was
+too high for it — and the check's cost roughly cancels its
+benefit.** The setup-signature mining found 2 new verified
+instances (g46, g87) and the turn workups verified the
+leaf-blind mechanism on 4 saving turns: in quiet setup-rich
+positions the rollout leaf ranks the losing move above the
+saving move, and the check reproduces the save at 2 of
+those 4 turns. The battery confirms the mechanism works in
+one direction: under swap rules v39 beats v27 (0.60, CI
+clear of 0.50 nominally), and the MCTS ladder leg is strong
+(32-8). But under normal rules v39 ties v27 (0.495) — the
+check's passive cost (it fires on ~6% of moves, and most
+setups never mature into wins) cancels the rare saves it
+produces. The vs-v0 leg shows the cost directly: v39 draws
+7 games against v0 (v27 drew 1), all full-board draws where
+the check's overrides kept v39 from converting.
+
+**The setup-prevention lever is now CLOSED as a strength
+lever for the v27 family, in this form.** The check fires
+too often (~6% of moves) for a mechanism that matters in
+~0.3% of turns, and no verified discriminator separates
+the positions where it helps from the positions where it
+hurts: the gate (opponent holds setups) is open 10–50% of
+turns, the saves don't share an exact signature (3 of 5 are
+full removals, 1 partial, 1 removes nothing), and the
+leaf's q cannot gate the check because the leaf is wrong
+in exactly the positions the check targets. The ≥2-visits
+refinement (§3.3) removed the no-evidence overrides and
+recovered 2 of 3 fast-loop draws vs v0, but the battery
+shows the remaining cost still cancels the benefit. A
+future version would need a discriminator the forensics
+did not find — or a leaf fix, which is infeasible at
+acceptable cost (a setups computation per leaf call).
+
+**Durable findings for the program.** (1) VCF starts are
+NOT monotone under our move (occupying a setup square can
+CREATE opponent VCF starts by removing one of our own
+defensive replies) — any future check must full-re-check
+VCF after the candidate move; v35's `_leaves_opp_vcf`
+(original-starts subset) has this hole. (2) An immediate
+winning move IS a VCF start but is NOT necessarily a
+four-creator — the fast VCF test must check winning moves
+first (the verification audit caught this). (3) The
+window-filtered setups computation is exact (0 mismatches
+in 2951 + 134 A/B comparisons) and fast enough for a
+root-level check (~0.3s), but not for leaf or rollout use.
+(4) The instrumented replay (fire log + per-game seeding)
+reproduces games exactly and attributes check fires to
+positions — the diagnostic method for any future check.
