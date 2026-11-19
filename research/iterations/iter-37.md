@@ -769,4 +769,149 @@ is what the battery measures, and it is fixed.
   non-transitivity (contrast v26/v31, which tied v7 while
   losing to v8).
 
-TODO — verdict.
+### 6.5 Secondary: swap vs v7 — COMPLETE 2026-11-18 ~16:30 PST
+
+`selfplay_batch.py --version-a 37 --opponent v7 --games 100
+--swap --placement-seed 11 --judge tempo` (raw
+`research/iterations/batch-v37-vs-v7-swap.json`):
+
+- **42W-54L-4D, 0.4400, CI [0.3467, 0.5377].** Under the official
+  swap rule, v37 loses to v7 by the same margin as under normal
+  rules (0.45) — the swap does not change this pairing's
+  verdict (contrast v23, whose swap result was its strongest).
+- Placement seed 11 confirmed in the JSON (the pre-registered
+  seed, not 0); tempo judge; v37 played Black in 52 games and
+  White in 48 — the judge split sides near-evenly. Black won
+  only 45/100 (vs 62/100 under normal rules) — the swap rule
+  neutralises the first-move edge as intended.
+- Uniqueness audit: **100 unique games of 100** — perfect
+  uniqueness (the balanced placements diversify every game);
+  de-dup = nominal.
+- **One VM replacement during the leg** (killed after game 91);
+  auto-resumed from game 92.
+
+### 6.6 Ladder (clause 2) — COMPLETE 2026-11-18 ~16:50 PST — **CLAUSE 2 FAILS**
+
+`eval_version.py --version 37 --ladder-games 20 --seed 100 --out
+research/iterations/ladder-v37.json` (ran clean in one go, no
+VM kill; the ladder's own tactical check re-confirmed 20/20 on
+the old suite):
+
+| leg | result | win rate | CI |
+|---|---|---|---|
+| vs random | 20W-0L-0D | 1.000 | [0.8389, 1.0] |
+| vs heuristic (v0) | 9W-11L-0D | 0.450 | [0.2582, 0.6579] |
+| vs mcts (100 sims) | 11W-8L-1D | 0.575 | [0.3641, 0.7617] |
+
+- **Ladder Elo estimate −34.9, interval [−183.3, 113.6]** —
+  below 0.0, so **clause 2 FAILS**. The estimate comes solely
+  from the 20-game heuristic leg (the random leg saturates at
+  20–0, no finite Elo; the MCTS leg has no anchor).
+- **v37 beats the ladder MCTS 0.575** (elo_diff +52.5) — only
+  v18 had ever done that before. As Black 6W-3L-1D, as White
+  5W-5L-0D.
+- **The tension, stated plainly:** the ladder's heuristic leg
+  (9–11, 0.45) and the 100-game battery vs the SAME opponent
+  (v0 = heuristic, same seeds 100/200: 56–39–5, **0.585**, CI
+  [0.487, 0.6767]) disagree. They are statistically consistent
+  — the CIs overlap heavily, and under a true 0.585 rate,
+  P(≤9 wins in 20) ≈ 0.26, an ordinary cold draw. The 20-game
+  leg decides clause 2 with a ±~180 Elo interval, so any
+  version near 0 Elo is close to a coin flip on this clause:
+  v24 passed at +52.5 on a 0.575 leg; v37 fails at −34.9 on a
+  0.45 leg — a ~2.5-game difference out of 20. Meanwhile the
+  100-game evidence says v37 >> v24 vs v8 (0.75 vs 0.515) and
+  v37 ≈ v24 vs v0 (0.585 vs 0.600).
+- **No seed-shopping:** the ladder seed (100) and 20 games/leg
+  were pre-registered; re-running at another seed to hunt a
+  passing number would be illegitimate. The verdict below
+  records clause 2 as FAILED as pre-registered, with this
+  context for the coordinator: the program may want to revisit
+  the ladder leg size (a program-level decision — it breaks
+  Elo comparability unless historical versions are re-measured,
+  as already flagged for batch 11).
+
+### 6.7 Clause 4 re-run — COMPLETE 2026-11-18 ~17:20 PST — **CLAUSE 4 PASSES**
+
+Re-run on the final tree (the registry `value_weight` change to
+0.25 post-dated the early check, so a re-run was required):
+
+- ml pytest: **428 passed, 1 skipped, 58 xfailed, 0 failed**
+  (8:42, log `ml/runs/ml3-h2/pytest-final.log`) — identical to
+  the early check.
+- npm test: **55/55 passed.**
+- tsc `--noEmit`: **clean.**
+
+## 7. Verdict
+
+**v37 is REJECTED by the 4-clause bar — it fails clause 2 only
+(ladder Elo −34.9 < 0.0).** Clauses 1, 3, and 4 all pass.
+
+| clause | requirement | v37 | verdict |
+|---|---|---|---|
+| 1 | vs v8 ≥100 games, wr > 0.50, CI lower > 0.50 | 72W-22L-6D, 0.7500, CI [0.6570, 0.8245] | **PASS** |
+| 2 | ladder Elo > 0.0 | −34.9, interval [−183.3, 113.6] | **FAIL** |
+| 3 | tactical ≥ 20/20 + 29/29 | 20/20 + 29/29 | **PASS** |
+| 4 | ml pytest, npm test, tsc green | 428p/1s/58x, 55/55, clean | **PASS** |
+
+**What v37 proved anyway — the strongest ML result in the
+program so far:**
+
+- **First ML version ever to beat v8 head-to-head with a CI
+  clear of 0.50** (0.75, CI lower 0.657). v24 tied 0.515, v30
+  tied 0.525, v31 lost 0.40. The sweep (0.75) and fast loop
+  (0.70) reproduced at full sample — no smokes-mislead effect
+  this time.
+- **A clean causal comparison:** v37 differs from v24 in ONE
+  thing — the label (2-ply vs 1-ply rollout-leaf). Same 817
+  games, same 37,227 positions, same holdout split, same
+  architecture, same training recipe. The +0.235 vs v8 is the
+  label effect. The hypothesis is confirmed: 2-ply labels teach
+  the quiet setups that 1-ply labels miss.
+- **The quiet-setup failure is FIXED at engine level:**
+  setup-v1v0s-g92 passes — v37 chooses (9,6) with 69 visits and
+  our-q +0.244 vs (5,4)'s 5 visits, +0.077. v31's inversion is
+  gone and reversed. The fix works through the subtree (the raw
+  net still slightly prefers (5,4), gap closed to 0.026).
+- **No White collapse:** White 0.62 vs v8, 0.44 vs v0. (White
+  vs v7, 0.31, remains the weakest split.)
+- **Beats the ladder MCTS** (0.575) — only v18 had done that.
+- **Transitive ordering:** v7 > v37 > v8 > v0, no bad
+  non-transitivity.
+
+**Why clause 2 failed (§6.6):** the ladder Elo comes solely
+from a 20-game leg vs the heuristic anchor, and v37 drew a cold
+leg (9–11). The 100-game battery vs the same opponent says
+0.585. The interval [−183.3, 113.6] includes 0 and positive
+values. The failure is within the leg's noise — but the bar is
+the bar, and the point estimate is the criterion, so v37 does
+not take the ML champion title. **v8 stays the ML champion,
+and the daily cross-track match is unchanged.**
+
+**What the next batch should try for this direction:**
+
+1. **History augmentation / history-dropout** (§4): the v37 net
+   collapses on engine positions without history planes (v7
+   0.7395 → 0.5163) while v24's net is history-robust. The
+   deeper labels are harder to fit from the current board, so
+   the optimizer grabbed the history shortcut. Randomly
+   dropping history planes during training (or training a
+   no-history view as an auxiliary) is the most direct
+   follow-up. No battery loss implicated it, so this is
+   motivated by the holdout finding, not by a loss.
+2. **White-side play vs strong heuristic opponents** is now the
+   binding weakness (White 0.31 vs v7, 0.44 vs v0, vs Black
+   0.59/0.73). Colour-balanced labelling or extra White-to-move
+   positions in training are the candidates — NOT B1 data,
+   which collapses White.
+3. **Ladder leg size (program decision):** the 20-game heuristic
+   leg decides clause 2 with ±~180 Elo noise. Either more games
+   per leg or a second anchor — with the re-basing cost already
+   flagged for batch 11.
+4. **3-ply labels** are the natural extension but not the
+   priority: labelling cost scales ~1.6x per ply and the
+   marginal label information shrinks (2-ply already captures
+   the quiet setups). Do (1) and (2) first.
+5. **Do NOT retry:** bigger nets, learned priors, more B1 data,
+   VCF-at-root — all closed levers, and none of them addresses
+   v37's actual weaknesses.
