@@ -41,23 +41,126 @@ from . import augment
 from .model import GomokuNet
 
 
+_MMAP_FILES = ("planes.npy", "policy.npy", "values.npy")
+
+# History planes of the 8-plane encoding (see encoding.py): plane 2 is
+# the last-move one-hot, planes 4-5 the board 2 plies ago, planes 6-7
+# the board 4 plies ago. Same tuple as eval_value_holdout.py's
+# _HISTORY_PLANES (the no-history view zeroes exactly these planes),
+# so training-time dropout and the holdout gate measure the same
+# intervention.
+HISTORY_PLANES = (2, 4, 5, 6, 7)
+
+
+def drop_history_planes(
+    batch_planes: np.ndarray,
+    rng: np.random.Generator,
+    rate: float,
+) -> np.ndarray:
+    """Zero the history planes on a per-sample Bernoulli(rate) draw.
+
+    ML batch 4 (v43): v37's net collapses without history planes
+    (v7 holdout 0.7395 -> 0.5163), so training randomly presents
+    samples with NO history, forcing the trunk to read the value
+    from the current board (planes 0, 1, 3) alone. The draw is per
+    sample and fresh every epoch (the caller passes the training
+    loop's rng); when a sample is drawn, ALL history planes are
+    zeroed jointly — matching the holdout gate's no-history view.
+    ``rate`` 0.0 is a no-op; 1.0 trains a history-free net. The
+    batch is modified in place (it is the loop's fresh per-batch
+    copy) and returned.
+    """
+    if rate <= 0.0:
+        return batch_planes
+    if rate > 1.0:
+        raise ValueError(f"history_dropout rate must be <= 1.0, got {rate}")
+    drop = rng.random(len(batch_planes)) < rate
+    rows = np.flatnonzero(drop)
+    if len(rows):
+        batch_planes[rows[:, None], list(HISTORY_PLANES)] = 0.0
+    return batch_planes
+
+
+def _load_mmap_bundle(data_dir: str) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    """Load a memmap bundle built by ``ml/scripts/build_mmap_bundle.py``.
+
+    Returns ``(planes, policy, values)`` as read-only memmaps when
+    ``data_dir`` contains all three bundle files, else ``None``.
+    Raises ``ValueError`` on a partial bundle (never silently mix a
+    bundle with ``.npz`` shards).
+    """
+    present = [f for f in _MMAP_FILES if os.path.exists(os.path.join(data_dir, f))]
+    if not present:
+        return None
+    if len(present) != len(_MMAP_FILES):
+        raise ValueError(
+            f"partial memmap bundle in {data_dir}: found {present}, "
+            f"expected {_MMAP_FILES}"
+        )
+    return tuple(
+        np.load(os.path.join(data_dir, f), mmap_mode="r") for f in _MMAP_FILES
+    )
+
+
 def load_shards(data_dirs: list[str]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Load all ``.npz`` shards under the given directories (recursive)
-    and concatenate them into (planes, policy, value) arrays."""
-    planes_list, policy_list, value_list = [], [], []
+    and concatenate them into (planes, policy, value) arrays.
+
+    When a single data directory contains a memmap bundle
+    (``planes.npy``/``policy.npy``/``values.npy``, built by
+    ``ml/scripts/build_mmap_bundle.py``), the bundle is returned as
+    read-only memmaps instead — same content, same order, ~200 MB of
+    anonymous memory instead of the full dataset size. The training
+    loop indexes the returned arrays lazily (see ``train``), so a
+    memmap never materialises a full in-RAM copy.
+
+    Peak memory is ~1x the data size, not ~2x: the outputs are
+    pre-allocated from a shapes-only first pass (``np.load`` is lazy
+    — reading ``.shape`` does not read array data) and filled shard
+    by shard, instead of building per-shard lists and calling
+    ``np.concatenate`` (which holds the lists AND the copy alive at
+    once). Same return contract as before (same arrays, same order,
+    same dtypes — the dtypes come from the first shard). This matters
+    at 10k-game scale: the v25 training load is ~3.1 GB, and the old
+    ~6.2 GB peak exceeded this VM's cell limit (OOM-killed 2026-11-16
+    — see ``research/iterations/iter-25.md`` §2.4).
+    """
+    if len(data_dirs) == 1:
+        bundle = _load_mmap_bundle(data_dirs[0])
+        if bundle is not None:
+            return bundle
+    paths: list[str] = []
     for d in data_dirs:
-        for path in sorted(glob.glob(os.path.join(d, "**", "*.npz"), recursive=True)):
-            with np.load(path) as z:
-                planes_list.append(z["planes"])
-                policy_list.append(z["policy"])
-                value_list.append(z["value"])
-    if not planes_list:
+        paths.extend(
+            sorted(glob.glob(os.path.join(d, "**", "*.npz"), recursive=True))
+        )
+    if not paths:
         raise FileNotFoundError(f"no .npz shards found under {data_dirs}")
-    return (
-        np.concatenate(planes_list),
-        np.concatenate(policy_list),
-        np.concatenate(value_list),
-    )
+    total = 0
+    plane_shape = policy_shape = value_shape = None
+    plane_dtype = policy_dtype = value_dtype = None
+    for path in paths:
+        with np.load(path) as z:
+            total += z["planes"].shape[0]
+            if plane_shape is None:
+                plane_shape = z["planes"].shape[1:]
+                policy_shape = z["policy"].shape[1:]
+                value_shape = z["value"].shape[1:]
+                plane_dtype = z["planes"].dtype
+                policy_dtype = z["policy"].dtype
+                value_dtype = z["value"].dtype
+    planes = np.empty((total,) + plane_shape, dtype=plane_dtype)
+    policy = np.empty((total,) + policy_shape, dtype=policy_dtype)
+    values = np.empty((total,) + value_shape, dtype=value_dtype)
+    offset = 0
+    for path in paths:
+        with np.load(path) as z:
+            n = z["planes"].shape[0]
+            planes[offset : offset + n] = z["planes"]
+            policy[offset : offset + n] = z["policy"]
+            values[offset : offset + n] = z["value"]
+            offset += n
+    return planes, policy, values
 
 
 def save_checkpoint(
@@ -144,6 +247,7 @@ def train(
     value_weight: float = 1.0,
     warmup_steps: int = 10,
     augmentation: bool = True,
+    history_dropout: float = 0.0,
     val_fraction: float = 0.05,
     device: str = "cpu",
     checkpoint_dir: str | None = None,
@@ -176,6 +280,12 @@ def train(
     restarting a fresh decay over the remaining epochs. (Passing the
     run's total epoch count here is only correct when the run ends at
     that epoch; the CLI passes ``start_epoch + epochs``.)
+
+    ``history_dropout``: per-sample probability (0.0-1.0) that a
+    training batch sample has its history planes (2, 4-7) zeroed
+    before the forward pass — see :func:`drop_history_planes`.
+    0.0 (default) reproduces the pre-dropout training exactly.
+    Validation is always full-planes.
     """
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
@@ -187,8 +297,14 @@ def train(
     perm_all = rng.permutation(n)
     n_val = int(round(n * val_fraction)) if val_fraction > 0 else 0
     val_idx, train_idx = perm_all[:n_val], perm_all[n_val:]
-    x_tr, p_tr, z_tr = planes[train_idx], policy_targets[train_idx], values[train_idx]
-    n_tr = len(x_tr)
+    # Lazy indexing: batches index the full arrays via train_idx
+    # (``planes[train_idx[idx]]``) instead of materialising 95%
+    # copies (``planes[train_idx]``). Same batches, same order, same
+    # RNG stream — but no ~2.9 GB copy at 10k-game scale, and a
+    # memmap input is never pulled fully into RAM. The per-batch
+    # fancy index returns a fresh writable copy (augmentation and
+    # torch.from_numpy both need one).
+    n_tr = len(train_idx)
 
     steps_per_epoch = max(1, (n_tr + batch_size - 1) // batch_size)
     if schedule_epochs is not None:
@@ -228,15 +344,24 @@ def train(
                 interrupted = True
                 break
             idx = perm[i : i + batch_size]
-            batch_planes = x_tr[idx]
-            batch_policy = p_tr[idx]
+            gidx = train_idx[idx]
+            batch_planes = planes[gidx]
+            batch_policy = policy_targets[gidx]
             if augmentation:
                 batch_planes, batch_policy = augment.random_augment_batch(
                     batch_planes, batch_policy, rng
                 )
+            if history_dropout > 0.0:
+                # After augmentation (zeroing commutes with the
+                # dihedral transform; applied here so the dropped
+                # view is what the forward pass sees). Validation
+                # is always full-planes (checkpoint selection uses
+                # the standard view; the no-history gate is measured
+                # separately on the holdout).
+                drop_history_planes(batch_planes, rng, history_dropout)
             x = torch.from_numpy(np.ascontiguousarray(batch_planes)).to(device_t)
             pt = torch.from_numpy(np.ascontiguousarray(batch_policy)).to(device_t)
-            z = torch.from_numpy(z_tr[idx]).to(device_t).unsqueeze(1)
+            z = torch.from_numpy(values[gidx]).to(device_t).unsqueeze(1)
             current_lr = lr_at(step, epoch)
             for group in optimizer.param_groups:
                 group["lr"] = current_lr

@@ -58,6 +58,18 @@ def test_bad_values_error_with_key_name():
         resolve_config({"eval": {"opponents": ["stockfish"]}})
 
 
+def test_history_dropout_default_and_validation():
+    # ML batch 4 (v43): history-plane dropout during training.
+    cfg = resolve_config({})
+    assert cfg["train"]["history_dropout"] == 0.0
+    cfg = resolve_config({"train": {"history_dropout": 0.5}})
+    assert cfg["train"]["history_dropout"] == 0.5
+    with pytest.raises(ConfigError, match="train.history_dropout"):
+        resolve_config({"train": {"history_dropout": 1.5}})
+    with pytest.raises(ConfigError, match="train.history_dropout"):
+        resolve_config({"train": {"history_dropout": -0.1}})
+
+
 def test_unknown_keys_error():
     with pytest.raises(ConfigError, match="unknown top-level"):
         resolve_config({"surprise": 1})

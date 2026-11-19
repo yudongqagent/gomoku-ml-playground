@@ -438,6 +438,29 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v37 (iteration 37, ML batch 3): H2 — v8's PUCT MCTS with a
+    # value net trained on 2-ply rollout-leaf labels (see
+    # research/iterations/iter-37.md). Registered HERE ONLY as the
+    # comparison engine for v43's secondary head-to-head (same
+    # positions/labels, only the training procedure differs);
+    # v37 was never merged to master. α=0.25 is its swept winner.
+    37: {"name": "scoring-v37", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml3-h2/value-net.pt",
+         "value_weight": 0.25},
+    # v43 (iteration 43, ML batch 4): H2 — v8's PUCT MCTS with a
+    # value net trained on v37's 2-ply rollout-leaf labels (same
+    # 817 games / 37,227 positions as v24/v37) WITH history-plane
+    # dropout (p=0.5, planes 2, 4-7 zeroed jointly per sample per
+    # epoch) so the net is robust to missing history — v37's net
+    # collapses without history planes (v7 holdout 0.7395 ->
+    # 0.5163). See research/iterations/iter-43.md. value_weight
+    # is the swept α (placeholder 1.0 until the §1.4 sweep sets
+    # it; v37's winner was 0.25).
+    43: {"name": "scoring-v43", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml4-h2/value-net.pt",
+         "value_weight": 1.0},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1049,6 +1072,7 @@ class ScoringPlayer:
                     checkpoint_path=path,
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
                     rng=self.rng,
+                    value_weight=ENGINE_VERSIONS[version].get("value_weight"),
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.

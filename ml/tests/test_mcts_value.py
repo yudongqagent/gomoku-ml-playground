@@ -209,6 +209,39 @@ def test_v8_registered_and_dispatches_to_value_mcts(tmp_path, monkeypatch):
     assert type(v6._mcts) is HeuristicMCTS
 
 
+def test_v43_registered_and_dispatches_to_value_mcts(tmp_path, monkeypatch):
+    # ML batch 4 H2: v43 = v8's search + history-dropout 2-ply net.
+    ckpt = _random_net_checkpoint(tmp_path)
+    monkeypatch.setitem(scoring.ENGINE_VERSIONS[43], "value_checkpoint", ckpt)
+    v43 = scoring.get_player(43, seed=0)
+    assert v43.name == "scoring-v43"
+    assert v43.mcts is True
+    assert isinstance(v43._mcts, ValueMCTS)
+    assert v43._mcts.sims == 100
+    assert v43._mcts.checkpoint_path == ckpt
+    # The registry's value_weight (α) passes through to the MCTS.
+    assert v43._mcts.value_weight == scoring.ENGINE_VERSIONS[43]["value_weight"]
+
+
+def test_v37_registered_as_v43_comparison_engine(tmp_path, monkeypatch):
+    # ML batch 4 H2: v37 is registered ONLY as v43's comparison
+    # engine (same positions/labels, only the training differs).
+    ckpt = _random_net_checkpoint(tmp_path)
+    monkeypatch.setitem(scoring.ENGINE_VERSIONS[37], "value_checkpoint", ckpt)
+    v37 = scoring.get_player(37, seed=0)
+    assert v37.name == "scoring-v37"
+    assert isinstance(v37._mcts, ValueMCTS)
+    assert v37._mcts.value_weight == 0.25  # v37's swept α
+
+
+def test_value_mcts_value_weight_default_and_override(tmp_path):
+    ckpt = _random_net_checkpoint(tmp_path)
+    default = ValueMCTS(checkpoint_path=ckpt, sims=10)
+    assert default.value_weight == 0.25  # v8's VALUE_WEIGHT
+    override = ValueMCTS(checkpoint_path=ckpt, sims=10, value_weight=0.5)
+    assert override.value_weight == 0.5
+
+
 def test_v8_env_override_and_missing_checkpoint(tmp_path, monkeypatch):
     monkeypatch.setenv("GOMOKU_V8_CHECKPOINT", str(tmp_path / "nope.pt"))
     import pytest

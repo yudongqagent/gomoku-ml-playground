@@ -183,6 +183,7 @@ def main() -> int:
             value_weight=float(tr["value_weight"]),
             warmup_steps=int(tr["warmup_steps"]),
             augmentation=bool(tr["augmentation"]),
+            history_dropout=float(tr["history_dropout"]),
             val_fraction=float(tr["val_fraction"]),
             device=args.device,
             checkpoint_dir=run.checkpoint_dir,

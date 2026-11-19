@@ -95,6 +95,7 @@ DEFAULTS: dict = {
         "policy_weight": 1.0,
         "value_weight": 1.0,
         "augmentation": True,
+        "history_dropout": 0.0,
         "val_fraction": 0.05,
         "checkpoint_every_epochs": 0,
     },
@@ -244,6 +245,7 @@ def resolve_config(raw: dict, check_files: bool = True) -> dict:
     _require_number(cfg, "train", "value_weight", minimum=0)
     if not isinstance(tr["augmentation"], bool):
         raise ConfigError(f"train.augmentation must be true/false, got {tr['augmentation']!r}")
+    _require_number(cfg, "train", "history_dropout", minimum=0, maximum=1)
     _require_number(cfg, "train", "val_fraction", minimum=0, maximum=0.5)
     _require_int(cfg, "train", "checkpoint_every_epochs", minimum=0)
 
