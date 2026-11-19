@@ -438,6 +438,29 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v41 (iteration 41, batch 11 H3): the fallback from iter-41
+    # §1.2/§3 — v29 with a CHEAPER defensive VCF check
+    # (``vcf_root_cheap`` in mcts_heuristic._vcf_root_move): the
+    # prevention candidates are limited to the top 8 by (prior
+    # desc, flat index asc), and the re-check on each resulting
+    # board tests only the opponent's ORIGINAL VCF starts (not
+    # all four-creators). The offensive step is unchanged. The
+    # White-side forensics (iter-41 §2) found no patchable
+    # mechanism — White's losses are distributed drift +
+    # no-signature horizon losses, and in self-play White is not
+    # weak at all — so the fallback triggered. The candidate
+    # limit can change the move (a prevention ranking below 8th
+    # is missed, falling through to the search); the
+    # VCF-starts-only re-check is a claimed move-identity,
+    # verified by the mechanism check in iter-41 §3. This is a
+    # COST reduction, not a strength patch: it keeps v29's
+    # tactical fixes while reducing the ~1.65s/move root-check
+    # cost (iter-29 §3.2: fired 29/100, median 90.5ms, p90
+    # 2.94s, max 36.4s).
+    41: {"name": "scoring-v41", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "vcf_root": True,
+         "vcf_root_cheap": True},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1063,6 +1086,9 @@ class ScoringPlayer:
                         "root_decision", "visits"
                     ),
                     vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
+                    vcf_root_cheap=ENGINE_VERSIONS[version].get(
+                        "vcf_root_cheap", False
+                    ),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(

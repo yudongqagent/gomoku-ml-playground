@@ -166,6 +166,10 @@ _ROOT_DECISIONS = (
     "visits", "q", "tie-q", "blend", "tie-prior", "tie-prior-forcing",
 )
 _BLEND_VISIT_WEIGHT = 0.1
+# v41 (batch 11 H3): defensive candidate limit for the cheap VCF
+# check — only the top-K prevention candidates by (prior desc,
+# flat index asc) are tested (see _vcf_root_move docstring).
+_VCF_CHEAP_CANDIDATE_LIMIT = 8
 
 
 class _Node:
@@ -953,6 +957,15 @@ class HeuristicMCTS:
     start is played immediately, and a defensive VCF prevention
     is played when the opponent holds a VCF start. False (the
     default) is v18 behaviour exactly.
+    ``vcf_root_cheap`` (v41, batch 11 H3) applies the cheaper
+    defensive check inside :meth:`_vcf_root_move`: the prevention
+    candidates are limited to the top 8 by (prior desc, flat
+    index asc), and the re-check on each resulting board tests
+    only the opponent's ORIGINAL VCF starts (not all
+    four-creators). It is meaningful only with ``vcf_root=True``;
+    with ``vcf_root=False`` it has no effect. See
+    :meth:`_vcf_root_move` and ``research/iterations/iter-41.md``
+    §3 for the design and the mechanism check.
     """
 
     def __init__(
@@ -966,6 +979,7 @@ class HeuristicMCTS:
         tie_break_q: bool = False,
         tie_break_q_threshold: float = 0.0,
         vcf_root: bool = False,
+        vcf_root_cheap: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
             leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
@@ -992,6 +1006,7 @@ class HeuristicMCTS:
         self.tie_break_q = tie_break_q
         self.tie_break_q_threshold = tie_break_q_threshold
         self.vcf_root = vcf_root
+        self.vcf_root_cheap = vcf_root_cheap
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -1090,6 +1105,36 @@ class HeuristicMCTS:
         → 2.21s) with IDENTICAL moves. These change only how
         many moves are tested and in what order, never which move
         is selected.
+
+        **Cheap defensive check (v41, batch 11 H3).** When
+        ``vcf_root_cheap`` is set, the defensive step (2) changes
+        in two ways (the offensive step is unchanged — it tests
+        only our few four-creators and is cheap):
+        (a) the prevention candidates are limited to the top
+        ``_VCF_CHEAP_CANDIDATE_LIMIT`` (8) by (prior desc, flat
+        index asc); if none of the top 8 prevents, the check
+        returns None and the search decides — a prevention that
+        ranks below 8th is MISSED, so this change CAN change the
+        selected move (by design: the prevention is usually the
+        obvious block, which is high-prior; the mechanism check
+        in iter-41 §3 measures how often the limit binds on real
+        positions); (b) the re-check on each resulting board
+        tests only the opponent's ORIGINAL VCF starts
+        (``opp_vcf``), not all original four-creators: adding
+        our stone can only REMOVE the opponent's forcing options
+        (it blocks attacker lines, occupies attacker squares,
+        and can only ADD defender counter-threats — every path
+        through ``starts_forced_win``/``forces_win`` is monotone
+        in that direction), so a four-creator that was not a VCF
+        start on the original board cannot become one after our
+        move. (b) is a claimed move-identity: the mechanism check
+        (iter-41 §3) verifies identical moves to v29 on all 49
+        tactical positions + the 100-position bench set wherever
+        the candidate limit does not bind; if any disagreement
+        appears, (b) is withdrawn and the candidate limit alone
+        is the fallback. No depth-limiting: the depth-3 VCF
+        definition is exact and the tactical fixes may need
+        depth 3 (iter-41 §1.2).
         """
         # 1. Offensive VCF — test in selection order, first VCF
         # start wins (identical to testing all and taking the max).
@@ -1121,6 +1166,14 @@ class HeuristicMCTS:
         # property, see the docstring), VCF starts first.
         vcf_set = set(opp_vcf)
         ordered = opp_vcf + [m for m in opp if m not in vcf_set]
+        if self.vcf_root_cheap:
+            # v41 cheap defensive check (see the docstring):
+            # top-8 candidates only, and re-check only the
+            # opponent's ORIGINAL VCF starts on each resulting
+            # board (monotonicity claim — verified by the
+            # mechanism check in iter-41 §3).
+            cands = cands[:_VCF_CHEAP_CANDIDATE_LIMIT]
+            ordered = opp_vcf
         for c in cands:
             b2 = game.apply_move(board, c, player)
             if not any(
