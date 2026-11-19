@@ -746,35 +746,119 @@ tests included in the 410).
 
 ## 5. Battery
 
-RUNNING (launched after the fast loop; all legs
-auto-resume from partial `--out` files, per-game
-seeding, validation seeds 100/200):
-- vs v27, 100 games, normal rules →
-  `research/iterations/batch-v41-vs-v27.json`
-- vs v0, 100 games, normal rules →
-  `research/iterations/batch-v41-vs-v0.json`
-- swap vs v27, 100 games, tempo judge, balanced
-  placement, placement_seed 11 →
-  `research/iterations/batch-v41-vs-v27-swap.json`
-- ladder, 40 games/opponent (re-based this batch) →
-  `research/iterations/ladder-v41.json`
+COMPLETE (all legs auto-resumed across 4 VM restarts;
+per-game seeding reproduces the uninterrupted run —
+no leg was restarted, no seed was changed).
 
-Pace (fast loop): vs v0 ~74s/game, vs v27
-~116s/game contended. Projected total ~10h. The
-battery is the verdict — the expectation (§3.3) is
-~v29's numbers (0.715 vs v7, 0.665 vs v0, Elo
-~240), i.e. REJECT on clauses 1–2, with the
-deliverable being the cost reduction + the forensics
-finding.
+**vs v27, 100 games, normal rules, seeds 100/200:
+47W-43L-10D, 0.52, CI [0.4232, 0.6154].** 99/100
+unique games (de-dup 0.5253, CI [0.4278, 0.6208]).
+Per-colour: as Black 29W-18L-3D (0.61), as White
+18W-25L-7D (0.43) — the White gap persists (0.43 vs
+0.61). Elapsed 6691s. Artefact:
+`research/iterations/batch-v41-vs-v27.json`.
 
-## 5. Battery
+**vs v0, 100 games, seeds 100/200: 59W-40L-1D,
+0.595, CI [0.497, 0.686].** 41/100 unique games
+(engine determinism vs v0; de-dup 0.5976, CI
+[0.4454, 0.733] — the duplicates do not change the
+verdict). Per-colour: as Black 34W-15L-1D (0.69), as
+White 25W-25L-0D (0.50). Below v29's 0.665 vs v0
+(CI [0.568, 0.750]) on the point estimate, but the
+intervals overlap — not a significant difference.
+Elapsed 5917s. Artefact:
+`research/iterations/batch-v41-vs-v0.json`.
 
-TODO.
+**Swap vs v27, 100 games, tempo judge, balanced
+placement, placement_seed 11: 56W-39L-5D, 0.585, CI
+[0.487, 0.6767].** 98/100 unique (de-dup 0.5867, CI
+[0.4878, 0.6792]). Per-colour: as Black 31W-18L-3D
+(0.625), as White 25W-21L-2D (0.542). Swap > normal
+(0.585 vs 0.52), the same direction as v29 (0.735
+swap vs 0.715 normal vs v7). Elapsed 2077s.
+Artefact: `research/iterations/batch-v41-vs-v27-swap.json`.
+
+**Ladder, 40 games/opponent (re-based this batch):
+Elo 88.7, interval [-20.6, 198.1].** Legs: random
+40-0-0 (1.0, CI [0.912, 1.0]); heuristic (v0)
+25W-15L-0D (0.625, CI [0.470, 0.758]; Black 12-8,
+White 13-7); mcts 28W-12L-0D (0.70, CI [0.546,
+0.819]; Black 18-2, White 10-10 — the White gap
+again, this time vs the ladder MCTS). The Elo is
+driven by the weak heuristic leg (0.625 at 40 games
+→ 88.7), below v29's 240.8. Artefact:
+`research/iterations/ladder-v41.json`.
+
+**Defence audit (pooled, `classify_losses.py` on all
+3 legs): 122 losses, 122/122 via open four, 0
+missed blocks, 1 clean missed prevention in 654
+threatened turns (0.15%).** Defence stays solved.
+The single missed prevention (swap game 15, ply 18)
+is the K=8 candidate limit binding in real play —
+the first observed instance (the mechanism check's
+149 positions had max prevention rank 7): White held
+11 VCF starts; v29's full check finds the prevention
+(10,10) (rank 11 of 85, prior 0.03699 vs 0.03712 for
+the rank-7 candidate — a 0.00014 prior gap), which
+removes all 11 VCF starts (11 creators remain, 0 VCF
+starts); v41's top-8 check misses it, plays the
+top-prior (10,8) via the search, and loses 4 plies
+later. Cost of the limit in the battery: 1 game in
+300 (0.33%). This is the pre-registered trade-off
+(§3.1), not a bug — but it confirms the limit's
+safety margin is thin (prior noise decides whether a
+quiet prevention makes the top 8).
 
 ## 6. Bar check (v41 vs v27)
 
-TODO.
+| Clause | Requirement | v41 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v27 | ≥100 games, rate > 0.50, Wilson CI lower > 0.50 | 47W-43L-10D, 0.52, CI [0.4232, 0.6154] | **FAIL** |
+| 2. Ladder Elo | > 636.4 | 88.7, interval [-20.6, 198.1] | **FAIL** |
+| 3. Tactical | ≥ 20/20 + 29/29 (corrected suite) | 20/20 + 29/29 | **PASS** |
+| 4. Tests | all suites green | pytest 410 passed / 0 failed; npm 55/55; tsc clean | **PASS** |
+
+**Verdict: REJECTED (2/4)** — as pre-registered in
+§3.3. v41 is a cost reduction, not a strength patch,
+and it does not beat v27. No challenge match vs v18
+(requires all 4 clauses). v18 remains the heuristic
+champion; v27 remains the bar reference.
 
 ## 7. What this means
 
-TODO.
+1. **The White-side forensics found no patchable
+   mechanism (§2.5).** White's losses are
+   distributed drift + no-signature horizon losses;
+   the three class-7 instances (g7, g77, g93) share
+   no positive mechanism (leaf profiles
+   heterogeneous; setup, 2-ply, and saturation
+   signatures all refuted). And in self-play White
+   is not weak at all (7-2-1) — the "White gap" is
+   matchup-dependent, not a systematic v27-White
+   defect. The fallback triggered, as pre-registered.
+2. **v41 delivers the cost reduction it promised
+   (§3.2).** Bench mean 1.71s → 0.91s (1.9x), max
+   38.3s → 13.8s (2.8x), with identical moves to v29
+   on 149/149 mechanism-check positions. The
+   monotonicity claim (VCF-starts-only re-check)
+   held everywhere tested; the K=8 candidate limit
+   bound exactly once in 300 battery games (swap
+   g15), costing 1 game. The tactical suite stays
+   20/20 + 29/29.
+3. **v41's strength is ~v29's, with a surprising
+   vs-v27 number.** 0.52 vs v27 (CI [0.42, 0.62])
+   is above v29's implied level vs v27, and 0.585
+   under swap is above 0.50 — but the CIs include
+   0.50 and the ladder Elo (88.7) is below v29's
+   240.8, driven by the weak vs-v0 leg (0.595).
+   The vs-v27 number is most plausibly noise (the
+   CI is wide); there is no mechanism by which
+   missing a prevention helps. Do not over-read it.
+4. **The White gap is the durable finding across
+   v41's battery** (Black 0.61-0.69 vs White
+   0.43-0.50 in every leg; ladder MCTS Black 18-2
+   vs White 10-10), and the forensics says it is
+   not one patchable flaw. Future White work needs
+   a different framing — the deficit is distributed
+   across the game, not concentrated in a
+   classifiable losing move.
