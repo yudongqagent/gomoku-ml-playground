@@ -708,6 +708,68 @@ Final v38: multi-task net (epoch 14, md5
 `7c3fade60d87a85037cf81cd4bdebd10`), α=0.5. Validation seeds
 100/200; swap placement_seed 11.
 
+**v38 FAILS the bar: 2 of 4 clauses pass (clauses 2 and 4).**
+It beats v8 head-to-head on the point estimate (0.56) but
+the CI includes 0.50, it loses to v0 outright (0.415), and
+tactical drops a second setup position. The multi-task
+hypothesis is refuted — the threat head did not fix the
+value head's override, and the retrained net is weaker than
+v8 in games while being stronger on the ladder's weak
+opponents. (Battery completed 2026-11-18/19 by the pickup
+worker after the original H3 worker was killed by a runtime
+restart drain mid-battery; all four legs + ladder are final
+artefacts.)
+
+| Clause | Bar (ref v8) | v38 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v8 | > 0.50, Wilson 95% lower > 0.50 | 54W-42L-4D, 0.56, CI [0.4623, 0.6533]; de-dup 0.5773, CI [0.4779, 0.6708] | **FAIL** |
+| 2. Ladder Elo | > 0.0 | 70.4, interval [-80.2, 221.1] | **PASS** |
+| 3. Tactical (corrected) | ≥ 20/20 + 29/29 | 20/20 + 27/29 | **FAIL** |
+| 4. Suites green | pytest + npm + tsc | pytest 434 passed, 1 skipped, 58 xfailed, 0 failed; npm 55/55; tsc clean | **PASS** |
+
+Secondaries: vs v0 39W-56L-5D (0.4150, CI [0.3233,
+0.5130]); vs v7 46W-51L-3D (0.4750, CI [0.3799, 0.5720]);
+swap vs v7 31W-68L-1D (0.3150, CI [0.2322, 0.4115]).
+
+### 6.1 Clause 1 — vs v8 (100 games, seeds 100/200) — FAIL
+
+54W-42L-4D (0.56, CI [0.4623, 0.6533]). The point estimate
+beats v8, but the Wilson 95% lower bound is 0.4623 < 0.50,
+so clause 1 FAILS — and it fails on the de-duplicated cut
+too: 97 unique games, de-dup 54W-39L-4D (0.5773, CI
+[0.4779, 0.6708]), lower bound 0.4779 < 0.50. No verdict
+turns on duplicates either way. As Black 34-14-2 (0.70);
+as White 20-28-2 (0.42) — the White weakness is the whole
+story again: v38 is a clearly better Black than v8 and a
+clearly worse White. Compare v24, the only ML version to
+tie v8 (0.515): v38's 0.56 is the best ML head-to-head
+against v8 yet on the point estimate, but with n=100 it
+still does not clear the bar. Artefact:
+`research/iterations/batch-v38-vs-v8.json`.
+
+### 6.2 Clause 2 — ladder (20 games/opponent, seed 100) — PASS
+
+Elo 70.4 (interval [-80.2, 221.1]) > 0.0 — **clause 2
+PASSES**, and 70.4 is the highest ladder Elo of any
+ML-track version (v24 52.5, v8 0.0). The interval includes
+0, so the pass is on the point estimate per the bar's
+definition, not a statistically separated one. vs random
+20-0 (1.00), vs heuristic 12-8 (0.60; as Black 7-3, as
+White 5-5), vs mcts 10-10 (0.50; as Black 9-1, as White
+1-9). The mcts leg is the extreme colour split in
+miniature: v38 crushes the ladder MCTS as Black and is
+crushed by it as White — the same White collapse as the
+h2h legs, against an opponent that creates real threats.
+The ladder pass and the v0 loss together say v38's
+strength is opponent-dependent in the opposite direction
+from v29's: it beats the ladder's weak opponents (random,
+heuristic) but loses to the no-search v0 anchor in a
+100-game match (0.415) — the 20-game ladder leg vs
+heuristic (0.60) and the 100-game match vs v0 (0.415)
+disagree because the ladder leg is 20 games and the
+heuristic anchor is v0 itself. Artefact:
+`research/iterations/ladder-v38.json`.
+
 ### 6.3 Tactical (clause 3) — FAIL
 
 `eval_tactical_full.py --version 38 --suite both --seed 100`
@@ -728,8 +790,192 @@ positions pass — the failure is specific to SETTING UP an
 open four (playing the quiet move that creates the threat),
 not to taking wins, blocking, or preventing.
 
-TODO — clauses 1, 2, 4 + secondaries.
+### 6.4 Secondaries — vs v0, vs v7, swap vs v7
+
+**vs v0: 39W-56L-5D (0.4150, CI [0.3233, 0.5130]).**
+v38 LOSES to the no-search heuristic anchor — worse than
+v8's 0.545 vs v0, and the single most damning secondary:
+the multi-task retrain made the net weaker against weak
+play, not stronger. As Black 24-23-3 (0.51); as White
+15-33-2 (0.32). The fast loop already showed this on dev
+seeds (§5.2, 0.40 over 10 games); the battery confirms it
+at n=100. Uniqueness 95/100 (de-dup 0.4053, CI [0.3121,
+0.5058]) — per-game seeding holds the vs-v0 leg far above
+the 41–45 unique games the old scheme collapsed to (§6.7).
+Artefact: `research/iterations/batch-v38-vs-v0.json`.
+
+**vs v7: 46W-51L-3D (0.4750, CI [0.3799, 0.5720]).** As
+Black 28-19-3 (0.59); as White 18-32-0 (0.36). v38 is
+roughly even with the heuristic bar reference overall, but
+only because Black carries it — as White it loses 32 of
+50. Uniqueness 100/100: every game distinct, the cleanest
+leg in the battery. Non-transitivity again: v38 ≈ v7
+(0.475) while losing to v0 (0.415) whom v7 beats 0.665 —
+v38's value head misjudges the quiet, threat-poor
+positions v0's greedy play creates, and v0 exploits that
+more than v7's stronger play does. Artefact:
+`research/iterations/batch-v38-vs-v7.json`.
+
+**Swap vs v7: 31W-68L-1D (0.3150, CI [0.2322, 0.4115]).**
+Balanced placement, placement_seed 11, tempo judge. As
+Black 15-37-0 (0.2885, n=52); as White 16-31-1 (0.3438,
+n=48). Under swap v38 loses in BOTH colours — the swap
+format does not blunt v38's weakness the way it did v29's,
+because v38 is weak as White AND the tempo judge hands the
+stronger side to v7: after v38's 3-stone placement, v7
+picks the better colour, and v38 defends a bad position
+either way. Uniqueness 100/100. Artefact:
+`research/iterations/batch-v38-vs-v7-swap.json`.
+
+### 6.5 Defence classification (battery)
+
+Pooled across all 400 battery games
+(`classify_batch_losses.py`, per-leg JSONs
+`classify-v38-*.json`): **217 losses, 217 via open four, 0
+missed blocks, 0 clean missed preventions in 1,241
+threatened turns in losses.**
+
+| Leg | Losses | Via open four | Missed blocks | Clean missed preventions | Threatened turns (losses) |
+|---|---|---|---|---|---|
+| vs v8 | 42 | 42 | 0 | 0 | 200 |
+| vs v0 | 56 | 56 | 0 | 0 | 377 |
+| vs v7 | 51 | 51 | 0 | 0 | 260 |
+| swap vs v7 | 68 | 68 | 0 | 0 | 404 |
+| **Pooled** | **217** | **217** | **0** | **0** | **1,241** |
+
+Defence stays solved — v38 never blunders a block and
+never misses a prevention that a single candidate move
+would have supplied, in any leg. Every loss is positional
+drift into an open four over several moves: the net
+overvalues its own threats and undervalues quiet/preventive
+moves (§5.2), and no single-move patch exists. The
+auxiliary threat task was designed to fix exactly this
+judgment, and the battery shows it did not.
+
+### 6.6 Clause 4 — suites — PASS
+
+Final-tree re-run by the pickup worker (2026-11-19):
+**ml pytest 434 passed, 1 skipped, 58 xfailed, 0 failed**
+(268s; log `ml/runs/ml3-h3/pytest-full-final.log`) —
+identical counts to the §0 implementation-tree run.
+**npm test 55/55** (4 test files, after `npm ci`),
+**`npx tsc --noEmit` clean**. Clause 4 PASSES.
+
+### 6.7 Battery runtime notes + uniqueness audit
+
+The battery was interrupted FOUR times by runtime restart
+drains / VM replacements: leg 1 (vs v8) at game 94, leg 2
+(vs v0) at game 69, leg 3 (vs v7) at game 28, leg 4 (swap)
+at game 67. Every leg auto-resumed from its partial
+`--out` JSON and completed; no games were lost. The
+ladder ran uninterrupted (no resume needed).
+
+Per-game seeding verification — the resumed runs did NOT
+replay the prefix (the batch-10 bug this tooling was built
+to kill):
+
+| Leg | Unique / total | De-dup win rate | Duplicate pairs | Resume-boundary crossers |
+|---|---|---|---|---|
+| vs v8 | 97/100 | 0.5773 | (3,11), (3,27), (39,65) | 0 — all dupes pre-resume |
+| vs v0 | 95/100 | 0.4053 | (1,23), (21,47), (35,65), (35,89), (41,93) | 2, but scattered, not prefix order |
+| vs v7 | 100/100 | 0.4750 | — | — |
+| swap vs v7 | 100/100 | 0.3150 | — | — |
+
+The two vs-v0 cross-boundary pairs (35,89) and (41,93) are
+engine-determinism collisions, not seed replay: the
+offsets (54, 52) are not constant and only 2 of the 31
+resumed games duplicate anything — a prefix replay would
+show games 69+k duplicating game k in order. The vs-v0
+leg's 95 unique games compare with the 41–45 the old
+fixed-seed scheme collapsed to: per-game seeding is a
+large, verified improvement, and the remaining dupes are
+determinism (RNG consumed only on exact ties), not a
+seeding bug. No verdict turns on duplicates: clause 1
+fails on both the nominal and de-dup cuts.
+
+Total battery wall time ≈ 7h across the pickup run
+(18:30–01:28 UTC, including 4 restart/relaunch cycles),
+shared with the concurrent H1 (v36) and H2 (v37) workers
+on the same 1.5-CPU VM — per-game pace ≈ 40–95s depending
+on contention. Leg times (final segments): vs v8 resumed
+segment 476s for 6 games; vs v0 ≈ 2.9k s for the first 69
+games; vs v7 ≈ 3.4k s; swap ≈ 2.8k s + 1.7k s resumed
+segment; ladder ≈ 29 min for 60 games + tactical.
 
 ## 7. Verdict
 
-TODO.
+**v38 is REJECTED — 2 of 4 clauses pass (2 and 4), failing
+clauses 1 and 3.** The multi-task hypothesis is refuted,
+and the refutation has a verified mechanism, not just a
+failed bar:
+
+1. **The threat head never learned the concept it was
+   supposed to teach.** Forcing-class accuracy is 0% on
+   engine holdouts (§4.3) — the head learned "forcing =
+   looks like a random position" because 67% of forcing
+   training examples came from random playouts. On engine
+   positions it calls forcing positions quiet.
+2. **The auxiliary task actively hurt the value head.** The
+   threat head leans on the last-move/history planes as a
+   shortcut, and the shared trunk routes threat information
+   through history features — which is exactly the mechanism
+   behind the value head's catastrophic history dependence
+   (§4.2: no-history sign 0.5035 on v7, chance). At
+   inference the leaves get search-path history, so v38
+   plays between its two holdout views — both worse than
+   v24's on engine positions. The full-planes holdout
+   (0.7744 ≈ v24's 0.7766) predicted nothing about played
+   strength, again.
+3. **The played net is weaker than v8 where it counts:**
+   loses to v0 0.415 (v8: 0.545), beats v8 only 0.56 with a
+   CI that includes 0.50, drops a second tactical setup
+   position (27/29, worse than v24's 29/29 and v31's 28/29),
+   and loses the swap match 0.315. The one bright spot —
+   ladder Elo 70.4, the best ML-track Elo yet — comes from
+   beating the ladder's weak opponents and does not survive
+   contact with a 100-game match against the same heuristic
+   anchor.
+
+The multi-task threat-classification auxiliary task is
+**CLOSED as a mechanism**: it does not fix the value-head
+override (g92 check §5.0, tactical §6.3), and the shared
+trunk couples the auxiliary task's shortcut to the value
+head's worst pathology. The value head remains the binding
+constraint, and history dependence is now its sharpest
+measured form: v24 is history-robust (no-history 0.7491
+pooled) and plays better; v38 and v31 are
+history-dependent and play worse, at equal full-planes
+holdout.
+
+**What the next batch should try for this direction:**
+
+- **History dropout first.** Same distillation recipe as
+  v24 (the strongest ML net on played strength) with the
+  history planes randomly zeroed during training, so the
+  trunk cannot route through them. Gate on the no-history
+  holdout: it must match the full-planes holdout BEFORE any
+  games are played — v38's §4.2 table is the pre-registered
+  diagnostic that would have caught this version before the
+  battery. If history dropout restores v24-level
+  robustness with v38-level calibration, that is a real
+  candidate; if it costs full-planes sign, the history
+  planes carry real signal and the fix is a history-free
+  architecture instead.
+- **Do NOT retry the threat auxiliary task in this form.**
+  If it is ever revisited, the forcing class must come from
+  ENGINE positions (not random playouts), and the threat
+  signal must not share the value trunk (separate tower, or
+  a frozen value trunk) — otherwise the history shortcut
+  recurs by construction.
+- **The White problem is the biggest remaining played
+  weakness** (White 0.42 vs v8, 0.32 vs v0, 0.36 vs v7,
+  1-9 vs the ladder MCTS), but it is a symptom of the value
+  head's misjudgment in quiet positions, not a separate
+  lever — v30's colour-balanced retrain already closed the
+  data-balance route. Fix the value head's history
+  dependence first, then re-measure White.
+
+v8 remains the ML champion. No model ships: the v38
+checkpoint (`ml/runs/ml3-h3/value-net.pt`, md5
+`7c3fade60d87a85037cf81cd4bdebd10`) stays a research
+artefact.
