@@ -1,9 +1,11 @@
 # Iteration 40 — v40: must-block VCF upgrade at the leaf start (batch 11, H2)
 
-**Status: PRE-REGISTERED — design fixed below (§1) BEFORE any eval of
-v40. Fast loop (§2) and battery (§3) follow.** Comparison target is
-v27 (the batch-11 bar reference: ladder Elo 636.4, on master at
-`128c327`). This is the H2 workstream of batch 11 (H1 is v39,
+**Status: COMPLETE — v40 REJECTED 1/4** (only clause 4 passes:
+h2h vs v27 0.5250 CI includes 0.50; ladder Elo 636.4 exactly
+ties v27; tactical 28/29 on prev-v1bl-g2). §1 was pre-registered
+BEFORE any eval of v40; §§2–5 record the fast loop and battery.
+Comparison target is v27 (the batch-11 bar reference: ladder
+Elo 636.4, on master at `128c327`). This is the H2 workstream of batch 11 (H1 is v39,
 setup-signature mining; H3 is v41, White-side forensics); work
 happens on branch `research/batch-11-h2` in the `gomoku-b11-h2`
 worktree, branched from `research/batch-11` @ `2188b53` (which
@@ -539,12 +541,162 @@ fast loop's combined record: vs v27 10W-7L-3D (0.575), vs v0
 
 ## 3. v40 evaluation
 
-(TODO — the battery.)
+The battery ran on the FINAL v40 (no refinement — §2). All legs
+use the pre-registered validation seeds (100/200) and the
+pre-registered 40-games-per-leg ladder. The run was interrupted
+by four VM replacements; every leg auto-resumed from its partial
+file (per-game seeding reproduces the uninterrupted run exactly)
+and no leg was restarted or re-seeded.
+
+### 3.1 Head-to-head vs v27 (clause 1)
+
+**50W-45L-5D, win rate 0.5250, 95% CI [0.4280, 0.6201]**
+(7012s). The CI includes 0.50 — v40 is statistically tied with
+v27. As Black 32W-15L-3D (0.67); as White 18W-30L-2D (0.38):
+the first-move advantage dominates (Black won 62 of 95 decisive
+games). Uniqueness: 96/100 distinct games; de-dup 48W-43L-5D,
+0.526, CI [0.4271, 0.623] — the same conclusion on the
+independent subset.
+
+### 3.2 Head-to-head vs v0
+
+**96W-1L-3D, win rate 0.9750, 95% CI [0.9226, 0.9922]**
+(7922s), vs v27's 0.9650 — indistinguishable. Uniqueness:
+**43/100 distinct games** (v0 is deterministic and v40's search
+is near-deterministic, so games repeat across seeds); de-dup
+39W-1L-3D, 0.9419, CI [0.8294, 0.9818] on the 43 unique games.
+The nominal 0.975 overstates independent N; the honest number
+is the de-dup 0.9419, still a sweep. As Black 46W-1L-3D; as
+White 50W-0L-0D.
+
+### 3.3 Swap vs v27 (secondary)
+
+**53W-42L-5D, win rate 0.5550, 95% CI [0.4574, 0.6486]**
+(9174s), balanced placement, placement_seed 11, tempo judge.
+CI includes 0.50 — no clear edge under swap either. As Black
+31W-17L-4D; as White 22W-25L-1D. Uniqueness: 100/100 distinct
+games; de-dup = nominal.
+
+### 3.4 Ladder (clause 2) — 40 games/opponent, seed 100
+
+| Opponent | Result | Win rate | 95% CI |
+|---|---|---|---|
+| random | 40W-0L-0D | 1.0000 | [0.9124, 1.0000] |
+| heuristic | 38W-0L-2D | 0.9750 | [0.8712, 0.9956] |
+| mcts (100 sims) | 32W-8L-0D | 0.8000 | [0.6524, 0.8950] |
+
+**Ladder Elo: 636.4, interval [332.1, 940.8]** — exactly
+TIES v27's 636.4 (the point estimate comes from the heuristic
+leg: a 0.975 score maps to 636.43). The 40-game legs narrow the
+interval vs the 20-game era (v27's interval was roughly
+±~300 Elo at 20 games; v40's is ±~304 at 40 games — the
+interval is dominated by the heuristic leg's binomial noise,
+not the leg count, because the estimate is anchored on that
+single leg). The mcts leg (32-8, Black 19-1, White 13-7) is
+below v35's program-best 19-1 at 20 games and below v18's
+level — no leg-result dominance. Leg-result reading: no 40-0
+leg (heuristic 38-0-2, mcts 32-8).
+
+### 3.5 Tactical (clause 3) — full dispatch, `--seed 100`
+
+**Old 20/20, hard 28/29.** Fails prev-v1bl-g2 only (chose
+(7,9), expected (6,5)/(7,5)) — exactly the regression diagnosed
+in §1.3. The other two tie-fix positions (g26, g79) pass, as
+does winning-quiet-setup-2 ((9,7)). Artifact:
+`research/iterations/tactical-v40.json`.
+
+### 3.6 Defence audit + missed preventions (all 3 battery legs)
+
+Classifier (`classify_losses.py`, details in
+`~/workspace/b11h2-logs/classify-battery.json`):
+
+| Leg | Losses | Via open four | Missed blocks | Clean missed preventions | Threatened turns |
+|---|---|---|---|---|---|
+| vs v27 | 45 | 45 | 0 | 0 | 234 |
+| vs v0 | 1 | 1 | 0 | 0 | 4 |
+| swap vs v27 | 42 | 42 | 0 | 2 | 212 |
+| **Pooled** | **88** | **88** | **0** | **2** | **450** |
+
+Defence stays solved: 88/88 losses via open four, 0 missed
+blocks. The 2 clean missed preventions (0.44% of threatened
+turns) are both in the swap leg: game 15 (v40 Black, ply 18,
+played (10,8), 3 creators live) and game 72 (v40 White, ply
+29, played (4,4), 3 creators live). The upgrade fixes only the
+VCF-undervaluation mechanism (1 of the 3 diagnosed in §1.1),
+so blunder-dilution and visit-allocation misses can still
+occur — 2 in 450 turns vs v34's 6 in 468 (1.28%) and v35's 0
+in 448. The rate is low and the sample small; the verdict does
+not turn on it.
+
+### 3.7 Tests (clause 4)
+
+- ml pytest (full suite, final tree): **413 passed, 7 skipped,
+  62 xfailed, 0 failures** (234s). Includes the 7 new v40 unit
+  tests and `test_regression_v40.py` (1 pass + 4 documented
+  xfails).
+- npm test: **55/55 passed**.
+- `npx tsc --noEmit`: clean (exit 0).
 
 ## 4. Bar check (v40 vs v27)
 
-(TODO — the battery.)
+| Clause | Requirement | v40 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v27 (100 games) | win rate > 0.50, Wilson 95% CI lower > 0.50 | 50W-45L-5D, 0.5250, CI [0.4280, 0.6201]; de-dup 0.526, CI [0.4271, 0.623] | **FAIL** |
+| 2. Ladder Elo | > 636.4 | 636.4, interval [332.1, 940.8] (tie) | **FAIL** |
+| 3. Tactical | old 20/20 + hard 29/29 | old 20/20, hard 28/29 (prev-v1bl-g2) | **FAIL** |
+| 4. Tests | all suites green | pytest 413/0, npm 55/55, tsc clean | **PASS** |
+
+**v40 is REJECTED (1/4).** No champion challenge match is run
+(challenge matches are for bar-passers only, champion rule v2).
+v27 stays the bar reference; v18 stays the strength champion.
 
 ## 5. What this means
 
-(TODO — the battery.)
+v40 is a clean, honest null — the pre-registered expectation
+(§1: "v40 ≈ v27", clause 3 expected FAIL) is exactly what the
+battery shows. The upgrade is exact and it fires in real games
+(§2.2: a real subtree q shift, −0.0485 → −0.1735, in a fast-loop
+game; §1.3: the g73 flip), but its game value is ~zero at 100
+sims: it touches ~1% of leaf evaluations, fixes 1 of 4
+diagnosed instances (which were outcome-free anyway), and the
+3 battery legs all land within noise of v27 (0.525, 0.975,
+0.555; Elo an exact tie at 636.4).
+
+Three durable findings for the program:
+
+1. **The leaf-blind direction is exhausted.** The diagnosis
+   (§1.1) showed the 1-ply leaf does NOT mis-rank on any
+   dumped instance — the mis-rankings are MCTS averaging
+   (blunder dilution), visit allocation (priors), and one
+   VCF-undervaluation gap that v40 now closes exactly. The
+   fast loop's 7 losses (§2) confirm it: every loss is a
+   search-horizon failure with no leaf signature (in one
+   case the leaf was RIGHT and the deeper tree misled).
+   Further leaf patches in this family will not move the
+   needle; the binding constraint is search depth and the
+   rollout policy, not leaf values.
+2. **Exact leaf values interact with the tie-break.** The
+   v1bl-g2 regression (§1.3) is a genuine mechanism
+   interaction, not a bug: making leaf values more exact
+   changed visit allocation enough to break the 8-8 tie the
+   tie-break relied on. Any future leaf change must re-run
+   the tactical suites expecting this class of regression —
+   exactness is not free when the root rule is visit-based
+   and the tie-break needs an exact tie.
+3. **The vs-v0 leg's uniqueness (43/100) is a battery-hygiene
+   warning.** Per-game seeding does not guarantee distinct
+   games when both engines are near-deterministic: v0's
+   frozen heuristic plus v40's mostly-deterministic search
+   reproduce the same game from different seeds. The de-dup
+   cut (0.9419 on 43 unique games) is the honest number for
+   that leg. Future batteries should report the de-dup rate
+   prominently for the vs-v0 leg (the vs-v27 and swap legs
+   were 96/100 and 100/100 — not an issue there).
+
+**Closed by this iteration:** the must-block VCF upgrade as a
+strength lever (exact, fires, ~zero game value); the
+leaf-blind hypothesis in its 1-ply form (refuted — the leaf
+ranks the unsafe move worst on all 4 instances). The remaining
+mis-ranking mechanisms (blunder dilution = averaging, visit
+allocation = priors/root rule) are search problems, not leaf
+problems, and the known fixes touch CLOSED levers.
