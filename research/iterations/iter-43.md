@@ -710,7 +710,45 @@ like v37 at full sample.
 
 ## 6. Validation battery
 
-TODO — fill in when the battery runs.
+### 6.1 Tactical — COMPLETE 2026-11-19 ~23:50 UTC — **CLAUSE 3 PASSES**
+
+`eval_tactical_full.py --version 43 --suite both --seed 100`
+(log `ml/runs/ml4-h2/tactical-v43.log`):
+
+- Old suite: **20/20** ✓
+- Hard suite (corrected): **29/29** ✓ — including
+  **setup-v1v0s-g92: chose (9,6)**, the quiet setup v31 failed
+  and v37 fixed. The dropout retrain keeps v37's quiet-setup
+  fix at the engine level.
+
+### 6.2 h2h vs v8 (clause 1) — RUNNING
+
+TODO — fill in when the leg completes.
+
+### 6.3 h2h vs v0
+
+TODO — fill in when the leg completes.
+
+### 6.4 h2h vs v7
+
+TODO — fill in when the leg completes.
+
+### 6.5 h2h vs v37
+
+TODO — fill in when the leg completes.
+
+### 6.6 Swap vs v7
+
+TODO — fill in when the leg completes.
+
+### 6.7 Ladder (clause 2)
+
+TODO — fill in when the ladder completes.
+
+### 6.8 Test suites (clause 4)
+
+TODO — fill in at the end (full ml pytest + npm test + tsc on
+the final tree).
 
 ## 7. Verdict
 
