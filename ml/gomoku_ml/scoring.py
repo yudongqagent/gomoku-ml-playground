@@ -481,7 +481,7 @@ ENGINE_VERSIONS: dict[int, dict] = {
     44: {"name": "scoring-v44", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h3/value-net.pt",
-         "value_weight": 0.25},
+         "value_weight": 0.125},  # sweep winner (0.725 vs 0.600 @ 0.25, 0.475 @ 0.5)
 }
 
 # --- weights --------------------------------------------------------------

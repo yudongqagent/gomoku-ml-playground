@@ -699,5 +699,70 @@ agree 74–75% of the time. r is used here ONLY for cross-depth
 comparison (where it is shift-invariant); the in-distribution
 fit measure is sign agreement, as in v24/v37.
 
+## 5. α sweep and fast loops
+
+**Leaf cost (2026-11-19, `ml/runs/ml4-h3/leaf-bench.txt`):**
+`bench_value_leaf.py --checkpoint ml/runs/ml4-h3/value-net.pt
+--positions 20 --leaf-samples 200 --sims 100`: per-move at 100
+sims mean 5,190 ms / median 3,716 ms / p95 9,809 ms; net leaf
+evals per move mean 81.8 (17–99); per-leaf net eval median
+7.49 ms. Slower than v37's bench (mean 2,155 ms) — the machine
+was heavily loaded at measure time (load average 7.45, sibling
+batch-4 workers running), not a net difference (same 16ch
+architecture; per-leaf median 7.49 ms vs v24's 5.1 ms batch=1).
+Battery games run ~2–5 min each under contention; the 100-game
+matches are the long pole of this workstream.
+
+**Clause-4 early check (run during the sweep):** ml pytest
+**437 passed, 1 skipped, 58 xfailed, 1 failed** (25:29 wall;
+log `ml/runs/ml4-h3/pytest-full.log`). The one failure,
+`test_per_game_seeding.py::test_resume_reproduces_uninterrupted`,
+was PRE-EXISTING on the base branch (verified: it fails on a
+clean worktree of 4457fe7 too) — the ML batch 4 openings
+tooling (4457fe7) made the driver write `rec["opening"]` on
+every normal-rules record, but the test's in-process prefix
+helper never set it, so the resumed records differed from the
+reference on record SHAPE (the moves were identical — verified
+field by field). Test-only fix (commit `32f555e`):
+`rec["opening"] = []` in the non-swap branch;
+`test_per_game_seeding.py` now **7 passed**. The full suite
+will be re-run at the end (clause 4 requires green on the
+final tree). npm test + tsc still to run (see §6.7).
+
+### 5.1 α sweep (2026-11-19, ~20:49–22:38 UTC)
+
+`sweep_alpha.py --version 44 --alphas 0.125 0.25 0.5 --games 20
+--opponent v8 --seed-a 1001 --seed-b 2001` (dev seeds, no
+openings). One VM replacement ~22:00 UTC killed the run at
+α=0.25 game 8; the driver resumed from game 8 (5W-3L-0D)
+with per-game seeding — nothing lost. Log:
+`ml/runs/ml4-h3/sweep-alpha.log`; per-alpha JSONs in
+`research/iterations/alpha-v44-<α>-vs-v8.json`.
+
+| α | W-L-D | win rate | 95% CI | as Black | as White | unique |
+|---|-------|----------|--------|----------|----------|--------|
+| **0.125** | **14-5-1** | **0.7250** | [0.5059, 0.8716] | 7-3-0 (0.700) | 7-2-1 (0.750) | 20/20 |
+| 0.25 | 12-8-0 | 0.6000 | [0.3866, 0.7812] | 6-4-0 (0.600) | 6-4-0 (0.600) | 20/20 |
+| 0.5 | 9-10-1 | 0.4750 | [0.2785, 0.6795] | 5-5-0 (0.500) | 4-5-1 (0.450) | 20/20 |
+
+Win rate is MONOTONE DECREASING in α — the §0 parity
+prediction made manifest: the optimistic 3-ply labels want
+the coolest value weight, and at α=0.5 the net's optimism
+actively hurts (below 0.50). **Selection (§1.4 rule, best
+win rate): α=0.125.** Registry updated (`scoring.py`,
+`value_weight: 0.125`); targeted tests 14/14 pass.
+
+Note the contrast with v37: its sweep winner was α=0.25
+(0.75 vs v8, CI [0.657, 0.8245] on the full 100-game leg),
+and 1.0 lost on the cooler 2-ply labels. v44's winner sits
+one step cooler, exactly as the +0.10 parity shift predicts.
+The 20-game CIs overlap, so the α ranking is a point-estimate
+call, not a proven ordering — but the monotone shape across
+three grid points plus the mechanism (parity) makes 0.125
+the defensible pick, and the 100-game clause-1 leg is the
+real verdict.
+
+
+
 
 
