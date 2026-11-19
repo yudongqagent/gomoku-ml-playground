@@ -1168,6 +1168,12 @@ class HeuristicMCTS:
         self.tie_break_q_threshold = tie_break_q_threshold
         self.vcf_root = vcf_root
         self.setup_root = setup_root
+        # Diagnostic-only log of setup-check overrides (v39): each
+        # entry is (search_move, removal, n_setups_after_search,
+        # search_visits_of_removal, search_q_ours_of_removal).
+        # Appended by _setup_root_move; never read by the engine
+        # itself. Callers clear it per game when diagnosing.
+        self.setup_fire_log: list[tuple] = []
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -1408,8 +1414,30 @@ class HeuristicMCTS:
             q_ours = -node.value_sum / node.visit_count
             return (node.visit_count, q_ours, node.prior)
 
+        # Fast-loop refinement (iter-39 §3.3): only override to a
+        # removal the search has visited at least twice. A 0-visit
+        # removal has NO search evidence (the search never tried
+        # it) and a 1-visit removal has a single rollout's noise —
+        # the check would be dragging the engine blind. 2+ visits
+        # means PUCT returned to the move. The threshold keeps all
+        # verified saves (min visits 2, at g87) while blocking the
+        # no-evidence overrides the fast loop exposed (7/32 fires
+        # in the vs-v0 replay had 0 visits).
+        removals = [m for m in removals
+                    if (children.get(m) is not None
+                        and children[m].visit_count >= 2)]
+        if not removals:
+            return None
         removals.sort(key=_rank, reverse=True)
-        return removals[0]
+        chosen = removals[0]
+        node = children.get(chosen)
+        self.setup_fire_log.append((
+            search_move, chosen, len(setups),
+            node.visit_count if node is not None else 0,
+            (-node.value_sum / node.visit_count
+             if node is not None and node.visit_count else None),
+        ))
+        return chosen
 
     def choose_move(self, board: np.ndarray, player: int) -> int:
         # Immediate win (any winning move wins).

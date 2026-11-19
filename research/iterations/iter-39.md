@@ -384,7 +384,72 @@ triggers. Full per-turn data:
 
 ## 3. Fast loop
 
-[To be written.]
+### 3.0 Mechanism checks (post-implementation, pre-eval)
+
+- **Regression tests** (`ml/tests/test_regression_v39.py`):
+  **7 passed** — v39 plays a verified save at g46 ((10,7))
+  and g87 ((4,2)), the full removal at g58 ((3,8)) and g26
+  ((6,7)), and the forced block at g49 ((0,12)); the VCF
+  non-monotonicity unit test pins that (1,9) is NOT a removal
+  at g49 (leaves White the immediate win (0,12)); with
+  `setup_root` off the engine is v27 exactly.
+- **Full ml suite**: **411 passed, 7 skipped, 58 xfailed, 0
+  failures** (the 7 skips are pre-existing checkpoint-dependent
+  ones). The `choose_move` restructure breaks nothing.
+- **Cost**: v39 takes 1.2–3.5s/move on the forensics positions
+  vs v27's 0.9–2.2s — the check adds ~0.3–1.4s/move.
+
+### 3.1 vs v0 (10 games, seeds 1039/2039): v39 7W-0L-3D (0.85)
+
+No losses — but 3 draws, ALL 225-ply full-board draws, ALL
+as Black (games 2, 4, 6 — 3 distinct lines, 9/10 unique
+games). As White v39 wins 5/5; as Black only 2W-0L-3D. The
+check's passive cost shows against a weak opponent: as
+Black (the attacking side) the setup check overrides
+attacking moves with removals and v39 fails to convert.
+This is v3's lesson recurring — a threat-avoidance check
+costs wins. The vs-v27 fast loop (the clause-1 signal) is
+the deciding evidence; if v39 also struggles there, the
+check's trigger needs narrowing.
+
+### 3.2 vs v27 (10 games, seeds 1040/2040): v39 3W-4L-3D (0.45)
+
+v39 loses the fast loop. Three more 225-ply full-board draws
+(games 1, 6, 9). Colour split: as Black 1W-2L-1D; as White
+2W-2L-2D. The check is the ONLY difference from v27, so the
+draws and the deficit are the check's cost — but the
+counterfactual is not simple (see §3.3).
+
+### 3.3 Diagnosis + fast-loop refinement (RESOLVED)
+
+**Instrumented replay** (`replay_with_fires.py`, all 10 vs-v0
+games MATCH the recorded moves exactly): the check fires on
+**32/513 v39 turns (6.2%)** — about 1 in 16 moves. The fire
+rate is similar in wins (8.2–8.3%) and draws (5.3–6.2%), so
+frequency alone does not explain the draws. **7 of the 32
+fires (22%) override to a removal with ZERO search visits**
+— a move the search never tried, chosen by the check alone.
+The counterfactual at game 2 ply 16 (the earliest fire in a
+draw) shows the override HELPING: the removal (10,8) wins
+2/3 in playouts vs the search's move (4,4) at 1W-1L-1D — so
+single overrides are not simply bad; the cost is the
+accumulation of overrides diverting v39 from v27's winning
+lines into quiet positions where v0 survives to a full board.
+
+**Refinement (pre-registered here, before the re-run fast
+loop): the check only overrides to a removal the search has
+visited at least twice.** A 0-visit removal has no search
+evidence and a 1-visit removal has a single rollout's noise;
+2+ visits means PUCT returned to the move. The threshold is
+set by the forensics, not tuned: the minimum visits among
+the verified saves/removals is 2 (g87's (4,2), g26's (6,7)),
+so ≥2 keeps every verified save while blocking the
+no-evidence overrides. This changes §1.3's selection rule
+(which allowed unvisited removals, ranked by prior) — the
+change is fast-loop-driven, in v35's §4.2 pattern, and is
+recorded here before any eval of the refined version.
+
+### 3.4 Re-run fast loops (refined v39)
 
 ## 4. v39 evaluation
 

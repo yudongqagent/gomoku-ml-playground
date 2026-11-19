@@ -1,0 +1,3152 @@
+{
+  "games": [
+    {
+      "game": 0,
+      "result": "L",
+      "a_colour": "black",
+      "turns": [
+        {
+          "ply": 0,
+          "v27_move": [
+            7,
+            7
+          ],
+          "played": [
+            7,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 10,
+          "v27_move": [
+            6,
+            5
+          ],
+          "played": [
+            6,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 20,
+          "v27_move": [
+            2,
+            9
+          ],
+          "played": [
+            2,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 24,
+          "v27_move": [
+            8,
+            8
+          ],
+          "played": [
+            8,
+            8
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 26,
+          "v27_move": [
+            9,
+            7
+          ],
+          "played": [
+            9,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 28,
+          "v27_move": [
+            8,
+            9
+          ],
+          "played": [
+            8,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 2
+          }
+        },
+        {
+          "ply": 30,
+          "v27_move": [
+            6,
+            9
+          ],
+          "played": [
+            10,
+            6
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 2
+          }
+        },
+        {
+          "ply": 32,
+          "v27_move": [
+            5,
+            8
+          ],
+          "played": [
+            5,
+            8
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 34,
+          "v27_move": [
+            10,
+            10
+          ],
+          "played": [
+            10,
+            10
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 36,
+          "v27_move": [
+            11,
+            9
+          ],
+          "played": [
+            11,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 38,
+          "v27_move": [
+            10,
+            11
+          ],
+          "played": [
+            10,
+            11
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 40,
+          "v27_move": [
+            8,
+            10
+          ],
+          "played": [
+            8,
+            10
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 3
+          }
+        },
+        {
+          "ply": 42,
+          "v27_move": [
+            13,
+            9
+          ],
+          "played": [
+            13,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 2
+          }
+        },
+        {
+          "ply": 44,
+          "v27_move": [
+            11,
+            14
+          ],
+          "played": [
+            12,
+            12
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 2
+          }
+        },
+        {
+          "ply": 46,
+          "v27_move": [
+            13,
+            7
+          ],
+          "played": [
+            11,
+            14
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 2
+          }
+        },
+        {
+          "ply": 48,
+          "v27_move": [
+            7,
+            12
+          ],
+          "played": [
+            7,
+            12
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 50,
+          "v27_move": [
+            12,
+            6
+          ],
+          "played": [
+            12,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 1
+          }
+        },
+        {
+          "ply": 52,
+          "v27_move": [
+            9,
+            5
+          ],
+          "played": [
+            9,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 0,
+            "setups": 2
+          }
+        },
+        {
+          "ply": 54,
+          "v27_move": [
+            14,
+            7
+          ],
+          "played": [
+            14,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 0,
+            "setups": 2
+          }
+        },
+        {
+          "ply": 56,
+          "v27_move": [
+            9,
+            4
+          ],
+          "played": [
+            9,
+            4
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 1,
+            "setups": null
+          }
+        },
+        {
+          "ply": 58,
+          "v27_move": [
+            9,
+            2
+          ],
+          "played": [
+            9,
+            1
+          ],
+          "differs": true,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 1,
+            "setups": null
+          }
+        },
+        {
+          "ply": 60,
+          "v27_move": [
+            11,
+            4
+          ],
+          "played": [
+            11,
+            4
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 1,
+            "setups": null
+          }
+        },
+        {
+          "ply": 62,
+          "v27_move": [
+            13,
+            4
+          ],
+          "played": [
+            13,
+            4
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 1,
+            "setups": null
+          }
+        }
+      ]
+    },
+    {
+      "game": 1,
+      "result": "D",
+      "a_colour": "white",
+      "turns": [
+        {
+          "ply": 1,
+          "v27_move": [
+            6,
+            6
+          ],
+          "played": [
+            6,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 11,
+          "v27_move": [
+            5,
+            9
+          ],
+          "played": [
+            5,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 2
+          }
+        },
+        {
+          "ply": 21,
+          "v27_move": [
+            7,
+            5
+          ],
+          "played": [
+            7,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 31,
+          "v27_move": [
+            5,
+            3
+          ],
+          "played": [
+            5,
+            3
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 41,
+          "v27_move": [
+            9,
+            3
+          ],
+          "played": [
+            9,
+            3
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 51,
+          "v27_move": [
+            10,
+            6
+          ],
+          "played": [
+            10,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 61,
+          "v27_move": [
+            14,
+            2
+          ],
+          "played": [
+            14,
+            2
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 1
+          }
+        },
+        {
+          "ply": 71,
+          "v27_move": [
+            10,
+            9
+          ],
+          "played": [
+            10,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 81,
+          "v27_move": [
+            14,
+            5
+          ],
+          "played": [
+            14,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 91,
+          "v27_move": [
+            12,
+            9
+          ],
+          "played": [
+            12,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 101,
+          "v27_move": [
+            2,
+            7
+          ],
+          "played": [
+            2,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 111,
+          "v27_move": [
+            2,
+            8
+          ],
+          "played": [
+            2,
+            8
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 121,
+          "v27_move": [
+            4,
+            11
+          ],
+          "played": [
+            4,
+            11
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 131,
+          "v27_move": [
+            13,
+            11
+          ],
+          "played": [
+            13,
+            11
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 141,
+          "v27_move": [
+            9,
+            14
+          ],
+          "played": [
+            14,
+            13
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 151,
+          "v27_move": [
+            11,
+            1
+          ],
+          "played": [
+            11,
+            1
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 161,
+          "v27_move": [
+            1,
+            1
+          ],
+          "played": [
+            1,
+            1
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 171,
+          "v27_move": [
+            11,
+            13
+          ],
+          "played": [
+            6,
+            2
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 181,
+          "v27_move": [
+            13,
+            3
+          ],
+          "played": [
+            14,
+            0
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 191,
+          "v27_move": [
+            1,
+            14
+          ],
+          "played": [
+            12,
+            11
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 201,
+          "v27_move": [
+            1,
+            6
+          ],
+          "played": [
+            1,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 211,
+          "v27_move": [
+            7,
+            9
+          ],
+          "played": [
+            7,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 221,
+          "v27_move": [
+            10,
+            14
+          ],
+          "played": [
+            1,
+            14
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        }
+      ]
+    },
+    {
+      "game": 2,
+      "result": "L",
+      "a_colour": "black",
+      "turns": [
+        {
+          "ply": 0,
+          "v27_move": [
+            7,
+            7
+          ],
+          "played": [
+            7,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 2,
+          "v27_move": [
+            6,
+            8
+          ],
+          "played": [
+            9,
+            7
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 4,
+          "v27_move": [
+            6,
+            9
+          ],
+          "played": [
+            5,
+            6
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 6,
+          "v27_move": [
+            6,
+            9
+          ],
+          "played": [
+            6,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 8,
+          "v27_move": [
+            7,
+            10
+          ],
+          "played": [
+            5,
+            5
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 10,
+          "v27_move": [
+            11,
+            7
+          ],
+          "played": [
+            11,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 12,
+          "v27_move": [
+            6,
+            3
+          ],
+          "played": [
+            6,
+            3
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 14,
+          "v27_move": [
+            12,
+            12
+          ],
+          "played": [
+            12,
+            12
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 16,
+          "v27_move": [
+            12,
+            9
+          ],
+          "played": [
+            12,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 3
+          }
+        },
+        {
+          "ply": 18,
+          "v27_move": [
+            7,
+            4
+          ],
+          "played": [
+            7,
+            4
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 5
+          }
+        },
+        {
+          "ply": 20,
+          "v27_move": [
+            5,
+            7
+          ],
+          "played": [
+            5,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 4
+          }
+        },
+        {
+          "ply": 22,
+          "v27_move": [
+            9,
+            3
+          ],
+          "played": [
+            9,
+            3
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 4
+          }
+        },
+        {
+          "ply": 24,
+          "v27_move": [
+            9,
+            8
+          ],
+          "played": [
+            9,
+            8
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 3
+          }
+        },
+        {
+          "ply": 26,
+          "v27_move": [
+            8,
+            3
+          ],
+          "played": [
+            8,
+            3
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 6
+          }
+        },
+        {
+          "ply": 28,
+          "v27_move": [
+            9,
+            5
+          ],
+          "played": [
+            9,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 0,
+            "setups": 4
+          }
+        },
+        {
+          "ply": 30,
+          "v27_move": [
+            8,
+            8
+          ],
+          "played": [
+            8,
+            8
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 0,
+            "setups": 3
+          }
+        },
+        {
+          "ply": 32,
+          "v27_move": [
+            9,
+            6
+          ],
+          "played": [
+            9,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 1,
+            "setups": null
+          }
+        },
+        {
+          "ply": 34,
+          "v27_move": [
+            7,
+            6
+          ],
+          "played": [
+            7,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 1,
+            "setups": null
+          }
+        },
+        {
+          "ply": 36,
+          "v27_move": [
+            4,
+            2
+          ],
+          "played": [
+            4,
+            2
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 0,
+            "setups": 0
+          }
+        }
+      ]
+    },
+    {
+      "game": 3,
+      "result": "W",
+      "a_colour": "white",
+      "turns": [
+        {
+          "ply": 1,
+          "v27_move": [
+            6,
+            6
+          ],
+          "played": [
+            6,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 11,
+          "v27_move": [
+            12,
+            6
+          ],
+          "played": [
+            12,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 21,
+          "v27_move": [
+            6,
+            8
+          ],
+          "played": [
+            6,
+            8
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        }
+      ]
+    },
+    {
+      "game": 4,
+      "result": "W",
+      "a_colour": "black",
+      "turns": [
+        {
+          "ply": 0,
+          "v27_move": [
+            7,
+            7
+          ],
+          "played": [
+            7,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 10,
+          "v27_move": [
+            5,
+            9
+          ],
+          "played": [
+            6,
+            5
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 20,
+          "v27_move": [
+            6,
+            3
+          ],
+          "played": [
+            11,
+            4
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 1
+          }
+        },
+        {
+          "ply": 30,
+          "v27_move": [
+            8,
+            8
+          ],
+          "played": [
+            8,
+            8
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        }
+      ]
+    },
+    {
+      "game": 5,
+      "result": "L",
+      "a_colour": "white",
+      "turns": [
+        {
+          "ply": 1,
+          "v27_move": [
+            6,
+            6
+          ],
+          "played": [
+            6,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 3,
+          "v27_move": [
+            7,
+            8
+          ],
+          "played": [
+            7,
+            8
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 5,
+          "v27_move": [
+            7,
+            5
+          ],
+          "played": [
+            7,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 7,
+          "v27_move": [
+            9,
+            7
+          ],
+          "played": [
+            9,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 9,
+          "v27_move": [
+            6,
+            7
+          ],
+          "played": [
+            6,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 1
+          }
+        },
+        {
+          "ply": 11,
+          "v27_move": [
+            6,
+            5
+          ],
+          "played": [
+            6,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 3
+          }
+        },
+        {
+          "ply": 13,
+          "v27_move": [
+            9,
+            5
+          ],
+          "played": [
+            9,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 3
+          }
+        },
+        {
+          "ply": 15,
+          "v27_move": [
+            6,
+            3
+          ],
+          "played": [
+            6,
+            3
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 5
+          }
+        },
+        {
+          "ply": 17,
+          "v27_move": [
+            8,
+            9
+          ],
+          "played": [
+            8,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 5
+          }
+        },
+        {
+          "ply": 19,
+          "v27_move": [
+            10,
+            11
+          ],
+          "played": [
+            10,
+            11
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 6
+          }
+        },
+        {
+          "ply": 21,
+          "v27_move": [
+            5,
+            11
+          ],
+          "played": [
+            5,
+            11
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 0,
+            "setups": 6
+          }
+        },
+        {
+          "ply": 23,
+          "v27_move": [
+            9,
+            4
+          ],
+          "played": [
+            9,
+            4
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 1,
+            "setups": null
+          }
+        },
+        {
+          "ply": 25,
+          "v27_move": [
+            8,
+            8
+          ],
+          "played": [
+            8,
+            8
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 1,
+            "setups": null
+          }
+        }
+      ]
+    },
+    {
+      "game": 6,
+      "result": "D",
+      "a_colour": "black",
+      "turns": [
+        {
+          "ply": 0,
+          "v27_move": [
+            7,
+            7
+          ],
+          "played": [
+            7,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 10,
+          "v27_move": [
+            6,
+            5
+          ],
+          "played": [
+            6,
+            3
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 20,
+          "v27_move": [
+            7,
+            3
+          ],
+          "played": [
+            7,
+            3
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 30,
+          "v27_move": [
+            5,
+            11
+          ],
+          "played": [
+            5,
+            11
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 40,
+          "v27_move": [
+            8,
+            10
+          ],
+          "played": [
+            8,
+            10
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 50,
+          "v27_move": [
+            8,
+            4
+          ],
+          "played": [
+            2,
+            10
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 1
+          }
+        },
+        {
+          "ply": 60,
+          "v27_move": [
+            9,
+            4
+          ],
+          "played": [
+            9,
+            4
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 70,
+          "v27_move": [
+            8,
+            4
+          ],
+          "played": [
+            8,
+            4
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 80,
+          "v27_move": [
+            11,
+            7
+          ],
+          "played": [
+            11,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 90,
+          "v27_move": [
+            13,
+            6
+          ],
+          "played": [
+            13,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 100,
+          "v27_move": [
+            2,
+            2
+          ],
+          "played": [
+            2,
+            2
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 110,
+          "v27_move": [
+            4,
+            4
+          ],
+          "played": [
+            4,
+            4
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 1
+          }
+        },
+        {
+          "ply": 120,
+          "v27_move": [
+            5,
+            3
+          ],
+          "played": [
+            5,
+            3
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 130,
+          "v27_move": [
+            0,
+            11
+          ],
+          "played": [
+            0,
+            11
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 1
+          }
+        },
+        {
+          "ply": 140,
+          "v27_move": [
+            5,
+            14
+          ],
+          "played": [
+            5,
+            14
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 150,
+          "v27_move": [
+            4,
+            13
+          ],
+          "played": [
+            2,
+            11
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 160,
+          "v27_move": [
+            9,
+            12
+          ],
+          "played": [
+            9,
+            12
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 170,
+          "v27_move": [
+            14,
+            10
+          ],
+          "played": [
+            14,
+            1
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 180,
+          "v27_move": [
+            8,
+            1
+          ],
+          "played": [
+            4,
+            0
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 190,
+          "v27_move": [
+            4,
+            13
+          ],
+          "played": [
+            12,
+            6
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 200,
+          "v27_move": [
+            3,
+            14
+          ],
+          "played": [
+            2,
+            8
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 210,
+          "v27_move": [
+            10,
+            13
+          ],
+          "played": [
+            10,
+            13
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 220,
+          "v27_move": [
+            13,
+            14
+          ],
+          "played": [
+            0,
+            13
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        }
+      ]
+    },
+    {
+      "game": 7,
+      "result": "W",
+      "a_colour": "white",
+      "turns": [
+        {
+          "ply": 1,
+          "v27_move": [
+            6,
+            6
+          ],
+          "played": [
+            6,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 11,
+          "v27_move": [
+            4,
+            5
+          ],
+          "played": [
+            4,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 21,
+          "v27_move": [
+            9,
+            5
+          ],
+          "played": [
+            4,
+            6
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 3
+          }
+        },
+        {
+          "ply": 31,
+          "v27_move": [
+            10,
+            8
+          ],
+          "played": [
+            8,
+            11
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 2
+          }
+        },
+        {
+          "ply": 41,
+          "v27_move": [
+            11,
+            7
+          ],
+          "played": [
+            11,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 1,
+            "setups": null
+          }
+        }
+      ]
+    },
+    {
+      "game": 8,
+      "result": "L",
+      "a_colour": "black",
+      "turns": [
+        {
+          "ply": 0,
+          "v27_move": [
+            7,
+            7
+          ],
+          "played": [
+            7,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 10,
+          "v27_move": [
+            7,
+            6
+          ],
+          "played": [
+            7,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 2
+          }
+        },
+        {
+          "ply": 20,
+          "v27_move": [
+            8,
+            11
+          ],
+          "played": [
+            4,
+            7
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 2
+          }
+        },
+        {
+          "ply": 30,
+          "v27_move": [
+            9,
+            11
+          ],
+          "played": [
+            9,
+            11
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 40,
+          "v27_move": [
+            3,
+            9
+          ],
+          "played": [
+            8,
+            3
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 50,
+          "v27_move": [
+            2,
+            6
+          ],
+          "played": [
+            1,
+            7
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 1
+          }
+        },
+        {
+          "ply": 54,
+          "v27_move": [
+            4,
+            6
+          ],
+          "played": [
+            4,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 56,
+          "v27_move": [
+            5,
+            5
+          ],
+          "played": [
+            5,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 58,
+          "v27_move": [
+            1,
+            5
+          ],
+          "played": [
+            1,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 60,
+          "v27_move": [
+            5,
+            2
+          ],
+          "played": [
+            5,
+            2
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 62,
+          "v27_move": [
+            12,
+            9
+          ],
+          "played": [
+            12,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 64,
+          "v27_move": [
+            13,
+            9
+          ],
+          "played": [
+            13,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 66,
+          "v27_move": [
+            13,
+            7
+          ],
+          "played": [
+            11,
+            8
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 2
+          }
+        },
+        {
+          "ply": 68,
+          "v27_move": [
+            14,
+            6
+          ],
+          "played": [
+            14,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 70,
+          "v27_move": [
+            12,
+            7
+          ],
+          "played": [
+            11,
+            7
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 72,
+          "v27_move": [
+            13,
+            5
+          ],
+          "played": [
+            13,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 74,
+          "v27_move": [
+            11,
+            11
+          ],
+          "played": [
+            11,
+            11
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 76,
+          "v27_move": [
+            11,
+            12
+          ],
+          "played": [
+            11,
+            12
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 78,
+          "v27_move": [
+            5,
+            13
+          ],
+          "played": [
+            6,
+            12
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 80,
+          "v27_move": [
+            7,
+            11
+          ],
+          "played": [
+            7,
+            11
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 82,
+          "v27_move": [
+            5,
+            13
+          ],
+          "played": [
+            5,
+            13
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 84,
+          "v27_move": [
+            4,
+            14
+          ],
+          "played": [
+            4,
+            14
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 1,
+            "setups": null
+          }
+        },
+        {
+          "ply": 86,
+          "v27_move": [
+            12,
+            6
+          ],
+          "played": [
+            12,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 88,
+          "v27_move": [
+            8,
+            8
+          ],
+          "played": [
+            8,
+            8
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 1,
+            "setups": null
+          }
+        },
+        {
+          "ply": 90,
+          "v27_move": [
+            13,
+            3
+          ],
+          "played": [
+            13,
+            3
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 1,
+            "setups": null
+          }
+        },
+        {
+          "ply": 92,
+          "v27_move": [
+            10,
+            3
+          ],
+          "played": [
+            10,
+            3
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": true,
+            "creators": 1,
+            "setups": null
+          }
+        }
+      ]
+    },
+    {
+      "game": 9,
+      "result": "D",
+      "a_colour": "white",
+      "turns": [
+        {
+          "ply": 1,
+          "v27_move": [
+            6,
+            6
+          ],
+          "played": [
+            6,
+            6
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 11,
+          "v27_move": [
+            7,
+            4
+          ],
+          "played": [
+            6,
+            4
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 1
+          }
+        },
+        {
+          "ply": 21,
+          "v27_move": [
+            10,
+            7
+          ],
+          "played": [
+            10,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 31,
+          "v27_move": [
+            5,
+            9
+          ],
+          "played": [
+            5,
+            9
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 41,
+          "v27_move": [
+            6,
+            11
+          ],
+          "played": [
+            6,
+            11
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 51,
+          "v27_move": [
+            5,
+            12
+          ],
+          "played": [
+            5,
+            12
+          ],
+          "differs": false,
+          "played_is_removal": false,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 1
+          }
+        },
+        {
+          "ply": 61,
+          "v27_move": [
+            6,
+            14
+          ],
+          "played": [
+            6,
+            14
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 71,
+          "v27_move": [
+            10,
+            8
+          ],
+          "played": [
+            10,
+            8
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 81,
+          "v27_move": [
+            12,
+            7
+          ],
+          "played": [
+            12,
+            7
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 91,
+          "v27_move": [
+            10,
+            2
+          ],
+          "played": [
+            10,
+            2
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 101,
+          "v27_move": [
+            9,
+            4
+          ],
+          "played": [
+            9,
+            4
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 111,
+          "v27_move": [
+            11,
+            0
+          ],
+          "played": [
+            11,
+            0
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 121,
+          "v27_move": [
+            10,
+            3
+          ],
+          "played": [
+            8,
+            1
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 131,
+          "v27_move": [
+            0,
+            13
+          ],
+          "played": [
+            0,
+            13
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 141,
+          "v27_move": [
+            14,
+            5
+          ],
+          "played": [
+            14,
+            5
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 151,
+          "v27_move": [
+            2,
+            3
+          ],
+          "played": [
+            2,
+            3
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 161,
+          "v27_move": [
+            8,
+            8
+          ],
+          "played": [
+            10,
+            3
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 171,
+          "v27_move": [
+            1,
+            13
+          ],
+          "played": [
+            11,
+            13
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 181,
+          "v27_move": [
+            1,
+            14
+          ],
+          "played": [
+            1,
+            14
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 191,
+          "v27_move": [
+            6,
+            13
+          ],
+          "played": [
+            12,
+            5
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 201,
+          "v27_move": [
+            14,
+            3
+          ],
+          "played": [
+            14,
+            3
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 211,
+          "v27_move": [
+            3,
+            1
+          ],
+          "played": [
+            3,
+            1
+          ],
+          "differs": false,
+          "played_is_removal": true,
+          "check_fired": false,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        },
+        {
+          "ply": 221,
+          "v27_move": [
+            13,
+            14
+          ],
+          "played": [
+            8,
+            14
+          ],
+          "differs": true,
+          "played_is_removal": true,
+          "check_fired": true,
+          "gate_after_v27": {
+            "vcf": false,
+            "creators": 0,
+            "setups": 0
+          }
+        }
+      ]
+    }
+  ]
+}
