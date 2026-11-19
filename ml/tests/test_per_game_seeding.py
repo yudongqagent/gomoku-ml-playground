@@ -181,6 +181,12 @@ def _play_prefix(args, n_games):
                 winner, moves = selfplay_batch.play_recorded_game(
                     choose_b, choose_a, game.empty_board(), game.BLACK
                 )
+            # ML batch 4 tooling (4457fe7): the driver writes an
+            # "opening" field on EVERY normal-rules record (empty
+            # list when no --openings file is used) — the prefix
+            # must match it or the resume-equality assertion fails
+            # on the record shape, not the moves.
+            rec["opening"] = []
             rec["moves"] = moves
         rec["a_colour"] = "black" if a_colour == game.BLACK else "white"
         rec["winner"] = (
