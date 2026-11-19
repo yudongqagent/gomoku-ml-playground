@@ -437,11 +437,162 @@ after the verbatim port, labelling took 21 s for the 20 games.)
 
 ## 3. Training (actuals)
 
-TODO — fill in when training completes.
+**Training COMPLETE 2026-11-19 19:59 UTC** (started 19:41 UTC;
+~19 min wall including one interruption): config
+`ml/configs/ml4-h2.yaml`, 15 epochs, batch 64, memmap bundle
+(33,849 samples; 32,157 train / 1,692 val, seed-0 split).
+Run dir `ml/runs/ml4-h2-train/`; log `ml/runs/ml4-h2/train.log`.
+RSS stayed low (memmap path). 7,545 steps, ~47–103 s/epoch.
+
+**Interrupt and recovery (2026-11-19 ~19:46 UTC):** a VM
+replacement killed the run at **epoch 4, step ~1810**. Per the
+pre-registered §1.3 resume rule: the pre-kill `best.pt`
+(epoch 3, val 0.1201) was backed up at
+`checkpoints/best-epoch3.pt`, and training resumed from the
+latest per-epoch checkpoint (`checkpoint-1509.pt`, epoch 3,
+step 1509 — verified to load with optimiser state) with the
+REMAINING 12 epochs (`--resume ... --epochs 12`; cosine
+schedule spans the full 15 via `schedule_epochs`). Resume
+caveat (same as v24's): the RNG restarts from seed 0 on
+resume, so resumed epochs 4–15 reuse the permutation /
+augmentation / dropout RNG sequence of epochs 1–12 — the
+dropout is still Bernoulli(0.5) per sample per epoch, just not
+a fresh stream. The resumed run's best (epoch 14, val 0.1115)
+beats the pre-kill best (0.1201) outright, so the resume
+best-reset flaw never bit and no restore from `best-epoch3.pt`
+was needed.
+
+| Epoch | Train loss | Val loss |
+|---|---|---|
+| 1 | 0.1080 | 0.1228 |
+| 2 | 0.1019 | 0.1227 |
+| 3 | 0.1000 | 0.1201 |
+| 4 | 0.0980 | 0.1222 |
+| 5 | 0.0962 | 0.1200 |
+| 6 | 0.0946 | 0.1216 |
+| 7 | 0.0954 | 0.1178 |
+| 8 | 0.0929 | 0.1184 |
+| 9 | 0.0922 | 0.1171 |
+| 10 | 0.0907 | 0.1148 |
+| 11 | 0.0888 | 0.1136 |
+| 12 | 0.0875 | 0.1136 |
+| 13 | 0.0867 | 0.1120 |
+| 14 | 0.0859 | **0.1115** |
+| 15 | 0.0853 | 0.1115 |
+
+Val loss decreased overall (noisy in epochs 4–6, then
+monotone from epoch 7) — no overfitting by epoch 15, but the
+pre-registered plan is 15 epochs and the battery is the
+verdict, so no extension. **Best checkpoint: epoch 14
+(`best.pt`, step 7042, val 0.11153)** — epoch 15's 0.11154 is
+a hair worse, so `best.pt` ≠ `final.pt` (unlike v37, where
+epoch 15 was best). **The `--out` copy was `final.pt`, NOT
+`best.pt`** (verified: max|out−final| = 0.0, max|out−best| =
+503 — the 503 is `num_batches_tracked` only, 503 more batches
+in epoch 15; median weight diff 0.0009) — so `best.pt` was
+copied manually to the registry path
+**`ml/runs/ml4-h2/value-net.pt`** (md5
+`e9c8befbbd1e3de1ed2c309e9cb050e9`, verified identical to
+`best.pt`), per the pre-registered best-by-val-loss rule.
+Val loss is worse than v37's (0.1115 vs 0.0986) — expected:
+dropout makes the value function harder to fit (half the
+samples lack history). Sign accuracy is the comparable metric
+(§4), and there the dropout costs nothing. Architecture
+verified: ResNet 16ch/2 blocks, 126,759 params, 48 tensors —
+identical counts to v37's and v8's checkpoints.
 
 ## 4. Holdout diagnostics and the gate (actuals)
 
-TODO — fill in when the gate is measured.
+Game-level holdout (every 10th game, never trained on — the SAME
+80 games / 3,378 positions v24/v37 held out), targets = 2-ply
+labels unless noted. v43 net = `ml/runs/ml4-h2/value-net.pt`;
+v37 net = `ml/runs/ml3-h2/value-net.pt`; v8 net =
+`ml/runs/b3-h2/value-net.pt`. Raw outputs in
+`ml/runs/ml4-h2/holdout-2ply-{v7,v18,random}.txt` (2-ply) and
+`holdout-1ply-{v7,v18,random}.txt` (1-ply). Sanity check: this
+run reproduces v37's published 2-ply numbers EXACTLY on its own
+holdout (v7 0.7395/0.5163, v18 0.8436/0.5846, random 0.6623/
+0.6604, pooled 0.7519) and v24's published 1-ply numbers
+EXACTLY (pooled 0.7766) — the eval setup is sound. (One
+rounding note: iter-37 printed v37's pooled no-history as
+0.5568; recomputed from the JSON counts it is 1791/3217 =
+0.5567 — the counts agree, the last digit is rounding.)
+
+### (a) v43 net on its own 2-ply holdout (in-distribution) — THE GATE
+
+| Holdout | n pos | v43 sign (full) | v43 sign (no-hist) | v43 MSE (full) | v37 sign (full) | v37 sign (no-hist) | v8 sign (full) |
+|---|---|---|---|---|---|---|---|
+| v7 | 2,050 | 0.7458 | 0.7589 | 0.0801 | 0.7395 | 0.5163 | 0.5572 |
+| v18 | 790 | 0.8423 | 0.8410 | 0.0917 | 0.8436 | 0.5846 | 0.4897 |
+| random | 538 | 0.6942 | 0.6942 | 0.3110 | 0.6623 | 0.6604 | 0.5009 |
+| **pooled** | **3,378** | **0.7606** (2447/3217) | **0.7681** (2471/3217) | — | **0.7519** | **0.5567** | **0.5316** |
+
+**THE GATE PASSES — both clauses:**
+- **G1 (match):** |0.7681 − 0.7606| = **0.0075 ≤ 0.02** ✓
+- **G2 (fit floor):** 0.7606 **≥ 0.70** ✓
+
+**The dropout fixed the history dependence completely.** The
+no-history view is now EQUAL OR BETTER than full-planes on
+every source (v7: 0.5163 → 0.7589, +0.243; v18: 0.5846 →
+0.8410, +0.256; random unchanged at 0.6942), and the
+mean|v| ballooning is gone (v7 no-history mean|v| 0.0679 vs
+v37's 0.4356; MSE 0.0797 vs 0.4361). And the dropout cost NO
+full-planes fit: v43's pooled full-planes sign (0.7606)
+slightly BEATS v37's (0.7519, +0.009) — the val-MSE cost (§3:
+0.1115 vs 0.0986) is magnitude calibration, not sign. The
+§1.6 chance-level stop does not trigger either. **v43 proceeds
+to the α sweep and the battery.**
+
+**By side to move** (v43 net, 2-ply holdout, full planes;
+`ml/runs/ml4-h2/by_side.py`, raw `by-side.txt`): Black-to-move
+sign 0.7411 (1626 non-draw), MSE 0.1440; White-to-move sign
+**0.7806** (1591 non-draw), MSE 0.0948. **No White collapse**
+— White is BETTER than Black in holdout, as in v37 (0.7269 /
+0.7775). No-history by side is equally robust: Black 0.7485,
+White 0.7882 (v37's no-history by side: Black 0.5012 at
+chance, White 0.6135). The dropout did not reintroduce a side
+skew.
+
+### (c) Reverse transfer: v43 net on v24's 1-ply labels
+
+| Holdout | v43 sign (full) | v43 sign (no-hist) | v37 sign (full) | v24 sign (full) |
+|---|---|---|---|---|
+| v7 | 0.7534 | 0.7669 | 0.7550 | 0.7713 |
+| v18 | 0.8357 | 0.8344 | 0.8449 | 0.8384 |
+| random | 0.7113 | 0.6922 | 0.6482 | 0.7055 |
+| **pooled** | **0.7664** | **0.7708** | **0.7590** | **0.7766** |
+
+The dropout net reproduces the shallower function at 0.7664 vs
+v37's 0.7590 and v24's 0.7766 — good reverse transfer, and
+history-robust on the 1-ply labels too (gap 0.0044; v37's
+1-ply no-history pooled is 0.5740). Note v43 even beats v24's
+net on random no-history (0.6922 vs 0.5468) — the dropout fixed
+v24's random-position history dependence as well (iter-24 §4:
+v24 leans on history planes for random ±1 labels).
+
+### Test-suite note (clause 4, early check)
+
+Full ml pytest on the implementation tree: **434 passed, 1
+skipped, 58 xfailed, 1 FAILED** (14:51; log
+`ml/runs/ml4-h2/pytest-full.log`) — the failure is
+`test_per_game_seeding.py::test_resume_reproduces_uninterrupted`.
+**Pre-existing, NOT caused by this workstream:** it reproduces
+on a clean worktree at the base commit 4457fe7 (before any v43
+change) and in isolation. Root cause (verified by reading the
+driver): the openings tooling commit (4457fe7) added a
+`"opening"` key to EVERY non-swap record in
+`selfplay_batch.py` (`rec["opening"] = []` when no openings
+are given) but did not update the test's `_play_prefix`
+duplicate, which builds records without the key — so the
+resumed-vs-ref record comparison fails at index 0 on the
+missing key even though the MOVES are identical. The driver's
+resume behaviour itself is correct (per-game seeding
+reproduces games; the swap variant of the test, whose
+`_play_prefix` path DOES set `"opening"`, passes). Fix: the
+test's non-swap path now sets `rec["opening"] = []` (one line
++ comment); re-run: **7/7 in test_per_game_seeding.py pass**.
+The full suite is re-run at the end (§6) on the final tree.
+npm test / tsc are checked in §6.
 
 ## 5. α sweep and fast loops
 

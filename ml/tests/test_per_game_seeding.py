@@ -181,6 +181,12 @@ def _play_prefix(args, n_games):
                 winner, moves = selfplay_batch.play_recorded_game(
                     choose_b, choose_a, game.empty_board(), game.BLACK
                 )
+            # The driver (openings tooling, ML batch 4) records an
+            # "opening" key on EVERY non-swap record — [] when no
+            # openings are given. This duplicate must match it, or
+            # the resumed-vs-ref record comparison fails on the
+            # missing key even when the moves are identical.
+            rec["opening"] = []
             rec["moves"] = moves
         rec["a_colour"] = "black" if a_colour == game.BLACK else "white"
         rec["winner"] = (
