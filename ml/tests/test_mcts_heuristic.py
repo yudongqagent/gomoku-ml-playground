@@ -1738,3 +1738,105 @@ def test_v29_choose_move_deterministic_for_same_seed():
     a = scoring.get_player(29, seed=42)
     b = scoring.get_player(29, seed=42)
     assert a.choose_move(board, to_move) == b.choose_move(board, to_move)
+
+
+# --- v41 (batch 11, H3): cheaper defensive VCF check on the v29 base ------
+# See research/iterations/iter-41.md §3 (pre-registered fallback):
+# top-8 prevention candidates + VCF-starts-only re-check. The
+# mechanism check (ml/scripts/mechanism_v41.py) verifies move
+# identity with v29 on all 49 tactical positions + the 100-position
+# bench set wherever the candidate limit does not bind.
+
+
+def test_v41_registered_and_vcf_root_cheap_enabled():
+    v41 = scoring.get_player(41, seed=0)
+    assert v41.name == "scoring-v41"
+    assert v41.mcts is True
+    assert v41._mcts is not None
+    assert v41._mcts.sims == 100
+    assert v41._mcts.leaf_mode == "rollout2_v1_both"
+    assert v41._mcts.vcf_root is True
+    assert v41._mcts.vcf_root_cheap is True
+    # v29 is unchanged (full defensive check, no cheap flag).
+    v29 = scoring.get_player(29, seed=0)
+    assert v29._mcts.vcf_root is True
+    assert v29._mcts.vcf_root_cheap is False
+    # v18/v27 are unchanged (no VCF check at all).
+    assert scoring.get_player(18, seed=0)._mcts.vcf_root is False
+    assert scoring.get_player(27, seed=0)._mcts.vcf_root is False
+
+
+def _vcf_engines(cheap: bool) -> HeuristicMCTS:
+    return HeuristicMCTS(
+        sims=100, leaf_mode="rollout2_v1_both", vcf_root=True,
+        vcf_root_cheap=cheap, rng=np.random.default_rng(0),
+    )
+
+
+def test_vcf_cheap_offensive_identical_to_v29():
+    # The offensive step is unchanged by the cheap check: same
+    # forced-win start on both old-suite VCF positions.
+    m29 = _vcf_engines(False)
+    m41 = _vcf_engines(True)
+    for pid, expected_xy in (("vcf-1", (8, 3)), ("vcf-2", (8, 5))):
+        board, to_move, _pos = _tactical_position(None, pid)
+        assert m41._vcf_root_move(board, to_move) == m29._vcf_root_move(
+            board, to_move
+        )
+        assert game.move_to_xy(m41._vcf_root_move(board, to_move)) == expected_xy
+
+
+def test_vcf_cheap_defensive_identical_on_prevention_positions():
+    # The three hard-suite prevention positions (v18's failures,
+    # fixed by v29): v41's cheap check returns the SAME prevention
+    # as v29's full check on all three — the prevention ranks in
+    # the top 8 by prior on each (mechanism check, iter-41 §3.2),
+    # so the candidate limit does not bind, and the
+    # VCF-starts-only re-check is a move-identity here.
+    m29 = _vcf_engines(False)
+    m41 = _vcf_engines(True)
+    for pid in ("prev-v1v0s-g26", "prev-v1v1s-g79", "prev-v1bl-g2"):
+        board, to_move, _pos = _tactical_position("hard", pid)
+        move29 = m29._vcf_root_move(board, to_move)
+        assert move29 is not None, f"{pid}: v29 check did not fire"
+        assert m41._vcf_root_move(board, to_move) == move29, pid
+
+
+def test_vcf_cheap_candidate_limit_binds(monkeypatch):
+    # With the candidate limit forced to 0, the cheap check tests
+    # no prevention candidate and returns None on a position where
+    # v29's full check finds a prevention — the limit wiring.
+    # (The default limit of 8 is exercised by
+    # test_vcf_cheap_defensive_identical_on_prevention_positions
+    # and the mechanism check's limit-binds counts.)
+    import gomoku_ml.mcts_heuristic as mh
+
+    monkeypatch.setattr(mh, "_VCF_CHEAP_CANDIDATE_LIMIT", 0)
+    board, to_move, _pos = _tactical_position("hard", "prev-v1v0s-g26")
+    m29 = _vcf_engines(False)
+    assert m29._vcf_root_move(board, to_move) is not None
+    m41 = _vcf_engines(True)
+    assert m41._vcf_root_move(board, to_move) is None
+
+
+def test_vcf_cheap_no_effect_without_vcf_root():
+    # vcf_root_cheap is meaningful only with vcf_root=True: with
+    # the check off, the flag changes nothing (structural
+    # inertness — choose_move never calls _vcf_root_move).
+    board, to_move, _pos = _tactical_position(None, "vcf-1")
+    a = HeuristicMCTS(
+        sims=20, leaf_mode="rollout2_v1_both", vcf_root=False,
+        vcf_root_cheap=True, rng=np.random.default_rng(0),
+    )
+    b = HeuristicMCTS(
+        sims=20, leaf_mode="rollout2_v1_both", vcf_root=False,
+        vcf_root_cheap=False, rng=np.random.default_rng(0),
+    )
+    assert a.choose_move(board, to_move) == b.choose_move(board, to_move)
+
+
+def test_v41_choose_move_deterministic_for_same_seed():
+    board, to_move, _pos = _tactical_position(None, "vcf-1")
+    a = scoring.get_player(41, seed=42)
+    b = scoring.get_player(41, seed=42)
+    assert a.choose_move(board, to_move) == b.choose_move(board, to_move)
