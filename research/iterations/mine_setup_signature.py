@@ -195,7 +195,29 @@ def _has_vcf_start(board: np.ndarray, player: int) -> bool:
     ``_vcf_starts`` enumeration took minutes on boards with a
     dozen starts (mining g49 ply 78). Validated against the
     recorded exact counts in setup-mining.json (see
-    research/iterations/setup-mining-ab.json, "vcf" section)."""
+    research/iterations/setup-mining-ab.json, "vcf" section).
+
+    BUG FIX (found by the verification audit, v35 g49/g65): an
+    IMMEDIATE winning move is itself a VCF start
+    (``starts_forced_win`` returns True for it at once) but is
+    NOT necessarily a four-creating move (after the win there is
+    usually no further winning move), so the four-creator
+    restriction misses it. After the test move (1,9) in v35 g49
+    ply 72, White holds the immediate win (0,12) — the square
+    v27's actual move blocked — and the first version of this
+    function wrongly recorded a clean 0/0/0 removal. The
+    winning-moves check below closes the hole: the function is
+    now (player holds a winning move) OR (some four-creator
+    starts a forced win), which is exactly the ``_vcf_starts``
+    non-empty condition. Games mined before the fix may contain
+    false pre-conditions / false candidates; the verification's
+    slow exact audit is the safeguard (it caught both), and the
+    verified-instance count is unaffected (the bug only ADDS
+    candidates, never removes true ones — a missed VCF start can
+    only open the gate wider).
+    """
+    if scoring._winning_moves(board, player):
+        return True  # an immediate win is itself a VCF start
     for m in evaluate.four_creating_moves(board, player):
         if evaluate.starts_forced_win(board, player, m):
             return True

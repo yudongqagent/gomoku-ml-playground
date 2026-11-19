@@ -201,7 +201,44 @@ leg reports its distinct-game count and de-dup rate.
 
 ## 2. Mining results
 
-[To be written when the mining completes.]
+**Mining in progress** (224/293 unique v27 losses scanned at last
+check): 9 filter candidates so far (listed in
+`research/iterations/setup-mining.json`).
+
+**Verification (in progress): 0 verified of 5 tested.** Every
+tested candidate's actual move qualifies (loses 3/3 in playouts),
+but NO removing move saves:
+
+| Candidate | Actual playout | Removing move playout | Audit | Verdict |
+|---|---|---|---|---|
+| v34 g55 ply 34 | [-1,-1,-1] | (8,12) [-1,-1,-1] | CLEAN 0/0/0 | removal does not save |
+| v35 g26 ply 25 | [-1,-1,-1] | (6,7) [-1,1,-1] | CLEAN 0/0/0 | 1/3 non-losses, not a save |
+| v35 g49 ply 72 | [-1,-1,-1] | (1,9) [-1,-1,-1] | DIRTY (VCF 1) | false candidate (filter bug, below) |
+| v35 g58 ply 19 | [-1,-1,-1] | (3,8) [-1,-1,-1] | CLEAN 0/0/0 | removal does not save |
+| v35 g65 ply 88 | [-1,-1,-1] | (3,2) [-1,-1,-1] | DIRTY (VCF 1) | false candidate (filter bug, below) |
+
+The pattern so far: removing all setups is NOT sufficient to save
+these games — the positions were already lost (or the loss comes
+from elsewhere). The known instance (v0-g4 ply 52, where the
+saves DID save 3/3) looks like the exception, not the rule.
+
+**Filter bug found by the verification audit (fixed).** The fast
+`_has_vcf_start` tested only four-creating moves — but an
+immediate winning move is itself a VCF start
+(`starts_forced_win` returns True for it at once) and is NOT
+necessarily a four-creator. After the test move (1,9) in v35 g49
+ply 72, White holds the immediate win (0,12) — the square v27's
+actual move blocked — and the filter wrongly recorded a clean
+removal. Fixed by checking winning moves first; validated 12/12
+against the slow exact enumeration (including both known-failing
+boards). The bug only ADDS false candidates (a missed VCF start
+opens the gate wider), never removes true ones, and the
+verification's slow exact audit is the safeguard — so the
+verified-instance count is unaffected. Games mined before the fix
+may contain false pre-conditions; the final statistics audit
+them with the fixed function.
+
+[To be completed when mining + verification finish.]
 
 ## 3. Fast loop
 
