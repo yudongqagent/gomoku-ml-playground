@@ -1,6 +1,8 @@
 # Iteration 36 — v36: v27's q-gap threshold tie-break ported to the value engine (ML batch 3, H1)
 
-**Status: IN PROGRESS — pre-registration (§1).** Comparison target is
+**Status: COMPLETE — REJECTED (3/4 clauses; clause 1 fails
+on both the nominal and de-dup cuts). v8 stays the ML
+champion.** Comparison target is
 v8 (the ML champion: ladder Elo 0.0, vs v0 0.545, tactical 20/20 +
 29/29 — re-verified on the CORRECTED suite at `--seed 100` before
 any v36 work: old 20/20, hard 29/29). This is the H1 workstream of
@@ -588,44 +590,306 @@ the §1.2 rule).
 
 ## 3. v36 evaluation
 
-(TODO — battery on the FINAL version only.)
+The battery ran on v36-as-pre-registered (τ=0.05, §1.2 rule) —
+no patches were made in the fast loop (§2.5), so
+v36-as-batteried is v36-as-pre-registered. All four legs use
+the pre-registered seeds 100/200; the swap leg uses balanced
+placement, placement_seed 11, tempo judge. The vs-v8 leg ran
+first (100 games, 6447.2s); the vs-v0 leg was interrupted by a
+runtime restart drain at 6/100 games and resumed by the pickup
+worker with the same command (per-game seeding reproduces the
+uninterrupted run — verified by the uniqueness audit in
+§3.3). Every leg below reports its uniqueness audit
+(distinct-game count + de-dup rate), per the batch-3
+hygiene rule.
 
 ### 3.1 Tactical (clause 3)
 
-(TODO)
+**20/20 old + 29/29 hard — clause 3 PASSES** (≥ v8's
+20/20 + 29/29 on the CORRECTED suite). Full-dispatch
+driver (`eval_tactical_full.py --version 36 --suite both
+--seed 100`, `player.choose_move` — not the
+`eval_version.py` probe, which bypasses the MCTS
+dispatch; the probe also passes 20/20 on the old suite).
+The single tie-break fire in the suite, prev-v1v1s-g45
+(§1.3), plays the expected move (11,7) — the fire helps,
+as designed, and breaks nothing: every position v8
+passes, v36 passes. Artefact:
+`research/iterations/tactical-v36.json`.
 
 ### 3.2 Head-to-head vs v8 (clause 1)
 
-(TODO)
+**54W-46L-0D (0.54), Wilson 95% CI [0.4426, 0.6344] —
+clause 1 FAILS on the nominal cut (CI lower 0.4426 <
+0.50).** As Black 29W-21L (0.58); as White 25W-25L
+(0.50). Black won 54 of the 100 games overall — no colour
+anomaly beyond v36's own split. Artefact:
+`research/iterations/batch-v36-vs-v8.json` (100/100 games,
+complete, elapsed 6447.2s).
+
+**Uniqueness audit: 21 unique games in 100.** De-dup
+12W-9L-0D over 21 unique = 0.5714, CI [0.3655, 0.7553] —
+clause 1 FAILS on the de-dup cut too, and the de-dup CI is
+far wider: the effective N is 21, not 100. The line
+multiplicities are [27, 20, 19, 5, 4, 3, 2×7, 1×8] — three
+dominant lines cover 66 of the 100 games, and games are
+short (mean 27.3 plies, min 24, max 34).
+
+**This is the mirror-match determinism collapse, NOT a
+replay bug.** The leg was interrupted at game 22 and
+auto-resumed; the collapse is engine similarity, not RNG
+sharing:
+
+- In-order prefix replays (resumed game *i* identical to
+  game *i*−22, the seed-replay bug's signature): 12/78 —
+  exactly the chance expectation (12.3) given the observed
+  line distribution (Σp² = 0.1576). A replay bug would
+  reproduce the prefix nearly 1:1 (78/78).
+- 11 of the 21 unique lines first appear AFTER the resume
+  (games 24–82) — new lines keep appearing throughout the
+  resumed segment, which a prefix replay cannot produce.
+- Colour alternation has 0 breaks across the resume
+  boundary.
+
+Per-game seeding is verified working. The collapse happens
+because v36 ≈ v8 behaviourally: the tie-break fires on
+~1% of searched turns (§0: 3/59 measured ties; fast loop:
+5 fires in 614 searched turns, 0.81%), so the two
+near-identical engines converge to the same few lines
+whatever the seed. The 0.54 is noise around 0.50 at
+effective N=21 — the port does not move the head-to-head.
 
 ### 3.3 Head-to-head vs v0
 
-(TODO)
+**52W-47L-1D (0.525), Wilson 95% CI [0.4280, 0.6201].**
+As Black 31W-19L (0.62); as White 21W-28L-1D (0.42) —
+the familiar value-engine White weakness (v8's own
+vs-v0 split was Black-heavy too). Statistically
+indistinguishable from v8's vs-v0 battery (54W-45L-1D,
+0.5450, CI [0.4475, 0.6391]). Black won 59 of the 100
+games. Games are longer than the mirror match (mean 44.9
+plies, min 21, max 225). Artefact:
+`research/iterations/batch-v36-vs-v0.json` (100/100 games,
+complete, elapsed 3936.5s).
+
+**Uniqueness audit: 56 unique games in 100.** De-dup
+25W-30L-1D over 56 unique = 0.4554, CI [0.3320, 0.5844] —
+the de-dup rate is BELOW 0.50 while the nominal rate is
+0.525: the duplicated lines favour v36, so the nominal
+0.525 overstates v36's edge over v0. Top multiplicities
+[7, 7, 5, 5, 5, 5, 4, 3] — a milder collapse than the
+mirror match (21 unique), as expected against a
+dissimilar opponent.
+
+**Resume verification.** This leg was interrupted by a
+runtime restart drain at 6/100 games and resumed by the
+pickup worker with the same command. In-order prefix
+replays (resumed game *i* identical to game *i*−6): 5,
+vs a chance expectation of 2.9 given the line
+distribution — consistent with chance (Poisson(2.9),
+P(X≥5) ≈ 0.19), and far from the 94/94 a seed-replay bug
+would produce. Per-game seeding reproduces the
+uninterrupted run, as designed.
 
 ### 3.4 Head-to-head vs v7
 
-(TODO)
+**37W-60L-3D (0.385), Wilson 95% CI [0.2956, 0.4829].**
+As Black 26W-22L-2D (0.52); as White 11W-38L-1D (0.22)
+— the value engine's White weakness is severe against
+the strong heuristic engine (v8's White vs v1 was 0.29;
+v36's White vs v7 is worse still). Black won 64 of the
+100 games. v36 loses to v7 outright, as expected (v7's
+ladder Elo 190.8 vs v8's 0.0 — the ML track still trails
+the heuristic bar reference by a wide margin). Mean 47.95
+plies (min 19, max 225). Artefact:
+`research/iterations/batch-v36-vs-v7.json` (100/100
+games, complete; two VM-replacement interruptions,
+resumed from games 44 and 92).
+
+**Uniqueness audit: 86 unique games in 100.** De-dup
+29W-54L-3D over 86 unique = 0.3547, CI [0.2617, 0.4600]
+— the de-dup cut agrees with the nominal cut (both
+clearly below 0.50). Top multiplicities [4, 3, 2×6]: no
+collapse against a dissimilar opponent, confirming the
+§3.2 collapse is a mirror-match phenomenon, not a driver
+defect.
 
 ### 3.5 Swap match vs v7
 
-(TODO)
+**30W-67L-3D (0.315), Wilson 95% CI [0.2322, 0.4115].**
+Balanced placement, placement_seed 11, tempo judge.
+As Black 19W-30L-3D (n=52, 0.3654); as White 11W-37L-0D
+(n=48, 0.2292) — colour counts are 52/48, not 50/50,
+because under swap the judge picks the colours rather
+than alternating them. Swap does NOT rescue v36 against
+v7: unlike v29 (swap 0.735) or v7-vs-v1 (0.57), v36
+loses in both colours — the tempo judge hands v7 the
+better side, and v36's Black game is not strong enough
+to win the positions it keeps. The White weakness
+persists under swap (0.2292 as White, matching the
+0.22 in the normal-rules leg). Black won 56 of the 100
+games. Mean 47.97 plies (min 19, max 225). Artefact:
+`research/iterations/batch-v36-vs-v7-swap.json` (100/100
+games, complete; one VM-replacement interruption,
+resumed from game 41).
+
+**Uniqueness audit: 97 unique games in 100.** De-dup
+30W-64L-3D over 97 unique = 0.3247, CI [0.2398, 0.4231]
+— the de-dup cut agrees with the nominal cut (both
+clearly below 0.50). Top multiplicities [3, 2, 1×95]:
+the swap opening variety (100 distinct balanced
+placements) keeps the games nearly all distinct — the
+healthiest uniqueness in the battery, and further
+confirmation that the §3.2 collapse is a mirror-match
+phenomenon.
 
 ### 3.6 Ladder (clause 2)
 
-(TODO)
+**Ladder Elo 70.4, interval [−80.2, 221.1] — clause 2
+PASSES on the point estimate** (70.4 strictly > v8's
+0.0), the same reading applied to v24 (52.5, ML batch
+1). The intervals overlap (v8's is [−147.8, 147.8]), so
+the Elo edge is NOT statistically established — it is a
+point-estimate pass, not a proven gain. Per-leg (20
+games/opponent, seed 100, mcts_sims=100): vs random
+20-0 (1.00); vs heuristic 12-8 (0.60, CI [0.3866,
+0.7812]; as Black 8-2, as White 4-6); vs mcts 8-11-1
+(0.425, CI [0.2383, 0.6359]; as Black 5-4-1, as White
+3-7). v36 still loses to the ladder MCTS outright, and
+the White split recurs at every rung (White 4-6 vs
+heuristic, 3-7 vs mcts). Artefact:
+`research/iterations/ladder-v36.json` (complete, no
+resume needed).
 
 ### 3.7 Defence classification
 
-(TODO)
+Pooled across all 400 battery games
+(`classify_batch_losses.py`, batch-3 definitions):
+**220 losses, 220 via open four, 0 missed blocks, 0
+clean missed preventions in 1,091 threatened turns in
+losses** (2,008 threatened turns across all games).
+Defence stays solved — the tie-break touches only
+visit-tied root choices after the win/block scans and
+the threat filter, and introduces no defensive leak.
+
+| Leg | Losses | Via open four | Missed blocks | Threatened turns (losses) | Clean missed preventions |
+|---|---|---|---|---|---|
+| vs v8 | 46 | 46 | 0 | 199 | 0 |
+| vs v0 | 47 | 47 | 0 | 280 | 0 |
+| vs v7 | 60 | 60 | 0 | 285 | 0 |
+| swap vs v7 | 67 | 67 | 0 | 327 | 0 |
+| **Pooled** | **220** | **220** | **0** | **1,091** | **0** |
+
+Artefacts: `research/iterations/classify-v36-vs-v8.json`,
+`classify-v36-vs-v0.json`, `classify-v36-vs-v7.json`,
+`classify-v36-vs-v7-swap.json`.
 
 ### 3.8 Test suites (clause 4)
 
-(TODO)
+**All green — clause 4 PASSES.** ml pytest (main repo venv
+Python): **416 passed, 1 skipped, 58 xfailed, 0 failed**
+in 628.18s (the xfail count includes the known v7
+regression xfails plus the version-gated xfails added by
+later batches; 0 failures). npm test: **55/55** (4 test
+files, after a fresh `npm ci`). `npx tsc --noEmit`:
+**clean**, no output. `baseline.py` untouched (frozen).
+The pytest run was interrupted once by a runtime restart
+at ~9m20s with no confirmed result and re-run from
+scratch to completion — the numbers above are the
+completed re-run.
 
 ## 4. Bar check (v36 vs v8)
 
-(TODO)
+| Clause | Bar (ref v8) | v36 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v8 | > 0.50, Wilson 95% lower > 0.50 | 54W-46L-0D, 0.54, CI [0.4426, 0.6344]; de-dup 12W-9L-0D, 0.5714, CI [0.3655, 0.7553] | **FAIL** |
+| 2. Ladder Elo | > 0.0 | 70.4, interval [−80.2, 221.1] | **PASS** (point estimate; intervals overlap v8's [−147.8, 147.8]) |
+| 3. Tactical (corrected) | ≥ 20/20 + 29/29 | 20/20 + 29/29 | **PASS** |
+| 4. Suites green | pytest + npm + tsc | pytest 416 passed, 1 skipped, 58 xfailed, 0 failed; npm 55/55; tsc clean | **PASS** |
+
+**v36 is REJECTED — 3/4 clauses, failing clause 1 on both
+the nominal cut and the de-dup cut.** v8 stays the ML
+champion. v36 is the second ML version to reach 3/4
+(after v24, ML batch 1), and like v24 it fails only on
+the head-to-head against v8.
+
+Secondary: vs v0 52W-47L-1D (0.5250, CI [0.4280,
+0.6201]; de-dup 0.4554); vs v7 37W-60L-3D (0.3850, CI
+[0.2956, 0.4829]; de-dup 0.3547); swap vs v7 30W-67L-3D
+(0.3150, CI [0.2322, 0.4115]; de-dup 0.3247).
 
 ## 5. What this means
 
-(TODO)
+**The port does not transfer — and §0 said why before the
+battery ran.** The threshold tie-break worked on the
+rollout leaf (v27) because the leaf's exact terminal
+values make signal gaps large (0.130–0.417) against a
+documented noise gap of 0.016 — an 8x separation. The
+net leaf has no terminal values: its q values are shrunk
+by VALUE_WEIGHT 0.25 into a narrow band, the largest gap
+in 59 measured ties was 0.0569, and the distribution is
+unimodal noise. The battery confirms the mechanism
+account at every scale: 1 fire in 49 tactical positions
+(§1.3), 5 fires in 614 fast-loop searched turns
+(0.81%, §2.5), and v36 ≈ v8 in every battery leg (0.54
+nominal / 0.5714 de-dup vs v8, both CIs including 0.50;
+0.525 vs v0 against v8's 0.545; Elo 70.4 vs 0.0 with
+overlapping intervals). The rare fires are real — the
+g45 fire plays the expected move and the fast loop
+exonerated the one fire in a loss — but they are too
+rare to move a 100-game match, and at effective N=21
+the mirror leg cannot resolve a small edge anyway.
+
+**The threshold tie-break lever is now CLOSED for the
+value engine.** It is not a reopening of the closed
+q-based root-decisions lever (§1.1), but it ends in the
+same place: the value engine's root q values carry no
+separable tie-breaking signal. Any future root-decision
+lever on this engine must first MEASURE a separating
+signal (§0's protocol) before building — the
+measurement, not the match, is the cheap falsifier.
+
+**The durable finding is the White gap, not the
+tie-break.** v36 as White: 0.50 vs v8, 0.42 vs v0, 0.22
+vs v7, 0.2292 swap vs v7; ladder White 4-6 vs heuristic,
+3-7 vs mcts. The value engine's White game is its
+weakest component by a wide margin, and it persists
+under swap (where the judge, not the engine, picks the
+side). Defence is not the problem — 220/220 battery
+losses via open four, 0 missed blocks, 0 clean missed
+preventions in 1,091 threatened turns: the losses are
+positional drift, not tactical blunders. The binding
+constraint remains the value head (v31: holdout transfer
+does not predict played strength).
+
+**What the next batch should try for this direction.**
+Nothing further on the tie-break — the lever is closed.
+The open questions are H2's (deeper-teacher
+distillation) and H3's (multi-task value net): whether
+either improves the value head enough to move the
+head-to-head. If the White gap survives both, the next
+targeted attempt should be White-specific: training data
+weighted toward White-to-move positions against strong
+opposition, or a White-side value calibration — the
+White weakness is the largest single, measured, and
+still-open defect on the ML track. Methodologically,
+future ML-vs-ML legs should buy opening variety (the
+swap leg's 97 unique games in 100 show that placement
+variety fixes the mirror-match collapse; a normal-rules
+leg with randomized openings would do the same for the
+primary bar) — otherwise the head-to-head's effective N
+stays near 20 and small edges stay unresolvable.
+
+**Battery runtime notes.** The battery ran in 4 runner
+invocations across 3 VM replacements (SIGTERM kills at
+~56 min, ~60 min, and a service restart). The auto-resume
+drivers worked as designed: vs-v0 resumed from game 6,
+vs-v7 from games 44 and 92, swap from game 41; the
+ladder and tactical ran uninterrupted in the final
+invocation. Total battery wall time ≈ 7.0h of engine
+time across the runs (vs-v8 6447s, vs-v0 3937s, vs-v7
+~7.1ks across segments, swap ~6.1ks across segments,
+ladder 1591s, tactical ~80s).
+Per-game seeding + the uniqueness audit held up
+throughout: every resume reproduced the uninterrupted
+run (§3.2, §3.3), and every leg reports its audit.
