@@ -1,0 +1,80 @@
+# ML batch 4 H1 (v42) — history-dropout DISTILLATION config.
+#
+# Trains v8's ResNet 16ch/2 blocks from scratch to predict v18's
+# rollout-leaf value (1-ply labels, _rollout_leaf_value) on v24's
+# EXACT positions and labels — v7 self-play, v18 self-play, and
+# random playouts (see research/iterations/iter-42.md §1 for the
+# pre-registration). The ONLY recipe change from v24 is
+# history_dropout: 0.5 (per-sample whole-history dropout — each
+# training sample independently has ALL its history planes
+# zeroed with p=0.5, so the net cannot route its value judgment
+# through history features; see gomoku_ml/augment.py
+# drop_history_planes_batch). Otherwise v24's recipe exactly
+# (its config ml1-h1.yaml): batch 64, lr 0.002 cosine, warmup 20,
+# wd 1e-4, augmentation on, val_fraction 0.05, seed 0, 15 epochs,
+# value-only loss (policy_weight 0.0). checkpoint_every_epochs: 1
+# (v24's resume lesson).
+#
+# Data: v24's .npz shards, reused verbatim
+# (ml/runs/ml4-h1/data/{v7,v18,random}/ — game-level holdout:
+# every 10th game routed to *-holdout dirs and NEVER passed here).
+# Train from the memmap bundle (ml/runs/ml4-h1/data-mmap/) — the
+# in-RAM load OOM-killed at this scale (iter-25 §2.4).
+#
+# Run (from the worktree root):
+#   OMP_NUM_THREADS=1 TORCH_THREADS=1 \
+#   /home/hatch/workspace/projects/gomoku-ml-playground/ml/.venv/bin/python -u \
+#     ml/scripts/train.py --config ml4-h1 --run-dir ml/runs/ml4-h1-train \
+#     --data ml/runs/ml4-h1/data-mmap
+#
+# Threads pinned to 1 per B1's finding: under contention the default
+# 4 torch threads slowed a batched forward pass ~290x.
+
+run_name: ml4-h1-distill
+seed: 0
+
+architecture:
+  name: resnet
+  params:
+    channels: 16
+    blocks: 2
+
+base_checkpoint: null
+resume: null
+
+selfplay:
+  games: 1   # unused by train.py (data comes from --data); >= 1 required by validation
+  sims_per_move: 50
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_epsilon: 0.25
+  temperature: 1.0
+  temperature_moves: 30
+  resign_threshold: null
+  max_moves: 225
+  checkpoint_every_games: 10
+
+train:
+  epochs: 15
+  batch_size: 64
+  lr: 0.002
+  lr_schedule: cosine
+  lr_step_size: 10
+  lr_gamma: 0.5
+  warmup_steps: 20
+  weight_decay: 0.0001
+  policy_weight: 0.0
+  value_weight: 1.0
+  augmentation: true
+  history_dropout: 0.5
+  val_fraction: 0.05
+  checkpoint_every_epochs: 1
+
+eval:
+  games: 4
+  sims: 32
+  opponents: [random, heuristic]
+  mcts_sims: 100
+  tactical: true
+  tactical_sims: 50
+  auto: false

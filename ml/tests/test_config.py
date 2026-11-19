@@ -91,3 +91,28 @@ def test_shipped_configs_resolve():
 def test_missing_config_file_errors():
     with pytest.raises(FileNotFoundError):
         load_config("/nonexistent/config.yaml")
+
+
+def test_history_dropout_default_and_validation():
+    """ML batch 4 (v42): history_dropout defaults to 0.0 (v24's
+    recipe exactly) and must be in [0, 1]."""
+    cfg = resolve_config({})
+    assert cfg["train"]["history_dropout"] == 0.0
+    cfg = resolve_config({"train": {"history_dropout": 0.5}})
+    assert cfg["train"]["history_dropout"] == 0.5
+    with pytest.raises(ConfigError, match="history_dropout"):
+        resolve_config({"train": {"history_dropout": 1.5}})
+    with pytest.raises(ConfigError, match="history_dropout"):
+        resolve_config({"train": {"history_dropout": -0.1}})
+
+
+def test_ml4_h1_config_resolves():
+    """The v42 training config: v24's recipe + history_dropout 0.5."""
+    cfg = load_config(os.path.join(CONFIGS, "ml4-h1.yaml"))
+    assert cfg["train"]["epochs"] == 15
+    assert cfg["train"]["batch_size"] == 64
+    assert cfg["train"]["lr"] == 0.002
+    assert cfg["train"]["policy_weight"] == 0.0
+    assert cfg["train"]["value_weight"] == 1.0
+    assert cfg["train"]["history_dropout"] == 0.5
+    assert cfg["architecture"]["params"] == {"channels": 16, "blocks": 2}
