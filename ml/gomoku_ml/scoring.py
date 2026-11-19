@@ -438,6 +438,21 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v36 (iteration 36, ML batch 3): H1 — v8 + v27's q-gap
+    # threshold tie-break ported to the value engine (see
+    # gomoku_ml.mcts_value.ValueMCTS._pick_pool_move and
+    # research/iterations/iter-36.md §1.1): on an exact top-visit
+    # tie within the threat-filtered root pool, the tie is broken
+    # by correctly-signed q ONLY when the gap between the highest
+    # and second-highest distinct our-q exceeds τ=0.05 (selected
+    # by the pre-registered rule after both sweep values tied at
+    # 20W-20L-0D vs v0 over 40 games). Same checkpoint as v8
+    # (ml/runs/b3-h2/value-net.pt); the sweep's temporary entries
+    # (92/93) were removed on registration.
+    36: {"name": "scoring-v36", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/b3-h2/value-net.pt",
+         "tie_break_q": True, "tie_break_q_threshold": 0.05},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1049,6 +1064,12 @@ class ScoringPlayer:
                     checkpoint_path=path,
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
                     rng=self.rng,
+                    tie_break_q=ENGINE_VERSIONS[version].get(
+                        "tie_break_q", False
+                    ),
+                    tie_break_q_threshold=ENGINE_VERSIONS[version].get(
+                        "tie_break_q_threshold", 0.0
+                    ),
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.

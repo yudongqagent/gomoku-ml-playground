@@ -7,7 +7,20 @@ import torch
 from gomoku_ml import game, scoring
 from gomoku_ml.architectures import build_architecture
 from gomoku_ml.mcts_heuristic import _MUST_BLOCK_VALUE as _V6_MUST_BLOCK
+from gomoku_ml.mcts_heuristic import _Node
 from gomoku_ml.mcts_value import _MUST_BLOCK_VALUE, ValueMCTS
+
+
+def _pool_with_children(specs):
+    """Fabricate a root pool: ``specs`` is a list of
+    (move, visit_count, value_sum) in dict-insertion order."""
+    pool = {}
+    for move, visits, value_sum in specs:
+        child = _Node(0.1)
+        child.visit_count = visits
+        child.value_sum = value_sum
+        pool[move] = child
+    return pool
 
 
 def _board_with(black, white):
@@ -215,3 +228,115 @@ def test_v8_env_override_and_missing_checkpoint(tmp_path, monkeypatch):
 
     with pytest.raises(FileNotFoundError):
         scoring.get_player(8, seed=0)
+
+
+# --- v36: v27's threshold tie-break ported to the value engine ---------
+# (ML batch 3, H1; research/iterations/iter-36.md §1.1). The rule lives
+# in ValueMCTS._pick_pool_move, mirroring HeuristicMCTS._pick_root_move
+# on the effective pool (after the threat filter).
+
+
+def test_v36_tie_break_picks_highest_our_q_when_gap_exceeds_threshold(tmp_path):
+    # Three children tie at 3 visits. child.q is the OPPONENT's
+    # perspective, so our-q = -child.q: move 101 (value_sum -3.0,
+    # q -1.0, our-q +1.0) beats 100 (our-q +0.583) and 102
+    # (our-q +0.667) — even though 101 is not first in dict order.
+    # Gap 1.0 - 0.667 = 0.333 > τ=0.05, so the tie-break fires.
+    pool = _pool_with_children([(100, 3, -1.75), (101, 3, -3.0), (102, 3, -2.0)])
+    mcts = ValueMCTS(
+        checkpoint_path=_random_net_checkpoint(tmp_path), sims=10,
+        tie_break_q=True, tie_break_q_threshold=0.05,
+    )
+    assert mcts._pick_pool_move(pool) == 101
+
+
+def test_v36_threshold_blocks_small_gap(tmp_path):
+    # The gap is 0.0167 (the documented rollout-leaf noise gap):
+    # our-q +0.5833 (move 101) vs +0.5667 (move 100) vs +0.3333
+    # (move 102). Below τ=0.05 the tie-break must NOT fire — with
+    # no RNG the choice is the FIRST tied child in dict order
+    # (100), not the q-max child (101).
+    pool = _pool_with_children([(100, 3, -1.70), (101, 3, -1.75), (102, 3, -1.0)])
+    mcts = ValueMCTS(
+        checkpoint_path=_random_net_checkpoint(tmp_path), sims=10,
+        tie_break_q=True, tie_break_q_threshold=0.05,
+    )
+    assert mcts._pick_pool_move(pool) == 100
+    # At τ=0.0 (v23's rule) the same gap fires and picks 101.
+    mcts23 = ValueMCTS(
+        checkpoint_path=_random_net_checkpoint(tmp_path), sims=10,
+        tie_break_q=True, tie_break_q_threshold=0.0,
+    )
+    assert mcts23._pick_pool_move(pool) == 101
+
+
+def test_v36_q_tie_falls_back_to_rng_subset(tmp_path):
+    # Moves 100 and 102 tie at 3 visits AND at our-q +0.583
+    # (value_sum -1.75 each); move 101 ties on visits but holds
+    # worse our-q (+0.333). Gap 0.583 - 0.333 = 0.25 > τ, so the
+    # tie-break fires, then falls back to the q-tied subset: the
+    # choice must be 100 or 102 only — never 101.
+    pool = _pool_with_children([(100, 3, -1.75), (101, 3, -1.0), (102, 3, -1.75)])
+    mcts = ValueMCTS(
+        checkpoint_path=_random_net_checkpoint(tmp_path), sims=10,
+        tie_break_q=True, tie_break_q_threshold=0.05,
+        rng=np.random.default_rng(0),
+    )
+    for _ in range(20):
+        assert mcts._pick_pool_move(pool) in (100, 102)
+    # With no RNG the fallback is the first q-tied child in dict
+    # order (100), not the first visit-tied child overall — here
+    # they coincide, so rebuild with the worse-q move first.
+    pool2 = _pool_with_children([(101, 3, -1.0), (100, 3, -1.75), (102, 3, -1.75)])
+    mcts_no_rng = ValueMCTS(
+        checkpoint_path=_random_net_checkpoint(tmp_path), sims=10,
+        tie_break_q=True, tie_break_q_threshold=0.05,
+    )
+    assert mcts_no_rng._pick_pool_move(pool2) == 100
+
+
+def test_v36_unique_visit_leader_untouched(tmp_path):
+    # The visit leader (4 visits) holds the WORST our-q — v36
+    # must still play it: the rule fires only on exact ties.
+    pool = _pool_with_children([(100, 4, -0.5), (101, 3, -3.0), (102, 3, -2.0)])
+    mcts = ValueMCTS(
+        checkpoint_path=_random_net_checkpoint(tmp_path), sims=10,
+        tie_break_q=True, tie_break_q_threshold=0.05,
+    )
+    assert mcts._pick_pool_move(pool) == 100
+    # A 1-visit gap is NOT a tie either.
+    pool2 = _pool_with_children([(100, 4, -0.5), (101, 3, -3.0)])
+    assert mcts._pick_pool_move(pool2) == 100
+
+
+def test_v36_flag_off_is_v8_behaviour(tmp_path):
+    # Without the flag the same tied root returns the first tied
+    # child (no RNG) regardless of q — the flag is the only change.
+    pool = _pool_with_children([(100, 3, -1.75), (101, 3, -3.0), (102, 3, -2.0)])
+    mcts = ValueMCTS(checkpoint_path=_random_net_checkpoint(tmp_path), sims=10)
+    assert mcts.tie_break_q is False
+    assert mcts.tie_break_q_threshold == 0.0
+    assert mcts._pick_pool_move(pool) == 100
+
+
+def test_v36_registered_with_selected_threshold(tmp_path, monkeypatch):
+    # v36 = v8 + threshold 0.05, selected by the pre-registered
+    # rule (iter-36 §1.2/§1.5: both sweep values tied at
+    # 20W-20L-0D vs v0, so the tie rule picked the smaller one).
+    # The temporary sweep entries (92/93) are gone.
+    ckpt = _random_net_checkpoint(tmp_path)
+    monkeypatch.setitem(scoring.ENGINE_VERSIONS[36], "value_checkpoint", ckpt)
+    v36 = scoring.get_player(36, seed=0)
+    assert v36.name == "scoring-v36"
+    assert isinstance(v36._mcts, ValueMCTS)
+    assert v36._mcts.sims == 100
+    assert v36._mcts.tie_break_q is True
+    assert v36._mcts.tie_break_q_threshold == 0.05
+    for temp in (92, 93):
+        with pytest.raises(ValueError):
+            scoring.get_player(temp, seed=0)
+    # v8 is unchanged (tie-break off by default).
+    monkeypatch.setitem(scoring.ENGINE_VERSIONS[8], "value_checkpoint", ckpt)
+    v8 = scoring.get_player(8, seed=0)
+    assert v8._mcts.tie_break_q is False
+    assert v8._mcts.tie_break_q_threshold == 0.0
