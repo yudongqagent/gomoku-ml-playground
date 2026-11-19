@@ -1,0 +1,1975 @@
+{
+  "turns": [
+    {
+      "file": "batch-v35-vs-v27.json",
+      "game": 58,
+      "ply": 19,
+      "winner_version": 35,
+      "v27_colour": "white",
+      "played": [
+        6,
+        5
+      ],
+      "removing_moves": [
+        {
+          "move": [
+            3,
+            8
+          ],
+          "source": "setup-square"
+        }
+      ],
+      "setups_after_actual": 3,
+      "our_winning_moves": [],
+      "opp_winning_moves": [],
+      "forced_block": false,
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 77,
+          "xy": [
+            2,
+            5
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 61,
+          "xy": [
+            1,
+            4
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 123,
+          "xy": [
+            3,
+            8
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 95,
+          "xy": [
+            5,
+            6
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            1,
+            1,
+            1
+          ],
+          "non_losses": 3,
+          "saves": true
+        }
+      ],
+      "saving_moves": [
+        {
+          "move": 95,
+          "xy": [
+            5,
+            6
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            1,
+            1,
+            1
+          ],
+          "non_losses": 3,
+          "saves": true
+        }
+      ],
+      "audits": {
+        "5,6": {
+          "kind": "save",
+          "vcf": 0,
+          "creators": 0,
+          "setups": 2
+        },
+        "3,8": {
+          "kind": "removing",
+          "vcf": 0,
+          "creators": 0,
+          "setups": 0
+        }
+      },
+      "root_top10": [
+        {
+          "move": [
+            3,
+            8
+          ],
+          "visits": 4,
+          "q_ours": -0.096,
+          "prior": 0.0454
+        },
+        {
+          "move": [
+            6,
+            5
+          ],
+          "visits": 4,
+          "q_ours": -0.0115,
+          "prior": 0.0341
+        },
+        {
+          "move": [
+            7,
+            8
+          ],
+          "visits": 4,
+          "q_ours": -0.056,
+          "prior": 0.0341
+        },
+        {
+          "move": [
+            2,
+            5
+          ],
+          "visits": 2,
+          "q_ours": -0.444,
+          "prior": 0.0717
+        },
+        {
+          "move": [
+            1,
+            4
+          ],
+          "visits": 2,
+          "q_ours": -0.4771,
+          "prior": 0.0714
+        },
+        {
+          "move": [
+            5,
+            6
+          ],
+          "visits": 2,
+          "q_ours": -0.1117,
+          "prior": 0.0353
+        },
+        {
+          "move": [
+            4,
+            8
+          ],
+          "visits": 2,
+          "q_ours": -0.0928,
+          "prior": 0.0339
+        },
+        {
+          "move": [
+            4,
+            5
+          ],
+          "visits": 2,
+          "q_ours": -0.444,
+          "prior": 0.0329
+        },
+        {
+          "move": [
+            8,
+            8
+          ],
+          "visits": 2,
+          "q_ours": -0.4564,
+          "prior": 0.0329
+        },
+        {
+          "move": [
+            2,
+            8
+          ],
+          "visits": 2,
+          "q_ours": -0.1572,
+          "prior": 0.0326
+        }
+      ],
+      "root_wanted": [
+        {
+          "move": [
+            3,
+            8
+          ],
+          "visits": 4,
+          "q_ours": -0.096,
+          "prior": 0.0454
+        },
+        {
+          "move": [
+            6,
+            5
+          ],
+          "visits": 4,
+          "q_ours": -0.0115,
+          "prior": 0.0341
+        },
+        {
+          "move": [
+            5,
+            6
+          ],
+          "visits": 2,
+          "q_ours": -0.1117,
+          "prior": 0.0353
+        }
+      ],
+      "root_choice": [
+        7,
+        8
+      ],
+      "root_reproduces_actual": false
+    },
+    {
+      "file": "batch-v34-vs-v27-swap.json",
+      "game": 46,
+      "ply": 24,
+      "winner_version": 34,
+      "v27_colour": "black",
+      "played": [
+        7,
+        12
+      ],
+      "removing_moves": [
+        {
+          "move": [
+            8,
+            9
+          ],
+          "source": "setup-square"
+        }
+      ],
+      "setups_after_actual": 1,
+      "our_winning_moves": [],
+      "opp_winning_moves": [],
+      "forced_block": false,
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 172,
+          "xy": [
+            7,
+            11
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            1,
+            -1,
+            -1
+          ],
+          "non_losses": 1,
+          "saves": false
+        },
+        {
+          "move": 145,
+          "xy": [
+            10,
+            9
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            1,
+            -1
+          ],
+          "non_losses": 1,
+          "saves": false
+        },
+        {
+          "move": 115,
+          "xy": [
+            10,
+            7
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            1,
+            1,
+            1
+          ],
+          "non_losses": 3,
+          "saves": true
+        },
+        {
+          "move": 143,
+          "xy": [
+            8,
+            9
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            1,
+            1,
+            1
+          ],
+          "non_losses": 3,
+          "saves": true
+        }
+      ],
+      "saving_moves": [
+        {
+          "move": 115,
+          "xy": [
+            10,
+            7
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            1,
+            1,
+            1
+          ],
+          "non_losses": 3,
+          "saves": true
+        },
+        {
+          "move": 143,
+          "xy": [
+            8,
+            9
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            1,
+            1,
+            1
+          ],
+          "non_losses": 3,
+          "saves": true
+        }
+      ],
+      "audits": {
+        "10,7": {
+          "kind": "save",
+          "vcf": 0,
+          "creators": 0,
+          "setups": 0
+        },
+        "8,9": {
+          "kind": "save",
+          "vcf": 0,
+          "creators": 0,
+          "setups": 0
+        }
+      },
+      "root_top10": [
+        {
+          "move": [
+            7,
+            12
+          ],
+          "visits": 12,
+          "q_ours": 0.0539,
+          "prior": 0.0641
+        },
+        {
+          "move": [
+            7,
+            11
+          ],
+          "visits": 11,
+          "q_ours": 0.0503,
+          "prior": 0.0641
+        },
+        {
+          "move": [
+            10,
+            9
+          ],
+          "visits": 5,
+          "q_ours": -0.0372,
+          "prior": 0.0416
+        },
+        {
+          "move": [
+            10,
+            7
+          ],
+          "visits": 5,
+          "q_ours": 0.001,
+          "prior": 0.0404
+        },
+        {
+          "move": [
+            13,
+            9
+          ],
+          "visits": 4,
+          "q_ours": 0.0032,
+          "prior": 0.0292
+        },
+        {
+          "move": [
+            10,
+            8
+          ],
+          "visits": 4,
+          "q_ours": -0.0262,
+          "prior": 0.0287
+        },
+        {
+          "move": [
+            8,
+            9
+          ],
+          "visits": 3,
+          "q_ours": 0.0179,
+          "prior": 0.03
+        },
+        {
+          "move": [
+            10,
+            12
+          ],
+          "visits": 3,
+          "q_ours": -0.0141,
+          "prior": 0.0291
+        },
+        {
+          "move": [
+            7,
+            3
+          ],
+          "visits": 3,
+          "q_ours": 0.0511,
+          "prior": 0.0108
+        },
+        {
+          "move": [
+            8,
+            7
+          ],
+          "visits": 3,
+          "q_ours": -0.0141,
+          "prior": 0.0095
+        }
+      ],
+      "root_wanted": [
+        {
+          "move": [
+            7,
+            12
+          ],
+          "visits": 12,
+          "q_ours": 0.0539,
+          "prior": 0.0641
+        },
+        {
+          "move": [
+            10,
+            7
+          ],
+          "visits": 5,
+          "q_ours": 0.001,
+          "prior": 0.0404
+        },
+        {
+          "move": [
+            8,
+            9
+          ],
+          "visits": 3,
+          "q_ours": 0.0179,
+          "prior": 0.03
+        }
+      ],
+      "root_choice": [
+        7,
+        12
+      ],
+      "root_reproduces_actual": true
+    },
+    {
+      "file": "batch-v35-vs-v27.json",
+      "game": 26,
+      "ply": 25,
+      "winner_version": 35,
+      "v27_colour": "white",
+      "played": [
+        9,
+        4
+      ],
+      "removing_moves": [
+        {
+          "move": [
+            6,
+            7
+          ],
+          "source": "1-ply-top5"
+        }
+      ],
+      "setups_after_actual": 1,
+      "our_winning_moves": [],
+      "opp_winning_moves": [],
+      "forced_block": false,
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 111,
+          "xy": [
+            6,
+            7
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            1,
+            -1
+          ],
+          "non_losses": 1,
+          "saves": false
+        },
+        {
+          "move": 125,
+          "xy": [
+            5,
+            8
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            1,
+            1,
+            1
+          ],
+          "non_losses": 3,
+          "saves": true
+        },
+        {
+          "move": 186,
+          "xy": [
+            6,
+            12
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 126,
+          "xy": [
+            6,
+            8
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 131,
+          "xy": [
+            11,
+            8
+          ],
+          "source": "mcts-400-sims",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 171,
+          "xy": [
+            6,
+            11
+          ],
+          "source": "setup-square",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        }
+      ],
+      "saving_moves": [
+        {
+          "move": 125,
+          "xy": [
+            5,
+            8
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            1,
+            1,
+            1
+          ],
+          "non_losses": 3,
+          "saves": true
+        }
+      ],
+      "audits": {
+        "5,8": {
+          "kind": "save",
+          "vcf": 0,
+          "creators": 0,
+          "setups": 1
+        },
+        "6,7": {
+          "kind": "removing",
+          "vcf": 0,
+          "creators": 0,
+          "setups": 0
+        }
+      },
+      "root_top10": [
+        {
+          "move": [
+            11,
+            2
+          ],
+          "visits": 4,
+          "q_ours": -0.0753,
+          "prior": 0.0316
+        },
+        {
+          "move": [
+            9,
+            4
+          ],
+          "visits": 4,
+          "q_ours": -0.066,
+          "prior": 0.0316
+        },
+        {
+          "move": [
+            11,
+            8
+          ],
+          "visits": 4,
+          "q_ours": -0.0433,
+          "prior": 0.0316
+        },
+        {
+          "move": [
+            10,
+            3
+          ],
+          "visits": 3,
+          "q_ours": -0.0706,
+          "prior": 0.0316
+        },
+        {
+          "move": [
+            4,
+            9
+          ],
+          "visits": 3,
+          "q_ours": -0.0455,
+          "prior": 0.0316
+        },
+        {
+          "move": [
+            3,
+            4
+          ],
+          "visits": 3,
+          "q_ours": -0.0483,
+          "prior": 0.0118
+        },
+        {
+          "move": [
+            5,
+            2
+          ],
+          "visits": 3,
+          "q_ours": -0.0393,
+          "prior": 0.0117
+        },
+        {
+          "move": [
+            2,
+            5
+          ],
+          "visits": 3,
+          "q_ours": -0.0157,
+          "prior": 0.0079
+        },
+        {
+          "move": [
+            6,
+            7
+          ],
+          "visits": 2,
+          "q_ours": -0.1483,
+          "prior": 0.0331
+        },
+        {
+          "move": [
+            5,
+            8
+          ],
+          "visits": 2,
+          "q_ours": -0.1371,
+          "prior": 0.0319
+        }
+      ],
+      "root_wanted": [
+        {
+          "move": [
+            9,
+            4
+          ],
+          "visits": 4,
+          "q_ours": -0.066,
+          "prior": 0.0316
+        },
+        {
+          "move": [
+            6,
+            7
+          ],
+          "visits": 2,
+          "q_ours": -0.1483,
+          "prior": 0.0331
+        },
+        {
+          "move": [
+            5,
+            8
+          ],
+          "visits": 2,
+          "q_ours": -0.1371,
+          "prior": 0.0319
+        }
+      ],
+      "root_choice": [
+        11,
+        8
+      ],
+      "root_reproduces_actual": false
+    },
+    {
+      "file": "batch-v34-vs-v27.json",
+      "game": 55,
+      "ply": 34,
+      "winner_version": 34,
+      "v27_colour": "black",
+      "played": [
+        2,
+        7
+      ],
+      "removing_moves": [
+        {
+          "move": [
+            8,
+            12
+          ],
+          "source": "creator-after-setup"
+        }
+      ],
+      "setups_after_actual": 2,
+      "our_winning_moves": [],
+      "opp_winning_moves": [],
+      "forced_block": false,
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 188,
+          "xy": [
+            8,
+            12
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 142,
+          "xy": [
+            7,
+            9
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 202,
+          "xy": [
+            7,
+            13
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 123,
+          "xy": [
+            3,
+            8
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 184,
+          "xy": [
+            4,
+            12
+          ],
+          "source": "setup-square",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 186,
+          "xy": [
+            6,
+            12
+          ],
+          "source": "setup-square",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        }
+      ],
+      "saving_moves": [],
+      "audits": {
+        "8,12": {
+          "kind": "removing",
+          "vcf": 0,
+          "creators": 0,
+          "setups": 0
+        }
+      },
+      "root_top10": [
+        {
+          "move": [
+            2,
+            7
+          ],
+          "visits": 63,
+          "q_ours": 0.3645,
+          "prior": 0.0593
+        },
+        {
+          "move": [
+            3,
+            8
+          ],
+          "visits": 6,
+          "q_ours": 0.0492,
+          "prior": 0.0593
+        },
+        {
+          "move": [
+            8,
+            12
+          ],
+          "visits": 4,
+          "q_ours": -0.0348,
+          "prior": 0.0648
+        },
+        {
+          "move": [
+            7,
+            9
+          ],
+          "visits": 4,
+          "q_ours": -0.004,
+          "prior": 0.0597
+        },
+        {
+          "move": [
+            7,
+            13
+          ],
+          "visits": 3,
+          "q_ours": -0.005,
+          "prior": 0.0593
+        },
+        {
+          "move": [
+            9,
+            13
+          ],
+          "visits": 3,
+          "q_ours": -0.0198,
+          "prior": 0.0592
+        },
+        {
+          "move": [
+            3,
+            12
+          ],
+          "visits": 3,
+          "q_ours": -0.0281,
+          "prior": 0.0267
+        },
+        {
+          "move": [
+            9,
+            12
+          ],
+          "visits": 3,
+          "q_ours": -0.0323,
+          "prior": 0.0265
+        },
+        {
+          "move": [
+            6,
+            12
+          ],
+          "visits": 2,
+          "q_ours": -0.0842,
+          "prior": 0.0375
+        },
+        {
+          "move": [
+            8,
+            10
+          ],
+          "visits": 2,
+          "q_ours": -0.0518,
+          "prior": 0.0292
+        }
+      ],
+      "root_wanted": [
+        {
+          "move": [
+            2,
+            7
+          ],
+          "visits": 63,
+          "q_ours": 0.3645,
+          "prior": 0.0593
+        },
+        {
+          "move": [
+            8,
+            12
+          ],
+          "visits": 4,
+          "q_ours": -0.0348,
+          "prior": 0.0648
+        }
+      ],
+      "root_choice": [
+        2,
+        7
+      ],
+      "root_reproduces_actual": true
+    },
+    {
+      "file": "batch-v35-vs-v27.json",
+      "game": 87,
+      "ply": 36,
+      "winner_version": 35,
+      "v27_colour": "black",
+      "played": [
+        5,
+        1
+      ],
+      "removing_moves": [
+        {
+          "move": [
+            4,
+            2
+          ],
+          "source": "setup-square"
+        }
+      ],
+      "setups_after_actual": 2,
+      "our_winning_moves": [],
+      "opp_winning_moves": [],
+      "forced_block": false,
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 35,
+          "xy": [
+            5,
+            2
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 82,
+          "xy": [
+            7,
+            5
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 98,
+          "xy": [
+            8,
+            6
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            0,
+            -1
+          ],
+          "non_losses": 1,
+          "saves": false
+        },
+        {
+          "move": 174,
+          "xy": [
+            9,
+            11
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            1,
+            -1,
+            -1
+          ],
+          "non_losses": 1,
+          "saves": false
+        },
+        {
+          "move": 34,
+          "xy": [
+            4,
+            2
+          ],
+          "source": "setup-square",
+          "playout": [
+            0,
+            0,
+            0
+          ],
+          "non_losses": 3,
+          "saves": true
+        }
+      ],
+      "saving_moves": [
+        {
+          "move": 34,
+          "xy": [
+            4,
+            2
+          ],
+          "source": "setup-square",
+          "playout": [
+            0,
+            0,
+            0
+          ],
+          "non_losses": 3,
+          "saves": true
+        }
+      ],
+      "audits": {
+        "4,2": {
+          "kind": "save",
+          "vcf": 0,
+          "creators": 0,
+          "setups": 0
+        }
+      },
+      "root_top10": [
+        {
+          "move": [
+            5,
+            1
+          ],
+          "visits": 8,
+          "q_ours": -0.0766,
+          "prior": 0.0711
+        },
+        {
+          "move": [
+            5,
+            2
+          ],
+          "visits": 5,
+          "q_ours": -0.1339,
+          "prior": 0.0718
+        },
+        {
+          "move": [
+            9,
+            11
+          ],
+          "visits": 4,
+          "q_ours": -0.1006,
+          "prior": 0.0324
+        },
+        {
+          "move": [
+            7,
+            5
+          ],
+          "visits": 2,
+          "q_ours": -0.1447,
+          "prior": 0.0336
+        },
+        {
+          "move": [
+            8,
+            6
+          ],
+          "visits": 2,
+          "q_ours": -0.1447,
+          "prior": 0.0334
+        },
+        {
+          "move": [
+            4,
+            2
+          ],
+          "visits": 2,
+          "q_ours": -0.1317,
+          "prior": 0.0323
+        },
+        {
+          "move": [
+            9,
+            7
+          ],
+          "visits": 2,
+          "q_ours": -0.1541,
+          "prior": 0.0321
+        },
+        {
+          "move": [
+            8,
+            10
+          ],
+          "visits": 2,
+          "q_ours": -0.1117,
+          "prior": 0.0321
+        },
+        {
+          "move": [
+            10,
+            12
+          ],
+          "visits": 2,
+          "q_ours": -0.1447,
+          "prior": 0.0321
+        },
+        {
+          "move": [
+            3,
+            1
+          ],
+          "visits": 2,
+          "q_ours": -0.1479,
+          "prior": 0.0317
+        }
+      ],
+      "root_wanted": [
+        {
+          "move": [
+            5,
+            1
+          ],
+          "visits": 8,
+          "q_ours": -0.0766,
+          "prior": 0.0711
+        },
+        {
+          "move": [
+            4,
+            2
+          ],
+          "visits": 2,
+          "q_ours": -0.1317,
+          "prior": 0.0323
+        }
+      ],
+      "root_choice": [
+        5,
+        1
+      ],
+      "root_reproduces_actual": true
+    },
+    {
+      "file": "batch-v33-vs-v27-swap.json",
+      "game": 62,
+      "ply": 40,
+      "winner_version": 33,
+      "v27_colour": "black",
+      "played": [
+        3,
+        11
+      ],
+      "removing_moves": [
+        {
+          "move": [
+            8,
+            12
+          ],
+          "source": "creator-after-setup"
+        }
+      ],
+      "setups_after_actual": 2,
+      "our_winning_moves": [],
+      "opp_winning_moves": [],
+      "forced_block": false,
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 139,
+          "xy": [
+            4,
+            9
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 187,
+          "xy": [
+            7,
+            12
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 188,
+          "xy": [
+            8,
+            12
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            0,
+            -1
+          ],
+          "non_losses": 1,
+          "saves": false
+        },
+        {
+          "move": 206,
+          "xy": [
+            11,
+            13
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 132,
+          "xy": [
+            12,
+            8
+          ],
+          "source": "setup-square",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 146,
+          "xy": [
+            11,
+            9
+          ],
+          "source": "setup-square",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        }
+      ],
+      "saving_moves": [],
+      "audits": {
+        "8,12": {
+          "kind": "removing",
+          "vcf": 0,
+          "creators": 0,
+          "setups": 0
+        }
+      },
+      "root_top10": [
+        {
+          "move": [
+            3,
+            11
+          ],
+          "visits": 61,
+          "q_ours": 0.9154,
+          "prior": 0.0435
+        },
+        {
+          "move": [
+            4,
+            9
+          ],
+          "visits": 10,
+          "q_ours": 0.075,
+          "prior": 0.0678
+        },
+        {
+          "move": [
+            7,
+            12
+          ],
+          "visits": 10,
+          "q_ours": 0.075,
+          "prior": 0.0676
+        },
+        {
+          "move": [
+            2,
+            11
+          ],
+          "visits": 4,
+          "q_ours": 0.0897,
+          "prior": 0.0397
+        },
+        {
+          "move": [
+            8,
+            12
+          ],
+          "visits": 2,
+          "q_ours": 0.0033,
+          "prior": 0.0435
+        },
+        {
+          "move": [
+            10,
+            12
+          ],
+          "visits": 2,
+          "q_ours": -0.0084,
+          "prior": 0.0397
+        },
+        {
+          "move": [
+            9,
+            13
+          ],
+          "visits": 2,
+          "q_ours": -0.0084,
+          "prior": 0.0397
+        },
+        {
+          "move": [
+            11,
+            13
+          ],
+          "visits": 2,
+          "q_ours": 0.0212,
+          "prior": 0.0397
+        },
+        {
+          "move": [
+            3,
+            8
+          ],
+          "visits": 2,
+          "q_ours": 0.0554,
+          "prior": 0.0257
+        },
+        {
+          "move": [
+            11,
+            9
+          ],
+          "visits": 2,
+          "q_ours": 0.0871,
+          "prior": 0.0257
+        }
+      ],
+      "root_wanted": [
+        {
+          "move": [
+            3,
+            11
+          ],
+          "visits": 61,
+          "q_ours": 0.9154,
+          "prior": 0.0435
+        },
+        {
+          "move": [
+            8,
+            12
+          ],
+          "visits": 2,
+          "q_ours": 0.0033,
+          "prior": 0.0435
+        }
+      ],
+      "root_choice": [
+        3,
+        11
+      ],
+      "root_reproduces_actual": true
+    },
+    {
+      "file": "batch-v35-vs-v27.json",
+      "game": 49,
+      "ply": 72,
+      "winner_version": 35,
+      "v27_colour": "black",
+      "played": [
+        0,
+        12
+      ],
+      "removing_moves": [
+        {
+          "move": [
+            1,
+            9
+          ],
+          "source": "setup-square"
+        }
+      ],
+      "setups_after_actual": 3,
+      "our_winning_moves": [],
+      "opp_winning_moves": [
+        [
+          0,
+          12
+        ]
+      ],
+      "forced_block": true,
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 204,
+          "xy": [
+            9,
+            13
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 219,
+          "xy": [
+            9,
+            14
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 136,
+          "xy": [
+            1,
+            9
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 200,
+          "xy": [
+            5,
+            13
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        }
+      ],
+      "saving_moves": [],
+      "audits": {
+        "1,9": {
+          "kind": "removing",
+          "vcf": 1,
+          "creators": 0,
+          "setups": 0
+        }
+      },
+      "root_top10": null,
+      "root_choice": null
+    },
+    {
+      "file": "batch-v33-vs-v27-swap.json",
+      "game": 97,
+      "ply": 81,
+      "winner_version": 33,
+      "v27_colour": "white",
+      "played": [
+        2,
+        1
+      ],
+      "removing_moves": [
+        {
+          "move": [
+            1,
+            3
+          ],
+          "source": "setup-square"
+        }
+      ],
+      "setups_after_actual": 1,
+      "our_winning_moves": [],
+      "opp_winning_moves": [],
+      "forced_block": false,
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 33,
+          "xy": [
+            3,
+            2
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 46,
+          "xy": [
+            1,
+            3
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 50,
+          "xy": [
+            5,
+            3
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 22,
+          "xy": [
+            7,
+            1
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        }
+      ],
+      "saving_moves": [],
+      "audits": {
+        "1,3": {
+          "kind": "removing",
+          "vcf": 0,
+          "creators": 0,
+          "setups": 0
+        }
+      },
+      "root_top10": [
+        {
+          "move": [
+            2,
+            1
+          ],
+          "visits": 7,
+          "q_ours": -0.1568,
+          "prior": 0.0972
+        },
+        {
+          "move": [
+            3,
+            2
+          ],
+          "visits": 2,
+          "q_ours": -0.5862,
+          "prior": 0.0972
+        },
+        {
+          "move": [
+            7,
+            12
+          ],
+          "visits": 2,
+          "q_ours": -0.1763,
+          "prior": 0.0194
+        },
+        {
+          "move": [
+            1,
+            3
+          ],
+          "visits": 1,
+          "q_ours": -0.1209,
+          "prior": 0.0204
+        },
+        {
+          "move": [
+            5,
+            3
+          ],
+          "visits": 1,
+          "q_ours": -0.1365,
+          "prior": 0.0197
+        },
+        {
+          "move": [
+            7,
+            1
+          ],
+          "visits": 1,
+          "q_ours": -0.1433,
+          "prior": 0.0195
+        },
+        {
+          "move": [
+            5,
+            7
+          ],
+          "visits": 1,
+          "q_ours": -0.125,
+          "prior": 0.0194
+        },
+        {
+          "move": [
+            4,
+            10
+          ],
+          "visits": 1,
+          "q_ours": -0.1209,
+          "prior": 0.0194
+        },
+        {
+          "move": [
+            2,
+            4
+          ],
+          "visits": 1,
+          "q_ours": -0.1399,
+          "prior": 0.0154
+        },
+        {
+          "move": [
+            10,
+            10
+          ],
+          "visits": 1,
+          "q_ours": -0.1074,
+          "prior": 0.0154
+        }
+      ],
+      "root_wanted": [
+        {
+          "move": [
+            2,
+            1
+          ],
+          "visits": 7,
+          "q_ours": -0.1568,
+          "prior": 0.0972
+        },
+        {
+          "move": [
+            1,
+            3
+          ],
+          "visits": 1,
+          "q_ours": -0.1209,
+          "prior": 0.0204
+        }
+      ],
+      "root_choice": [
+        2,
+        1
+      ],
+      "root_reproduces_actual": true
+    },
+    {
+      "file": "batch-v35-vs-v27.json",
+      "game": 65,
+      "ply": 88,
+      "winner_version": 35,
+      "v27_colour": "black",
+      "played": [
+        2,
+        6
+      ],
+      "removing_moves": [
+        {
+          "move": [
+            3,
+            2
+          ],
+          "source": "setup-square"
+        }
+      ],
+      "setups_after_actual": 1,
+      "our_winning_moves": [],
+      "opp_winning_moves": [
+        [
+          2,
+          6
+        ]
+      ],
+      "forced_block": true,
+      "actual_playout": [
+        -1,
+        -1,
+        -1
+      ],
+      "qualifies": true,
+      "alternatives": [
+        {
+          "move": 33,
+          "xy": [
+            3,
+            2
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 36,
+          "xy": [
+            6,
+            2
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 34,
+          "xy": [
+            4,
+            2
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        },
+        {
+          "move": 31,
+          "xy": [
+            1,
+            2
+          ],
+          "source": "1-ply-topk",
+          "playout": [
+            -1,
+            -1,
+            -1
+          ],
+          "non_losses": 0,
+          "saves": false
+        }
+      ],
+      "saving_moves": [],
+      "audits": {
+        "3,2": {
+          "kind": "removing",
+          "vcf": 1,
+          "creators": 0,
+          "setups": 0
+        }
+      },
+      "root_top10": null,
+      "root_choice": null
+    }
+  ]
+}

@@ -175,16 +175,115 @@ removal.
 
 ### 1.2 The patch (pre-registered AFTER mining, BEFORE any eval)
 
-[To be written when the mining completes: the exact patch
-definition, selection rule, cost analysis, and what would
-refute it. The patch is pre-registered here before the fast
-loop or any eval game.]
+**NOT TAKEN — the setup signature fails the count.** The mining
+found 9 filter candidates in 293 unique v27 losses; the
+verification + turn workups verified **2 distinct
+setup-signature instances** (v34-swap g46 ply 24, removing
+(8,9) saves 3/3 with a clean 0/0/0 audit; v35 g87 ply 36,
+removing (4,2) draws 3/3 with a clean audit). Together with
+the 1 known instance from iter-35 (v0-g4 ply 52), that is
+**3 distinct instances — below the pre-registered ≥5 bar**.
+The setup signature is too rare to be a strength lever on its
+own, and the workups show why: at 2 of the 4 saving turns the
+save is NOT a setup removal (g58's (5,6) leaves 2 setups,
+g26's (5,8) leaves the same 1 setup), so a pure
+setup-prevention patch cannot reproduce them. The fallback
+(§1.3) triggers.
 
-### 1.3 Fallback: leaf-blind direction (if mining yields < ~5)
+### 1.3 Fallback: leaf-blind direction (TRIGGERED — the
+setup-signature count is 3 < 5)
 
-[To be written only if the fallback triggers: the diagnosis
-(leaf mis-ranking with a mechanism DISTINCT from H2's
-confident-miss flavour), the patch, and the pre-registration.]
+**The diagnosis (verified on 4 saving turns + 2
+confidently-wrong turns).** In quiet positions where the
+opponent holds setups (0 VCF starts / 0 creators after the
+actual move), the rollout leaf ranks the losing quiet move
+above a saving quiet move, and the 100-sim search follows
+the leaf (visit leader) or cannot discriminate (flat root,
+max 4 visits):
+
+| Turn | Save (3/3) | Leaf: actual q vs save q | Root |
+|---|---|---|---|
+| v35 g58 ply 19 | (5,6) [1,1,1] | −0.012 vs −0.112 | flat (max 4) |
+| v34-swap g46 ply 24 | (10,7), (8,9) [1,1,1] | +0.054 vs +0.001/+0.018 | actual leads (12) |
+| v35 g26 ply 25 | (5,8) [1,1,1] | −0.066 vs −0.137 | flat (max 4) |
+| v35 g87 ply 36 | (4,2) [0,0,0] | −0.077 vs −0.132 | actual leads (8) |
+
+Two more turns show the same blindness with no save at the
+turn (the loss was earlier): v34 g55 ply 34 (actual 63
+visits, q +0.365) and v33-swap g62 ply 40 (actual 61 visits,
+q +0.915 — the leaf is near-certain a 3/3-losing move wins).
+The rollout policy never plays setup moves, so the leaf
+cannot see setup maturation; the loss arrives 10+ moves
+later through quiet play, not a forced win.
+
+**DISTINCT from H2's confident-miss flavour** (iter-34 §3.6,
+g61/g73): there the actual move leaves opponent VCF starts —
+an immediate forced win the leaf cannot see. Here the
+actual leaves NO VCF starts and NO creators in any of the 6
+turns — the threat is a setup (2 plies out), not a VCF start
+(0 plies out). The mechanism is setup-tempo blindness, not
+VCF blindness. H2 owns the VCF flavour; v39 owns the setup
+flavour.
+
+**Refuted alternatives (from the same forensics).**
+Deeper search does NOT fix it: the 400-sim MCTS proposal at
+g26 is (11,8), which loses 3/3 — more search on a wrong leaf
+confirms the wrong move (g62's 61-visit, q +0.92 root is the
+extreme case). A leaf-value setup term is infeasible at
+acceptable cost (a setups computation per leaf call is
+~0.3s × 100 sims). A rollout-policy setup rule is
+infeasible (a setups computation per rollout move). What
+remains is a root-level exact check — the v35 shape.
+
+**The patch (pre-registered): v39 = v27 + setup-at-root
+check (search-first, full-removal-only).**
+After the search picks its move `m`, compute the opponent's
+threats after `m` (exact: VCF via the fixed `_has_vcf_start`,
+creators, setups via the window-filtered `_setups_limited`).
+The check fires ONLY in the quiet case: 0 VCF starts / 0
+creators / ≥1 setups after `m` (and ≤6 setups — above that
+a single removal is implausible, the mining's cap). When it
+fires, test candidates for a FULL removal (0 VCF / 0 creators
+/ 0 setups after the candidate — the VCF re-check is a FULL
+re-check, NOT the original-starts subset, because VCF starts
+are NOT monotone under our move: occupying a setup square
+can CREATE opponent VCF starts by removing one of our own
+defensive replies, mining batch-v33-vs-v27 g0 ply 29).
+Candidates, in priority order: the setup squares, the top-5
+1-ply moves, the creators-after-setup. Collect ALL full
+removals (no first-success exit); play the one the search
+ranks highest (most visits, then our-q, then prior —
+unvisited removals rank below all visited ones, by prior
+among themselves). This selection rule is the fix for v35's
+documented flaw (prior-based choice among preventions is
+noise at 1e-4 margins). If `m` itself is a full removal the
+gate is closed (0 setups after `m`) and the search's move
+stands. If no full removal exists, the search's move stands.
+Forced blocks and immediate wins short-circuit before the
+search, so the check never touches them (g49/g65 are
+unaffected by construction).
+
+**Coverage on the forensics corpus.** The check reproduces
+the verified save at 2 of the 4 saving turns (g46, g87 —
+both full removals). At g58 it plays (3,8) (loses 3/3, the
+actual's outcome — neutral). At g26 it plays (6,7) ([-1,1,-1]
+— 1 draw vs the actual's 0 — a marginal gain). At the 3
+no-save searched turns (g55, g62, g97) it plays the removal,
+which loses 3/3 like the actual (neutral). The check is
+weakly positive on every forensics turn and fixes 2/4 saving
+turns. The battery measures whether that is enough strength
+against v27 itself.
+
+**Why this is not a CLOSED lever.** Not v35's VCF-prevention
+(setups, not VCF starts — one ply earlier; the check fires
+where v35's gate is closed). Not v3's creator check (creators
+are 1-ply threats; setups are 2-ply — the "earlier threat
+detection" iter-35 §7 asked for). Not a q-based root
+decision or a tie-break change (an exact check, like v29's
+and v35's; the root rule is v27's unchanged). Not
+combination-stacking (one check for one verified mechanism,
+the v35 precedent). Cost (~0.5s/move gate, ~3s/move worst
+case when the gate opens) is reported, not acted on.
 
 ### 1.4 Eval seeds (pre-registered)
 
@@ -238,7 +337,50 @@ verified-instance count is unaffected. Games mined before the fix
 may contain false pre-conditions; the final statistics audit
 them with the fixed function.
 
-[To be completed when mining + verification finish.]
+**Fallback forensics — turn workups** (`workup_turn.py`,
+**COMPLETE — 9/9 turns**): for each candidate turn, the full
+workup alternative set (top-5 1-ply, 400-sim MCTS, VCF moves,
+mining setup moves) is playout-tested, with a 100-sim v27 root
+dump (visits / our-q / prior) at the turn. **4 turns have a
+saving move (5 saves); 5 have none.**
+
+| Turn | Saves (3/3) | Save vs setups | Root dump (actual vs save) |
+|---|---|---|---|
+| v35 g58 ply 19 | (5,6) [1,1,1] | partial removal (3→2 setups) | flat (max 4 visits); actual q −0.012, save q −0.112 — leaf ranks the loser above the save |
+| v34-swap g46 ply 24 | (10,7), (8,9) [1,1,1] | FULL removals (1→0) — (8,9) IS a verified setup-signature instance | actual is visit leader (12) with best q (+0.054 vs +0.001/+0.018) |
+| v35 g26 ply 25 | (5,8) [1,1,1] | NON-removal (1→1, same setup (6,11) remains) | flat (max 4 visits); actual q −0.066, save q −0.137 |
+| v34 g55 ply 34 | none (0/6) | — (position already lost; the losing move was earlier) | CONCENTRATED: actual 63 visits, q +0.365 — the leaf is confidently wrong |
+| v35 g87 ply 36 | (4,2) [0,0,0] | FULL removal (2→0) — a verified setup-signature instance | actual leads (8 visits); actual q −0.077, save q −0.132 |
+| v33-swap g62 ply 40 | none | — (already lost) | CONCENTRATED: actual 61 visits, q +0.915 — the leaf is near-certain a 3/3-loser wins |
+| v35 g49 ply 72 | none (0/4) | — | FORCED BLOCK (opponent's only win) — no search ran; not a leaf issue |
+| v33-swap g97 ply 81 | none (0/4) | — (already lost) | actual 7 visits q −0.157; removal (1,3) 1 visit q −0.121 (better q, still loses 3/3) |
+| v35 g65 ply 88 | none (0/4) | — | FORCED BLOCK — no search ran; not a leaf issue |
+
+Shared mechanism across the 4 saving turns: **in quiet
+positions where the opponent holds setups (0 VCF / 0
+creators), the rollout leaf ranks the losing quiet move
+above a saving quiet move** — and the 100-sim search follows
+the leaf (visit leader) or cannot discriminate (flat root,
+max 4 visits). This is DISTINCT from H2's confident-miss
+flavour (iter-34 §3.6): there the actual leaves opponent VCF
+starts (an immediate forced win the leaf cannot see); here
+the actual leaves NO VCF starts — the loss comes 10+ moves
+later through setup maturation the rollout policy never
+plays. The saves do NOT share an exact signature: 3 of 5 are
+full removals, 1 is a partial removal, 1 removes nothing —
+so a pure setup-removal check fixes only the g46/g87 flavour
+(and would play the 3/3-losing removal (3,8) at g58). No
+save creates our own creators (all 0); the v1 score does not
+separate saves from actuals (g46's losing actual has the
+dominant v1, 20165 vs 8017/4410). The leaf value — not the
+prior, not the root rule — is the binding constraint.
+
+**Verified setup-signature instances: 2 from this mining**
+(g46 (8,9), g87 (4,2)) **+ 1 known (v0-g4) = 3 distinct —
+below the pre-registered ≥5 bar.** The setup patch as the
+primary hypothesis is NOT taken; the fallback (§1.3)
+triggers. Full per-turn data:
+`research/iterations/turn-workups.json`.
 
 ## 3. Fast loop
 
