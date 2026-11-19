@@ -438,6 +438,39 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v40 (iteration 40, batch 11): H2 — v27 + the MUST-BLOCK VCF
+    # UPGRADE at the leaf start (see
+    # gomoku_ml.mcts_heuristic._rollout_leaf_value_mbvcf and
+    # research/iterations/iter-40.md). The leaf-blind hypothesis
+    # (batch 10 H2's flavour: the leaf ranks the unsafe move best)
+    # was REFUTED at the 1-ply level on all 4 dumped
+    # missed-prevention instances — the rollout leaf ranks the
+    # unsafe move WORST (-1.0) and the safe moves better; the
+    # mis-ranking lives in the backed-up root q (blunder dilution,
+    # visit allocation) and the safe moves do not save the games
+    # (playout-verified 3/3 losses) — but the diagnosis found ONE
+    # genuine leaf gap: a must-block leaf is valued -0.25 while the
+    # position is lost by force (the opponent holds VCF starts
+    # after the forced block; the 2-ply rollout cannot see a
+    # depth-3 VCF resolve). The upgrade is EXACT, not heuristic:
+    # at a must-block leaf, play the forced block; if the opponent
+    # then forces a win (evaluate.forces_win, depth 3 — the
+    # tactical suite's VCF definition, the same check v29/v35 use
+    # at the root), the leaf is -1.0. The depth-3 limit makes it
+    # conservative (a longer VCF is missed), never wrong. It
+    # applies ONLY at the leaf start (the real tree position); the
+    # rollout end keeps v16's gradient rule. The rollout function,
+    # policy, gradient and both fast-loop patches are v16's,
+    # byte-identical; sims (100), c_puct (1.5), sharp v1 priors and
+    # v27's threshold tie-break (tau=0.05) are unchanged. Cost: the
+    # VCF check runs only on must-block leaves (~5.5% of leaves,
+    # ~104 ms per check), about a 1.45x slowdown per move
+    # (measured). Versions 30-32 are ML batch 2's, 33-35 batch 10's,
+    # 36-38 ML batch 3's, 39 batch 11 H1's.
+    40: {"name": "scoring-v40", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both_mbvcf", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05},
 }
 
 # --- weights --------------------------------------------------------------
