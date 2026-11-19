@@ -80,10 +80,16 @@ code was ported into this worktree — reuse, don't re-derive):**
   port needed. It defines the no-history view (planes 2, 4–7
   zeroed) that the §1.4 gate measures.
 
-**Port smoke checks:** TODO — v8 loads and plays in this
-worktree (checkpoint copied from the main repo, md5
-`5deb26f3df67883f24f04800d5356da6`); v42 is registered;
-targeted tests green (see §6.4).
+**Port smoke checks (2026-11-19):** v8 loads and plays in this
+worktree (first move 112, centre; `value_weight` 0.25 default
+preserved — the port does not change v8's behaviour); v42 is
+registered (registry entry + `test_v42_registered_and_dispatches_to_
+value_mcts`); `ValueMCTS.__init__` has exactly ONE `value_weight`
+parameter (checked by introspection — no silent auto-merge
+duplication). Targeted tests green: augment (11, incl. 5 new
+history-dropout tests), config (13, incl. 2 new), mcts_value
+(17, incl. 2 new), load_shards — **46 passed** (see §6.4 for
+the full-suite run).
 
 ## 1. Design and pre-registration
 
@@ -396,19 +402,167 @@ selfplay_batch.py --engine-a v42 --engine-b v37 --games 100 --openings research/
 
 ## 2. Data (actuals)
 
-TODO — fill in when the data copy + verification complete:
-shard counts vs iter-24 §2, spot re-labelling verification.
+**Data copy COMPLETE 2026-11-19** — v24's shards copied VERBATIM
+from `gomoku-ml1-h1/ml/runs/ml1-h1/data/` into
+`ml/runs/ml4-h1/data/` (gitignored data), plus the games files
+`games-{v7,v18,random}.json` (for the §1.2 verification re-run).
+Checkpoints copied: v8's (`ml/runs/b3-h2/value-net.pt`, md5
+`5deb26f3df67883f24f04800d5356da6` — matches iter-37's record)
+and v24's (`ml/runs/ml1-h1/value-net.pt`, md5
+`08c8ec91510a58841333887d51f6c7bf`).
+
+**Verification (a) — shard counts: PASS.** Counts match iter-24
+§2 in every cell:
+
+| Source | Games | Quiet positions | ±1 labels |
+|---|---|---|---|
+| v7 self-play (train) | 440 | 19,545 | 746 (3.8%) |
+| v18 self-play (train) | 207 | 9,142 | 453 (5.0%) |
+| Random playouts (train) | 90 | 5,162 | 1,470 (28.5%) |
+| **Train total** | **737** | **33,849** | **2,669** |
+| v7-holdout | 48 | 2,050 | 78 |
+| v18-holdout | 22 | 790 | 51 |
+| random-holdout | 10 | 538 | 156 |
+| **Holdout total** | **80** | **3,378** | **285** |
+
+**Verification (b) — spot re-labelling: PASS.** The ported label
+phase re-ran on 20 games (7 v7 + 7 v18 + 6 random, 888 quiet
+positions, `--label-mode rollout`); the regenerated planes,
+policy, AND value labels match v24's shards EXACTLY (**0
+mismatches** in 20 shards). Master's rollout-leaf teacher is the
+same function v24 distilled — the reused shards carry zero label
+drift, and the v42-vs-v24 comparison isolates the augmentation.
+
+**Memmap bundle:** `ml/runs/ml4-h1/data-mmap/` built from
+`ml/runs/ml4-h1/data-train/` (symlinks to the three train dirs
+only — holdouts excluded): 737 shards, 33,849 samples, planes
+(33849, 8, 15, 15), mean|v| — see §3.
 
 ## 3. Training (actuals)
 
-TODO — fill in when training completes: final train/val loss,
-epochs run, best checkpoint (step/epoch), checkpoint path, md5.
+**Interrupt and recovery (2026-11-19):** the original training run
+(started 19:38 UTC, config `ml/configs/ml4-h1.yaml`, 15 epochs,
+33,849 samples) was killed by a runtime restart drain at **epoch
+10, step 4590 (19:46 UTC)** — no `interrupted.pt` was written
+(the SIGTERM handler never ran). Epoch val losses before death:
+e1 0.0877, e2 0.0875, e3 0.0870, e4 0.0844, e5 0.0923, e6 0.0843,
+e7 0.0834, e8 0.0814, e9 **0.0797** (best); train loss fell
+0.0799 → 0.0640 over epochs 1–9.
+
+**Resume decision: RESUME from `checkpoint-4527.pt`, do not
+restart** (the pre-registered §1.3 rule). Verified before
+resuming: the checkpoint loads cleanly (step 4527, epoch 9,
+ResNet 16ch/2 blocks, 126,586 params, optimiser state present,
+all tensors finite) and `best.pt` was backed up to
+`checkpoints/best-pre-kill.pt` first (the resumed run resets
+`best_val_loss` and would overwrite it at the next epoch
+regardless). Resumed with `--epochs 6` (15 − 9 completed); the
+cosine schedule spans the full 15 via `schedule_epochs`. The
+resumed run's best (epoch 15, val 0.0761) beats the pre-kill
+best (epoch 9, 0.0797) outright, so the resume best-reset flaw
+never bit and no restore from `best-pre-kill.pt` was needed.
+Original run log backed up at `ml/runs/ml4-h1/train-pre-kill.log`.
+
+**Final (completed 2026-11-19 19:54 UTC):** 15 epochs total
+(9 pre-interrupt + 6 resumed), 7,545 steps, 33,849 samples
+(32,157 train / 1,692 val, same seed-0 split both runs). Train
+loss 0.0799 → 0.0575; val loss 0.0877 → **0.0761**, decreasing
+monotonically from epoch 6 on (e6 0.0843, e8 0.0814, e10 0.0794,
+e12 0.0768, e14 0.0762, e15 0.0761 — one bump at epoch 5,
+0.0923) — no overfitting by epoch 15, but the pre-registered
+plan is 15 epochs and the battery is the verdict, so no
+extension. **Best checkpoint: epoch 15 (`best.pt`, step 7545,
+val 0.0761) = `final.pt`** (same step/epoch). Val loss is
+higher than v24's 0.0617 — expected: dropout training is a
+harder task (half the samples lack history), so the full-planes
+val MSE is worse in absolute terms; the gate measures sign
+accuracy, not val loss, and §4 is the verdict on the fit.
+Per-epoch checkpoints `checkpoint-<step>.pt` (steps 503–7545)
+also saved. Final checkpoint copied to the registry path:
+**`ml/runs/ml4-h1/value-net.pt`** (md5
+`88a69de35216b7965682b8d77418df31`; verified bit-identical in
+weights to `best.pt`, max |Δ| 0.0; ResNet 16ch/2 blocks,
+126,586 params, 48 tensors, all finite).
 
 ## 4. Holdout diagnostics + THE GATE (actuals)
 
-TODO — fill in when measured: the gate numbers (per-source and
-pooled, full vs no-history), the by-side split, the v24/v8/v37
-comparisons, and the gate verdict.
+Game-level holdout (every 10th game, never trained on — the SAME
+80 games / 3,378 positions v24 held out), targets = 1-ply
+rollout-leaf labels. v42 net = `ml/runs/ml4-h1/value-net.pt`;
+v24 net = `ml/runs/ml1-h1/value-net.pt`; v8 net =
+`ml/runs/b3-h2/value-net.pt`; v37 net =
+`ml/runs/ml3-h2/value-net.pt`. Raw outputs in
+`ml/runs/ml4-h1/holdout-{v7,v18,random}.txt`. Sanity check: this
+run reproduces v24's published 1-ply numbers EXACTLY on its own
+holdout (v7 0.7713, v18 0.8384, random 0.7055, pooled 0.7766),
+v37's §4(c) numbers exactly (v7 0.7550 full / 0.5409 no-history),
+and v8's (0.523 / 0.501 / 0.463) — the eval setup is sound.
+
+### (a) v42 net on its own holdout (in-distribution) — THE GATE
+
+| Holdout | n pos (non-draw) | v42 sign (full) | v42 sign (no-hist) | v42 MSE full / no-hist | v42 mean\|v\| full / no-hist | v24 sign (full) | v24 sign (no-hist) |
+|---|---|---|---|---|---|---|---|
+| v7 | 2,050 (1,845) | 0.7550 | **0.7604** | 0.0441 / 0.0441 | 0.0633 / 0.0649 | 0.7713 | 0.7713 |
+| v18 | 790 (761) | 0.8502 | 0.8449 | 0.0679 / 0.0672 | 0.0720 / 0.0717 | 0.8384 | 0.8344 |
+| random | 538 (523) | 0.6979 | **0.7094** | 0.2558 / 0.2651 | 0.2567 / 0.2473 | 0.7055 | 0.5468 |
+| **pooled** | **3,378 (3,129)** | **0.7686** | **0.7725** | — | — | **0.7766** | **0.7491** |
+| **engine pooled (v7+v18)** | **2,840 (2,606)** | **0.7828** | **0.7851** | — | — | **0.7909** | **0.7897** |
+
+**THE GATE PASSES — all three clauses:**
+
+1. Engine pooled |no-history − full| = |0.7851 − 0.7828| =
+   **0.0023** ≤ 0.02 ✓ (v24's gap: 0.0012; v37's on v7 alone:
+   0.223).
+2. Engine pooled full-planes sign = **0.7828** ≥ 0.74 ✓ (v24's:
+   0.7909 — v42 is 0.008 below v24, well inside the allowance).
+3. All-source pooled no-history sign = **0.7725** ≥ 0.70 ✓
+   (v24's: 0.7491 — v42 is BETTER).
+
+**The dropout worked — beyond matching, the no-history view is
+slightly BETTER than the full-planes view** (pooled 0.7725 vs
+0.7686; v7 0.7604 vs 0.7550; random 0.7094 vs 0.6979). The net
+was trained with half its samples history-free, so the
+board-only mapping is well-trained and the full-planes view's
+history features are now slightly noisy rather than
+informative. The fix lands exactly where v24 was weakest: on
+random positions v42's no-history sign is **0.7094 vs v24's
+0.5468 (+0.163)** — the collapse is gone. MSE and mean|v| are
+stable across views too (v7 MSE 0.0441 both views, mean|v|
+0.0633 → 0.0649 — contrast v37's MSE 0.078 → 0.436 and mean|v|
+0.090 → 0.436 ballooning). The full-planes cost of the dropout
+is small: pooled full 0.7686 vs v24's 0.7766 (−0.008), engine
+full 0.7828 vs 0.7909 (−0.008) — the history planes carry
+almost no signal the board alone cannot replace at this scale.
+**v42 proceeds to battery.**
+
+**By side to move** (v42 net, full planes; `/tmp/by_side_v42.py`):
+v7 Black 0.7223 / White 0.7864; v18 Black 0.8952 / White 0.8072;
+random Black 0.5781 / White 0.8127. **No White collapse** —
+White is BETTER than Black on v7 and random. The weak cell is
+random-Black (0.578, same as v38's finding — random positions
+with Black to move are the hardest for both heads). No-history
+≈ full in EVERY side cell (largest gap: v18 Black 0.8952 →
+0.8844) — the dropout worked uniformly across sides.
+
+### (d) v37's net on the 1-ply holdout (diagnostic)
+
+| Holdout | v37 sign (full) | v37 sign (no-hist) | v37 MSE full / no-hist |
+|---|---|---|---|
+| v7 | 0.7550 | 0.5409 | 0.0447 / 0.4010 |
+| v18 | 0.8449 | 0.5848 | 0.0624 / 0.2919 |
+| random | 0.6482 | 0.6750 | 0.2071 / 0.2664 |
+| **pooled** | **0.7590** | — | — |
+
+Reproduces iter-37 §4(c) exactly. The history collapse is a
+property of the v37 NET, not of the 2-ply labels: it collapses
+on 1-ply labels too (0.5409 no-history on v7). v42's dropout
+net beats v37's net on the no-history view by 0.22 on v7 while
+matching it on the full-planes view (0.7550 vs 0.7550 on v7;
+0.8502 vs 0.8449 on v18). Whether that holdout robustness
+translates to played strength is the battery's question — v37
+plays at 0.75 vs v8 DESPITE its collapse, so robustness is not
+sufficient for strength; it is necessary for the operating
+point to be predictable.
 
 ## 5. α sweep and fast loops
 
