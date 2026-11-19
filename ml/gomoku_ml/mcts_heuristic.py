@@ -62,6 +62,12 @@ Design (see ``research/iterations/iter-6.md`` for v6 and
   returns ``_rollout_leaf_value`` for both colours. When the
   engine plays White, v18 IS v16 exactly, so the White games are
   a built-in control; see ``research/iterations/iter-18.md``.
+* v40 (``leaf_mode="rollout2_v1_both_mbvcf"``, batch 11 H2): the
+  v18 rollout leaf with the must-block VCF upgrade at the leaf
+  start — a must-block leaf is -1.0 (not -0.25) when the forced
+  block leaves the opponent a depth-3 forced win; see
+  ``_rollout_leaf_value_mbvcf`` and
+  ``research/iterations/iter-40.md``.
 
 Backup accounting follows the AlphaZero convention: every node
 on the simulated path — including the newly expanded leaf — has
@@ -1040,6 +1046,46 @@ def _rollout_leaf_value(
     return _attack_gradient_v1(cur, p)
 
 
+def _rollout_leaf_value_mbvcf(board: np.ndarray, player: int) -> float:
+    """v40 leaf value: v18's 2-ply rollout leaf
+    (:func:`_rollout_leaf_value`), with ONE exact upgrade at the
+    leaf start — the must-block VCF upgrade (see
+    ``research/iterations/iter-40.md`` §1).
+
+    When the player to move faces a must-block (the opponent holds
+    exactly one winning move, terminal value -0.25), the block is
+    forced: any other move loses at once. Play the forced block; if
+    the opponent then forces a win by consecutive fours
+    (:func:`gomoku_ml.evaluate.forces_win`, depth 3 — the tactical
+    suite's own VCF definition, the same check v29/v35 use at the
+    root), the position is lost by force and the leaf is -1.0, not
+    -0.25. The upgrade is EXACT: ``forces_win`` is True only when
+    the attacker wins against any defence (defender immediate wins
+    refute the line inside the search). The depth-3 limit makes it
+    conservative (a longer VCF is missed and the leaf stays -0.25),
+    never wrong.
+
+    The upgrade applies ONLY at the leaf start (the real tree
+    position). The rollout END keeps v16's rule (a must-block there
+    is gradient-evaluated — iter-16 §2.1: the rollout-end position
+    is a weak-policy prediction, not a fact, and valuing it -0.25
+    lets a quiet move borrow a forcing move's value). The rollout
+    itself, the policy, the gradient and both fast-loop patches are
+    v16's, byte-identical — this wrapper only pre-empts the
+    must-block case. Cost: the VCF check runs only on must-block
+    leaves (~5.5% of leaves in real searches; ~104 ms per check),
+    about a 1.45x slowdown per move (measured, iter-40 §1.2)."""
+    value = _terminal_leaf_value(board, player)
+    if value == _MUST_BLOCK_VALUE:
+        opp_wins = scoring._winning_moves(board, -player)
+        # Exactly one opponent winning move by the must-block
+        # definition — the block is forced.
+        b2 = game.apply_move(board, opp_wins[0], player)
+        if evaluate.forces_win(b2, -player, 3):
+            return -1.0
+    return _rollout_leaf_value(board, player)
+
+
 class HeuristicMCTS:
     """PUCT search with v1 priors and a terminal-aware leaf value.
 
@@ -1089,6 +1135,12 @@ class HeuristicMCTS:
     ``leaf_mode="rollout2_v1_both"`` is v18: quiet leaves get the
     2-ply rollout leaf for BOTH colours — the same function v16
     uses as White, with no colour gate. v18-as-White IS v16.
+
+    ``leaf_mode="rollout2_v1_both_mbvcf"`` is v40: the v18 rollout
+    leaf with the must-block VCF upgrade at the leaf start
+    (:func:`_rollout_leaf_value_mbvcf`) — a must-block leaf is -1.0
+    (not -0.25) when the forced block leaves the opponent a
+    depth-3 forced win.
 
     ``tie_break_q=True`` is v23 (batch 8, H3): when two or more
     root children share the maximum visit count (an exact tie at
@@ -1157,11 +1209,13 @@ class HeuristicMCTS:
         setup_root: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
-            leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
+            leaf_mode != "rollout2_v1"
+            and leaf_mode != "rollout2_v1_both"
+            and leaf_mode != "rollout2_v1_both_mbvcf"
         ):
             raise ValueError(
                 f"unknown leaf_mode: {leaf_mode!r} "
-                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both']})"
+                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both', 'rollout2_v1_both_mbvcf']})"
             )
         if not 0.0 <= prior_floor < 1.0:
             raise ValueError(
@@ -1192,12 +1246,15 @@ class HeuristicMCTS:
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
-        # raises KeyError on "rollout2_v1" / "rollout2_v1_both"
-        # (batch 6 caught this as a silent merge breakage).
+        # raises KeyError on "rollout2_v1" / "rollout2_v1_both" /
+        # "rollout2_v1_both_mbvcf" (batch 6 caught this as a silent
+        # merge breakage).
         if leaf_mode == "rollout2_v1":
             self._leaf_value = self._rollout_v1_leaf_value
         elif leaf_mode == "rollout2_v1_both":
             self._leaf_value = self._rollout_v1_both_leaf_value
+        elif leaf_mode == "rollout2_v1_both_mbvcf":
+            self._leaf_value = self._rollout_v1_both_mbvcf_leaf_value
         else:
             self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
         # Colour to move at the root of the current search (the
@@ -1232,6 +1289,15 @@ class HeuristicMCTS:
         dispatch changed (v16 gates on ``_root_player``, v18 does
         not). v18-as-White IS v16 exactly."""
         return _rollout_leaf_value(board, player)
+
+    def _rollout_v1_both_mbvcf_leaf_value(
+        self, board: np.ndarray, player: int
+    ) -> float:
+        """v40 leaf value: the v18 rollout leaf with the must-block
+        VCF upgrade at the leaf start
+        (:func:`_rollout_leaf_value_mbvcf`) for BOTH colours — no
+        colour gate. Everything else is v18's, byte-identical."""
+        return _rollout_leaf_value_mbvcf(board, player)
 
     def _vcf_root_move(
         self, board: np.ndarray, player: int

@@ -1,7 +1,9 @@
 """Tests for the heuristic-prior MCTS (v6, batch 2 H2; v7, batch 3 H1;
-v14, batch 5 H3; v16, batch 6 H2; v18, batch 7 H1; v23, batch 8 H3; v27, batch 9 H1; v29, batch 9 H3)."""
+v14, batch 5 H3; v16, batch 6 H2; v18, batch 7 H1; v23, batch 8 H3; v27, batch 9 H1; v29, batch 9 H3; v40, batch 11 H2)."""
 
+import json
 import math
+import os
 
 import numpy as np
 import pytest
@@ -24,6 +26,7 @@ from gomoku_ml.mcts_heuristic import (
     _gradient_v1_leaf_value,
     _priors,
     _rollout_leaf_value,
+    _rollout_leaf_value_mbvcf,
     _rollout_move,
     _terminal_leaf_value,
 )
@@ -1840,3 +1843,104 @@ def test_v41_choose_move_deterministic_for_same_seed():
     a = scoring.get_player(41, seed=42)
     b = scoring.get_player(41, seed=42)
     assert a.choose_move(board, to_move) == b.choose_move(board, to_move)
+# --- v40 (batch 11, H2): must-block VCF upgrade at the leaf start ---
+
+
+def _v40_regression_position(pid):
+    """Load one v40 regression position (black/white stones, to_move)."""
+    path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..",
+        "gomoku_ml",
+        "regression_positions_v40.json",
+    )
+    with open(path, encoding="utf-8") as f:
+        positions = json.load(f)["positions"]
+    pos = next(p for p in positions if p["id"] == pid)
+    board = _board_with(pos["black"], pos["white"])
+    player = game.BLACK if pos["to_move"] == "black" else game.WHITE
+    return board, player
+
+
+def test_v40_registered_and_dispatches_to_mbvcf_leaf():
+    v40 = scoring.get_player(40, seed=0)
+    assert v40.name == "scoring-v40"
+    assert v40.mcts is True
+    assert v40._mcts is not None
+    assert v40._mcts.sims == 100
+    assert v40._mcts.leaf_mode == "rollout2_v1_both_mbvcf"
+    assert v40._mcts.tie_break_q is True
+    assert v40._mcts.tie_break_q_threshold == 0.05
+    assert v40._mcts.vcf_root is False
+    # v27 is unchanged (same leaf, same threshold, no upgrade).
+    v27 = scoring.get_player(27, seed=0)
+    assert v27._mcts.leaf_mode == "rollout2_v1_both"
+    assert v27._mcts.tie_break_q_threshold == 0.05
+
+
+def test_v40_leaf_upgrades_must_block_with_vcf_after_block():
+    # g73 line: White plays the unsafe (11, 9); Black plays the VCF
+    # start (8, 12). White to move faces a must-block (Black's only
+    # winning move is (12, 12)); after the forced block Black holds
+    # 3 VCF starts — a forced win. v27 values the leaf -0.25; v40
+    # values it -1.0. See iter-40.md §1.1/§1.3.
+    board, player = _v40_regression_position("b10-g73-ply35")
+    assert player == game.WHITE
+    b2 = game.apply_move(board, 9 * 15 + 11, game.WHITE)
+    b3 = game.apply_move(b2, 12 * 15 + 8, game.BLACK)
+    assert _terminal_leaf_value(b3, game.WHITE) == -0.25
+    assert _rollout_leaf_value(b3, game.WHITE) == -0.25
+    assert _rollout_leaf_value_mbvcf(b3, game.WHITE) == -1.0
+
+
+def test_v40_leaf_keeps_must_block_without_vcf_after_block():
+    # g73 safe line: White plays the forcing (11, 5); Black to move
+    # faces a must-block (White's only winning move). After Black's
+    # forced block White holds no VCF start, so the leaf stays -0.25
+    # under both v27 and v40 — the upgrade does not fire.
+    board, player = _v40_regression_position("b10-g73-ply35")
+    b2 = game.apply_move(board, 5 * 15 + 11, game.WHITE)
+    assert _terminal_leaf_value(b2, game.BLACK) == -0.25
+    assert _rollout_leaf_value(b2, game.BLACK) == -0.25
+    assert _rollout_leaf_value_mbvcf(b2, game.BLACK) == -0.25
+
+
+def test_v40_leaf_identical_to_v27_on_quiet_positions():
+    # On quiet positions (no winning move either side) the wrapper
+    # delegates to the v18 rollout leaf unchanged.
+    for pid in ("b10-g73-ply35", "b10-g61-ply21", "b10-g43-ply17"):
+        board, player = _v40_regression_position(pid)
+        assert _terminal_leaf_value(board, player) == 0.0
+        assert _rollout_leaf_value_mbvcf(board, player) == (
+            _rollout_leaf_value(board, player)
+        )
+
+
+def test_v40_leaf_identical_to_v27_on_terminal_positions():
+    # A position where the player to move has a winning move (+1)
+    # and one where the opponent has >= 2 (-1): the upgrade only
+    # touches the must-block case, so both agree exactly.
+    board = _board_with([(7, 7), (7, 8), (7, 9), (7, 10)], [(3, 3)])
+    assert _rollout_leaf_value_mbvcf(board, game.BLACK) == 1.0
+    assert _rollout_leaf_value(board, game.BLACK) == 1.0
+    # Opponent holds an open four: Black to move loses (-1).
+    board = _board_with(
+        [(3, 3)],
+        [(7, 7), (7, 8), (7, 9), (7, 10)],
+    )
+    assert _rollout_leaf_value_mbvcf(board, game.BLACK) == -1.0
+    assert _rollout_leaf_value(board, game.BLACK) == -1.0
+
+
+def test_v40_leaf_does_not_mutate_board():
+    board, player = _v40_regression_position("b10-g73-ply35")
+    b2 = game.apply_move(board, 9 * 15 + 11, game.WHITE)
+    b3 = game.apply_move(b2, 12 * 15 + 8, game.BLACK)
+    before = b3.copy()
+    _rollout_leaf_value_mbvcf(b3, game.WHITE)
+    assert np.array_equal(b3, before)
+
+
+def test_v40_unknown_leaf_mode_rejected():
+    with pytest.raises(ValueError, match="unknown leaf_mode"):
+        HeuristicMCTS(leaf_mode="rollout2_v1_both_bogus")
