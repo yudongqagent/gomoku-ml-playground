@@ -1,0 +1,519 @@
+{
+  "games": [
+    {
+      "game": 0,
+      "result": "black",
+      "winner_is_a": true,
+      "a_colour": "black",
+      "plies": 29,
+      "replay_matches": true,
+      "fires": []
+    },
+    {
+      "game": 1,
+      "result": "white",
+      "winner_is_a": true,
+      "a_colour": "white",
+      "plies": 24,
+      "replay_matches": true,
+      "fires": [
+        {
+          "search_move": [
+            6,
+            10
+          ],
+          "removal": [
+            4,
+            11
+          ],
+          "n_setups": 2,
+          "removal_visits": 0,
+          "removal_q_ours": null
+        }
+      ]
+    },
+    {
+      "game": 2,
+      "result": "draw",
+      "winner_is_a": null,
+      "a_colour": "black",
+      "plies": 225,
+      "replay_matches": true,
+      "fires": [
+        {
+          "search_move": [
+            4,
+            4
+          ],
+          "removal": [
+            10,
+            8
+          ],
+          "n_setups": 2,
+          "removal_visits": 8,
+          "removal_q_ours": 0.0583
+        },
+        {
+          "search_move": [
+            4,
+            3
+          ],
+          "removal": [
+            2,
+            4
+          ],
+          "n_setups": 2,
+          "removal_visits": 3,
+          "removal_q_ours": 0.0177
+        },
+        {
+          "search_move": [
+            10,
+            6
+          ],
+          "removal": [
+            6,
+            1
+          ],
+          "n_setups": 1,
+          "removal_visits": 5,
+          "removal_q_ours": 0.0274
+        },
+        {
+          "search_move": [
+            7,
+            2
+          ],
+          "removal": [
+            13,
+            7
+          ],
+          "n_setups": 2,
+          "removal_visits": 3,
+          "removal_q_ours": 0.0192
+        },
+        {
+          "search_move": [
+            8,
+            10
+          ],
+          "removal": [
+            8,
+            3
+          ],
+          "n_setups": 2,
+          "removal_visits": 0,
+          "removal_q_ours": null
+        },
+        {
+          "search_move": [
+            14,
+            3
+          ],
+          "removal": [
+            13,
+            5
+          ],
+          "n_setups": 1,
+          "removal_visits": 2,
+          "removal_q_ours": -0.0388
+        },
+        {
+          "search_move": [
+            10,
+            12
+          ],
+          "removal": [
+            9,
+            12
+          ],
+          "n_setups": 1,
+          "removal_visits": 6,
+          "removal_q_ours": 0.0331
+        }
+      ]
+    },
+    {
+      "game": 3,
+      "result": "white",
+      "winner_is_a": true,
+      "a_colour": "white",
+      "plies": 76,
+      "replay_matches": true,
+      "fires": [
+        {
+          "search_move": [
+            10,
+            8
+          ],
+          "removal": [
+            11,
+            9
+          ],
+          "n_setups": 2,
+          "removal_visits": 12,
+          "removal_q_ours": 0.1437
+        },
+        {
+          "search_move": [
+            7,
+            4
+          ],
+          "removal": [
+            3,
+            4
+          ],
+          "n_setups": 2,
+          "removal_visits": 9,
+          "removal_q_ours": 0.1005
+        },
+        {
+          "search_move": [
+            2,
+            8
+          ],
+          "removal": [
+            5,
+            3
+          ],
+          "n_setups": 1,
+          "removal_visits": 5,
+          "removal_q_ours": 0.0212
+        }
+      ]
+    },
+    {
+      "game": 4,
+      "result": "draw",
+      "winner_is_a": null,
+      "a_colour": "black",
+      "plies": 225,
+      "replay_matches": true,
+      "fires": [
+        {
+          "search_move": [
+            10,
+            4
+          ],
+          "removal": [
+            4,
+            8
+          ],
+          "n_setups": 2,
+          "removal_visits": 8,
+          "removal_q_ours": 0.0583
+        },
+        {
+          "search_move": [
+            10,
+            3
+          ],
+          "removal": [
+            12,
+            4
+          ],
+          "n_setups": 2,
+          "removal_visits": 3,
+          "removal_q_ours": 0.0177
+        },
+        {
+          "search_move": [
+            1,
+            7
+          ],
+          "removal": [
+            0,
+            7
+          ],
+          "n_setups": 1,
+          "removal_visits": 0,
+          "removal_q_ours": null
+        },
+        {
+          "search_move": [
+            11,
+            12
+          ],
+          "removal": [
+            9,
+            13
+          ],
+          "n_setups": 1,
+          "removal_visits": 3,
+          "removal_q_ours": 0.0232
+        },
+        {
+          "search_move": [
+            11,
+            9
+          ],
+          "removal": [
+            13,
+            12
+          ],
+          "n_setups": 2,
+          "removal_visits": 0,
+          "removal_q_ours": null
+        },
+        {
+          "search_move": [
+            2,
+            2
+          ],
+          "removal": [
+            8,
+            5
+          ],
+          "n_setups": 1,
+          "removal_visits": 6,
+          "removal_q_ours": 0.091
+        }
+      ]
+    },
+    {
+      "game": 5,
+      "result": "white",
+      "winner_is_a": true,
+      "a_colour": "white",
+      "plies": 24,
+      "replay_matches": true,
+      "fires": [
+        {
+          "search_move": [
+            10,
+            6
+          ],
+          "removal": [
+            11,
+            4
+          ],
+          "n_setups": 2,
+          "removal_visits": 0,
+          "removal_q_ours": null
+        }
+      ]
+    },
+    {
+      "game": 6,
+      "result": "draw",
+      "winner_is_a": null,
+      "a_colour": "black",
+      "plies": 225,
+      "replay_matches": true,
+      "fires": [
+        {
+          "search_move": [
+            4,
+            10
+          ],
+          "removal": [
+            8,
+            4
+          ],
+          "n_setups": 2,
+          "removal_visits": 8,
+          "removal_q_ours": 0.0583
+        },
+        {
+          "search_move": [
+            3,
+            10
+          ],
+          "removal": [
+            4,
+            12
+          ],
+          "n_setups": 2,
+          "removal_visits": 3,
+          "removal_q_ours": 0.0177
+        },
+        {
+          "search_move": [
+            7,
+            1
+          ],
+          "removal": [
+            7,
+            0
+          ],
+          "n_setups": 1,
+          "removal_visits": 0,
+          "removal_q_ours": null
+        },
+        {
+          "search_move": [
+            12,
+            11
+          ],
+          "removal": [
+            13,
+            9
+          ],
+          "n_setups": 1,
+          "removal_visits": 3,
+          "removal_q_ours": 0.0232
+        },
+        {
+          "search_move": [
+            9,
+            11
+          ],
+          "removal": [
+            12,
+            13
+          ],
+          "n_setups": 2,
+          "removal_visits": 0,
+          "removal_q_ours": null
+        },
+        {
+          "search_move": [
+            2,
+            2
+          ],
+          "removal": [
+            5,
+            8
+          ],
+          "n_setups": 1,
+          "removal_visits": 6,
+          "removal_q_ours": 0.091
+        }
+      ]
+    },
+    {
+      "game": 7,
+      "result": "white",
+      "winner_is_a": true,
+      "a_colour": "white",
+      "plies": 24,
+      "replay_matches": true,
+      "fires": [
+        {
+          "search_move": [
+            10,
+            6
+          ],
+          "removal": [
+            11,
+            4
+          ],
+          "n_setups": 2,
+          "removal_visits": 0,
+          "removal_q_ours": null
+        }
+      ]
+    },
+    {
+      "game": 8,
+      "result": "black",
+      "winner_is_a": true,
+      "a_colour": "black",
+      "plies": 71,
+      "replay_matches": true,
+      "fires": [
+        {
+          "search_move": [
+            5,
+            9
+          ],
+          "removal": [
+            6,
+            10
+          ],
+          "n_setups": 2,
+          "removal_visits": 8,
+          "removal_q_ours": 0.0226
+        },
+        {
+          "search_move": [
+            4,
+            6
+          ],
+          "removal": [
+            4,
+            7
+          ],
+          "n_setups": 2,
+          "removal_visits": 11,
+          "removal_q_ours": 0.1387
+        },
+        {
+          "search_move": [
+            7,
+            4
+          ],
+          "removal": [
+            1,
+            5
+          ],
+          "n_setups": 1,
+          "removal_visits": 4,
+          "removal_q_ours": -0.0389
+        }
+      ]
+    },
+    {
+      "game": 9,
+      "result": "white",
+      "winner_is_a": true,
+      "a_colour": "white",
+      "plies": 98,
+      "replay_matches": true,
+      "fires": [
+        {
+          "search_move": [
+            10,
+            8
+          ],
+          "removal": [
+            11,
+            9
+          ],
+          "n_setups": 2,
+          "removal_visits": 12,
+          "removal_q_ours": 0.1437
+        },
+        {
+          "search_move": [
+            7,
+            4
+          ],
+          "removal": [
+            3,
+            4
+          ],
+          "n_setups": 2,
+          "removal_visits": 9,
+          "removal_q_ours": 0.1005
+        },
+        {
+          "search_move": [
+            2,
+            8
+          ],
+          "removal": [
+            5,
+            3
+          ],
+          "n_setups": 1,
+          "removal_visits": 5,
+          "removal_q_ours": 0.0212
+        },
+        {
+          "search_move": [
+            11,
+            1
+          ],
+          "removal": [
+            9,
+            3
+          ],
+          "n_setups": 2,
+          "removal_visits": 5,
+          "removal_q_ours": 0.0057
+        }
+      ]
+    }
+  ]
+}

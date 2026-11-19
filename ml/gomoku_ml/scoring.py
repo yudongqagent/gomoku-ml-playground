@@ -438,6 +438,24 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v39 (iteration 39, batch 11): H1 — v27 PLUS a setup-at-root
+    # check (gomoku_ml.mcts_heuristic _setup_root_move): after the
+    # search, when the opponent holds setups but no VCF starts or
+    # creators after the search's move, a full setup removal
+    # (0 VCF / 0 creators / 0 setups after it) is played instead,
+    # ranked by the search (most visits, then our-q, then prior).
+    # The forensics (research/iterations/iter-39.md §2): in quiet
+    # setup-rich positions the rollout leaf ranks the losing quiet
+    # move above a saving quiet move (verified on 4 saving turns:
+    # v35 g58/g26, v34-swap g46, v35 g87); the check reproduces
+    # the verified save at g46 and g87. Everything else is v27
+    # unchanged: 100 sims, c_puct 1.5, sharp v1 priors, rollout
+    # leaf both colours, tau=0.05 threshold tie-break,
+    # most-visited root.
+    39: {"name": "scoring-v39", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05, "setup_root": True},
     # v41 (iteration 41, batch 11 H3): the fallback from iter-41
     # §1.2/§3 — v29 with a CHEAPER defensive VCF check
     # (``vcf_root_cheap`` in mcts_heuristic._vcf_root_move): the
@@ -1089,6 +1107,7 @@ class ScoringPlayer:
                     vcf_root_cheap=ENGINE_VERSIONS[version].get(
                         "vcf_root_cheap", False
                     ),
+                    setup_root=ENGINE_VERSIONS[version].get("setup_root", False),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(
