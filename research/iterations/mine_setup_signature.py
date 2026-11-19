@@ -57,8 +57,8 @@ import common  # noqa: E402
 common.ensure_ml_on_path()
 
 import numpy as np  # noqa: E402
-from gomoku_ml import game, scoring  # noqa: E402
-from targeted_playout import _creators, _vcf_starts  # noqa: E402
+from gomoku_ml import evaluate, game, scoring  # noqa: E402
+from targeted_playout import _creators  # noqa: E402
 from workup_loss import _PlayerCache  # noqa: E402
 
 B10 = "/home/hatch/workspace/projects/gomoku-b10/research/iterations"
@@ -181,6 +181,24 @@ def _setup_creates_two(board: np.ndarray, m: int, player: int) -> bool:
             found += 1
             if found >= 2:
                 return True
+    return False
+
+
+def _has_vcf_start(board: np.ndarray, player: int) -> bool:
+    """True iff ``player`` holds a VCF start on ``board`` (zero /
+    non-zero only — the mining filter never needs the exact count).
+    A VCF start must be a four-creating move
+    (``starts_forced_win`` requires it), so only the four-creators
+    are tested (same restriction as the VCF check in
+    mcts_heuristic), with early exit at the first start. This is
+    what makes VCF-rich boards affordable: the full
+    ``_vcf_starts`` enumeration took minutes on boards with a
+    dozen starts (mining g49 ply 78). Validated against the
+    recorded exact counts in setup-mining.json (see
+    research/iterations/setup-mining-ab.json, "vcf" section)."""
+    for m in evaluate.four_creating_moves(board, player):
+        if evaluate.starts_forced_win(board, player, m):
+            return True
     return False
 
 
@@ -333,8 +351,11 @@ def main() -> int:
             if creators_a:
                 entry["turns"].append(turn)
                 continue
-            vcf_a = _vcf_starts(after_actual, opp)
-            turn["vcf_after"] = len(vcf_a)
+            vcf_a = _has_vcf_start(after_actual, opp)
+            # vcf_after is 0/1 (0 vs >= 1) from the early-exit test;
+            # the exact count is never needed for the filter.
+            turn["vcf_after"] = 1 if vcf_a else 0
+            turn["vcf_capped"] = True
             if vcf_a:
                 entry["turns"].append(turn)
                 continue
@@ -385,7 +406,7 @@ def main() -> int:
                     after_test, opp, 1)
                 vcf_n = None
                 if not creators_t and not setups_t:
-                    vcf_n = len(_vcf_starts(after_test, opp))
+                    vcf_n = 1 if _has_vcf_start(after_test, opp) else 0
                 removes = (not creators_t and not setups_t
                            and vcf_n == 0)
                 turn["tests"].append({

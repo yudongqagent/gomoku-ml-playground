@@ -441,5 +441,10 @@
   "timing": {
     "inner_s": 162.7,
     "direct_s": 161.3
+  },
+  "vcf": {
+    "compared": 134,
+    "mismatches": 0,
+    "cases": []
   }
 }
