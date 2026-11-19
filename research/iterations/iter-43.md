@@ -636,7 +636,77 @@ NOT extended post-hoc.
 
 ### 5.1 Fast loop, iteration 1
 
-TODO — fill in when the fast loop runs.
+**vs v8 (dev seeds 1001/2001): 5W-2L-3D in the first 10 games**
+of the α=0.25 sweep leg — the sweep leg IS the fast-loop leg
+(same seeds, same α; re-playing would reproduce the games
+exactly under per-game seeding, so the sweep JSON was analysed
+directly; first 10 copied to
+`research/iterations/fast-v43-vs-v8-k1.json`).
+`classify_losses`: 2 losses, **both via open four, 0 missed
+blocks**, 0 clean missed preventions in 8 threatened turns.
+`find_losing_moves`: both losses already-lost (game 4, ply 38;
+game 9, ply 17 — 0 saving moves in 99 / 65 replies checked).
+The full 20-game leg agrees: 7 losses, all 7 via open four, 0
+missed blocks in 35 threatened turns.
+
+**vs v0 (dev seeds 1001/2001): 2W-7L-1D (0.25, CI [0.0809,
+0.5578])** — v43 LOSES to the weakest engine, a stark
+non-transitivity against its 0.575 vs v8. `classify_losses`:
+7 losses, **all 7 via open four, 0 missed blocks**, 0 clean
+missed preventions in 41 threatened turns. `find_losing_moves`:
+5/7 already-lost (games 1, 2, 3, 4, 7 — gradual positional
+drift, no saving move); 2 real blunders with saving moves:
+
+- **Game 8 (Black, 42 plies), ply 36:** played (2,7); saves
+  (9,8), (9,11), (10,11). `diag_root`: 89 root children over
+  100 sims — the search is visit-starved. Actual (2,7) and save
+  (9,11) are TIED at 5 visits with q −0.049 vs −0.044; the
+  tie-break picked the loser despite the save's higher prior
+  (0.0555 vs 0.0510). The 1-ply leaves cannot distinguish them
+  either (all ≈ −0.200). The position was already bad for Black
+  (opponent breadth: 4 fours, 7 true-threes). Mechanism:
+  visit-allocation / tie-break noise in a flat, bad position —
+  the v40 forensics mechanism ("blunder dilution, visit
+  allocation"), NOT a leaf mis-ranking.
+- **Game 9 (White, 23 plies), ply 13:** played (8,11); save
+  (8,7). `diag_root`: the search ACTIVELY preferred the loser —
+  (8,11) 16 visits, q −0.064 vs (8,7) 12 visits, q −0.099 —
+  and the 1-ply heuristic leaves agree (+0.192 vs +0.186 under
+  v22). The loser is the greedy attacking move (4 own fours);
+  the save is the defensive move (opponent development 11 vs
+  21 after it). The leaf says White is winning (+0.19) after a
+  move from which Black forces a win in 4 plies; the backed-up
+  q (−0.064) moved the right way from the leaf but not far
+  enough to flip the ranking. Mechanism: leaf mis-ranking on
+  own-threat breadth vs opponent counter-threat, partially
+  corrected by search but not enough at 100 sims.
+
+**No patchable weakness class found — fast loop stops after
+iteration 1.** The two blunders are (a) visit-tie noise and (b)
+a leaf mis-ranking that search partially corrects; every lever
+that could address either is CLOSED: more sims ("more sims is
+NOT monotonically better"), VCF checks at root/leaf (v32, v33,
+v35, v40 — the leaf-blind direction is closed), q-based root
+decisions / tie-break gates (v34, root-decision lever
+exhausted). The dominant signature — 9/9 losses via open four,
+0 missed blocks across both legs — is gradual positional drift
+against opponents who build double threats, not a one-move
+defect. The vs-v0 collapse is a measurement question for the
+battery (100 games), not a fast-loop patch target.
+
+**Control (v37 vs v0, same seeds 1001/2001): 3W-6L-1D
+(0.35, CI [0.1369, 0.6463])** — reproduces iter-37's recorded
+fast loop vs v0 EXACTLY (same score, same CI), confirming the
+setup is correct and the engines are deterministic. Correction
+to an early working note: v37's fast loop vs v0 was 3-6-1, not
+9-1 (the 9-1 figure was a mis-recollection; iter-37 §5 says
+3W-6L-1D). v43's 2-7-1 is one game from v37's 3-6-1 — the same
+cold-start pattern, and v37's 100-game battery vs v0 recovered
+to 0.585. The two fast loops are near-identical in signature:
+9 losses each, 9/9 via open four, 0 missed blocks, 7/9
+already-lost, 2 genuine blunders both vs v0. v43 plays like
+v37 in the fast loop; the battery measures whether it plays
+like v37 at full sample.
 
 ## 6. Validation battery
 
