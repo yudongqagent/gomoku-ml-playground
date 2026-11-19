@@ -451,6 +451,31 @@ recorded here before any eval of the refined version.
 
 ### 3.4 Re-run fast loops (refined v39)
 
+Same seeds as §3.1/§3.2, so the results are directly
+comparable:
+
+- **vs v0: 9W-0L-1D (0.95)**, up from 7W-0L-3D (0.85).
+  Games 4 and 6 (both 225-ply draws before) are now wins
+  (69 plies each). Only game 2 still draws. The refinement
+  fixed 2 of the 3 draws — the 0-visit overrides were a
+  significant part of the passive cost.
+- **vs v27: 4W-5L-1D (0.45)**, same win rate as the
+  unrefined 3W-4L-3D (0.45) but a different composition:
+  game 1 flipped draw→win (76 plies), game 9 flipped
+  draw→loss (119 plies), game 6 still draws (225 plies).
+  The refinement did not help vs v27 — but it did not hurt
+  either, and 0.45 on n=10 is statistically a tie with
+  v27 (CI roughly [0.20, 0.72]).
+
+**Fast-loop verdict: v39 GOES TO THE BATTERY.** The
+refinement is a clear improvement vs v0 and neutral vs
+v27; no further principled refinement is available (the
+n_setups ≥ 2 rule would lose the verified g46 instance,
+a q-gate is adjacent to the CLOSED q lever with an
+arbitrary threshold, and no ply gate separates the
+forensics turns from ordinary gate-open turns). The
+100-game battery is the verdict, as always.
+
 ## 4. v39 evaluation
 
 [To be written.]
