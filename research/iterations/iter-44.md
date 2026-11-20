@@ -852,6 +852,43 @@ battery is the verdict.
   (7,5) — no leaf-value tie-break regression from the
   3-ply labels.
 
+### 6.2 vs v8 — COMPLETE 2026-11-20 ~02:13 UTC — **CLAUSE 1 PASSES**
+
+`selfplay_batch.py --engine-a v44 --engine-b v8 --games 100
+--openings research/openings-ml4.json --seed-a 100 --seed-b 200`
+(log `ml/runs/ml4-h3/batt-v8.log`; JSON
+`research/iterations/batch-v44-vs-v8.json`). Two VM
+replacements interrupted the leg (at 9 and 95 games); both
+times the driver resumed from the saved game with per-game
+seeding — nothing lost, and the resumed legs reproduce the
+uninterrupted run (verified by the §5 test fix).
+
+- **66W-32L-2D, win rate 0.6700, Wilson 95% CI [0.5731,
+  0.7544]** — win rate > 0.50 and CI lower > 0.50 ✓
+- Uniqueness audit: **93 unique games in 100** (the
+  --openings set + per-game seeding; the 7 duplicates are
+  opening repeats that played out identically).
+- De-dup cut (93 unique): **62W-29L-2D, 0.6774, CI [0.5770,
+  0.7638]** — the verdict stands on independent games alone.
+- Colour splits: as Black **33W-16L-1D (0.6700)**, as White
+  **33W-16L-1D (0.6700)** — exactly symmetric; no White
+  weakness in played games (consistent with the §4
+  by-side holdout: Black 0.7463 vs White 0.7421).
+- Black won 49, White won 49, 2 draws — the match was
+  perfectly colour-balanced overall.
+
+Comparison: v37 scored 0.75 vs v8 (CI [0.657, 0.8245]);
+v44's 0.67 sits BELOW v37's point estimate (the CIs
+overlap: v44's upper 0.7544 vs v37's lower 0.657). The
+3-ply extension did NOT beat the 2-ply labels on
+head-to-head — diminishing returns, the second branch of
+the §1 hypothesis. The parity shift (§0) is the likely
+mechanism: the optimistic labels cost strength even at
+the coolest swept α, and the sweep could only mitigate,
+not remove, the shift. Clause 1 passes on its own terms
+(vs v8), but v44 is not stronger than v37.
+
+
 
 
 
