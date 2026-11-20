@@ -1,6 +1,6 @@
 # Iteration 43 — v43: history dropout on the v37 net (ML batch 4, H2)
 
-**Status: IN PROGRESS — pre-registered; training starting.**
+**Status: COMPLETE 2026-11-20 — REJECTED (2/4 clauses pass).**
 Comparison target is v8 (the ML track's champion and bar
 reference). This is the H2 workstream of ML batch 4 (H1 is v42,
 history robustness on v24's recipe; H3 is v44, 3-ply labels);
@@ -721,35 +721,250 @@ like v37 at full sample.
   and v37 fixed. The dropout retrain keeps v37's quiet-setup
   fix at the engine level.
 
-### 6.2 h2h vs v8 (clause 1) — RUNNING
+### 6.2 h2h vs v8 (clause 1) — COMPLETE 2026-11-20 03:09 UTC — **CLAUSE 1 FAILS**
 
-TODO — fill in when the leg completes.
+`selfplay_batch.py --engine-a v43 --engine-b v8 --games 100
+--openings research/openings-ml4.json --seed-a 100 --seed-b 200`
+(raw `research/iterations/batch-v43-vs-v8.json`; recomputed
+from the per-game records by
+`ml/runs/ml4-h2/recompute-aggregates.py` — W-L-D, win rate,
+Wilson CI, colour splits, uniqueness, and de-dup rate all
+reproduce the driver's stored aggregates exactly):
 
-### 6.3 h2h vs v0
+- **47W-46L-7D, 0.5050, 95% CI [0.4086, 0.6010].** The win rate
+  is above 0.50 by half a game, but the CI lower bound (0.4086)
+  is far below 0.50 — clause 1 fails. The de-dup cut agrees:
+  97/100 unique games, de-dup 47W-43L-7D, 0.5206, CI [0.4223,
+  0.6173] — also fails. The opening variety worked (97 unique
+  vs v36-vs-v8's 21 without openings).
+- Colour split INVERTED vs the usual ML pattern: as Black
+  18W-27L-5D (0.4100); as White 29W-19L-2D (0.6000). v43 is
+  White-strong against v8 — the opposite of v37's sweep
+  pattern and of the §5 α=0.25 leg (Black 9-1, White 1-6-3),
+  which confirms that leg's split was a cold draw, not a real
+  White weakness at this α.
+- **v37 scored 0.7500 (CI [0.6570, 0.8245]) on this exact
+  pairing.** The dropout gave up nearly all of v37's edge over
+  v8 (−0.245): the gate-passing net plays like v8, not like
+  v37.
+- Battery history: the leg was interrupted twice by VM
+  replacements (original worker killed at 5 games; pickup
+  worker killed at 70); auto-resume reproduced the
+  uninterrupted run exactly both times (per-game seeding).
 
-TODO — fill in when the leg completes.
+### 6.3 h2h vs v0 — COMPLETE 2026-11-20 04:26 UTC
 
-### 6.4 h2h vs v7
+`selfplay_batch.py --engine-a v43 --engine-b v0 --games 100
+--seed-a 100 --seed-b 200` (raw
+`research/iterations/batch-v43-vs-v0.json`; recomputed —
+exact match):
 
-TODO — fill in when the leg completes.
+- **46W-49L-5D, 0.4850, CI [0.3894, 0.5817].** v43 LOSES to the
+  frozen baseline outright — the fast loop's 0.25 did NOT
+  recover at full sample, unlike v37's (fast loop 0.35 →
+  battery 0.5850). 96/100 unique; de-dup 44W-47L-5D, 0.4844,
+  CI [0.3869, 0.5830].
+- Colour split is extreme: as Black 36W-10L-4D (0.7600); as
+  White **10W-39L-1D (0.2100)**. The White collapse vs the
+  weakest engine is far worse than v37's White 0.44 against
+  the same opponent. The dropout net defends as White far worse than
+  v37's net — consistent with the §5.1 game-9 mechanism (the
+  leaf overvalues own-threat breadth and undervalues the
+  opponent's counter-threat), now priced at 100 games.
+- One VM replacement during the leg (killed at 60 games);
+  auto-resumed from game 68.
 
-### 6.5 h2h vs v37
+### 6.4 h2h vs v7 — COMPLETE 2026-11-20 06:18 UTC
 
-TODO — fill in when the leg completes.
+`selfplay_batch.py --engine-a v43 --engine-b v7 --games 100
+--seed-a 100 --seed-b 200` (raw
+`research/iterations/batch-v43-vs-v7.json`; recomputed —
+exact match):
 
-### 6.6 Swap vs v7
+- **40W-57L-3D, 0.4150, CI [0.3233, 0.5130].** Loses to the
+  heuristic bar reference, slightly below v37's 0.4500 (within
+  noise). 97/100 unique; de-dup 37W-57L-3D, 0.3969, CI
+  [0.3053, 0.4964].
+- Colour split near-even: as Black 21W-28L-1D (0.4300); as
+  White 19W-29L-2D (0.4000) — v43's White vs v7 (0.40) is
+  actually BETTER than v37's (0.31); the v7 gap is a Black
+  gap for v43 (0.43 vs v37's 0.59).
+- One VM replacement during the leg (killed at 80 games);
+  auto-resumed from game 89.
 
-TODO — fill in when the leg completes.
+### 6.5 h2h vs v37 — COMPLETE 2026-11-20 09:05 UTC
 
-### 6.7 Ladder (clause 2)
+`selfplay_batch.py --engine-a v43 --engine-b v37 --games 100
+--openings research/openings-ml4.json --seed-a 100 --seed-b 200`
+(raw `research/iterations/batch-v43-vs-v37.json`; recomputed
+— exact match). The direct dropout comparison: same positions,
+same labels, same search — only the training procedure differs.
 
-TODO — fill in when the ladder completes.
+- **34W-60L-6D, 0.3700, 95% CI [0.2818, 0.4678].** The CI lies
+  ENTIRELY below 0.50: the dropout net is decisively weaker
+  than v37's net head-to-head. 94/100 unique; de-dup
+  31W-57L-6D, 0.3617, CI [0.2718, 0.4625] — the same verdict on
+  the de-dup cut.
+- As Black 21W-25L-4D (0.4600); as White 13W-35L-2D (0.2800)
+  — the White gap again (v37's net beats the dropout net
+  hardest as Black).
+- **This is the experiment's answer.** The §1 hypothesis had
+  two branches: if dropout kept v37's played strength AND
+  fixed the history dependence, the history planes were a
+  shortcut; if it cost played strength, the history planes
+  carry real signal the 2-ply labels need. The second branch
+  is the result: the gate passed (history dependence fixed,
+  §4) AND played strength fell by 0.13 against v37's own net
+  on identical data. The 2-ply label function genuinely
+  depends on game-phase / last-move information that the
+  current-board planes alone do not carry at this sample
+  scale — forcing the trunk to read the value from the current
+  board alone makes it a worse value function where it counts
+  (played games), even though holdout sign accuracy is
+  unchanged (0.7606 vs v37's 0.7519). Holdout sign accuracy
+  does not predict played strength here — the same lesson as
+  v31 (holdout transfer does not predict played strength).
+- One VM replacement during the leg (killed at 50 games);
+  auto-resumed from game 51.
 
-### 6.8 Test suites (clause 4)
+### 6.6 Swap vs v7 — COMPLETE 2026-11-20 11:06 UTC
 
-TODO — fill in at the end (full ml pytest + npm test + tsc on
-the final tree).
+`selfplay_batch.py --engine-a v43 --engine-b v7 --games 100
+--swap-rule --placement balanced --placement-seed 11 --judge
+tempo --seed-a 100 --seed-b 200` (raw
+`research/iterations/batch-v43-vs-v7-swap.json`; recomputed —
+exact match):
+
+- **35W-58L-7D, 0.3850, CI [0.2956, 0.4829].** Under the
+  official swap rule v43 loses to v7 by more than under normal
+  rules (0.4150) — the swap does not help this pairing (v37's
+  swap was 0.4400, also below its normal-rules 0.4500).
+- Placement seed 11 confirmed in the JSON (the pre-registered
+  seed); tempo judge; v43 played Black in 52 games and White
+  in 48. As Black 20W-27L-5D (0.4327); as White 15W-31L-2D
+  (0.3333).
+- Uniqueness audit: **100 unique games of 100** — perfect
+  uniqueness (the balanced placements diversify every game);
+  de-dup = nominal.
+- One VM replacement during the leg (killed at 30 games);
+  auto-resumed from game 38.
+
+### 6.7 Ladder (clause 2) — COMPLETE 2026-11-20 11:41 UTC — **CLAUSE 2 FAILS**
+
+`eval_version.py --version 43 --ladder-games 40 --seed 100`
+(raw `research/iterations/ladder-v43.json` — committed
+artifact; Elo recomputed from the heuristic leg's score by
+`recompute-aggregates.py`: −88.7, interval [−198.2, 20.7] —
+the 0.1 difference from the stored [−198.1, 20.6] is the
+stored score CI rounded to 4dp):
+
+- vs random: **40W-0L-0D** (1.0000, CI [0.9124, 1.0000]).
+- vs heuristic: **14W-24L-2D** (0.3750, CI [0.2422, 0.5297]);
+  as Black 8W-11L-1D, as White 6W-13L-1D.
+- vs mcts: **16W-23L-1D** (0.4125, CI [0.2742, 0.5661]); as
+  Black 13W-7L-0D, as White **3W-16L-1D** — the White collapse
+  again, worst against the search opponent. v37 BEAT the
+  ladder MCTS (0.575); v43 loses to it.
+- **Ladder Elo estimate −88.7, interval [−198.1, 20.6]** —
+  below v8's 0.0, so **clause 2 FAILS**. The interval includes
+  0.0, but the bar is the point estimate strictly above 0.0
+  and −88.7 is not. v37's Elo was −34.9 (20 games/opponent);
+  v43 is worse on the point estimate at 40 games/opponent —
+  the 40-game re-basing narrowed the interval as designed
+  (±~110 vs v37's ±~150), and the verdict does not turn on
+  noise: v43's heuristic leg (0.375) is below v37's (0.45 at
+  20 games) and below v8's anchor level outright.
+- The ladder's tactical leg re-ran the old suite at 20/20 (the
+  hard suite was re-run separately in §6.8).
+
+### 6.8 Test suites (clause 4) — COMPLETE 2026-11-20 ~11:52 UTC — **CLAUSE 4 PASSES**
+
+Full suites on the final tree (logs `ml/runs/ml4-h2/`):
+
+- ml pytest: **435 passed, 1 skipped, 58 xfailed, 0 failures**
+  (238.85 s; log `pytest-final.log`). The 435th pass vs the
+  §4 early check's 434 is the §4 seeding-test fix now in the
+  suite. One pytest run was SIGTERM'd by a VM replacement
+  mid-run with no output; the re-run completed cleanly.
+- npm test: **55/55 passed** (log `npm-test-final.log`).
+- tsc: **clean, exit 0** (log `tsc-final.log`).
+- `ValueMCTS.__init__` checked for the duplicate-parameter
+  trap before the battery ran: a single `value_weight: float |
+  None = None` parameter — no duplicate.
+- Clause 3 re-confirmed on the final tree (§6.1 re-run):
+  tactical **20/20 + 29/29** at `--seed 100` (log
+  `tactical-v43-final.log`), including setup-v1v0s-g92 choosing
+  (9,6).
 
 ## 7. Verdict
 
-TODO — fill in at the end.
+**v43 is REJECTED — 2 of 4 clauses pass.**
+
+| Clause | Bar | v43 | Verdict |
+|---|---|---|---|
+| 1 | h2h vs v8 > 0.50, Wilson 95% CI lower > 0.50 | 0.5050, CI [0.4086, 0.6010]; de-dup 0.5206, CI [0.4223, 0.6173] | **FAIL** |
+| 2 | ladder Elo > 0.0 | −88.7, interval [−198.1, 20.6] (40 games/opponent) | **FAIL** |
+| 3 | tactical ≥ 20/20 + 29/29 | 20/20 + 29/29 (re-verified on the final tree) | **PASS** |
+| 4 | all test suites green | pytest 435/1/58, npm 55/55, tsc clean | **PASS** |
+
+**v8 stays the ML champion; v37 stays the strongest ML version
+ever by head-to-head (0.75 vs v8).** v43 is the first version
+in the program to pass its own training gate decisively (gap
+0.0075, full-planes 0.7606 — the history dependence is GONE)
+and still play worse than the net it was distilled from: it
+ties v8 (0.505), loses to v0 (0.485), loses to v7 (0.415),
+loses to v37 head-to-head (0.370, CI entirely below 0.50),
+and posts a ladder Elo (−88.7) below v37's (−34.9) and below
+v8's 0.0.
+
+**The result (pre-registered §1, second branch): the history
+planes carry real signal the 2-ply labels need.** At 33,849
+samples the 2-ply label function is not learnable from the
+current board alone at played-strength quality — the dropout
+forces the trunk to drop information (game phase, last-move
+character) that the value function genuinely uses, and the
+played cost is concentrated as White (vs v0 White 0.21, vs
+the ladder MCTS White 3-16-1, vs v37 White 0.28), where
+defence depends on reading the opponent's developing threats
+through the recent-move history. The holdout sign accuracy
+(0.7606, slightly ABOVE v37's 0.7519) did not see it coming —
+sign accuracy on quiet holdout positions is not a proxy for
+played strength, and the gate as designed (sign-accuracy
+match + fit floor) cannot detect a played-strength regression.
+**History dropout in this form is CLOSED as a lever** — do not
+retry p=0.5 joint dropout on the 2-ply recipe. The §1 fallback
+(a history-free architecture, v38's §7) is also suspect now:
+if the labels need history, removing history from the
+architecture faces the same wall, and the fix — if any — is on
+the label side (labels that are a function of the current board
+alone, e.g. deeper search that washes out phase information)
+or the data side (enough samples that the board→label mapping
+is learnable without the shortcut), not the dropout side.
+
+**Non-transitivity, recorded prominently:** v43 ≈ v8 (0.505)
+> v37 loses to v43? No — v37 beats v43 (0.63 from v37's side)
+while v37 beats v8 (0.75) and v43 ties v8: the ordering v37 >
+v43 ≈ v8 is transitive on this trio. But v43 loses to v0
+(0.485) while v8 beats v0 (0.545) and v37 beats v0 (0.585):
+v0 > v43 ≈ v8 > v0 is a genuine cycle — v43 loses to the
+frozen baseline outright while tying the version that beats
+it (v8: 0.545 vs v0), driven entirely by v43's White game
+(0.21 vs v0 as White).
+
+**Battery hygiene note:** the battery survived SIX VM
+replacements (one before pickup at 5 games, five during the
+pickup — legs 1–5 each killed once); every leg auto-resumed
+from its JSON with per-game seeding and no game was lost or
+replayed. Uniqueness was 94–100/100 on every leg — the
+openings set and per-game seeding have ended the
+mirror-match collapse (v36-vs-v8 was 21 unique in 100).
+
+**What v43 leaves behind:** the ported `_rollout2_leaf_value`
++ spot re-labelling verification (0/888 mismatches), the
+history-dropout training machinery (`drop_history_planes`,
+`history_dropout` config key, unit tests), the seeding-test
+fix (`rec["opening"] = []`), and the v37 registry entry +
+checkpoint as a comparison engine — all reusable by H1/H3 and
+future batches. The checkpoint `ml/runs/ml4-h2/value-net.pt`
+(md5 `e9c8befbbd1e3de1ed2c309e9cb050e9`) is gitignored data;
+the registry entry points at it for any future reproduction.
