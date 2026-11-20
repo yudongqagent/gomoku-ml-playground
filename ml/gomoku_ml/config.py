@@ -95,7 +95,7 @@ DEFAULTS: dict = {
         "policy_weight": 1.0,
         "value_weight": 1.0,
         "augmentation": True,
-        "history_dropout": 0.0,  # ML batch 4 (v42): per-sample whole-history dropout prob; 0.0 = v24's recipe
+        "history_dropout": 0.0,  # ML batch 4 (v42/v43): per-sample whole-history dropout prob; 0.0 = v24's recipe
         "val_fraction": 0.05,
         "checkpoint_every_epochs": 0,
     },

@@ -52,6 +52,45 @@ from .model import GomokuNet
 
 _MMAP_FILES = ("planes.npy", "policy.npy", "values.npy")
 
+# History planes of the 8-plane encoding (see encoding.py): plane 2 is
+# the last-move one-hot, planes 4-5 the board 2 plies ago, planes 6-7
+# the board 4 plies ago. Same tuple as eval_value_holdout.py's
+# _HISTORY_PLANES (the no-history view zeroes exactly these planes),
+# so training-time dropout and the holdout gate measure the same
+# intervention. (ML batch 4: v43's helper; v42's equivalent helper
+# ``augment.drop_history_planes_batch`` returns a copy instead of
+# modifying in place — both are tested, both stay.)
+HISTORY_PLANES = (2, 4, 5, 6, 7)
+
+
+def drop_history_planes(
+    batch_planes: np.ndarray,
+    rng: np.random.Generator,
+    rate: float,
+) -> np.ndarray:
+    """Zero the history planes on a per-sample Bernoulli(rate) draw.
+
+    ML batch 4 (v43): v37's net collapses without history planes
+    (v7 holdout 0.7395 -> 0.5163), so training randomly presents
+    samples with NO history, forcing the trunk to read the value
+    from the current board (planes 0, 1, 3) alone. The draw is per
+    sample and fresh every epoch (the caller passes the training
+    loop's rng); when a sample is drawn, ALL history planes are
+    zeroed jointly — matching the holdout gate's no-history view.
+    ``rate`` 0.0 is a no-op; 1.0 trains a history-free net. The
+    batch is modified in place (it is the loop's fresh per-batch
+    copy) and returned.
+    """
+    if rate <= 0.0:
+        return batch_planes
+    if rate > 1.0:
+        raise ValueError(f"history_dropout rate must be <= 1.0, got {rate}")
+    drop = rng.random(len(batch_planes)) < rate
+    rows = np.flatnonzero(drop)
+    if len(rows):
+        batch_planes[rows[:, None], list(HISTORY_PLANES)] = 0.0
+    return batch_planes
+
 
 def _load_mmap_bundle(data_dir: str) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
     """Load a memmap bundle built by ``ml/scripts/build_mmap_bundle.py``.
@@ -252,6 +291,12 @@ def train(
     restarting a fresh decay over the remaining epochs. (Passing the
     run's total epoch count here is only correct when the run ends at
     that epoch; the CLI passes ``start_epoch + epochs``.)
+
+    ``history_dropout``: per-sample probability (0.0-1.0) that a
+    training batch sample has its history planes (2, 4-7) zeroed
+    before the forward pass — see :func:`drop_history_planes`.
+    0.0 (default) reproduces the pre-dropout training exactly.
+    Validation is always full-planes.
     """
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
@@ -318,9 +363,13 @@ def train(
                     batch_planes, batch_policy, rng
                 )
             if history_dropout > 0.0:
-                batch_planes = augment.drop_history_planes_batch(
-                    batch_planes, rng, history_dropout
-                )
+                # After augmentation (zeroing commutes with the
+                # dihedral transform; applied here so the dropped
+                # view is what the forward pass sees). Validation
+                # is always full-planes (checkpoint selection uses
+                # the standard view; the no-history gate is measured
+                # separately on the holdout).
+                drop_history_planes(batch_planes, rng, history_dropout)
             x = torch.from_numpy(np.ascontiguousarray(batch_planes)).to(device_t)
             pt = torch.from_numpy(np.ascontiguousarray(batch_policy)).to(device_t)
             z = torch.from_numpy(values[gidx]).to(device_t).unsqueeze(1)

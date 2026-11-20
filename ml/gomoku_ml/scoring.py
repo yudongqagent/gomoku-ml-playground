@@ -438,6 +438,17 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v37 (iteration 37, ML batch 3) — HARNESS-ONLY entry for the
+    # v42/v43-vs-v37 secondary legs of ML batch 4; v37 is not a
+    # shipped version on this branch. v8's PUCT MCTS with the value
+    # net distilled from v18's rollout leaf on 2-ply deeper-teacher
+    # labels; value_weight 0.25 is the ML-batch-3 α-sweep winner.
+    # Checkpoint copied verbatim from gomoku-ml3
+    # (md5 2fde492aae6d44cbe945e15bd5f1f959).
+    37: {"name": "scoring-v37", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml3-h2/value-net.pt",
+         "value_weight": 0.25},
     # v42 (iteration 42, ML batch 4): H1 — v8's PUCT MCTS with the
     # value net distilled from v18's rollout leaf on v24's recipe
     # (same 37,227 quiet positions, same 1-ply labels, same
@@ -457,16 +468,19 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h1/value-net.pt",
          "value_weight": 0.5},
-    # v37 (iteration 37, ML batch 3) — HARNESS-ONLY entry for the
-    # v42-vs-v37 secondary leg of ML batch 4; v37 is not a shipped
-    # version on this branch. v8's PUCT MCTS with the value net
-    # distilled from v18's rollout leaf on 2-ply deeper-teacher
-    # labels; value_weight 0.25 is the ML-batch-3 α-sweep winner.
-    # Checkpoint copied verbatim from gomoku-ml3
-    # (md5 2fde492aae6d44cbe945e15bd5f1f959).
-    37: {"name": "scoring-v37", "defence_weight": 1.0, "threat_check": False,
+    # v43 (iteration 43, ML batch 4): H2 — v8's PUCT MCTS with a
+    # value net trained on v37's 2-ply rollout-leaf labels (same
+    # 817 games / 37,227 positions as v24/v37) WITH history-plane
+    # dropout (p=0.5, planes 2, 4-7 zeroed jointly per sample per
+    # epoch) so the net is robust to missing history — v37's net
+    # collapses without history planes (v7 holdout 0.7395 ->
+    # 0.5163). See research/iterations/iter-43.md. value_weight
+    # is the swept α (0.25 — the §1.5 no-signal rule: the sweep's
+    # three arms were within one win of each other (10/10/11 wins),
+    # so the rule picks v37's winner 0.25; see iter-43.md §5).
+    43: {"name": "scoring-v43", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
-         "value_checkpoint": "ml/runs/ml3-h2/value-net.pt",
+         "value_checkpoint": "ml/runs/ml4-h2/value-net.pt",
          "value_weight": 0.25},
 }
 
