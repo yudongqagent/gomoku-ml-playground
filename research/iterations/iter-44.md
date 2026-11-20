@@ -888,6 +888,41 @@ the coolest swept α, and the sweep could only mitigate,
 not remove, the shift. Clause 1 passes on its own terms
 (vs v8), but v44 is not stronger than v37.
 
+### 6.3 Ladder — COMPLETE 2026-11-20 ~03:40 UTC — **CLAUSE 2 PASSES**
+
+`eval_version.py --version 44 --ladder-games 40 --out
+research/iterations/ladder-v44.json` (log
+`ml/runs/ml4-h3/ladder.log`; JSON committed). 40 games per
+leg, seed 100, no interruptions (the ladder ran straight
+through — the only leg of the battery with no VM kill).
+
+| Opponent | W-L-D | win rate | 95% CI | as Black | as White |
+|----------|-------|----------|--------|----------|----------|
+| random | 40-0-0 | 1.0000 | [0.9124, 1.0000] | 20-0-0 | 20-0-0 |
+| heuristic (v0) | 24-13-3 | 0.6375 | [0.4826, 0.7683] | 13-6-1 | 11-7-2 |
+| mcts (100 sims) | 25-15-0 | 0.6250 | [0.4703, 0.7578] | 14-6-0 | 11-9-0 |
+
+- **Ladder Elo: 98.1, interval [−12.1, 208.2]** (anchors:
+  random −800, heuristic 0) — estimate > 0.0 ✓. The
+  interval is wide and includes 0, so the pass is on the
+  point estimate, as for every prior version (v24 passed
+  at 52.5, v37 failed at −34.9). Stated plainly: the
+  evidence favours v44 above the bar, but a 40-game leg
+  cannot prove it.
+- **v44 beats the ladder MCTS outright (0.625)** — the
+  first ML version ever to do so (v37's Elo was −34.9;
+  v18 was the first on the heuristic track). The MCTS
+  leg is what killed v37's clause 2; v44 clears it.
+- **Elo 98.1 is the highest ML-track ladder Elo ever**
+  (v8 0.0, v24 52.5, v37 −34.9). The paradox of this
+  version: BELOW v37 head-to-head (0.67 vs 0.75 vs v8)
+  yet ABOVE it on the ladder (98.1 vs −34.9). The
+  ladder's cold 40-game legs reward v44's consistency
+  (no leg below 0.62) while v37's strength was
+  concentrated in the v8 matchup. Both numbers are real;
+  they measure different things.
+
+
 
 
 
