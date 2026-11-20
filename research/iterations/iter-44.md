@@ -922,6 +922,21 @@ through — the only leg of the battery with no VM kill).
   concentrated in the v8 matchup. Both numbers are real;
   they measure different things.
 
+### 6.7 Test suites — **CLAUSE 4 PASSES**
+
+- ml pytest (final tree, 2026-11-20 ~04:20 UTC):
+  **438 passed, 1 skipped, 58 xfailed, 0 failed** (12:32;
+  log `ml/runs/ml4-h3/pytest-final.log`). The first
+  attempt was killed by a VM replacement at 57% (no
+  failures to that point); the re-run completed clean.
+  The one pre-existing failure from the early run
+  (`test_resume_reproduces_uninterrupted`, a base-branch
+  record-shape drift from the 4457fe7 openings tooling)
+  was fixed in commit `32f555e` — see §5 preamble.
+- npm test: **55/55 passed** (vitest, 4 files).
+- `tsc --noEmit`: **clean** (exit 0).
+
+
 
 
 
