@@ -19,7 +19,10 @@ replaying games):
   with the 2-ply value instead (``_rollout2_leaf_value`` — the
   rollout-leaf value 2 plies ahead under the teacher's own rollout
   policy; see ``research/iterations/iter-37.md`` §1); the default
-  ``rollout`` reproduces v24's labels exactly.
+  ``rollout`` reproduces v24's labels exactly. ``--label-mode
+  rollout3`` (ML batch 4 H3, v44) labels with the 3-ply value
+  (``_rollout3_leaf_value`` — the rollout-leaf value 3 plies
+  ahead; see ``research/iterations/iter-44.md`` §1).
 
 Sampling: ALL quiet positions of every game (positions per game
 ~35-45; game generation is the expensive step, labeling is ~6ms
@@ -139,7 +142,9 @@ def cmd_label(args) -> int:
     if args.holdout_dir:
         os.makedirs(args.holdout_dir, exist_ok=True)
     label_fn = (
-        mcts_heuristic._rollout2_leaf_value
+        mcts_heuristic._rollout3_leaf_value
+        if args.label_mode == "rollout3"
+        else mcts_heuristic._rollout2_leaf_value
         if args.label_mode == "rollout2"
         else mcts_heuristic._rollout_leaf_value
     )
@@ -243,10 +248,11 @@ def main() -> int:
                     help="dir for held-out game shards (game-level holdout)")
     pl.add_argument("--holdout-every", type=int, default=0,
                     help="hold out every Nth game (0 = no holdout)")
-    pl.add_argument("--label-mode", choices=["rollout", "rollout2"],
+    pl.add_argument("--label-mode", choices=["rollout", "rollout2", "rollout3"],
                     default="rollout",
                     help="rollout: v24's _rollout_leaf_value labels; "
-                    "rollout2: v37's _rollout2_leaf_value labels")
+                    "rollout2: v37's _rollout2_leaf_value labels; "
+                    "rollout3: v44's _rollout3_leaf_value labels")
     pl.set_defaults(func=cmd_label)
     args = parser.parse_args()
     return args.func(args)
