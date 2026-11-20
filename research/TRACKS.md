@@ -59,19 +59,32 @@ the heuristic. The work continues autonomously; he runs nothing.
 
 ## Track B — ML model (learned nets)
 
-- **Champion: v8** (v6's PUCT MCTS + learned value leaf; ResNet
-  16ch/2 blocks trained on the B1 dataset — 4,350 recorded games,
-  1,449 unique (dedup finding, ML batch 1) — α=0.25) —
+- **Champion: v44** (3-ply-label distilled value net, ResNet
+  16ch/2 blocks, α=0.125) — the first ML version ever to pass all
+  4 clauses of the ML bar (ML batch 4, 2026-11-20): vs v8 0.67,
+  CI [0.5731, 0.7544]; ladder Elo 98.1 [−12.1, 208.2] (40-game
+  legs; the interval includes 0 — the pass is on the point
+  estimate, per the pre-registered rule); tactical 20/20 + 29/29;
+  vs v0 0.58. First ML version ever to beat the ladder MCTS
+  outright (25–15). Lives on master (`6b777e3`); its checkpoint
+  is gitignored data at `ml/runs/ml4-h3/value-net.pt` (present in
+  the main worktree and the b7 worktree; copy it into any
+  worktree that needs to run v44). Caveat: v37 remains the
+  strongest ML version by head-to-head (beats v44 0.69–0.31) —
+  non-transitivity is the norm in the ML track, so future
+  versions are measured against v37 as well as the champion.
+- **Previous champion: v8** (v6's PUCT MCTS + learned value leaf;
+  ResNet 16ch/2 blocks trained on the B1 dataset — 4,350 recorded
+  games, 1,449 unique (dedup finding, ML batch 1) — α=0.25) —
   ladder Elo 0.0, vs v0 0.545, vs v1 0.48, tactical 20/20 + 29/29.
-  It is the best net-using version by both Elo and vs-v0 (v11: Elo
-  0.0, vs v0 0.435; Colab longrun MobileNet: Elo −400.0; CPU round 2
-  ResNet: Elo −400.0). Lives on master (`17d08db`); its checkpoint is
-  gitignored data at `ml/runs/b3-h2/value-net.pt` (present in the main
-  worktree; copy it into any worktree that needs to run v8).
-- **ML track's own bar** (same 4-clause shape, reference v8):
-  (1) h2h vs v8 ≥100 games, win rate > 0.50 with Wilson 95% CI lower
-  bound > 0.50; (2) ladder Elo > 0.0; (3) tactical ≥ v8's (20/20 +
-  29/29); (4) all test suites green.
+  It held the title from batch 3 (2026-11-14) until v44 passed the
+  bar (2026-11-20). Its checkpoint is gitignored data at
+  `ml/runs/b3-h2/value-net.pt`.
+- **ML track's own bar** (same 4-clause shape, reference v44 —
+  re-anchored when v44 passed, 2026-11-20): (1) h2h vs v44 ≥100
+  games, win rate > 0.50 with Wilson 95% CI lower bound > 0.50;
+  (2) ladder Elo > 98.1; (3) tactical ≥ v44's (20/20 + 29/29);
+  (4) all test suites green.
 - A new ML champion is declared when a version passes all 4 clauses
   of the ML bar.
 
@@ -179,9 +192,27 @@ the heuristic. The work continues autonomously; he runs nothing.
   narrowed; v39/v40 posted identical legs). Two defects recorded:
   v35's _leaves_opp_vcf has a hole (VCF starts are NOT monotone
   under our move) and exact leaf values break the tie-break
-  (v40's v1bl-g2 regression). ML batch 4 is next: history
-  robustness (v24 recipe + v37 net) and 3-ply labels, with
-  opening variety for ML-vs-ML legs.
+  (v40's v1bl-g2 regression). ML batch 4 complete 2026-11-20:
+  1 of 3 — **v44 PASSES all 4 clauses and is the NEW ML
+  CHAMPION** (vs v8 0.67, CI clear of 0.50; Elo 98.1; tactical
+  29/29; first ML version ever to beat the ladder MCTS outright,
+  25–15). Merged to master (6b777e3). Caveat: v44's Elo interval
+  [−12.1, 208.2] includes 0 — the pass is on the point estimate,
+  per the pre-registered rule (the same rule that failed v37 at
+  −34.9); no confirmatory re-run (that would be seed-shopping in
+  reverse). v37 remains the strongest ML version by head-to-head
+  (beats v44 0.69–0.31). v42 (history dropout on v24's recipe)
+  REJECTED 2/4 — the gate passed decisively but the games didn't
+  improve; history-plane dropout on v24's recipe is CLOSED. v43
+  (history dropout on the v37 net) REJECTED 2/4 — 0.505 vs v8
+  (v37's 0.75 became 0.505); the 2-ply labels NEED the history
+  planes; history dropout in this form is CLOSED. Holdout
+  robustness does not predict played strength — now four
+  instances. Opening variety worked (vs-v8 legs now 91–97 unique
+  vs 21 for v36). White collapse vs heuristic opponents is now
+  the top ML-track problem. Batch 12 (heuristic) is next: v35's
+  _leaves_opp_vcf hole (fix-and-measure) and a White-side
+  statistics framing.
 - **Dataset-dedup finding (ML batch 1):** the "10k dataset" is
   3,244 unique games, not 7,099 — and v8's "4,350" was 1,449
   unique. The B1 parallel generator seeds worker *w* with
