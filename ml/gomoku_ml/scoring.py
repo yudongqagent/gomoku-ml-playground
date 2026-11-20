@@ -517,6 +517,26 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h3/value-net.pt",
          "value_weight": 0.125},  # sweep winner (0.725 vs 0.600 @ 0.25, 0.475 @ 0.5)
+    # v47 (iteration 47, batch 12): H3 — v27 + a MINIMAX BACKUP at
+    # opponent nodes (see gomoku_ml.mcts_heuristic.HeuristicMCTS
+    # ``backup_rule`` and research/iterations/iter-47.md). The
+    # ONLY change from v27: at opponent nodes (odd depth from the
+    # root) q is the opponent's best reply (max over visited
+    # children of -child.q) instead of the mean; our nodes keep
+    # the mean (of the minimax values returned by their
+    # children). The fix targets iter-40 §1.1a's blunder dilution:
+    # the mean mixes the opponent's best reply with their
+    # blunders, and the blunder leaves flip the root ranking even
+    # though every leaf value is correct. Leaf (v18's rollout
+    # leaf, both colours), priors, sims (100), c_puct (1.5),
+    # win/block scans, most-visited root and the τ=0.05 q-gap
+    # tie-break are v27 unchanged. Versions 45-46 are the
+    # parallel batch-12 workstreams' (H1 v35 VCF-hole fix, H2
+    # White-side statistics).
+    47: {"name": "scoring-v47", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05, "backup_rule": "minimax-opp"},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1147,6 +1167,9 @@ class ScoringPlayer:
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(
                         "tie_break_q_threshold", 0.0
+                    ),
+                    backup_rule=ENGINE_VERSIONS[version].get(
+                        "backup_rule", "mean"
                     ),
                 )
 
