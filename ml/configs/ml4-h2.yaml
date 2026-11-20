@@ -1,0 +1,80 @@
+# ML batch 4 H2 (v43) — history-dropout 2-ply DISTILLATION config.
+#
+# v37's recipe EXACTLY (see research/iterations/iter-37.md §1.3),
+# plus ONE change: history_dropout 0.5. Trains v8's ResNet 16ch/2
+# blocks from scratch to predict v18's rollout-leaf value evaluated
+# 2 plies ahead (_rollout2_leaf_value, a 4-ply-horizon value) on the
+# SAME quiet positions v24/v37 used — v7 self-play, v18 self-play,
+# and random playouts (the labelled shards are v37's, copied
+# verbatim — see research/iterations/iter-43.md §0). Per training
+# sample, with probability 0.5 the history planes (2, 4-7) are
+# zeroed jointly before the forward pass, so the net cannot route
+# through history features (v37's net collapses without them: v7
+# holdout 0.7395 -> 0.5163). Value-only loss (policy_weight 0.0).
+# Otherwise v8's recipe exactly: batch 64, lr 0.002 cosine, warmup
+# 20, wd 1e-4, augmentation on, val_fraction 0.05, seed 0. Epochs
+# 15: ~35k samples x 15 = ~525k sample-passes; best-by-val-loss
+# checkpointing (val is always full-planes). checkpoint_every_epochs
+# 1 (v24's resume lesson).
+#
+# Data: the memmap bundle built from v37's train shards
+# (ml/runs/ml4-h2/data-mmap/; holdouts NEVER in the bundle).
+# Build it with ml/scripts/build_mmap_bundle.py (see iter-43.md §2).
+#
+# Run (from the worktree root):
+#   OMP_NUM_THREADS=1 TORCH_THREADS=1 \
+#   /home/hatch/workspace/projects/gomoku-ml-playground/ml/.venv/bin/python -u \
+#     ml/scripts/train.py --config ml4-h2 --run-dir ml/runs/ml4-h2-train \
+#     --data ml/runs/ml4-h2/data-mmap --out ml/runs/ml4-h2/value-net.pt
+#
+# Threads pinned to 1 per B1's finding: under contention the default
+# 4 torch threads slowed a batched forward pass ~290x.
+
+run_name: ml4-h2-distill
+seed: 0
+
+architecture:
+  name: resnet
+  params:
+    channels: 16
+    blocks: 2
+
+base_checkpoint: null
+resume: null
+
+selfplay:
+  games: 1   # unused by train.py (data comes from --data); >= 1 required by validation
+  sims_per_move: 50
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_epsilon: 0.25
+  temperature: 1.0
+  temperature_moves: 30
+  resign_threshold: null
+  max_moves: 225
+  checkpoint_every_games: 10
+
+train:
+  epochs: 15
+  batch_size: 64
+  lr: 0.002
+  lr_schedule: cosine
+  lr_step_size: 10
+  lr_gamma: 0.5
+  warmup_steps: 20
+  weight_decay: 0.0001
+  policy_weight: 0.0
+  value_weight: 1.0
+  augmentation: true
+  history_dropout: 0.5
+  val_fraction: 0.05
+  checkpoint_every_epochs: 1
+
+eval:
+  games: 4
+  sims: 32
+  opponents: [random, heuristic]
+  mcts_sims: 100
+  tactical: true
+  tactical_sims: 50
+  auto: false

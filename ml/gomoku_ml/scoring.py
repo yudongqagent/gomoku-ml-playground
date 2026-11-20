@@ -438,6 +438,85 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v37 (iteration 37, ML batch 3): H2 — v8's PUCT MCTS with the
+    # value net distilled from v18's rollout leaf with DEEPER (2-ply)
+    # labels (see research/iterations/iter-37.md). The ONLY
+    # differences from v8 are the checkpoint (trained on the SAME
+    # 37,227 quiet positions as v24 — v7/v18 self-play + random
+    # playouts, same game-level holdout — but labelled with
+    # ``_rollout2_leaf_value``: the rollout-leaf value 2 plies
+    # ahead under the teacher's own rollout policy, a 4-ply-horizon
+    # value vs v24's 2-ply) and the swept α (``value_weight`` —
+    # 0.25, the α-sweep winner at 0.75 vs v8 over 20 games; the
+    # 2-ply labels are hotter than v24's, mean|v| ~0.20 vs ~0.06,
+    # so the smaller shrink wins — and the α effect is almost
+    # entirely a White effect: White goes 0.80 → 0.45 → 0.20 as α
+    # goes 0.25 → 0.5 → 1.0, while Black stays 0.70–0.80). Search,
+    # priors, sims, threat check, terminal cases: v8 unchanged, so
+    # the battery is a clean A/B of the deeper-teacher net — and,
+    # against v24's numbers, of 2-ply vs 1-ply labels on identical
+    # positions. Registered here (ML batch 4) as the secondary
+    # head-to-head opponent for v42–v44: v37 is the strongest ML
+    # version ever by head-to-head (0.75 vs v8) even though it
+    # failed clause 2 (ladder Elo −34.9 on a cold 20-game leg).
+    # Checkpoint copied verbatim from gomoku-ml3
+    # (md5 2fde492aae6d44cbe945e15bd5f1f959).
+    37: {"name": "scoring-v37", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml3-h2/value-net.pt",
+         "value_weight": 0.25},
+    # v42 (iteration 42, ML batch 4): H1 — v8's PUCT MCTS with the
+    # value net distilled from v18's rollout leaf on v24's recipe
+    # (same 37,227 quiet positions, same 1-ply labels, same
+    # architecture and training recipe) PLUS history-plane dropout
+    # during training (see research/iterations/iter-42.md §1.1):
+    # each training sample independently has ALL its history planes
+    # (last-move one-hot + stones 2/4 plies ago) zeroed with p=0.5,
+    # so the net cannot route its value judgment through history
+    # features — the fix for the history-dependence that v37/v38
+    # showed (v7 holdout 0.7395 -> 0.5163 / 0.5035 without history)
+    # while v24's net is history-robust. The ONLY difference from
+    # v24 is the augmentation, so the v42-vs-v24 comparison
+    # isolates it. Search, priors, sims, threat check, terminal
+    # cases: v8 unchanged. value_weight is the α-sweep winner
+    # (0.5: 9W-11L-0D vs v8 over 20 games, best of {0.5, 1.0, 2.0}).
+    42: {"name": "scoring-v42", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml4-h1/value-net.pt",
+         "value_weight": 0.5},
+    # v43 (iteration 43, ML batch 4): H2 — v8's PUCT MCTS with a
+    # value net trained on v37's 2-ply rollout-leaf labels (same
+    # 817 games / 37,227 positions as v24/v37) WITH history-plane
+    # dropout (p=0.5, planes 2, 4-7 zeroed jointly per sample per
+    # epoch) so the net is robust to missing history — v37's net
+    # collapses without history planes (v7 holdout 0.7395 ->
+    # 0.5163). See research/iterations/iter-43.md. value_weight
+    # is the swept α (0.25 — the §1.5 no-signal rule: the sweep's
+    # three arms were within one win of each other (10/10/11 wins),
+    # so the rule picks v37's winner 0.25; see iter-43.md §5).
+    43: {"name": "scoring-v43", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml4-h2/value-net.pt",
+         "value_weight": 0.25},
+    # v44 (iteration 44, ML batch 4): H3 — v8's PUCT MCTS with the
+    # value net distilled from v18's rollout leaf with 3-ply labels
+    # (see research/iterations/iter-44.md). The ONLY differences
+    # from v37 are the checkpoint (trained on the SAME 37,227 quiet
+    # positions — v7/v18 self-play + random playouts, same
+    # game-level holdout — but labelled with
+    # ``_rollout3_leaf_value``: the rollout-leaf value 3 plies
+    # ahead under the teacher's own rollout policy, a 5-ply-horizon
+    # value vs v37's 4-ply) and the swept α (``value_weight`` —
+    # 0.125, the §1.4 sweep winner; the 3-ply
+    # labels are hotter still than v37's, so the sweep brackets
+    # below v37's winner). Search, priors, sims, threat check,
+    # terminal cases: v8 unchanged, so the battery is a clean A/B
+    # of the 3-ply-label net — and, against v37's numbers, of 3-ply
+    # vs 2-ply labels on identical positions.
+    44: {"name": "scoring-v44", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml4-h3/value-net.pt",
+         "value_weight": 0.125},  # sweep winner (0.725 vs 0.600 @ 0.25, 0.475 @ 0.5)
 }
 
 # --- weights --------------------------------------------------------------
@@ -1049,6 +1128,7 @@ class ScoringPlayer:
                     checkpoint_path=path,
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
                     rng=self.rng,
+                    value_weight=ENGINE_VERSIONS[version].get("value_weight"),
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.

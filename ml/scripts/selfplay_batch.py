@@ -34,11 +34,28 @@ resumed segment replayed the prefix (batch 10's seed-replay bug:
 v34's vs-v27 leg had 63 unique games in 100). The summary carries
 a ``uniqueness`` audit (distinct-game count and de-duplicated
 win rate) for every leg.
+
+Opening variety (ML batch 4 tooling): ``--openings <file>`` starts
+every normal-rules game from a fixed opening position instead of
+the empty board, to fix the mirror-match determinism collapse
+(v36-vs-v8 produced only 21 unique games in 100 despite per-game
+seeding — engine similarity, not RNG sharing). Game ``i`` uses
+``openings[i % len(openings)]``; the opening is colour-agnostic
+(move 1 is Black's stone regardless of which engine is Black that
+game) and the usual colour alternation is preserved, so fairness
+is unchanged. The file is a JSON object with an ``openings`` list
+of openings, each a list of ``[x, y]`` pairs (see
+``research/openings-ml4.json``, the pre-registered ML batch 4 set).
+The summary records the file's SHA-256 and the auto-resume check
+refuses to resume a prior run that used different openings.
+``--openings`` is rejected with ``--swap-rule`` (swap games already
+vary their openings via placement).
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -66,6 +83,72 @@ def resolve_engine(name: str, seed: int):
         player = scoring.get_player(int(name[1:]), seed=seed)
         return player, player.choose_move, player.name
     raise ValueError(f"unknown engine: {name!r} (want v0, v1, v2, ...)")
+
+
+def load_openings(path: str):
+    """Load and validate an openings file (ML batch 4 tooling).
+
+    Returns ``(openings, sha256_hex)`` where ``openings`` is a list
+    of openings, each a list of flat move indices. The file is a
+    JSON object with an ``openings`` key; each opening is a list
+    of ``[x, y]`` pairs (0-based, converted with
+    :func:`gomoku_ml.game.xy_to_move`), played alternating Black,
+    White, ... starting with Black. Validation: the list is
+    non-empty, every opening is non-empty, every coordinate is on
+    the board, no opening repeats a square, and no opening ends
+    the game (a five-in-a-row after the opening would make the
+    engines' first move meaningless).
+    """
+    with open(path, "rb") as f:
+        raw = f.read()
+    digest = hashlib.sha256(raw).hexdigest()
+    data = json.loads(raw.decode("utf-8"))
+    openings_xy = data["openings"]
+    if not isinstance(openings_xy, list) or not openings_xy:
+        raise ValueError(f"{path}: 'openings' must be a non-empty list")
+    openings: list[list[int]] = []
+    for oi, opening in enumerate(openings_xy):
+        if not isinstance(opening, list) or not opening:
+            raise ValueError(f"{path}: opening {oi} is empty")
+        seen: set[int] = set()
+        moves: list[int] = []
+        board = game.empty_board()
+        player = game.BLACK
+        for xy in opening:
+            x, y = xy
+            if not (isinstance(x, int) and isinstance(y, int)
+                    and 0 <= x < game.SIZE and 0 <= y < game.SIZE):
+                raise ValueError(
+                    f"{path}: opening {oi} has out-of-range square {xy!r}")
+            move = game.xy_to_move(x, y)
+            if move in seen:
+                raise ValueError(
+                    f"{path}: opening {oi} repeats square {xy!r}")
+            seen.add(move)
+            moves.append(move)
+            board = game.apply_move(board, move, player)
+            player = -player
+        over, _ = game.game_over(board)
+        if over:
+            raise ValueError(
+                f"{path}: opening {oi} ends the game "
+                f"(five-in-a-row after the opening)")
+        openings.append(moves)
+    return openings, digest
+
+
+def apply_opening(opening: list[int]):
+    """Apply an opening (flat moves, Black first) to an empty board.
+
+    Returns ``(board, player_to_move)`` — Black to move after an
+    even-length opening, White after an odd-length one.
+    """
+    board = game.empty_board()
+    player = game.BLACK
+    for move in opening:
+        board = game.apply_move(board, move, player)
+        player = -player
+    return board, player
 
 
 def reseed_player(player, seed: int) -> None:
@@ -117,7 +200,8 @@ def _write_result(path: str, result: dict) -> None:
 
 
 def _summary(args, name_a, name_b, games, wins, losses, draws, t0,
-             complete, resumed=False, resumed_from_game=None):
+             complete, resumed=False, resumed_from_game=None,
+             openings_hash=None, openings_count=None):
     lo, hi = evaluate.wilson_ci(wins, losses, draws)
     return {
         "engine_a": name_a,
@@ -131,6 +215,9 @@ def _summary(args, name_a, name_b, games, wins, losses, draws, t0,
         "placement": args.placement if args.swap_rule else None,
         "placement_seed": args.placement_seed if args.swap_rule else None,
         "judge": args.judge if args.swap_rule else None,
+        "openings": getattr(args, "openings", None),
+        "openings_hash": openings_hash,
+        "openings_count": openings_count,
         "seed_a": args.seed_a,
         "seed_b": args.seed_b,
         "seeding": "per-game",
@@ -149,6 +236,15 @@ def run_batch(args) -> dict:
     player_a, choose_a, name_a = resolve_engine(args.engine_a, args.seed_a)
     player_b, choose_b, name_b = resolve_engine(args.engine_b, args.seed_b)
     scorer = scoring.score_attack
+    # Opening variety (ML batch 4 tooling): fixed opening positions
+    # for normal-rules legs. Rejected with --swap-rule (swap games
+    # already vary their openings via placement).
+    openings = None
+    openings_hash = None
+    if getattr(args, "openings", None):
+        if args.swap_rule:
+            raise ValueError("--openings cannot be combined with --swap-rule")
+        openings, openings_hash = load_openings(args.openings)
     games: list[dict] = []
     wins = losses = draws = 0
     resumed = False
@@ -166,6 +262,7 @@ def run_batch(args) -> dict:
                     and prior.get("engine_b") == name_b
                     and prior.get("games") == args.games
                     and prior.get("swap_rule") == args.swap_rule
+                    and prior.get("openings_hash") == openings_hash
                     and isinstance(prior.get("records"), list)):
                 if prior.get("complete"):
                     print(f"== {args.out} already complete "
@@ -181,6 +278,15 @@ def run_batch(args) -> dict:
                 print(f"== resuming from game {resumed_from_game} "
                       f"({wins}W-{losses}L-{draws}D so far; per-game "
                       f"seeding reproduces the uninterrupted run) ==",
+                      file=sys.stderr)
+            else:
+                # A prior exists but does not match this run's
+                # engines, game count, swap flag or openings — start
+                # fresh rather than mix two different batches. (An
+                # openings-hash mismatch is the common case when a
+                # leg is re-run with a different opening set.)
+                print(f"== prior {args.out} does not match this run "
+                      f"(engines/games/swap/openings) — starting fresh ==",
                       file=sys.stderr)
         except (OSError, ValueError, KeyError) as e:
             print(f"== ignoring unreadable prior {args.out}: {e} ==",
@@ -229,15 +335,22 @@ def run_batch(args) -> dict:
         else:
             a_is_black = (i % 2 == 0)
             a_colour = game.BLACK if a_is_black else game.WHITE
+            if openings is not None:
+                opening = openings[i % len(openings)]
+                board, player_to_move = apply_opening(opening)
+            else:
+                opening = []
+                board, player_to_move = game.empty_board(), game.BLACK
             if a_is_black:
                 winner, moves = play_recorded_game(
-                    choose_a, choose_b, game.empty_board(), game.BLACK
+                    choose_a, choose_b, board, player_to_move
                 )
             else:
                 winner, moves = play_recorded_game(
-                    choose_b, choose_a, game.empty_board(), game.BLACK
+                    choose_b, choose_a, board, player_to_move
                 )
-            rec["moves"] = moves
+            rec["opening"] = [int(m) for m in opening]
+            rec["moves"] = [int(m) for m in opening] + moves
         rec["a_colour"] = "black" if a_colour == game.BLACK else "white"
         rec["winner"] = (
             "black" if winner == game.BLACK
@@ -255,13 +368,17 @@ def run_batch(args) -> dict:
         _write_result(args.out, _summary(
             args, name_a, name_b, games, wins, losses, draws, t0,
             complete=(i + 1 == args.games),
-            resumed=resumed, resumed_from_game=resumed_from_game))
+            resumed=resumed, resumed_from_game=resumed_from_game,
+            openings_hash=openings_hash,
+            openings_count=len(openings) if openings else None))
         if (i + 1) % 10 == 0 or i + 1 == args.games:
             print(f"  {i + 1}/{args.games} games ({time.time() - t0:.0f}s)",
                   file=sys.stderr, flush=True)
     return _summary(args, name_a, name_b, games, wins, losses, draws,
                     t0, complete=True,
-                    resumed=resumed, resumed_from_game=resumed_from_game)
+                    resumed=resumed, resumed_from_game=resumed_from_game,
+                    openings_hash=openings_hash,
+                    openings_count=len(openings) if openings else None)
 
 
 def np_random(seed: int):
@@ -284,13 +401,19 @@ def main() -> int:
                         help="swap colour judge (swap-rule batches only)")
     parser.add_argument("--seed-a", type=int, default=100)
     parser.add_argument("--seed-b", type=int, default=200)
+    parser.add_argument("--openings", default=None,
+                        help="JSON file of fixed opening positions "
+                        "(ML batch 4 tooling; normal-rules legs only, "
+                        "not with --swap-rule)")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
     print(f"== batch: {args.engine_a} vs {args.engine_b}, "
           f"{args.games} games"
           + (f", swap rule ({args.placement} placement, {args.judge} judge)"
-             if args.swap_rule else ", normal rules") + " ==",
+             if args.swap_rule else ", normal rules")
+          + (f", openings from {args.openings}" if args.openings else "")
+          + " ==",
           file=sys.stderr)
     result = run_batch(args)  # flushes the output JSON after every game
     lo, hi = result["win_rate_ci_95"]
