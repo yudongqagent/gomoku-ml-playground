@@ -213,9 +213,9 @@ def analyse_leg(path: str, checkpoint: str | None = None) -> dict:
     and the decisive-phase table.
 
     ``checkpoint`` is a part file for restart safety: the leg's
-    partial state is written after every 10 games, and a re-run
+    partial state is written after every game, and a re-run
     resumes from the checkpoint instead of starting over (VM
-    replacements kill the process; a 60-game leg takes ~1.5 h, so
+    replacements kill the process; a 60-game leg takes hours, so
     per-leg checkpointing alone would lose up to a whole leg).
     The checkpoint is keyed by the input file's SHA-256 — a
     checkpoint for different input is ignored."""
@@ -427,7 +427,11 @@ def analyse_leg(path: str, checkpoint: str | None = None) -> dict:
             state["elapsed_seconds"] + (time.time() - t_start), 1
         )
         t_start = time.time()
-        if checkpoint and (gi + 1) % 10 == 0:
+        # Checkpoint after EVERY game: the write is ~30-100 KB
+        # (negligible next to a ~2 min game analysis) and VM
+        # replacements recur roughly every 2 h — a 10-game interval
+        # lost ~35 min of work twice on 2026-11-20.
+        if checkpoint:
             _write_checkpoint(checkpoint, digest, state)
     if checkpoint:
         _write_checkpoint(checkpoint, digest, state)
@@ -644,9 +648,9 @@ def main() -> int:
     parts = []
     for path in args.files:
         # Per-leg checkpoint (restart-safe): the analysis takes
-        # ~2-3 h for the full corpus and VM replacements kill the
+        # hours for the full corpus and VM replacements kill the
         # process; the leg's partial state is checkpointed after
-        # every 10 games (see analyse_leg), so a re-run resumes
+        # every game (see analyse_leg), so a re-run resumes
         # mid-leg instead of starting over. Part files are deleted
         # after the final output is written.
         part = f"{args.out}.{os.path.basename(path)}.part.json"
