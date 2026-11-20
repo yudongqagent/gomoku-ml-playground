@@ -868,6 +868,116 @@ def _rollout_leaf_value(
     return _attack_gradient_v1(cur, p)
 
 
+# --- v46 leaf-level top-K min aggregation (batch 12, H2) -------------------
+# Blunder dilution (iter-40 §1.1a): the unsafe move creates our own
+# open-four race threats, so opponent blunder replies return +1
+# leaves that dilute the creator-win average — every leaf value is
+# correct, but the average lies. H3 (v47) takes the BACKUP-rule
+# change (how values aggregate up the tree). This is the LEAF-level
+# variant (iter-46 §1.2): make the leaf itself pessimistic about
+# the opponent's reply, so a move whose only defence is "the
+# opponent might blunder" is valued at its true worst case before
+# any averaging happens.
+#
+# The change is confined to the rollout's ply-1 (opponent-reply)
+# step in the quiet case: instead of the single argmax reply,
+# evaluate the opponent's top-K = 4 candidate replies by v1 total
+# score (the SAME score ``_rollout_move`` argmaxes over) and
+# return the MIN (worst case for us) of the resulting values.
+# Each reply's value uses the rollout-end rule, unchanged from
+# v27 (our winning move -> +1; opponent >= 2 winning moves ->
+# -1; otherwise the symmetric v1 gradient — a must-block at the
+# rollout end is gradient-evaluated, NOT -0.25, iter-16 §2.1).
+# Forced replies are unchanged (opponent winning move -> -1; we
+# hold >= 2 winning moves -> +1; exactly 1 -> the forced block
+# is the single reply). Pure min, NOT a min-mean blend — the
+# mechanism is "the average lies; the worst case is the truth",
+# and a blend would reintroduce the dilution the patch exists to
+# remove. K = 4: the creator in the diagnosed instances ranks at
+# the top of the v1 ranking (g61: creator prior ~0.099 vs
+# blunders ~0.100), so K = 4 covers the creator plus the blunder
+# replies that dilute it. No K sweep: K is fixed by the mechanism,
+# not fitted.
+#
+# Corner case (recorded, not fixed): if the opponent holds an
+# open-four creation AND four or more higher-total replies (e.g.
+# blocks of our own open four outscoring the creator — the
+# iter-16 fast-loop case, from the opponent's perspective), the
+# creator falls outside the top-K and the min misses the -1.
+# That needs four 200k+ replies outranking a 200k+ creator; the
+# battery decides whether it matters in practice.
+_MIN_K = 4
+
+
+def _rollout_end_value(board: np.ndarray, player: int) -> float:
+    """Value at the end of a 2-ply rollout, from ``player``'s
+    perspective — the rollout-end rule from
+    :func:`_rollout_leaf_value` (blend=False, v27's setting),
+    factored out so :func:`_rollout_leaf_value_mink4` can apply
+    it per reply: our winning move -> +1; opponent holds >= 2
+    winning moves -> -1; otherwise the symmetric v1 gradient (a
+    must-block here is gradient-evaluated, NOT -0.25 —
+    iter-16 §2.1)."""
+    if scoring._winning_moves(board, player):
+        return 1.0
+    if len(scoring._winning_moves(board, -player)) >= 2:
+        return -1.0
+    return _attack_gradient_v1(board, player)
+
+
+def _rollout_leaf_value_mink4(board: np.ndarray, player: int) -> float:
+    """v46 leaf value: v27's 2-ply rollout leaf
+    (:func:`_rollout_leaf_value`) with the opponent's ply-1 reply
+    replaced by the MIN over the opponent's top-K = 4 replies by
+    v1 total score, in the quiet case only. Terminal positions,
+    the ply-0 rollout move, and all forced replies are identical
+    to v27's — the ONLY difference is the quiet-case reply
+    aggregation (min over top-K instead of the single argmax
+    reply). The board is not mutated."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    move0, term0 = _rollout_move(board, player)
+    if term0 is not None:
+        return term0
+    b1 = game.apply_move(board, move0, player)
+    opp = -player
+    # Forced replies at ply 1 (identical to _rollout_move's
+    # ply-1 logic, with the sign adjustment _rollout_leaf_value
+    # applies at i == 1: return -term).
+    if scoring._winning_moves(b1, opp):
+        return -1.0
+    our_wins = scoring._winning_moves(b1, player)
+    if len(our_wins) >= 2:
+        return 1.0
+    if len(our_wins) == 1:
+        b2 = game.apply_move(b1, our_wins[0], opp)
+        return _rollout_end_value(b2, player)
+    # Quiet case: the opponent has a free choice. Top-K replies
+    # by v1 total score (own v1 attack + opponent's v1 attack at
+    # the square — the same score _rollout_move argmaxes over),
+    # ties by lowest flat index (as in the argmax); return the
+    # MIN of the resulting rollout-end values.
+    empty = b1 == game.EMPTY
+    if not empty.any():
+        return 0.0
+    black, white = kernel_v1.attack_v1_both(b1)
+    if opp == game.BLACK:
+        own, theirs = black, white
+    else:
+        own, theirs = white, black
+    total = own + theirs
+    total[~empty] = -1
+    flat = total.ravel()
+    order = sorted(
+        np.flatnonzero(empty.ravel()), key=lambda m: (-flat[m], m)
+    )
+    return min(
+        _rollout_end_value(game.apply_move(b1, int(reply), opp), player)
+        for reply in order[:_MIN_K]
+    )
+
+
 def _rollout2_leaf_value(board: np.ndarray, player: int) -> float:
     """v37 2-ply label: v18's rollout-leaf value evaluated 2 plies
     ahead under the teacher's own rollout policy (ML batch 3 H2 —
@@ -1036,6 +1146,16 @@ class HeuristicMCTS:
     2-ply rollout leaf for BOTH colours — the same function v16
     uses as White, with no colour gate. v18-as-White IS v16.
 
+    ``leaf_mode="rollout2_v1_both_mink4"`` is v46 (batch 12, H2):
+    v27's rollout leaf with the opponent's ply-1 rollout reply
+    replaced by the MIN over the opponent's top-4 replies by v1
+    total score, in the quiet case only
+    (:func:`_rollout_leaf_value_mink4`). Terminal positions, the
+    ply-0 rollout move, and forced replies are identical to
+    v27's. The backup rule, priors, root rule, and tie-break are
+    untouched — this is the LEAF-level blunder-dilution variant,
+    distinct from v47's backup-rule change (see iter-46.md §1.2).
+
     ``tie_break_q=True`` is v23 (batch 8, H3): when two or more
     root children share the maximum visit count (an exact tie at
     the top), break the tie by correctly-signed q (our-q =
@@ -1086,11 +1206,13 @@ class HeuristicMCTS:
         vcf_root: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
-            leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
+            leaf_mode != "rollout2_v1"
+            and leaf_mode != "rollout2_v1_both"
+            and leaf_mode != "rollout2_v1_both_mink4"
         ):
             raise ValueError(
                 f"unknown leaf_mode: {leaf_mode!r} "
-                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both']})"
+                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both', 'rollout2_v1_both_mink4']})"
             )
         if not 0.0 <= prior_floor < 1.0:
             raise ValueError(
@@ -1113,12 +1235,15 @@ class HeuristicMCTS:
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
-        # raises KeyError on "rollout2_v1" / "rollout2_v1_both"
-        # (batch 6 caught this as a silent merge breakage).
+        # raises KeyError on "rollout2_v1" / "rollout2_v1_both" /
+        # "rollout2_v1_both_mink4" (batch 6 caught this as a
+        # silent merge breakage).
         if leaf_mode == "rollout2_v1":
             self._leaf_value = self._rollout_v1_leaf_value
         elif leaf_mode == "rollout2_v1_both":
             self._leaf_value = self._rollout_v1_both_leaf_value
+        elif leaf_mode == "rollout2_v1_both_mink4":
+            self._leaf_value = self._rollout_v1_both_mink4_leaf_value
         else:
             self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
         # Colour to move at the root of the current search (the
@@ -1153,6 +1278,18 @@ class HeuristicMCTS:
         dispatch changed (v16 gates on ``_root_player``, v18 does
         not). v18-as-White IS v16 exactly."""
         return _rollout_leaf_value(board, player)
+
+    def _rollout_v1_both_mink4_leaf_value(
+        self, board: np.ndarray, player: int
+    ) -> float:
+        """v46 leaf value: v27's 2-ply rollout leaf with the
+        opponent's ply-1 reply replaced by the MIN over the
+        opponent's top-4 replies by v1 total score, in the quiet
+        case only (:func:`_rollout_leaf_value_mink4`). Terminal
+        positions, the ply-0 rollout move, and forced replies are
+        identical to v27's; the backup rule, priors, root rule,
+        and tie-break are untouched (see iter-46.md §1.2)."""
+        return _rollout_leaf_value_mink4(board, player)
 
     def _vcf_root_move(
         self, board: np.ndarray, player: int

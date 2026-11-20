@@ -517,6 +517,28 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h3/value-net.pt",
          "value_weight": 0.125},  # sweep winner (0.725 vs 0.600 @ 0.25, 0.475 @ 0.5)
+    # v46 (iteration 46, batch 12): H2 — the FALLBACK for the
+    # White-side statistics workstream (see
+    # research/iterations/iter-46.md §1.2; the fallback triggers
+    # only if the §1.1 statistics find no patchable White
+    # asymmetry): v27 + the leaf-level top-K min aggregation.
+    # v46 is v27 with the rollout leaf's quiet-case opponent
+    # reply replaced by the MIN over the opponent's top-K = 4
+    # replies by v1 total score
+    # (``leaf_mode="rollout2_v1_both_mink4"`` — see
+    # gomoku_ml.mcts_heuristic ``_rollout_leaf_value_mink4``).
+    # Pure min, no min-mean blend; K = 4 fixed by the mechanism
+    # (the creator + its diluting blunders), not fitted.
+    # Terminal positions, the ply-0 rollout move, forced replies,
+    # the backup rule, priors, root rule, and the τ=0.05
+    # tie-break are v27 unchanged. This is the LEAF-level
+    # blunder-dilution variant — distinct from v47's backup-rule
+    # change. Versions 45 and 47 are the parallel batch-12
+    # workstreams' (H1 v35-VCF-hole fix, H3 backup-rule fix).
+    46: {"name": "scoring-v46", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both_mink4", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05},
 }
 
 # --- weights --------------------------------------------------------------
