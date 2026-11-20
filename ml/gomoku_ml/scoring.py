@@ -438,6 +438,39 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v35 (iteration 35, batch 10): H3 — v27 + the VCF-at-root
+    # check, SEARCH-FIRST defensive (see
+    # research/iterations/iter-35.md §3-§4). The forensics on
+    # v27's 22 battery losses found 7 missed VCF preventions
+    # across 6 distinct positions (the search cannot see the
+    # opponent's VCF 3+ plies out; the exact depth-3 check can)
+    # and 0 missed forced wins. The check is v29's FULL check
+    # (offensive step first, then defensive) — a defensive-only
+    # variant was tried and refuted by the tactical mechanism
+    # check (27/29: in race positions the defensive-only check
+    # blocked instead of taking our forced win). The defensive
+    # step is SEARCH-FIRST (the fast loop's 1 refinement): the
+    # search runs first, and the check overrides ONLY when the
+    # search's chosen move is NOT a prevention — the plain check
+    # overrode a correct search prevention by prior noise in 3
+    # verified fast-loop instances (g2 ply 12, g3 ply 9, g5 ply
+    # 9). Search-first is weakly dominant over v27: it overrides
+    # only a move that loses by force. It fixes 3 of the 6
+    # forensics positions (g4, g10, g21 — where the search plays
+    # a non-prevention) and gives up g44/g73 (where the search
+    # plays a prevention, the wrong one, and the check's prior
+    # picked the right one) — documented limitations, xfails in
+    # test_regression_v35.py. Everything else is v27 unchanged:
+    # 100 sims, c_puct 1.5, v1 priors, rollout leaf both
+    # colours, tau=0.05 threshold tie-break. REJECTED 2/4 in
+    # batch 10 (vs v27 0.53, Elo 636.4 exact tie) — ported here
+    # (batch 12 H1) from research/batch-10 as the base for v45's
+    # fix; v35 itself is NOT a bar candidate on this branch.
+    35: {"name": "scoring-v35", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05, "vcf_root": True,
+         "vcf_root_search_first": True},
     # v37 (iteration 37, ML batch 3): H2 — v8's PUCT MCTS with the
     # value net distilled from v18's rollout leaf with DEEPER (2-ply)
     # labels (see research/iterations/iter-37.md). The ONLY
@@ -517,6 +550,31 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h3/value-net.pt",
          "value_weight": 0.125},  # sweep winner (0.725 vs 0.600 @ 0.25, 0.475 @ 0.5)
+    # v45 (iteration 45, batch 12): H1 — v35 + the fixed
+    # search-first defensive VCF check (see
+    # research/iterations/iter-45.md §1). Batch 11 found v35's
+    # `_leaves_opp_vcf` has a hole: it re-tests only the
+    # opponent's ORIGINAL VCF starts after the candidate move,
+    # but VCF starts are NOT monotone under our move (our stone
+    # can remove one of our own defensive replies, so a
+    # four-creator that was not a VCF start before can become one
+    # after our move — iter-39 §1.1). v45's gate FULLY re-checks
+    # VCF after the candidate move (winning moves first — an
+    # immediate win IS a VCF start but is NOT necessarily a
+    # four-creator — then every four-creator on the resulting
+    # board), and the defensive selector runs UNGATED when the
+    # fixed gate fires (the gated selector's current-board early
+    # exit would return None exactly when the opponent holds no
+    # VCF start yet and our move created one — the fix would be
+    # dead there). Everything else is v35 unchanged: v27's
+    # search (100 sims, c_puct 1.5, v1 priors, rollout leaf both
+    # colours, tau=0.05 threshold tie-break) + v29's full VCF
+    # check with the search-first defensive step.
+    45: {"name": "scoring-v45", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05, "vcf_root": True,
+         "vcf_root_search_first": True, "vcf_full_recheck": True},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1143,6 +1201,12 @@ class ScoringPlayer:
                         "root_decision", "visits"
                     ),
                     vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
+                    vcf_root_search_first=ENGINE_VERSIONS[version].get(
+                        "vcf_root_search_first", False
+                    ),
+                    vcf_full_recheck=ENGINE_VERSIONS[version].get(
+                        "vcf_full_recheck", False
+                    ),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(
