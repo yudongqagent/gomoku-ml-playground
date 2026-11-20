@@ -105,9 +105,13 @@ the heuristic. The work continues autonomously; he runs nothing.
   --engine-b v<M> --games 40 --swap-rule --placement balanced
   --placement-seed <date-seed> --judge tempo --seed-a <date-seed>
   --seed-b <date-seed+10000> --out <cross-track
-  dir>/YYYY-MM-DD.json`, run in the worktree that holds the
-  heuristic champion's code, with the ML champion's checkpoint
-  copied in. Seeds are date-derived (YYYYMMDD) so each day's
+  dir>/YYYY-MM-DD.json`, run in the MAIN worktree
+  (`~/workspace/projects/gomoku-ml-playground/`, master), which
+  holds both champions' code — v18 came onto master via the
+  batch-9 merge and v44 via the ML batch 4 merge. (The old b7
+  worktree is stale: its registry stops at v20 and does not know
+  v44.) The ML champion's checkpoint lives at its registry path
+  in the main worktree (`ml/runs/ml4-h3/value-net.pt` for v44). Seeds are date-derived (YYYYMMDD) so each day's
   games and openings are fresh, never the validation battery's
   seeds (100/200) or the fast loop's (1001/2001).
 - **Results:** `~/workspace/goals/gomoku-ml-playground/hidden_files/cross-track/`
@@ -115,7 +119,7 @@ the heuristic. The work continues autonomously; he runs nothing.
   ~08:37 PST) runs the match and reports the result to Yudong in the
   Gomoku side chat.
 - **Reading the number:** with the current gap (heuristic Elo 636.4
-  vs ML Elo 0.0) the heuristic side should win the large majority.
+  vs ML Elo 98.1) the heuristic side should win the large majority.
   Under swap rules the colour advantage is neutralised per game by
   the swap choice, so the win rate is a cleaner strength signal
   than under normal rules (where Black's advantage dominates the
