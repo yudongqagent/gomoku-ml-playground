@@ -433,7 +433,71 @@ no-prevention rate.
 
 ## 4. Fast loop
 
-TODO.
+Pre-registered seeds (dev seeds, distinct from the battery's
+100/200). v45's design is frozen — the fast loop is defect
+shake-out, not redesign; no refinement is made unless a genuine
+defect is found.
+
+### 4.1 vs v0 (seeds 1045/2045)
+
+**10W-0L-0D** (1.0000, CI [0.7225, 1.0000]) in 533.4s. No losses
+to read.
+
+### 4.2 vs v27 (seeds 1046/2046)
+
+**7W-2L-1D** (0.7500, CI [0.4422, 0.9191]) in 1239.9s. Games: g0
+W (29 plies), g1 W (28), g2 W (35), g3 draw (225 plies — the
+maximal-length draw, ~8 min of the 1240s), g4 W (31), g5 L
+(White, 41), g6 W (53), g7 W (48), g8 L (Black, 30), g9 W (54).
+Loss classification (`classify_losses.py`): **2 losses, 2 via
+open four, 0 missed blocks, 0 clean missed preventions in 11
+threatened turns** — defence stays solved; no patchable defect
+class. The two losses are "lost to a better attack", not a
+check failure: the replay below shows the gate fired twice in
+g5 and found NO prevention either time (no-prevention, not a
+missed prevention).
+
+### 4.3 Replay (fire rate + hole incidence on the fast loop)
+
+`replay_hole_incidence.py` on the 10-game fast loop vs v27
+(artifact `research/iterations/replay-fast-v45-vs-v27.json`):
+**233 v45 search turns, 5 gate fires (2.15%), 1 override
+(0.43%), 4 no-prevention, 0 hole instances (0 B1, 0 B2), 0
+replay mismatches.** The 0 mismatches prove the single-engine
+replay reproduces v45's moves exactly; the 0 holes (the old
+gate computed on every turn in this run — the pre-optimisation
+instrumentation) prove v45 played v35's move on every turn of
+all 10 games. The fix changed nothing in the fast loop.
+
+### 4.4 Cost note (ungated selector)
+
+The ungated selector tests four-creators in natural order (no
+VCF-starts-first reordering), so `any()` short-circuits later
+than v35's gated selector in creator-rich positions — a
+suspected cost defect (moves are unaffected: `any()` is
+order-independent). Measured: v45 runs ~84s/game vs v27
+(excluding the 225-ply draw) vs v35's ~74s/game battery
+average — ~14% slower, not the feared 2–3x. Gate fires are
+rare (2.15%), so the selector rarely runs. NO ordering fix:
+the saving (~5–10% of battery time) is not worth the
+refactor + re-verification risk. The battery is expected at
+roughly v35's pace (~7–10h for 420 games under contention).
+
+### 4.5 Instrumentation optimisation (post fast-loop)
+
+The audit test (`vcf_audit_old_gate`) originally ran on EVERY
+logged turn. A hole is old=False AND new=True by definition,
+so the old gate is irrelevant when the fixed gate doesn't
+fire — the instrumentation now computes `old` only when
+`leaves` is True (mcts_heuristic.py, `choose_move`). The hole
+measurement is unaffected; the battery replays run ~2x faster.
+(The fast-loop replay above ran with the old instrumentation;
+its 0-holes result is a superset — old computed on all 233
+turns.)
+
+### 4.6 Verdict on the fast loop
+
+No defect found, no refinement made. Proceed to the battery.
 
 ## 5. Battery
 

@@ -1549,11 +1549,15 @@ class HeuristicMCTS:
                 else:
                     def_move = self._vcf_defensive_move(board, player)
             if self.vcf_fire_log is not None:
+                # The audit (old gate) runs only when the fixed gate
+                # fired: a hole is old=False AND new=True by
+                # definition, so when leaves is False the old gate
+                # is irrelevant. This keeps the replay ~2x faster.
                 old = (
                     self._leaves_opp_vcf_subset(
                         board, player, search_move
                     )
-                    if self.vcf_audit_old_gate
+                    if self.vcf_audit_old_gate and leaves
                     else None
                 )
                 self.vcf_fire_log.append(

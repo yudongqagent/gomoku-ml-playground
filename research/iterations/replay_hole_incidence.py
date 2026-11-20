@@ -60,7 +60,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "ml"))
 import numpy as np
 
 from gomoku_ml import evaluate, game, scoring
-from gomoku_ml.research import classify_loss  # noqa: F401  (import check only)
 
 
 def _vcf_starts_on_board(board, player):
@@ -157,7 +156,8 @@ def main():
         raise SystemExit(f"{args.batch} is not complete "
                          f"({batch.get('games_played')} games)")
     engine_key = "engine_a" if args.side == "A" else "engine_b"
-    if batch[engine_key] != f"v{args.engine}":
+    if batch[engine_key] not in (f"v{args.engine}",
+                                 f"scoring-v{args.engine}"):
         raise SystemExit(f"{engine_key} is {batch[engine_key]}, "
                          f"not v{args.engine}")
     seed = batch["seed_a"] if args.side == "A" else batch["seed_b"]
