@@ -282,7 +282,49 @@ Run after the §1.2 implementation, before any game eval
 
 ## 2. Fast loop
 
-(TODO)
+### 2.1 Iteration 1 (seeds 1047/2047)
+
+- vs v27: **4W-6L-0D (0.4000, CI [0.1682, 0.6873])**,
+  699.5s (~70s/game — v47's minimax recompute costs ~3x per
+  move vs v27's ~22s/game pace).
+- vs v0: **5W-5L-0D (0.5000, CI [0.2366, 0.7634])**, 320.6s.
+  v47 TIES the baseline v0 that v27 beats 0.965 — the
+  over-pessimism risk from §1.2, realised and worse.
+- Loss classification (`classify_batch_losses.py` on both
+  legs): all 11 losses via open four; **0 missed blocks** (all
+  games); **0 clean missed preventions** in 30 threatened turns
+  (vs v27 leg) and 37 (vs v0 leg). Defence is "solved" in the
+  narrow classifier sense — v47 never cleanly misses a block
+  or a prevention in these games.
+- No implementation bug found (the §1.4 invariants hold; the
+  behaviour follows from the rule). No patchable weakness class
+  WITHIN the remit: the weakness IS the pre-registered rule
+  (q-collapse → prior-driven play in sharp positions, §3.1),
+  and the rule is fixed — the fast loop is defect shake-out
+  only (§1). The losses are distributed drift, not a single
+  losing move: v47's prior-driven picks in sharp positions are
+  often forcing moves (which count as "preventing" to the
+  classifier) but weak attacks that build no lasting threat,
+  so the position drifts until no prevention exists. The
+  tactical suite (§3.1) catches the pure prevention failure;
+  in games the same mechanism manifests as drift.
+- Iteration 1 is therefore barren for patching purposes; a
+  second iteration runs to confirm the pattern per the
+  two-consecutive-barren-iterations stop rule.
+
+### 2.2 Iteration 2 (seeds 1048/2048)
+
+- vs v27: **2W-7L-1D (0.2500, CI [0.0809, 0.5578])**,
+  1103.6s (~110s/game).
+- vs v0: **7W-3L-0D (0.7000, CI [0.3968, 0.8922])**, 405.1s.
+- Loss classification: all 10 losses via open four; 0 missed
+  blocks; 0 clean missed preventions in 42 threatened turns
+  (vs v27 leg) and 24 (vs v0 leg). Same pattern as iteration 1.
+- **Fast-loop totals: vs v27 6W-13L-1D (0.3250); vs v0
+  12W-8L-0D (0.6000).** Two consecutive iterations with no
+  patchable weakness class — the loop STOPS per the stop rule.
+  No fast-loop change was made (none is allowed: the rule is
+  pre-registered and fixed; no bug was found).
 
 ## 3. Battery
 
