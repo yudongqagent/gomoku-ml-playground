@@ -943,6 +943,30 @@ through — the only leg of the battery with no VM kill).
   (100 games). All three CIs overlap; the 100-game leg
   is the biggest sample and the honest headline.
 
+### 6.5 vs v7 (secondary) — COMPLETE 2026-11-20 ~07:55 UTC
+
+`selfplay_batch.py --engine-a v44 --engine-b v7 --games 100
+--seed-a 100 --seed-b 200` (no --openings; log
+`ml/runs/ml4-h3/batt-v7.log`; JSON
+`research/iterations/batch-v44-vs-v7.json`). Two VM
+replacements interrupted the leg (at 16 and 96 games);
+both resumes were clean.
+
+- **44W-54L-2D, win rate 0.4500, Wilson 95% CI [0.3561,
+  0.5476]** — v44 loses to the heuristic bar reference,
+  as expected: the ML track (v44 ladder Elo 98.1) is
+  still far below the heuristic bar family (v27/v18 at
+  636.4). Uniqueness: **99/100**; de-dup cut 43W-54L-2D
+  on 99 unique, 0.4444, CI [0.3505, 0.5426].
+- Colour splits: as Black 24W-24L-2D (0.5000), as White
+  20W-30L-0D (0.4000) — v44 holds Black even against v7
+  but loses as White. Black won 54, White won 44.
+  (Compare vs v8, where the splits were exactly
+  symmetric: the White gap appears only against the
+  stronger heuristic opponent, and it is a gap, not the
+  v25/v31-style collapse.)
+
+
 
 ### 6.7 Test suites — **CLAUSE 4 PASSES**
 
