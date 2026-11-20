@@ -284,11 +284,152 @@ ungated scan runs only on gate fires.
 
 ## 2. Port (v35 from research/batch-10)
 
-TODO.
+v35 is NOT on master — its code lives only on `research/batch-10`
+@ `6c6ceb8`. Ported BY HAND (a cherry-pick of the batch-10 merge
+would drag in v33/v34 too):
+
+- `ml/gomoku_ml/mcts_heuristic.py`: `_vcf_root_move` split into
+  `_vcf_offensive_move` / `_vcf_defensive_move` (the split is a
+  pure refactor — v29's selection unchanged, verified by the v29
+  tests below); `_vcf_prevention_pool` (v33's method, ported
+  verbatim — unused by any version on this branch, kept for
+  completeness); the `vcf_root_search_first` flag + search-first
+  flow in `choose_move`; `_leaves_opp_vcf` as a dispatcher over
+  `_leaves_opp_vcf_subset` (v35's original, verbatim) and
+  `_leaves_opp_vcf_full` (v45's fix). NOT ported: v33's
+  `vcf_filtered_search` / `_search_restricted` / `_root_pool`,
+  v34's `tie_break_q_tactical_only`, v33's `evaluate.py`
+  four-creator optimisation (A/B-identical to master's
+  enumeration — iter-33 §2.3 — so the port uses master's).
+- `ml/gomoku_ml/scoring.py`: registry entries for v35 (verbatim
+  from batch-10, incl. the comment) and v45 (v35's entry +
+  `"vcf_full_recheck": True`); the factory passes both new flags
+  to `HeuristicMCTS` (defaults keep every other version
+  untouched).
+- `ml/gomoku_ml/regression_positions_v35.json` and
+  `ml/tests/test_regression_v35.py`: copied verbatim from
+  batch-10.
+
+**Port verification (COMPLETE — the port matches batch-10
+behaviour exactly):**
+- **A/B** (`research/iterations/ab_v35_port.py`, same script run
+  in both trees with the same Python): v35.choose_move (seed 0)
+  plus `_vcf_root_move`, `_vcf_offensive_move`,
+  `_vcf_defensive_move`, `_leaves_opp_vcf` on 58 positions (8 v35
+  regression + 20 old tactical + 29 hard tactical + g0-ply-29):
+  **0 differences / 58** (artifacts
+  `research/iterations/ab-v35-port-b12h1.json` and
+  `ab-v35-port-b10.json`). The tactical-suite JSONs are
+  byte-identical between the trees, so the comparison is on
+  identical inputs.
+- **Pool** (`research/iterations/pool_ab.py`, 2 positions — the
+  full-pool scan has no early exit and takes ~60s/position, so
+  it is verified separately, not on all 58): g4-ply44 pool
+  [[13,7],[14,7],[13,11],[13,6],[13,9]] and g10-ply44 pool
+  [[3,6],[1,9],[0,9],[7,4],[7,3]] — IDENTICAL in both trees.
+- **Regression tests** (ported `test_regression_v35.py`): 8
+  passed + 2 xfailed (g32, g44 — the documented limitations),
+  exactly as on batch-10 (iter-35 §3.1).
+- **v29 unaffected by the split**: `test_mcts_heuristic.py -k
+  "vcf or v29"`: 6 passed. (Full suite at §6.)
 
 ## 3. Mechanism checks
 
-TODO.
+### 3.0 The g0-ply-29 instance, recomputed (pre-eval)
+
+Batch 11's instance, recomputed here from the batch file
+(batch-v33-vs-v27 g0, moves[:29], White to move):
+- Black holds a WINNING move on the current board: (0,6) — the
+  actual move v27 played. The position is a FORCED BLOCK in a
+  real game (`choose_move` blocks it before any search), so it
+  tests the gate functions directly, not the engine.
+- Black holds 15 four-creator VCF starts on the current board
+  (plus the immediate win = 16 VCF starts total).
+- After (5,9): Black holds exactly **5** VCF starts — 4
+  four-creator starts [(3,8), (4,8), (2,10), (1,11)] PLUS the
+  immediate win (0,6) — reconciling the mining record's 5 and
+  confirming batch 11's second finding (the win is a VCF start
+  but NOT a four-creator: (0,6) is not in the four-creator list
+  after (5,9)). After the actual (0,6): 0 creators, 0 VCF.
+- **Old vs new at g0-ply-29: AGREE on all 98 candidate moves**
+  (full scan, `scan_g0_all.py` — the scan output is summarised
+  here; the script was a /tmp one-off). Every non-blocking move
+  leaves ≥1 surviving ORIGINAL VCF start, so the subset test
+  returns True (correctly) everywhere the full test does. The
+  instance demonstrates the PHENOMENON (a setup-removal leaving
+  VCF starts live) but does NOT discriminate the gates.
+- **Targeted scan** (`research/iterations/scan_hole_instances.py`,
+  artifact `research/iterations/hole-scan.json`): the mining
+  turns with small EXACT VCF counts (v33 g9 ply 60, g38 ply 31,
+  g51 ply 32 — all test moves + the actual move) and all 8 v35
+  regression positions (played + expected moves): **0
+  disagreements**. The late-game mining positions hold 10–15
+  original VCF starts, so "remove them all" is nearly
+  impossible there; the v35 regression positions hold 1–5, but
+  the tested moves are clean preventions or clear
+  non-preventions.
+- **Broad scan** (`research/iterations/scan_hole_broad.py`,
+  artifact `research/iterations/hole-scan-broad.json`): v27's
+  ACTUAL (search) move at its last-4 live turns in the three
+  normal-rules batch-10 legs. IN PROGRESS (resumable; 2 games
+  scanned at last check, 0 disagreements in 7 live turns) — it
+  is a 3–4h job at 1 CPU and is paused (SIGSTOP) during the
+  port verification and battery, which own the CPU. If it finds
+  a live disagreement, the position becomes the discriminating
+  regression test (added to `regression_positions_v45.json` +
+  `test_regression_v45.py`); if it finds none, that is itself
+  the finding, and the hole-incidence measurement (§5) over the
+  battery legs is the verdict on a much bigger sample.
+
+### 3.1 Regression tests (v45)
+
+`ml/tests/test_regression_v45.py` (positions in
+`ml/gomoku_ml/regression_positions_v45.json`):
+- g0-ply-29: the actual (0,6) leaves 0 VCF (both gates False);
+  (5,9) leaves exactly 5 VCF starts (fixed gate True; the
+  immediate win (0,6) among them and NOT a four-creator);
+  the old gate also returns True there (the documented
+  agreement, pinned, not hidden).
+- Winning-moves-first: a synthetic half-open-four board where
+  the opponent's ONLY VCF start after our move is the immediate
+  win — the fixed gate returns True; blocking it returns False.
+  (First version of this test built an OPEN four — two winning
+  squares — and failed on the exact assertion; fixed to a
+  half-open four.)
+- Ungated ≡ gated when the gate is open (all gate-open v35
+  regression positions).
+- Flag wiring: v45 all three flags on; v35 full_recheck off;
+  v27 none.
+- v45 == v35's move on all 8 v35 regression positions (the
+  gates agree there, so the fix must not change play).
+- Result: **all v45 tests pass** (see §6 for the full-suite
+  count, which includes them).
+
+### 3.2 v45 vs v35 (pre-eval behaviour)
+
+v45 and v35 differ ONLY where the gates disagree. The scans
+above found no disagreement on any tested position, so v45 is
+expected to play v35's move everywhere in the fast loop and
+battery unless a live hole instance turns up — in which case
+the instrumented replay (§3.3) records it. The fast loop and
+battery are therefore ALSO a measurement of the hole's
+incidence: any v45-vs-v35 move difference in a game is a hole
+instance by construction.
+
+### 3.3 Instrumentation (for §5)
+
+`HeuristicMCTS.vcf_fire_log` (None by default — zero cost in
+games): when set to a list by a replay script, each search-first
+turn appends `(search_move, gate_fired, old_gate,
+defensive_move)`. `vcf_audit_old_gate` additionally evaluates
+v35's subset test at each logged turn (purely for the
+hole-incidence measurement — never affects play). The replay
+script (`research/iterations/replay_hole_incidence.py`,
+§5) re-runs each recorded battery game with the audit on and
+verifies the replayed moves match the recorded moves exactly
+(the v39 `replay_with_fires.py` pattern), then aggregates the
+fire rate, the hole incidence (split B1/B2), and the
+no-prevention rate.
 
 ## 4. Fast loop
 
