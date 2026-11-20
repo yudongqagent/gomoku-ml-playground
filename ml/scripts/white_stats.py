@@ -565,11 +565,81 @@ def summarize(legs: list[dict]) -> dict:
     return summary
 
 
+def _leg_from_part(part_path: str) -> dict:
+    """Reconstruct a completed leg dict from a checkpoint part
+    file. The input file is located by matching the stored SHA-256
+    digest against the JSON files beside the part file; the leg is
+    refused unless the checkpoint covers every game in it."""
+    cached = json.load(open(part_path, encoding="utf-8"))
+    state = cached["state"]
+    digest = cached["input_digest"]
+    directory = os.path.dirname(part_path) or "."
+    for name in sorted(os.listdir(directory)):
+        if not name.endswith(".json"):
+            continue
+        path = os.path.join(directory, name)
+        if hashlib.sha256(open(path, "rb").read()).hexdigest()[:16] != digest:
+            continue
+        n_games = len(json.load(open(path, encoding="utf-8"))["records"])
+        if state["next_game"] != n_games:
+            raise SystemExit(
+                f"{part_path}: incomplete leg "
+                f"({state['next_game']}/{n_games} games)"
+            )
+        return {
+            "leg": name,
+            "games": n_games,
+            "wins": state["wins"],
+            "cells": state["cells"],
+            "first_threat": state["first_threat"],
+            "errors": state["errors"],
+            "controls": state["controls"],
+            "decisive": state["decisive"],
+            "elapsed_seconds": state["elapsed_seconds"],
+        }
+    raise SystemExit(f"{part_path}: no input file matches digest {digest}")
+
+
+def _write_output(args_out: str, legs: list) -> dict:
+    out = {"legs": legs, "summary": summarize(legs)}
+    with open(args_out, "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=1)
+    print(f"wrote {args_out}")
+    # Print the patch-rule read-off.
+    print("== patch-rule gaps (White minus Black) ==")
+    for band, entry in out["summary"]["gaps"].items():
+        for key, g in entry.items():
+            print(
+                f"  {band} {key}: black {g['black']} (n={g['n_black']}) "
+                f"white {g['white']} (n={g['n_white']}) "
+                f"diff {g['white_minus_black']} CI {g['ci_95']}"
+            )
+    return out
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("files", nargs="+", help="selfplay_batch JSON files")
     parser.add_argument("--out", required=True)
+    parser.add_argument(
+        "--merge",
+        action="store_true",
+        help="merge mode: inputs are part files (completed legs) "
+        "or final outputs, combined into one summary",
+    )
     args = parser.parse_args()
+    if args.merge:
+        legs = []
+        for src in args.files:
+            data = json.load(open(src, encoding="utf-8"))
+            if "legs" in data:
+                legs.extend(data["legs"])
+            elif "state" in data:
+                legs.append(_leg_from_part(src))
+            else:
+                raise SystemExit(f"{src}: unrecognized format")
+        _write_output(args.out, legs)
+        return 0
     legs = []
     parts = []
     for path in args.files:
@@ -588,22 +658,10 @@ def main() -> int:
             f"   {leg['games']} games, {leg['elapsed_seconds']}s",
             flush=True,
         )
-    out = {"legs": legs, "summary": summarize(legs)}
-    with open(args.out, "w", encoding="utf-8") as f:
-        json.dump(out, f, indent=1)
     for part in parts:
         if os.path.exists(part):
             os.remove(part)
-    print(f"wrote {args.out}")
-    # Print the patch-rule read-off.
-    print("== patch-rule gaps (White minus Black) ==")
-    for band, entry in out["summary"]["gaps"].items():
-        for key, g in entry.items():
-            print(
-                f"  {band} {key}: black {g['black']} (n={g['n_black']}) "
-                f"white {g['white']} (n={g['n_white']}) "
-                f"diff {g['white_minus_black']} CI {g['ci_95']}"
-            )
+    _write_output(args.out, legs)
     return 0
 
 
