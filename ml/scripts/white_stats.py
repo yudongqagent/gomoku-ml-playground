@@ -182,26 +182,69 @@ def _empty_cell() -> dict:
     }
 
 
-def analyse_leg(path: str) -> dict:
+def _empty_state() -> dict:
+    return {
+        "cells": {
+            colour: {name: _empty_cell() for _, _, name in BANDS}
+            for colour in ("black", "white")
+        },
+        "wins": {"black": 0, "white": 0, "draw": 0},
+        "first_threat": [],  # per game: {game, black: {...}, white: {...}}
+        "errors": [],  # White + Black clean-missed preventions (both kinds)
+        "controls": [],  # threatened turns where the mover prevented
+        "decisive": [],  # find_losing_moves output per loss
+        "next_game": 0,
+        "elapsed_seconds": 0.0,
+    }
+
+
+def _write_checkpoint(path: str, digest: str, state: dict) -> None:
+    """Write the leg checkpoint atomically (temp file + rename, so
+    a kill mid-write cannot corrupt it)."""
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"input_digest": digest, "state": state}, f, indent=1)
+    os.replace(tmp, path)
+
+
+def analyse_leg(path: str, checkpoint: str | None = None) -> dict:
     """Analyse one selfplay_batch JSON; returns per-colour x band
     cells, per-game first-threat data, error instances, controls,
-    and the decisive-phase table."""
+    and the decisive-phase table.
+
+    ``checkpoint`` is a part file for restart safety: the leg's
+    partial state is written after every 10 games, and a re-run
+    resumes from the checkpoint instead of starting over (VM
+    replacements kill the process; a 60-game leg takes ~1.5 h, so
+    per-leg checkpointing alone would lose up to a whole leg).
+    The checkpoint is keyed by the input file's SHA-256 — a
+    checkpoint for different input is ignored."""
     data = json.load(open(path, encoding="utf-8"))
-    cells = {
-        colour: {name: _empty_cell() for _, _, name in BANDS}
-        for colour in ("black", "white")
-    }
-    wins = {"black": 0, "white": 0, "draw": 0}
-    first_threat: list[dict] = []  # per game: {game, black: {...}, white: {...}}
-    errors: list[dict] = []  # White + Black clean-missed preventions (both kinds)
-    controls: list[dict] = []  # threatened turns where the mover prevented
-    decisive: list[dict] = []  # find_losing_moves output per loss
+    digest = hashlib.sha256(open(path, "rb").read()).hexdigest()[:16]
+    state = _empty_state()
+    if checkpoint and os.path.exists(checkpoint):
+        cached = json.load(open(checkpoint, encoding="utf-8"))
+        if cached.get("input_digest") == digest:
+            state = cached["state"]
+            print(
+                f"   {os.path.basename(path)}: resuming from game "
+                f"{state['next_game']}/{len(data['records'])}",
+                flush=True,
+            )
+    cells = state["cells"]
+    wins = state["wins"]
+    first_threat = state["first_threat"]
+    errors = state["errors"]
+    controls = state["controls"]
+    decisive = state["decisive"]
     t_start = time.time()
     for gi, rec in enumerate(data["records"]):
+        if gi < state["next_game"]:
+            continue
         if gi % 10 == 0:
             print(
                 f"   {os.path.basename(path)}: game {gi}/{len(data['records'])} "
-                f"({time.time() - t_start:.0f}s)",
+                f"({time.time() - t_start + state['elapsed_seconds']:.0f}s)",
                 flush=True,
             )
         moves = [int(m) for m in rec["moves"]]
@@ -212,6 +255,16 @@ def analyse_leg(path: str) -> dict:
             "black": {"vcf": None, "creator": None},
             "white": {"vcf": None, "creator": None},
         }
+        # Opponent VCF starts on the CURRENT board (stats 7/8).
+        # Initialized for turn 0 (empty board: no four-makers, so
+        # no VCF starts) and refreshed at the end of each turn
+        # from the resulting board — the same enumeration serves
+        # as this turn's our-VCF-after (stats 5/6) AND the next
+        # turn's opp-VCF-before (same board, same player-as-
+        # opponent), so the VCF enumeration runs once per turn
+        # instead of ~twice. Same boards, same function —
+        # identical statistics, ~40% less CPU.
+        opp_vcf_before: list[int] = []
         for ply0, move in enumerate(moves):
             ply = ply0 + 1
             player = game.BLACK if ply0 % 2 == 0 else game.WHITE
@@ -236,8 +289,8 @@ def analyse_leg(path: str) -> dict:
             quiet = not opp_wins and not creators
             if quiet:
                 cell["quiet_turns"] += 1
-            # VCF state before our move (needed for 5/6/7/8).
-            opp_vcf_before = _vcf_starts(board, -player)
+            # VCF state before our move (stats 7/8) — carried
+            # forward from the previous turn's end (see above).
             vcf_threatened = bool(opp_vcf_before) and not opp_wins
             if vcf_threatened:
                 cell["vcf_threatened_turns"] += 1
@@ -245,17 +298,22 @@ def analyse_leg(path: str) -> dict:
             # Threat creation (statistic 5, quiet turns only) and
             # first-threat tracking (statistic 6): first ply at
             # which the colour holds a VCF start / creator AFTER
-            # its own move. The creator enumeration is cheap, so
-            # it runs every turn; the VCF enumeration runs only
-            # where a statistic needs it (quiet turns for stat 5,
-            # or until the first VCF start is found for stat 6).
+            # its own move. Our VCF starts after our move ARE the
+            # next turn's opp-VCF-before (same board), so one
+            # enumeration serves both (except on the last turn,
+            # where there is no next turn: compute only if a
+            # statistic needs it).
             our_creators_after = scoring._opponent_creators(b2, -player)
             if quiet and our_creators_after:
                 cell["quiet_creator_created"] += 1
             if first[colour]["creator"] is None and our_creators_after:
                 first[colour]["creator"] = ply
-            need_our_vcf = quiet or first[colour]["vcf"] is None
-            our_vcf_after = _vcf_starts(b2, player) if need_our_vcf else []
+            is_last = ply0 == len(moves) - 1
+            if is_last:
+                need = quiet or first[colour]["vcf"] is None
+                our_vcf_after = _vcf_starts(b2, player) if need else []
+            else:
+                our_vcf_after = _vcf_starts(b2, player)
             if quiet and our_vcf_after:
                 cell["quiet_vcf_created"] += 1
             if first[colour]["vcf"] is None and our_vcf_after:
@@ -348,6 +406,10 @@ def analyse_leg(path: str) -> dict:
                         )
                     # else: no prevention existed — already lost,
                     # not an error.
+            # Carry forward: our VCF starts after our move are the
+            # next turn's opp-VCF-before (same board).
+            if not is_last:
+                opp_vcf_before = our_vcf_after
             board = b2
         first_threat.append(
             {"game": rec["game"], "black": first["black"], "white": first["white"]}
@@ -360,6 +422,15 @@ def analyse_leg(path: str) -> dict:
             out["leg"] = os.path.basename(path)
             out["loser_colour"] = "black" if loser == game.BLACK else "white"
             decisive.append(out)
+        state["next_game"] = gi + 1
+        state["elapsed_seconds"] = round(
+            state["elapsed_seconds"] + (time.time() - t_start), 1
+        )
+        t_start = time.time()
+        if checkpoint and (gi + 1) % 10 == 0:
+            _write_checkpoint(checkpoint, digest, state)
+    if checkpoint:
+        _write_checkpoint(checkpoint, digest, state)
     return {
         "leg": os.path.basename(path),
         "games": len(data["records"]),
@@ -369,7 +440,7 @@ def analyse_leg(path: str) -> dict:
         "errors": errors,
         "controls": controls,
         "decisive": decisive,
-        "elapsed_seconds": round(time.time() - t_start, 1),
+        "elapsed_seconds": state["elapsed_seconds"],
     }
 
 
@@ -503,23 +574,15 @@ def main() -> int:
     parts = []
     for path in args.files:
         # Per-leg checkpoint (restart-safe): the analysis takes
-        # ~1-2 h for the full corpus and VM replacements kill the
-        # process; a finished leg is cached in a part file keyed
-        # by the input file's SHA-256, so a re-run skips it. Part
-        # files are deleted after the final output is written.
-        digest = hashlib.sha256(open(path, "rb").read()).hexdigest()[:16]
+        # ~2-3 h for the full corpus and VM replacements kill the
+        # process; the leg's partial state is checkpointed after
+        # every 10 games (see analyse_leg), so a re-run resumes
+        # mid-leg instead of starting over. Part files are deleted
+        # after the final output is written.
         part = f"{args.out}.{os.path.basename(path)}.part.json"
         parts.append(part)
-        if os.path.exists(part):
-            cached = json.load(open(part, encoding="utf-8"))
-            if cached.get("input_digest") == digest:
-                print(f"== {path}: resuming from checkpoint ==", flush=True)
-                legs.append(cached["leg"])
-                continue
         print(f"== analysing {path} ==", flush=True)
-        leg = analyse_leg(path)
-        with open(part, "w", encoding="utf-8") as f:
-            json.dump({"input_digest": digest, "leg": leg}, f, indent=1)
+        leg = analyse_leg(path, checkpoint=part)
         legs.append(leg)
         print(
             f"   {leg['games']} games, {leg['elapsed_seconds']}s",
