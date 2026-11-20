@@ -1004,6 +1004,113 @@ was clean.
   v37's ladder Elo was negative. Strength here is
   matchup-dependent, not a single number.
 
+### 6.8 Swap vs v7 (secondary) — COMPLETE 2026-11-20 ~12:30 UTC
+
+`selfplay_batch.py --engine-a v44 --engine-b v7 --games 100
+--swap-rule --placement balanced --placement-seed 11 --judge
+tempo --seed-a 100 --seed-b 200` (log
+`ml/runs/ml4-h3/batt-swap.log`; JSON
+`research/iterations/batch-v44-swap-vs-v7.json`). 3,500 s
+wall, no interruptions.
+
+- **38W-60L-2D, win rate 0.3900, Wilson 95% CI [0.3002,
+  0.4880]** — v44 loses under the official swap rule too,
+  slightly worse than the normal-rules 0.45 (the CIs
+  overlap: swap upper 0.4880 vs normal lower 0.3561).
+  Uniqueness: **100/100** — every game distinct.
+- Colour splits: v44 as Black 21W-29L-2D (0.4231), as
+  White 17W-31L-0D (0.3542) — loses as both colours,
+  worse as White. Black won 52, White won 46: the swap
+  rule nearly equalised the colours (vs 54–44 in the
+  normal-rules leg), as designed.
+- The chooser took Black in 88/100 games — the tempo
+  judge overwhelmingly favours Black on the balanced
+  placements. That is a property of the shared swap
+  machinery (both engines use the same judge when
+  choosing), not of v44.
+
+## 7. Verdict — **v44 PASSES THE ML BAR (4/4 clauses)**
+
+| Clause | Bar | v44 | Verdict |
+|--------|-----|-----|---------|
+| 1. h2h vs v8 (100 games) | win rate > 0.50, Wilson CI lower > 0.50 | 0.6700, CI [0.5731, 0.7544] | **PASS** |
+| 2. Ladder Elo | > 0.0 | 98.1, interval [−12.1, 208.2] | **PASS** (point estimate) |
+| 3. Tactical | 20/20 + 29/29 | 20/20 + 29/29 | **PASS** |
+| 4. Test suites | all green | pytest 438/0, npm 55/55, tsc clean | **PASS** |
+
+**v44 is the first ML version ever to pass all four
+clauses.** By the champion rule (TRACKS.md), v44 takes the
+ML champion title from v8 — the first champion change on
+the ML track since v8 itself. The daily cross-track match
+should switch to v44 vs v18 from the next run (the
+coordinator owns the cron update; this worker did not
+touch it).
+
+The honest headline is two-sided, and both sides are real:
+
+1. **v44 passes the bar and sets the best ML ladder Elo
+   ever (98.1).** It beats v8 clearly (0.67, CI clear of
+   0.50), beats the ladder MCTS outright (0.625, first ML
+   version to do so), and is tactically perfect.
+2. **v44 is NOT the strongest ML version by head-to-head.**
+   v37 beats v44 0.69–0.31, and v44's White play collapses
+   against v37 (0.16). The 3-ply labels were a step
+   backwards in played strength vs the 2-ply labels —
+   the parity shift (§0) cost more than the extra ply
+   gained. The bar passes because the bar is vs v8 and
+   the ladder, not vs v37; v37 failed the bar on the
+   ladder (−34.9) while v44 passes it on consistency.
+
+What this batch establishes for the program:
+
+- **The label-depth lever is now mapped:** 1-ply (v24)
+  0.515 vs v8, Elo 52.5; 2-ply (v37) 0.75 vs v8, Elo
+  −34.9; 3-ply (v44) 0.67 vs v8, Elo 98.1. Depth helps
+  once (1→2) and then the parity shift dominates
+  (2→3). A 4-ply attempt would face the same parity
+  problem in the other direction (even horizon again,
+  but a still-more-optimistic teacher) — the next lever
+  is NOT more depth. The 2-ply recipe remains the
+  strongest known labelling; the 3-ply result says the
+  gain from depth saturates at 2.
+- **History-dependence is NOT inherent to distillation:**
+  v44's no-history holdout drop is 0.007 (vs v37's
+  0.195 collapse). Whatever made v37's net grab the
+  history shortcut, the 3-ply labels did not reproduce
+  it — the label's information content, not the
+  architecture, drives the shortcut.
+- **Strength is matchup-dependent, not a single number:**
+  v44 > v8 (0.67), v37 > v8 (0.75), v37 > v44 (0.69),
+  v44 > ladder MCTS (0.625), v37's ladder Elo negative.
+  Any single ranking of the ML versions is a fiction;
+  the bar's two independent measures (h2h vs v8 AND
+  ladder Elo) exist precisely because one number lies.
+- **The α lesson generalises:** the sweep was monotone
+  decreasing in α (0.725 / 0.600 / 0.475) — the cooler
+  the value weight, the better, on optimistic labels.
+  Future distilled nets should sweep α below the
+  previous winner, not around it, whenever the labels
+  shift optimistic.
+
+Open threads for the coordinator / next batch:
+
+- The White collapse vs v37 (0.16) is the sharpest open
+  weakness: v44's White play needs diagnosis (is it the
+  optimistic labels under-defending, or a search
+  artefact?). The §5.2 blunder workups found no
+  value-head failure, but they predated the v37 leg.
+- The ladder Elo interval ([−12.1, 208.2]) includes 0:
+  a 40-game leg cannot prove the clause-2 pass. A
+  confirmatory re-run of the ladder at a different seed
+  would narrow this — cheap (one more ladder run) and
+  worth doing before the champion change is treated as
+  settled.
+- v37 remains the strongest ML version by head-to-head
+  and the natural sparring partner for the next ML
+  iteration; any future version should be measured
+  against v37 as well as v8.
+
+
 
 
 
