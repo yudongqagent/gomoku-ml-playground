@@ -922,6 +922,28 @@ through — the only leg of the battery with no VM kill).
   concentrated in the v8 matchup. Both numbers are real;
   they measure different things.
 
+### 6.4 vs v0 (secondary) — COMPLETE 2026-11-20 ~06:15 UTC
+
+`selfplay_batch.py --engine-a v44 --engine-b v0 --games 100
+--seed-a 100 --seed-b 200` (no --openings; log
+`ml/runs/ml4-h3/batt-v0.log`; JSON
+`research/iterations/batch-v44-vs-v0.json`). 5,260 s wall.
+
+- **55W-39L-6D, win rate 0.5800, Wilson 95% CI [0.4821,
+  0.6720]** — the CI includes 0.50, so the edge over v0
+  is not proven at 100 games (a secondary metric, not a
+  clause). Uniqueness: **99/100**; de-dup cut 55W-38L-6D
+  on 99 unique, 0.5859, CI [0.4874, 0.6779].
+- Colour splits: as Black 27W-20L-3D (0.5700), as White
+  28W-19L-3D (0.5900) — balanced. Black won 46, White
+  won 48.
+- Note the sample spread across v44-vs-v0 measurements:
+  fast loop 0.55 (10 games), ladder heuristic leg 0.6375
+  (40 games, different seed sequence), this leg 0.58
+  (100 games). All three CIs overlap; the 100-game leg
+  is the biggest sample and the honest headline.
+
+
 ### 6.7 Test suites — **CLAUSE 4 PASSES**
 
 - ml pytest (final tree, 2026-11-20 ~04:20 UTC):
