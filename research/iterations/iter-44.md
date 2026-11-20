@@ -966,6 +966,45 @@ both resumes were clean.
   stronger heuristic opponent, and it is a gap, not the
   v25/v31-style collapse.)
 
+### 6.6 vs v37 (secondary) — COMPLETE 2026-11-20 ~11:00 UTC
+
+`selfplay_batch.py --engine-a v44 --engine-b v37 --games 100
+--openings research/openings-ml4.json --seed-a 100 --seed-b 200`
+(log `ml/runs/ml4-h3/batt-v37.log`; JSON
+`research/iterations/batch-v44-vs-v37.json`). One VM
+replacement interrupted the leg (at 70 games); the resume
+was clean.
+
+- **29W-67L-4D, win rate 0.3100, Wilson 95% CI [0.2278,
+  0.4063]** — v37 beats v44 decisively. The 2-ply net is
+  clearly stronger than the 3-ply net head-to-head. This
+  is the diminishing-returns finding in its starkest
+  form: going one ply deeper cost ~0.19 against the
+  2-ply version (0.31 vs the 0.50 parity line).
+  Uniqueness: **99/100**; de-dup cut 28W-67L-4D on 99
+  unique, 0.3030, CI [0.2213, 0.3995].
+- Colour splits: as Black **21W-25L-4D (0.4600)**, as
+  White **8W-42L-0D (0.1600)** — a severe White collapse
+  against v37 specifically. Black won 63, White won 33.
+  v44's Black play is nearly even with v37; its White
+  play falls apart. Compare: vs v8 White was 0.67
+  (symmetric), vs v7 White was 0.40 — the White weakness
+  is matchup-dependent and worst against v37.
+- Mechanism hypothesis (not proven): the optimistic
+  3-ply labels (§0, mean +0.10) hurt most when playing
+  from behind. As White, v44's net overestimates its
+  chances and under-defends; the α=0.125 weight
+  mitigates but does not remove the shift. The §4
+  holdout by-side numbers showed no White collapse
+  (0.7421 vs 0.7463) — holdout sign accuracy does not
+  measure played strength as White against a strong
+  opponent. The non-transitivity is stark: v44 beats v8
+  (0.67) and v37 beats v8 (0.75), yet v37 beats v44
+  (0.69) — and v44 beats the ladder MCTS (0.625) while
+  v37's ladder Elo was negative. Strength here is
+  matchup-dependent, not a single number.
+
+
 
 
 ### 6.7 Test suites — **CLAUSE 4 PASSES**
