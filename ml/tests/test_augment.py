@@ -76,3 +76,62 @@ def test_random_augment_batch_preserves_sums():
     out_planes, out_policy = augment.random_augment_batch(planes, policy, rng)
     assert np.allclose(out_planes.sum(axis=(1, 2, 3)), planes.sum(axis=(1, 2, 3)))
     assert np.allclose(out_policy.sum(axis=1), policy.sum(axis=1))
+
+
+# --- history-plane dropout (ML batch 4, v42) ----------------------------
+
+
+def _planes_with_history(n=64, seed=0):
+    """Random planes with all 8 planes non-zero, so a dropped history
+    plane is distinguishable from an untouched one."""
+    rng = np.random.default_rng(seed)
+    return rng.random((n, 8, 15, 15)).astype(np.float32)
+
+
+def test_drop_history_planes_zero_is_identity():
+    planes = _planes_with_history()
+    out = augment.drop_history_planes_batch(planes, np.random.default_rng(0), 0.0)
+    assert np.array_equal(out, planes)
+
+
+def test_drop_history_planes_one_drops_all_history():
+    planes = _planes_with_history()
+    out = augment.drop_history_planes_batch(planes, np.random.default_rng(0), 1.0)
+    for p in augment.HISTORY_PLANES:
+        assert np.all(out[:, p] == 0.0), f"plane {p} not zeroed"
+    for p in (0, 1, 3):
+        assert np.array_equal(out[:, p], planes[:, p]), f"plane {p} changed"
+
+
+def test_drop_history_planes_rate_and_selectivity():
+    planes = _planes_with_history(n=2000, seed=1)
+    out = augment.drop_history_planes_batch(planes, np.random.default_rng(2), 0.5)
+    # A sample is dropped iff ALL its history planes are zero.
+    dropped = np.all(out[:, list(augment.HISTORY_PLANES)] == 0.0, axis=(1, 2, 3))
+    assert 0.45 < dropped.mean() < 0.55, f"drop rate {dropped.mean():.3f} != 0.5"
+    # Dropped samples: history exactly zero, current planes untouched.
+    assert np.array_equal(out[dropped][:, [0, 1, 3]], planes[dropped][:, [0, 1, 3]])
+    # Undropped samples: identical to the input, history included.
+    assert np.array_equal(out[~dropped], planes[~dropped])
+    # Whole-history: no sample is partially dropped (each sample's
+    # history planes are either all zero or all untouched).
+    hist = out[:, list(augment.HISTORY_PLANES)]
+    per_sample_zero_frac = (hist == 0.0).mean(axis=(1, 2, 3))
+    assert np.all((per_sample_zero_frac == 0.0) | (per_sample_zero_frac == 1.0))
+
+
+def test_drop_history_planes_input_not_modified():
+    planes = _planes_with_history()
+    before = planes.copy()
+    augment.drop_history_planes_batch(planes, np.random.default_rng(0), 0.5)
+    assert np.array_equal(planes, before)
+
+
+def test_drop_history_planes_invalid_p_raises():
+    import pytest
+
+    planes = _planes_with_history(n=4)
+    with pytest.raises(ValueError, match="in \\[0, 1\\]"):
+        augment.drop_history_planes_batch(planes, np.random.default_rng(0), 1.5)
+    with pytest.raises(ValueError, match="in \\[0, 1\\]"):
+        augment.drop_history_planes_batch(planes, np.random.default_rng(0), -0.1)

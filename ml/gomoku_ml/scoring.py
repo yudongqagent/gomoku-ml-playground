@@ -438,6 +438,36 @@ ENGINE_VERSIONS: dict[int, dict] = {
     29: {"name": "scoring-v29", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "vcf_root": True},
+    # v42 (iteration 42, ML batch 4): H1 — v8's PUCT MCTS with the
+    # value net distilled from v18's rollout leaf on v24's recipe
+    # (same 37,227 quiet positions, same 1-ply labels, same
+    # architecture and training recipe) PLUS history-plane dropout
+    # during training (see research/iterations/iter-42.md §1.1):
+    # each training sample independently has ALL its history planes
+    # (last-move one-hot + stones 2/4 plies ago) zeroed with p=0.5,
+    # so the net cannot route its value judgment through history
+    # features — the fix for the history-dependence that v37/v38
+    # showed (v7 holdout 0.7395 -> 0.5163 / 0.5035 without history)
+    # while v24's net is history-robust. The ONLY difference from
+    # v24 is the augmentation, so the v42-vs-v24 comparison
+    # isolates it. Search, priors, sims, threat check, terminal
+    # cases: v8 unchanged. value_weight is the α-sweep winner
+    # (0.5: 9W-11L-0D vs v8 over 20 games, best of {0.5, 1.0, 2.0}).
+    42: {"name": "scoring-v42", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml4-h1/value-net.pt",
+         "value_weight": 0.5},
+    # v37 (iteration 37, ML batch 3) — HARNESS-ONLY entry for the
+    # v42-vs-v37 secondary leg of ML batch 4; v37 is not a shipped
+    # version on this branch. v8's PUCT MCTS with the value net
+    # distilled from v18's rollout leaf on 2-ply deeper-teacher
+    # labels; value_weight 0.25 is the ML-batch-3 α-sweep winner.
+    # Checkpoint copied verbatim from gomoku-ml3
+    # (md5 2fde492aae6d44cbe945e15bd5f1f959).
+    37: {"name": "scoring-v37", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml3-h2/value-net.pt",
+         "value_weight": 0.25},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1049,6 +1079,7 @@ class ScoringPlayer:
                     checkpoint_path=path,
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
                     rng=self.rng,
+                    value_weight=ENGINE_VERSIONS[version].get("value_weight"),
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.

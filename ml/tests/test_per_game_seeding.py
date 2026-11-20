@@ -181,6 +181,12 @@ def _play_prefix(args, n_games):
                 winner, moves = selfplay_batch.play_recorded_game(
                     choose_b, choose_a, game.empty_board(), game.BLACK
                 )
+            # Mirror the driver's record shape (ML batch 4 tooling
+            # added "opening" to every non-swap record, [] when no
+            # --openings file is given): without it the resumed
+            # records differ from the reference by the missing key
+            # even when the move lists are identical.
+            rec["opening"] = []
             rec["moves"] = moves
         rec["a_colour"] = "black" if a_colour == game.BLACK else "white"
         rec["winner"] = (

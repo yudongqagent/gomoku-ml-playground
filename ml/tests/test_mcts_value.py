@@ -215,3 +215,29 @@ def test_v8_env_override_and_missing_checkpoint(tmp_path, monkeypatch):
 
     with pytest.raises(FileNotFoundError):
         scoring.get_player(8, seed=0)
+
+
+def test_v42_registered_and_dispatches_to_value_mcts(tmp_path, monkeypatch):
+    """v42 (ML batch 4 H1): v8's search + the history-dropout net.
+    The registry entry's value_weight (the swept α) passes through
+    to ValueMCTS; the test reads it from the registry so it stays
+    green when the sweep updates the entry."""
+    ckpt = _random_net_checkpoint(tmp_path)
+    monkeypatch.setitem(scoring.ENGINE_VERSIONS[42], "value_checkpoint", ckpt)
+    v42 = scoring.get_player(42, seed=0)
+    assert v42.name == "scoring-v42"
+    assert v42.mcts is True
+    assert isinstance(v42._mcts, ValueMCTS)
+    assert v42._mcts.sims == 100
+    assert v42._mcts.checkpoint_path == ckpt
+    assert v42._mcts.value_weight == scoring.ENGINE_VERSIONS[42]["value_weight"]
+
+
+def test_value_mcts_value_weight_default_is_v8s(tmp_path):
+    """No value_weight given -> v8's VALUE_WEIGHT 0.25, so v8 is
+    byte-identical in behaviour (the port must not change v8)."""
+    ckpt = _random_net_checkpoint(tmp_path)
+    mcts = ValueMCTS(checkpoint_path=str(ckpt), sims=10)
+    from gomoku_ml.mcts_value import VALUE_WEIGHT
+
+    assert mcts.value_weight == VALUE_WEIGHT == 0.25
