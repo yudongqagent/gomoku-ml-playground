@@ -79,6 +79,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -196,7 +197,13 @@ def analyse_leg(path: str) -> dict:
     controls: list[dict] = []  # threatened turns where the mover prevented
     decisive: list[dict] = []  # find_losing_moves output per loss
     t_start = time.time()
-    for rec in data["records"]:
+    for gi, rec in enumerate(data["records"]):
+        if gi % 10 == 0:
+            print(
+                f"   {os.path.basename(path)}: game {gi}/{len(data['records'])} "
+                f"({time.time() - t_start:.0f}s)",
+                flush=True,
+            )
         moves = [int(m) for m in rec["moves"]]
         winner = rec["winner"]
         wins[winner if winner in ("black", "white") else "draw"] += 1
@@ -493,16 +500,37 @@ def main() -> int:
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
     legs = []
+    parts = []
     for path in args.files:
+        # Per-leg checkpoint (restart-safe): the analysis takes
+        # ~1-2 h for the full corpus and VM replacements kill the
+        # process; a finished leg is cached in a part file keyed
+        # by the input file's SHA-256, so a re-run skips it. Part
+        # files are deleted after the final output is written.
+        digest = hashlib.sha256(open(path, "rb").read()).hexdigest()[:16]
+        part = f"{args.out}.{os.path.basename(path)}.part.json"
+        parts.append(part)
+        if os.path.exists(part):
+            cached = json.load(open(part, encoding="utf-8"))
+            if cached.get("input_digest") == digest:
+                print(f"== {path}: resuming from checkpoint ==", flush=True)
+                legs.append(cached["leg"])
+                continue
         print(f"== analysing {path} ==", flush=True)
-        legs.append(analyse_leg(path))
+        leg = analyse_leg(path)
+        with open(part, "w", encoding="utf-8") as f:
+            json.dump({"input_digest": digest, "leg": leg}, f, indent=1)
+        legs.append(leg)
         print(
-            f"   {legs[-1]['games']} games, {legs[-1]['elapsed_seconds']}s",
+            f"   {leg['games']} games, {leg['elapsed_seconds']}s",
             flush=True,
         )
     out = {"legs": legs, "summary": summarize(legs)}
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=1)
+    for part in parts:
+        if os.path.exists(part):
+            os.remove(part)
     print(f"wrote {args.out}")
     # Print the patch-rule read-off.
     print("== patch-rule gaps (White minus Black) ==")
