@@ -1,6 +1,6 @@
 # Iteration 42 — v42: history augmentation / history-dropout on v24's recipe (ML batch 4, H1)
 
-**Status: IN PROGRESS — pre-registered; no eval has run.**
+**Status: COMPLETE — REJECTED 2/4 (fails clauses 1 and 2; passes 3 and 4).**
 Comparison target is v8 (the ML track's champion and bar
 reference). This is the H1 workstream of ML batch 4 (H2 is v43,
 history dropout on the v37 net; H3 is v44, 3-ply labels); work
@@ -667,8 +667,194 @@ is the verdict; it proceeds on the final v42 (α=0.5).
 
 ## 6. Validation battery
 
-TODO.
+**Pickup note:** the original H1 worker was killed by a VM
+restart drain at 22/100 games of the vs-v8 leg (10W-10L-2D).
+The pickup worker resumed the EXACT same command; the driver
+auto-resumed from game 22 (per-game seeding reproduces the
+uninterrupted run exactly). The resumed run was itself SIGTERM'd
+once (at 70/100, 35W-27L-8D) and resumed again to completion.
+All legs below ran on the FINAL v42 (α=0.5, registry
+`value_weight` 0.5, checkpoint
+`ml/runs/ml4-h1/value-net.pt` md5
+`88a69de35216b7965682b8d77418df31` re-verified on pickup, v42
+loads and plays centre first). All aggregates were recomputed
+from the raw per-game records by the pickup worker
+(`ml/runs/ml4-h1/recompute_v42.py`, gitignored) and match the
+stored summaries EXACTLY, including the uniqueness audits and
+de-dup cuts, on every leg. Three sibling batteries (v43, v44)
+shared the VM for much of the run, so legs ran slower than solo.
+
+### Clause 1 — vs v8: 49W-40L-11D, 0.5450, CI [0.4475, 0.6391] — FAIL
+
+100 games, normal rules, pre-registered openings
+(`research/openings-ml4.json`, 10 openings), seeds 100/200
+(`research/iterations/batch-v42-vs-v8.json`). Win rate > 0.50
+but the Wilson 95% CI lower bound (0.4475) is below 0.50 —
+clause 1 fails. Colour splits: as Black 21W-21L-8D (0.5000, CI
+[0.3664, 0.6336]); as White 28W-19L-3D (0.5900, CI [0.4520,
+0.7151]) — **no White collapse vs v8 on validation seeds**,
+reversing the dev-seed signal (fast loop White 0.20, α sweep
+White 0.20–0.25): the dev-seed White weakness did NOT
+reproduce, another instance of dev seeds misleading. Uniqueness:
+**91 unique in 100** — the opening variety worked (v36-vs-v8
+was 21 unique in 100 without openings). De-dup cut: 41W-39L-11D,
+0.5110, CI [0.4099, 0.6112] — the clause-1 failure stands on
+the de-dup cut too.
+
+### Secondary — vs v0: 40W-52L-8D, 0.4400, CI [0.3467, 0.5377] — LOSES to the baseline
+
+100 games, normal rules, no openings, seeds 100/200
+(`research/iterations/batch-v42-vs-v0.json`). v42 LOSES to the
+frozen baseline heuristic outright — v8 beats v0 0.545, v37
+0.585, v24 0.600. Colour splits: as Black 26W-16L-8D (0.6000,
+CI [0.4618, 0.7239]); as White **14W-36L-0D (0.2800, CI
+[0.1747, 0.4167])** — a severe White weakness against v0's
+crude greedy play (v24's White vs v0 was ~0.44–0.49). The
+weakness is opponent-dependent, not a general White collapse:
+White is 0.59 vs v8 on the same seeds. Uniqueness: 98 unique
+in 100; de-dup 39W-51L-8D, 0.4388 — the loss stands on the
+de-dup cut. Non-transitivity, recorded prominently: v42 > v8
+(0.545, CI includes 0.50) but v42 < v0 (0.44) while v8 > v0
+(0.545) — v42's narrow edge over v8 does not extend down the
+ladder.
+
+### Secondary — swap vs v7: 33W-63L-4D, 0.3500, CI [0.2636, 0.4475]
+
+100 games, swap rule, balanced placement, placement_seed 11,
+tempo judge, seeds 100/200
+(`research/iterations/batch-v42-vs-v7-swap.json`). v37's swap
+vs v7 was 0.44, v24's 0.33 — v42 sits between them, closer to
+v24. Colour splits balanced under swap: as Black 17W-31L-4D
+(0.3654), as White 16W-32L-0D (0.3333). Uniqueness: **100
+unique in 100**.
+
+### Secondary — vs v37: 29W-65L-6D, 0.3200, CI [0.2367, 0.4166]
+
+100 games, normal rules, pre-registered openings, seeds 100/200
+(`research/iterations/batch-v42-vs-v37.json`; v37 via the
+harness-only registry entry, commit 776a430). v42 loses
+decisively to the strongest ML version by head-to-head — v37
+stays the ML track's progress leader by a wide margin. Colour
+splits: as Black 23W-21L-6D (0.5200, CI [0.3851, 0.6520]); as
+White **6W-44L-0D (0.1200, CI [0.0562, 0.2381])** — the
+starkest White number in the battery: v42-as-White wins 6 of
+50 against v37. Uniqueness: 96 unique in 100; de-dup 28W-62L-6D,
+0.3229 — the loss stands on the de-dup cut. The leg was
+SIGTERM'd once by a VM drain (at 66/100, 21W-42L-3D) and
+resumed to completion.
+
+### Clause 2 — ladder: Elo 0.0 ([-106.0, 106.0], 40 games/opponent) — FAIL
+
+`eval_version.py --version 42 --ladder-games 40 --out
+research/iterations/ladder-v42.json` (seed 100, mcts_sims 100;
+completed uninterrupted in 73 min). Legs: vs random 40W-0L-0D
+(1.0000); vs heuristic 19W-19L-2D (0.5000, CI [0.3520,
+0.6480]); vs mcts 19W-21L-0D (0.4750, CI [0.3294, 0.6250]).
+**Ladder Elo 0.0, interval [-106.0, 106.0]** — an EXACT tie
+with v8's 0.0, and clause 2 requires strictly greater than
+0.0, so it fails. The 40-game re-basing narrowed the interval
+to ±106 (from ±~180 at 20 games), so the tie is now measured
+tightly rather than lost in noise: the heuristic leg is a
+dead-even 19-19-2. The White weakness recurs in both
+competitive legs: vs heuristic as White 4W-16L-0D (0.20), vs
+mcts as White 5W-15L-0D (0.25), against Black 0.80 / 0.70.
+The 100-game vs-v0 rate (0.44) and the 40-game heuristic leg
+(0.50) are consistent within noise (the leg CI [0.352, 0.648]
+contains 0.44).
+
+### Clause 3 — tactical: 20/20 + 29/29 — PASS
+
+`eval_tactical_full.py --version 42 --suite both --seed 100`
+on the corrected suite: old 20/20, hard 29/29
+(`ml/runs/ml4-h1/tactical-final.log`). The pickup worker
+re-ran both suites independently on the final v42 and
+reproduced 20/20 + 29/29 exactly; the ladder driver
+re-confirmed the old suite at 20/20. Clause 3 passes.
+
+### Clause 4 — test suites: PASS
+
+- ml pytest (full, no `-x`): **433 passed, 1 skipped, 58
+  xfailed, 0 failed** in 642s (`ml/runs/ml4-h1/pytest-final.log`;
+  the first attempt was SIGTERM'd by a VM drain at ~14% and
+  re-run clean). The earlier `test_resume_reproduces_
+  uninterrupted` failure is gone — fixed by 22029ec (the
+  missing `'opening'` key in the test's inline copy).
+- npm test: **55/55**; tsc: clean (run by the pickup worker
+  after `npm ci`).
+
+### Not run
+
+The pre-registered (§1.9) NORMAL-rules vs-v7 leg (100 games)
+was not run: the pickup task listed vs-v0, swap vs v7, the
+ladder, and vs-v37 (if time permits) as the remaining legs.
+It can be run later from the same harness
+(`fast_loop_match.py --version-a 42 --opponent v7 --games 100
+--seed-a 100 --seed-b 200 --out
+research/iterations/batch-v42-vs-v7.json`) if the coordinator
+wants the VERSIONS.md row completed.
 
 ## 7. Verdict
 
-TODO.
+**REJECTED — 2/4 clauses** (passes 3 and 4; fails 1 and 2).
+v8 stays the ML champion; v37 stays the strongest ML version
+by head-to-head (v42 loses to v37 0.32, §6).
+
+**The clean A/B vs v24** (v42 differs from v24 in ONE thing —
+the §1.1 history-plane dropout; same positions, labels,
+holdout, architecture, recipe):
+
+| Metric | v24 | v42 | Δ |
+|---|---|---|---|
+| vs v8 (100 games) | 0.5150, CI [0.4183, 0.6106] | 0.5450, CI [0.4475, 0.6391] | +0.030 (CIs overlap heavily) |
+| vs v0 (100 games) | 0.6000, CI [0.5020, 0.6906] | 0.4400, CI [0.3467, 0.5377] | **−0.160** |
+| Ladder Elo | 52.5 ([-96.9, 201.9], 20/opponent) | 0.0 ([-106.0, 106.0], 40/opponent) | **−52.5** |
+| Swap vs v7 | 0.3300 | 0.3500 | +0.020 |
+| Holdout engine full-planes sign | 0.7909 | 0.7828 | −0.008 |
+| Holdout engine no-history sign | 0.7897 | 0.7851 | −0.005 |
+
+The dropout worked exactly as designed on the diagnostic (§4:
+the gate passed all three clauses; the no-history view is if
+anything BETTER than the full-planes view) and bought
+NOTHING in played strength — and cost strength where v24 was
+strongest, against weak opponents (vs v0 0.44 vs 0.60, ladder
+Elo 0.0 vs 52.5). **Holdout robustness does not predict
+played strength — third instance** (v31, v38, v42): the
+no-history collapse was real on the holdout and irrelevant in
+games, because at inference the leaves get search-path
+history, and the net that routes through history features
+(v37: 0.75 vs v8) plays far better than the net that cannot
+(v42: 0.545). History features at inference are not noise to
+be removed — they carry signal the search path provides, and
+training the net to ignore them throws signal away.
+
+**CLOSED: history-plane dropout (p=0.5, per-sample
+whole-history) as a strength lever on v24's recipe.** The gate
+passes and the battery does not move; the no-history view is
+already as good as the full-planes view, so more dropout (or a
+different p) has nothing left to fix without a genuinely new
+mechanism argument. What the dropout DID buy — a net whose
+operating point is predictable (no-history ≈ full-planes
+everywhere, §4) — is worth having for a deployed model, but
+predictability is not strength, and the ML bar measures
+strength.
+
+Other findings for the coordinator:
+- The dev-seed White weakness (fast loop 0.20, α sweep
+  0.20–0.25 vs v8) did NOT reproduce on validation seeds vs
+  v8 (White 0.59) — but White IS weak vs v0 (0.28), on
+  the ladder (0.20 vs heuristic, 0.25 vs mcts), and
+  catastrophically vs v37 (0.12, 6W-44L-0D). The White
+  weakness is opponent-dependent and worst against the
+  strongest opponents: v42-as-White loses to crude greedy
+  play AND to the strongest ML net, but holds its own
+  against v8's MCTS. Same shape as v7's Black-vs-v0
+  inversion, mirrored to White and amplified vs v37.
+- The α sweep's monotone-decreasing pattern (0.5 > 1.0 > 2.0)
+  plus the battery's 0.545 at α=0.5 says the dropout net's
+  value is best trusted LESS — consistent with the
+  history-routing story: the net's quiet-position values are
+  less informative once history is trained out.
+- Opening variety works: 91 unique in 100 vs v8 (v36: 21),
+  98 vs v0, 100/100 under swap. The ML-batch-4 battery
+  change is validated and should stay standard for
+  ML-vs-ML legs.
