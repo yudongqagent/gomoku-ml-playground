@@ -718,6 +718,22 @@ de-dup cut. Non-transitivity, recorded prominently: v42 > v8
 (0.545) — v42's narrow edge over v8 does not extend down the
 ladder.
 
+### Secondary — vs v7: 27W-68L-5D, 0.2950, CI [0.2145, 0.3906]
+
+100 games, normal rules, no openings, seeds 100/200
+(`research/iterations/batch-v42-vs-v7.json`). Run by the
+coordinator after the merge (the pickup task had omitted this
+pre-registered leg — see §6 "Not run" below). v42's weakest
+showing against a heuristic opponent: 0.2950 is the weakest
+vs-v7 number of any ML version (v32 was 0.305, v36 0.385, v24
+0.445, v37 0.45). Colour splits: as Black 20W-26L-4D (0.4400);
+as White **7W-42L-1D (0.1500)** — the White collapse against
+heuristic opponents again (0.28 vs v0, 0.15 vs v7, vs 0.59 vs
+v8 on the same seeds). Uniqueness: 97 unique in 100; de-dup
+0.2732, CI [0.1944, 0.3692] — the loss stands on the de-dup
+cut. This leg is a secondary metric only; the verdict
+(REJECTED 2/4) does not depend on it.
+
 ### Secondary — swap vs v7: 33W-63L-4D, 0.3500, CI [0.2636, 0.4475]
 
 100 games, swap rule, balanced placement, placement_seed 11,
@@ -782,16 +798,18 @@ re-confirmed the old suite at 20/20. Clause 3 passes.
 - npm test: **55/55**; tsc: clean (run by the pickup worker
   after `npm ci`).
 
-### Not run
+### Not run — RESOLVED by the coordinator
 
 The pre-registered (§1.9) NORMAL-rules vs-v7 leg (100 games)
-was not run: the pickup task listed vs-v0, swap vs v7, the
-ladder, and vs-v37 (if time permits) as the remaining legs.
-It can be run later from the same harness
-(`fast_loop_match.py --version-a 42 --opponent v7 --games 100
+was not run by the pickup worker: the pickup task listed
+vs-v0, swap vs v7, the ladder, and vs-v37 (if time permits)
+as the remaining legs. The coordinator ran it after the merge
+(`selfplay_batch.py --engine-a v42 --engine-b v7 --games 100
 --seed-a 100 --seed-b 200 --out
-research/iterations/batch-v42-vs-v7.json`) if the coordinator
-wants the VERSIONS.md row completed.
+research/iterations/batch-v42-vs-v7.json`, 1968.6s):
+**27W-68L-5D, 0.2950, CI [0.2145, 0.3906]** — see the
+"Secondary — vs v7" section above. The VERSIONS.md row is now
+complete.
 
 ## 7. Verdict
 
