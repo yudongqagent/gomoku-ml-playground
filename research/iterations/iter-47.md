@@ -247,13 +247,87 @@ de-dup rates for every leg):
   (all losses via open four, 0 missed blocks) via
   `classify_batch_losses.py`.
 
+### 1.4 Mechanism-check outcome (after implementation — NOT a redesign)
+
+Run after the §1.2 implementation, before any game eval
+(script `/tmp/diag_v47_check.py`; the check itself is a test:
+`ml/tests/test_mcts_v47.py::test_v47_prices_opponent_best_reply`):
+
+- **Predicted, holds:** the unsafe root child's our-q becomes
+  exactly −1.0 on both instances — the opponent's best reply
+  (the creator) is priced, not diluted.
+- **Predicted, FAILS:** the unsafe does NOT rank strictly
+  worst by q — the safes ALSO go to −1.0, so all four moves tie.
+  Verified explanation (`/tmp/diag_v47_safe_subtree.py`): under
+  v27, every safe's subtree already contains a visited −1.0
+  line (Black's (6,4) in g61 — exactly iter-40's "Black wins
+  slowly via (6,4)" — and (10,7) in g43). The positions are
+  lost; minimax correctly values EVERY move at −1.0. The mean
+  backup distinguished the moves by HOW they lose (slowly vs
+  at once); minimax destroys that "loss-speed" gradient.
+- **Unpredicted, observed:** the root pick nevertheless flips
+  to a SAFE move on both instances (g61: (4,5), 9v vs the
+  unsafe's 5v; g43: (12,8), 9v vs 5v) — via visit reallocation,
+  not via the q ranking. With all q's tied at −1.0, UCB is
+  prior-driven, and the highest-prior safe moves win visits
+  (safes' priors 0.1404 / 0.1342 vs the unsafe's 0.0757 /
+  0.0838). The flip is real but its channel is the prior, not
+  the backup's q signal — noted here because §3.1 shows the
+  same channel failing systematically on prevention positions,
+  where the preventions have LOW priors.
+- Backup invariants hold on both trees (0 violations: minimax
+  nodes report max over visited children of −child.q, mean
+  nodes report value_sum / visit_count); flag propagation is
+  correct (root children minimax, depth-2 mean).
+
 ## 2. Fast loop
 
 (TODO)
 
 ## 3. Battery
 
-(TODO)
+### 3.1 Tactical — clause 3 FAILS (21/29 hard)
+
+v27 re-verified first on the corrected suite: 20/20 + 29/29
+(`research/iterations/tactical-v27.json`). v47:
+**20/20 old, 21/29 hard** (`research/iterations/tactical-v47.json`,
+seed 0). All 8 failures are PREVENTION positions:
+prev-v1v0s-g13, prev-v2v0-g0, prev-v2v0-g2, prev-v2v1s-g12,
+prev-v1v0s-g26, prev-v1v0s-g48, prev-v1v1s-g79, prev-v1bl-g2
+(the v40 regression position, again). All setup / winning /
+VCF positions pass.
+
+**Diagnosis — q-collapse, verified on two positions**
+(script `/tmp/diag_v47_tactical.py`, raw 100-sim search dump):
+
+| Position | v27 root | v47 root |
+|---|---|---|
+| prev-v1v0s-g13 (4 expected preventions) | 74 visited children, 70 at our-q −1.0; preventions at −0.75 (5v each, top-visit tie) → picks (11,7) ✓ | ALL 74 visited children at our-q −1.0; preventions 2v each → picks (5,4), the move that lost the original game |
+| prev-v1bl-g2 (2 expected preventions) | 77 visited, 73 at −1.0; preventions at −0.6875/−0.5938, (7,5) leads 8v → picks (7,5) ✓ | 76/77 at −1.0; preventions at −1.0, 2v each → picks (11,5) |
+
+The mechanism is exactly iter-16 §3.1's observation, now
+weaponised against the search: in creator-rich positions
+nearly every quiet leaf returns −1.0, so nearly every subtree
+contains a visited −1.0 line. The MEAN backup preserves the
+prevention signal as an average — the prevention's subtree
+mixes −1.0 leaves with gradient leaves (−0.75), while
+non-preventions average −1.0 — a 0.25 gap the search can
+rank on. The MINIMAX backup destroys it: ANY −1.0 leaf in a
+subtree sets q = −1.0, so preventions and non-preventions tie
+exactly, the v27 tie-break can never fire (all q gaps are 0),
+and UCB becomes purely prior-driven. The prior (v1 score)
+systematically prefers attacking moves over quiet preventions
+(preventions ~0.032 vs attacks ~0.10–0.11), so the pick is
+the highest-prior attacking move — the worst possible
+fallback for a prevention position. v47 picks the losing move
+on g13 and g2 alike.
+
+This is a property of the pre-registered rule, not an
+implementation bug (the invariants in §1.4 hold; the
+collapse follows from the rule + the leaf distribution). No
+redesign is attempted: the rule was pre-registered, the
+battery is the verdict on its game strength, and the clause-3
+failure stands as recorded. The suite is NOT patched.
 
 ## 4. Verdict
 
