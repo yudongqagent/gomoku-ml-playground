@@ -802,3 +802,29 @@ is the verdict.
   (0.5) scored 0.45 on dev seeds; the validation leg
   scored 0.44 — consistent, not a dev-seed fluke. v48 is
   a slightly weaker v44, not a stronger one.
+
+### 9.3 vs v0 (no-search anchor)
+
+`selfplay_batch.py --engine-a v48 --engine-b v0 --games 100
+--seed-a 100 --seed-b 200` (logs `batt-v0.log`,
+`batt-v0-resume.log`, `batt-v0-resume2.log`; TWO runtime
+restarts interrupted this leg — resumed cleanly from game
+28, then from game 84; per-game seeding reproduces the
+uninterrupted run):
+
+- **53W-44L-3D, win rate 0.5450, Wilson 95% CI [0.4475,
+  0.6391]** — recomputed from raw records; matches the
+  driver exactly. (v44's bar number vs v0: 0.58.)
+- Uniqueness: **90/100 unique**. De-dup cut: 44W-43L-3D,
+  0.5056, CI [0.4042, 0.6065].
+- By colour: as Black 27W-20L-3D (0.5700); as White
+  26W-24L-0D (0.5200). **The White collapse vs v0 is
+  fixed in games**: White 0.52 vs v42's 0.28 and v44's
+  White-side weakness — the Black−White gap is now 0.05,
+  not 0.3+. The patch did what the diagnosis asked for
+  against the anchor.
+- But the fix did not add overall strength: 0.545 vs
+  v44's 0.58 against the same anchor, and the vs-v44 leg
+  (0.44) shows v48 is weaker overall. The patch traded
+  Black-side strength for White-side strength — a
+  redistribution, not an improvement.
