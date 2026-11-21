@@ -863,3 +863,23 @@ value-head failure. The §4 history-dependence is NOT
 implicated in the blunder (the leaf is right, the averaging
 is wrong) — so no loss-motivated retrain is authorised by
 §1.5. The battery is the verdict.
+
+## 6. Validation battery
+
+### 6.1 Tactical — COMPLETE 2026-11-21 — **CLAUSE 3 PASSES**
+
+`eval_tactical_full.py --version 49 --suite both --seed 100`
+(log `ml/runs/ml5-h2/tactical-v49.log`):
+
+- Old suite: **20/20** ✓
+- Hard suite (corrected): **29/29** ✓ — including
+  **setup-v1v0s-g92: chose (9,6)**, the quiet setup v31
+  failed. (As §0 predicted: 4-ply labels both (9,6) and
+  (5,4) at +1.0000, so the choice between them comes from
+  the search, not the label — and the search picks (9,6).)
+- v1bl-g2 (the v40 regression position): passed, chose
+  (7,5) — no leaf-value tie-break regression from the
+  4-ply labels.
+- v44's tactical was re-verified on the corrected suite
+  first (log `ml/runs/ml5-h2/tactical-v44-reverify.log`):
+  **20/20 + 29/29** — the bar reference's numbers stand.
