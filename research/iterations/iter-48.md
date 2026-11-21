@@ -776,3 +776,29 @@ is the verdict.
 - v44 re-verified on the corrected suite first (log
   `ml/runs/ml5-h1/tactical-v44-reverify.log`): 20/20 +
   29/29 — the bar reference's numbers stand.
+
+### 9.2 Clause 1: vs v44 (openings) — FAILS
+
+`selfplay_batch.py --engine-a v48 --engine-b v44 --games 100
+--openings research/openings-ml4.json --seed-a 100 --seed-b 200`
+(log `ml/runs/ml5-h1/batt-v44.log`, 11,785 s, no resume):
+
+- **41W-53L-6D, win rate 0.4400, Wilson 95% CI [0.3467,
+  0.5377]** — recomputed from the raw per-game records;
+  matches the driver exactly. Clause 1 needs wr > 0.50
+  with CI lower > 0.50: **FAIL**.
+- Uniqueness: **96/100 unique** games (openings worked).
+  De-dup cut: 38W-52L-6D, 0.4271, CI [0.3328, 0.5270] —
+  the verdict stands on the de-dup cut too.
+- By colour: as Black 25W-21L-4D (0.5400); as White
+  16W-32L-2D (0.3400). White is still the weak side by
+  0.20 against v44 — the holdout White gap closed, the
+  played White gap did not (fifth instance of holdout
+  not predicting played strength, after v31/v38/v42/v43).
+- All 6 draws were 225-ply full-board marathons (mean
+  plies 56.1); the draws are what made the leg slow
+  (~3.3 h under 3-way contention).
+- Note the direction of travel: the α sweep's best arm
+  (0.5) scored 0.45 on dev seeds; the validation leg
+  scored 0.44 — consistent, not a dev-seed fluke. v48 is
+  a slightly weaker v44, not a stronger one.
