@@ -538,7 +538,7 @@ ENGINE_VERSIONS: dict[int, dict] = {
     49: {"name": "scoring-v49", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml5-h2/value-net.pt",
-         "value_weight": 0.25},  # placeholder until the §1.4 α sweep sets it
+         "value_weight": 0.0625},  # sweep winner (0.550 vs 0.500 @ 0.125, 0.425 @ 0.25)
 }
 
 # --- weights --------------------------------------------------------------

@@ -762,3 +762,58 @@ of positions), so magnitudes barely track even when signs
 agree 73–75% of the time. r is used here ONLY for cross-depth
 comparison (where it is shift-invariant); the in-distribution
 fit measure is sign agreement, as in v24/v37/v44.
+
+## 5. α sweep and fast loops
+
+**Leaf cost (2026-11-21, `ml/runs/ml5-h2/leaf-bench.txt`):**
+`bench_value_leaf.py --checkpoint ml/runs/ml5-h2/value-net.pt
+--positions 20 --leaf-samples 200 --sims 100`: per-move at 100
+sims mean 3,364 ms / median 3,051 ms / p95 4,895 ms; net leaf
+evals per move mean 81.2 (21–99); per-leaf net eval median
+2.33 ms (mean 9.48 ms — a heavy tail under load: load average
+7.22 at measure time, sibling batch-5 workers running).
+Battery games run ~2–5 min each under contention; the 100-game
+matches are the long pole of this workstream.
+
+### 5.1 α sweep (2026-11-21, ~10:00–13:35 UTC)
+
+`sweep_alpha.py --version 49 --alphas 0.0625 0.125 0.25 --games
+20 --opponent v44 --seed-a 1001 --seed-b 2001 --out-dir
+research/iterations` (dev seeds, no openings). One VM
+replacement killed the run at α=0.125 game 7; the driver
+resumed from game 8 (4W-3L-1D) with per-game seeding —
+nothing lost. Log: `ml/runs/ml5-h2/sweep-alpha.log`;
+per-alpha JSONs in `research/iterations/alpha-v49-<α>-vs-v44.json`.
+All numbers below recomputed from the raw per-game records.
+
+| α | W-L-D | win rate | 95% CI | as Black | as White | unique |
+|---|-------|----------|--------|----------|----------|--------|
+| **0.0625** | **10-8-2** | **0.5500** | [0.3421, 0.7418] | 5-3-2 (0.600) | 5-5-0 (0.500) | 20/20 |
+| 0.125 | 9-9-2 | 0.5000 | [0.2993, 0.7007] | 5-4-1 (0.550) | 4-5-1 (0.450) | 20/20 |
+| 0.25 | 8-11-1 | 0.4250 | [0.2383, 0.6359] | 5-4-1 (0.550) | 3-7-0 (0.300) | 20/20 |
+
+Win rate is MONOTONE DECREASING in α — the third consecutive
+distilled net where the coolest swept α wins (v37: 0.25 > 0.5 >
+1.0; v44: 0.125 > 0.25 > 0.5; v49: 0.0625 > 0.125 > 0.25).
+The no-signal rule (§1.4) does NOT trigger: the arms span 10
+to 8 wins, a 2-win spread, not within one win of each other.
+**Selection (§1.4 rule, best win rate): α=0.0625.** Registry
+updated (`scoring.py`, `value_weight: 0.0625`); targeted
+tests 16/16 pass. The White split is where α bites: White
+falls 0.500 → 0.450 → 0.300 as α rises, while Black is flat
+(0.60/0.55/0.55) — the hotter 4-ply values hurt most when
+playing from behind, the same shape as v44's parity-shift
+story but milder (the 4-ply labels are NOT shifted; they are
+only hotter). The 20-game CIs overlap, so the α ranking is a
+point-estimate call, not a proven ordering — but the monotone
+shape across three grid points plus the mechanism (hotter
+labels → cooler α) makes 0.0625 the defensible pick, and the
+100-game clause-1 leg is the real verdict.
+
+Note the contrast with v37: its sweep winner was α=0.25 on
+the same-parity 2-ply labels. v49's winner sits two steps
+cooler, even though the labels share v37's parity — the
+hotness (mean|v| 0.22 vs 0.20, ±1 fraction 0.128 vs 0.106)
+alone pushes α down. If the 100-game battery confirms the
+sweep, the α lesson generalises further: cooler α tracks
+label hotness, not just parity.
