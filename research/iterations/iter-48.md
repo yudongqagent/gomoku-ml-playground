@@ -360,3 +360,131 @@ of 10 games vs v44 AND 10 games vs v0 (dev seeds).
 Any battery numbers measured before the fast loop
 completes are INTERMEDIATE, labelled as such; only
 the final battery counts for the bar.
+
+## 6. Diagnosis results — mechanism call: TREAT AS A (general White-side value-head defect)
+
+**Diagnosis COMPLETE 2026-11-21 ~01:35 PST** (labelling
+18.4 min under load ~7; raw `ml/runs/ml5-h1/diag.log`,
+JSON `ml/runs/ml5-h1/diag-white-collapse.json`).
+17,354 quiet positions from v44's 400 battery games
+(v0: 5,116; v7: 3,998; v8: 3,753; v37: 4,487).
+Validity check: the openings legs' `moves` include the
+opening plies (100/100 records in both legs — verified
+against the driver code, which prepends the opening),
+so the replay is exact.
+
+### 6.1 Primary subject: v44 net vs its 3-ply target (TRUE sides, full planes)
+
+| Cell | n | sign agreement | no-hist | Pearson r |
+|---|---|---|---|---|
+| v0: Black | 2,580 | 0.7820 | 0.7861 | 0.0799 |
+| v0: White | 2,536 | 0.7170 | 0.7225 | 0.1433 |
+| v7: Black | 2,095 | 0.7651 | 0.7711 | 0.0655 |
+| v7: White | 1,903 | 0.6993 | 0.6707 | 0.1208 |
+| v8: Black | 1,938 | 0.7805 | 0.7858 | 0.0687 |
+| v8: White | 1,815 | 0.6771 | 0.6934 | 0.0200 |
+| v37: Black | 2,357 | 0.7562 | 0.7630 | 0.0548 |
+| v37: White | 2,130 | 0.6805 | 0.6425 | 0.0744 |
+| heuristic-pooled: Black | 4,675 | 0.7743 | 0.7793 | 0.0651 |
+| heuristic-pooled: White | 4,439 | 0.7093 | 0.6999 | 0.1309 |
+| ml-pooled: Black | 4,295 | 0.7673 | 0.7735 | 0.0598 |
+| ml-pooled: White | 3,945 | 0.6789 | 0.6662 | 0.0482 |
+| overall | 17,354 | 0.7344 | 0.7320 | 0.0933 |
+
+Per-cell n ≈ 2,000, so the SE of a White-vs-Black
+difference is ≈ 0.014; the pooled SE is ≈ 0.009.
+
+**Applying the §2.3 rule:**
+- W_heur = 0.7093, W_ml = 0.6789, B_heur = 0.7743.
+- Mechanism A (heuristic-specific) requires W_heur
+  ≥ 0.05 below W_ml: **FAILS** — W_heur is 0.030
+  ABOVE W_ml. The net's White accuracy is BETTER on
+  heuristic-opponent positions than on ML-opponent
+  positions. The heuristic-specific misreading
+  hypothesis is REFUTED.
+- Mechanism B requires both gaps < 0.03: **FAILS** —
+  B_heur − W_heur = 0.065 (≈ 7 SE).
+- Grey zone (gap 1 = 0.030): per the pre-registered
+  rule, follow cut (a) — White-win accuracy vs
+  Black-win accuracy: v0 −0.059, v7 −0.077, v8
+  −0.097, v37 −0.106 — all four clear 0.05. **Treat
+  as A.**
+
+**What the mechanism actually is (honest restatement):
+a GENERAL White-to-move value-head defect, not a
+heuristic-specific one.** The net reproduces its
+teacher worse as White than as Black on EVERY
+opponent (gaps: v0 −0.065, v7 −0.066, v8 −0.103,
+v37 −0.076), and the gap is WORST against the ML
+opponents — the opposite of the §1 framing. The
+win/loss cut shows both halves of the defect:
+White-WIN positions (net undervalues White's
+winning chances — v30's pattern: 0.72–0.80 vs
+Black's 0.83–0.86) AND White-LOSE positions (net
+fails to see White is losing: 0.62–0.66 vs Black's
+0.71–0.75 — consistent with iter-44's hypothesis
+that the optimistic 3-ply labels make the net
+under-defend from behind). A search-horizon
+contribution is NOT excluded — the diagnosis shows
+a value-head defect exists; it does not prove the
+search innocent. The battery arbitrates whether
+fixing the value head fixes the played collapse.
+
+**Patch-cell rule (§2.3):** all four cells clear
+0.05 (v0 0.065, v7 0.066, v8 0.103, v37 0.076) →
+**ALL FOUR LEGS enter the patch** (§7): all quiet
+positions from v44's vs-v0, vs-v7, vs-v8, and
+vs-v37 battery legs, 2-ply labelled, on top of
+v37's 37,227-position base. The mix is determined
+by the mechanical rule, not chosen by hand.
+
+### 6.2 Second subject: v37 net vs its 2-ply target
+
+The v37 net shows the INVERSE side pattern: White
+BETTER than Black on every opponent (v0 0.6996 vs
+0.6093, v7 0.7887 vs 0.6896, v8 0.7499 vs 0.7072,
+v37 0.7473 vs 0.6887; overall 0.7056). v37 is the
+version that does NOT collapse as White (0.54 as
+White vs v44) — the correlation between White-side
+accuracy and White played strength holds across
+both subjects, which supports the value-head
+mechanism. Two further notes: (a) v37's net has a
+Black-side defect on v0 positions specifically
+(0.6093 — its worst cell by 0.08); (b) v37's
+no-history collapse reproduces on these positions
+(0.7056 → 0.5039 overall), while v44's net stays
+history-robust (0.7344 → 0.7320). Cross-net
+overall numbers are not comparable (different
+targets).
+
+### 6.3 The §0 contamination, quantified
+
+Index-inferred vs true-side White gaps (v44 net):
+v0 0.027 vs 0.065 (attenuated 58%), v7 0.058 vs
+0.066, v8 0.044 vs 0.103 (attenuated 57%), v37
+0.070 vs 0.076. The index-inferred split attenuates
+the true White gap by up to ~60% — iter-44 §4's
+"no White collapse" claim (Black 0.7463 / White
+0.7421, gap 0.004, on the holdout) was measured
+with this contaminated split and is unreliable.
+The true-side measurement here finds a real White
+gap of 0.065–0.103. (Different position sets, so
+this is not a direct replication of iter-44's
+holdout numbers — but the method flaw stands, and
+any future by-side claim on distill shards must
+use true sides.)
+
+## 7. Patch — §3.1 data patch (in progress)
+
+Per the §6 mechanism call: v48 = v8's search + a
+new net trained on v37's 2-ply-label recipe with
+the training set extended by ALL FOUR patch cells'
+positions (17,354 quiet positions from v44's
+battery legs, 2-ply labelled, game-level holdout
+every 10th game) on top of v37's 37,227-position
+base. Same architecture and training recipe as v37
+(ResNet 16ch/2 blocks, 15 epochs, batch 64, lr
+0.002 cosine, value MSE only, memmap path). α
+sweep {0.125, 0.25, 0.5} vs v44, 20 games each,
+dev seeds 1001/2001.
+
