@@ -1,6 +1,6 @@
 # Iteration 47 — v47: minimax backup at opponent nodes (batch 12, H3)
 
-**Status: IN PROGRESS — pre-registered, implementation pending.**
+**Status: COMPLETE — REJECTED (1/4 clauses pass: clause 4 only).**
 §1 was pre-registered BEFORE any eval of v47 (the mechanism
 verification in §1.1 uses v27 only — it is diagnosis, not a v47
 eval); §§2–5 will record the fast loop and battery. Comparison
@@ -371,6 +371,249 @@ redesign is attempted: the rule was pre-registered, the
 battery is the verdict on its game strength, and the clause-3
 failure stands as recorded. The suite is NOT patched.
 
+### 3.2 Head-to-head legs — clause 1 FAILS (0.2450 vs v27)
+
+All aggregates below were recomputed from the raw per-game
+records and match the stored JSON values exactly. All legs use
+validation seeds 100/200, per-game seeding, 100 games.
+
+**Leg 1 — vs v27, normal rules (clause 1): 20W-71L-9D,
+win rate 0.2450, Wilson 95% CI [0.1712, 0.3377]**
+(`research/iterations/batch-v47-vs-v27.json`, 6638.9s).
+As Black 13W-32L-5D (0.3100); as White 7W-39L-4D (0.1800).
+Uniqueness 97/100; de-dup 20W-68L-9D, 0.2526, CI
+[0.1767, 0.3473] — the de-dup cut agrees, so the failure is
+not a determinism artefact. Clause 1 fails decisively: the
+CI upper bound (0.3377) is far below 0.50. v47 loses to its
+own parent by a margin no other v27-family version has
+posted (v39 0.495, v40 0.525, v41 0.52 — all near-ties).
+
+**Leg 2 — vs v0, normal rules (secondary): 77W-21L-2D,
+win rate 0.7800, CI [0.6893, 0.8500]**
+(`research/iterations/batch-v47-vs-v0.json`; resumed from
+game 20 after the original H3 worker was killed by a restart
+drain, finished by the pickup worker; 3901.0s for the
+resumed 80 games). As Black 34W-14L-2D (0.7000); as White
+43W-7L-0D (0.8600) — the split INVERTS the usual pattern
+(v47 is better as White than as Black against v0). v27 beats
+v0 0.9650; v47 gives up 0.185 of that. Uniqueness is poor:
+**52/100 unique** — the worst determinism collapse on a
+battery leg since v36's 21/100, and the mirror-match
+mechanism is the same (per-game seeding does not help when
+the two engines' decisions are near-deterministic functions
+of the position). De-dup 35W-15L-2D, 0.6923, CI
+[0.5573, 0.8009] — the de-dup cut still clears 0.50, so the
+vs-v0 win is real, but the effective N is ~52, not 100.
+
+**Leg 3 — vs v27, SWAP rules (secondary): 35W-61L-4D,
+win rate 0.3700, CI [0.2818, 0.4678]**
+(`research/iterations/batch-v47-vs-v27-swap.json`,
+balanced placement, placement seed 11, tempo judge).
+As Black 22W-29L-1D (0.4327, n=52); as White 13W-32L-3D
+(0.3021, n=48). Uniqueness 100/100 (swap placement varies
+the openings). Swap helps v47 (+0.125 over normal rules —
+removing v27's empty-board opening edge) but the CI upper
+bound (0.4678) is still below 0.50: v47 loses under the
+official rules too. The leg took ~3.2h of wall clock across
+three runs (two runtime restarts; auto-resume + per-game
+seeding lost nothing — resumed from game 12, then game 80).
+
+**No challenge match:** v47 does not pass the bar, so no
+100-game match vs v18 is run (pre-registered rule, §1).
+
+### 3.3 Why minimax backup fails — mechanism analysis
+
+The battery is not a marginal failure: 0.245 vs the parent
+is the worst head-to-head of any v27-family version, and the
+mechanism is fully diagnosed — it is the §1.4 prediction
+playing out at scale, not a new surprise. Three linked
+effects, each with evidence:
+
+**1. Q-collapse destroys the search gradient (the primary
+mechanism).** In creator-rich positions nearly every quiet
+leaf returns −1.0, so nearly every subtree contains a
+visited −1.0 line, and the minimax backup sets q = −1.0 for
+almost every root child. The mean backup preserved the
+prevention signal as an average (prevention −0.75 vs
+non-prevention −1.0, a 0.25 gap the search could rank on);
+minimax erases it. Evidence: §3.1's two diagnosed positions
+(g13: ALL 74 visited children at −1.0 under v47; g2: 76/77
+at −1.0) and §1.4's mechanism check (on g61/g43 the safes
+ALSO went to −1.0 — minimax correctly values every move in
+a lost position at −1.0, destroying the "loss-speed"
+gradient the mean backup provided). The tactical suite is
+the clean readout: 8/8 failures are prevention positions,
+0/0 on setup / winning / VCF positions.
+
+**2. The tie-break is neutralised and UCB goes
+prior-driven (the visit-allocation interaction).** v27's
+τ=0.05 q-gap tie-break can never fire when all q gaps are
+exactly 0, so the root decision falls back to plain
+most-visited, and with q tied everywhere UCB's value term is
+dead — visits follow the prior. The v1 prior systematically
+prefers attacking moves (~0.10–0.11) over quiet preventions
+(~0.032), so the fallback pick is the worst possible one for
+a prevention position. Evidence: §3.1 (preventions 2v each
+under v47 vs 5v top-visit tie under v27 on g13; v47 picks
+the move that lost the original game on both diagnosed
+positions) and §1.4's own warning — the g61/g43 root pick
+flipped to safe ONLY because the safes happened to have the
+highest priors (0.1404 / 0.1342 vs the unsafe's 0.0757 /
+0.0838); on prevention positions the preventions have LOW
+priors, so the same channel fails systematically. This is
+the v40 lesson in a stronger form: v40's exact leaf values
+broke ONE visit tie (v1bl-g2); v47's backup breaks the
+tie-break on EVERY sharp position.
+
+**3. Over-pessimism vs weak opponents (the §1.2 predicted
+risk, realised).** Pure minimax prices the opponent's best
+reply exactly, so it gives up exploiting blunders: vs v0
+0.78 (de-dup 0.6923) against v27's 0.965, and the fast loop
+tied v0 5-5 in iteration 1. But this is NOT the v3/v5
+over-defensiveness: v47 does not block passively — it never
+misses a block (0 in every leg, §3.5) and its
+clean-missed-prevention rate is 1.0%, inside the v27-family
+range (0.4–1.3%). The failure is not defensive play; it is
+gradient-free play: in games the same mechanism as §3.1
+manifests as distributed drift (§2.1) — v47's prior-driven
+picks in sharp positions are often forcing moves (which
+count as "preventing" to the classifier) but weak attacks
+that build no lasting threat, so the position drifts until
+no prevention exists and the loss arrives via open four.
+The classifier cannot see this: defence is "solved" in the
+narrow sense on every leg while the engine loses 0.245.
+
+**What this closes.** The blunder-dilution fix in the form
+iter-40 §1.1e recorded ("minimax backup / max-backup for
+the opponent") is CLOSED: the dilution was real (g61/g43
+reproduce exactly) but it is not the binding constraint —
+the mean backup's averaging is LOAD-BEARING, not a bug. It
+is the only thing that preserves a ranking gradient in
+creator-rich positions, because the leaf distribution is
+nearly binary (−1.0 vs gradient leaves). Any future backup
+change must preserve a gradient across moves whose subtrees
+all contain a −1.0 line — pure minimax cannot, by
+construction. (A min-mean blend was rejected pre-registration
+as a confound; this result does not test it, and the
+q-collapse diagnosis predicts a blend would inherit the
+collapse in proportion to its min weight — but that is a
+prediction, not a result, and it is NOT run here.)
+
+**Cost note.** The minimax recompute costs ~3x per move
+(fast loop ~70–110s/game vs v27's ~22s/game pace; battery
+legs 3901s/100 games vs v0, 6638.9s vs v27). A secondary
+cost, not the cause of the strength loss.
+
+### 3.4 Ladder — clause 2 FAILS (Elo 214.8)
+
+`research/iterations/ladder-v47.json` (40 games/opponent,
+seed 100; resumed once from leg "mcts" after a runtime
+restart killed the first run — RNG state restored, legs 1–2
+kept):
+
+| Opponent | Result | Win rate | As Black | As White |
+|---|---|---|---|---|
+| random | 40W-0L-0D | 1.0000 | 20-0 | 20-0 |
+| heuristic (v0) | 31W-9L-0D | 0.7750, CI [0.6250, 0.8768] | 14W-6L | 17W-3L |
+| mcts (100 sims) | 26W-11L-3D | 0.6875, CI [0.5329, 0.8093] | 14W-4L-2D | 12W-7L-1D |
+
+**Ladder Elo 214.8, interval [88.7, 341.0]** (anchors
+random = −800, heuristic = 0). Clause 2 fails: 214.8 <
+636.4, and even the interval's upper bound (341.0) is far
+below the bar. The Elo estimate is driven by the heuristic
+leg (0.775 → +214.8 vs the anchor); v27's heuristic leg was
+39W-0L-1D. Note the internal split: v47 BEATS the ladder
+MCTS outright (26-11-3, the second v27-family version to do
+so after v29's 15-5 at 20 games) while losing 9 games to the
+heuristic — the same non-transitive shape as the battery
+(strong vs searching opponents, weak vs the greedy
+baseline), because the q-collapse costs most against an
+opponent that plays forcing moves v47's prior-driven search
+undervalues, and least against an opponent whose own search
+is equally gradient-starved. The ladder run also re-ran the
+old tactical suite: 20/20, confirming §3.1's old-suite
+result on the final tree.
+
+### 3.5 Defence audit (all legs)
+
+`classify_batch_losses.py` on all three battery legs
+(headline counts on A's turns in A's losses, batch-2
+convention):
+
+| Leg | Losses | Via open four | Missed blocks | Threatened turns (losses) | Clean missed preventions | Rate |
+|---|---|---|---|---|---|---|
+| vs v27 normal | 71 | 71 | 0 | 382 (572 all games) | 4 | 1.0% |
+| vs v0 | 21 | 21 | 0 | 171 (817 all games) | 0 | 0.0% |
+| vs v27 swap | 61 | 61 | 0 | 297 (554 all games) | 8 (in 7 games) | 2.7% |
+| **Pooled** | **153** | **153** | **0** | **850** | **12** | **1.4%** |
+
+Defence stays solved in the narrow sense: all 153 battery
+losses arrive via open four, 0 missed blocks anywhere. The
+pooled clean-missed-prevention rate is 1.4% — just above
+the v27-family range (0.4–1.3%), driven by the swap leg's
+2.7% (8 in 7 games): under swap, where the openings are
+sharper, the tactical prevention failure (§3.1) shows up in
+real games too. The normal-rules legs (1.0%, 0.0%) hide it
+because in games the same mechanism usually manifests as
+drift (§2.1, §3.3) rather than a clean miss — the
+classifier counts only turns where a preventing move
+existed, and by the time v47's position has drifted, often
+none does. The audit therefore CONFIRMS the §3.3 diagnosis
+rather than contradicting it: v47 defends immediate threats
+perfectly and loses the threat race anyway.
+
 ## 4. Verdict
 
-(TODO)
+**REJECTED — 1 of 4 clauses pass (clause 4 only).**
+
+| Clause | Requirement | v47 | Result |
+|---|---|---|---|
+| 1. Head-to-head vs v27 | win rate > 0.50, Wilson 95% CI lower > 0.50 | 20W-71L-9D, 0.2450, CI [0.1712, 0.3377]; de-dup 0.2526, CI [0.1767, 0.3473] | **FAIL** |
+| 2. Ladder Elo | > 636.4 (v27) | 214.8, interval [88.7, 341.0] | **FAIL** |
+| 3. Tactical (corrected suite) | 20/20 old + 29/29 hard | 20/20 old, **21/29 hard** (8 prevention failures) | **FAIL** |
+| 4. Test suites green | ml pytest, npm test, tsc | pytest 459 passed / 7 skipped / 58 xfailed / 0 failures; npm test 55/55; tsc clean | **PASS** |
+
+No challenge match vs v18 (requires a bar pass). v27 stays
+the bar reference; v18 stays the strength champion.
+
+**What v47 establishes.** The blunder-dilution diagnosis was
+correct (g61/g43 reproduce exactly; the leaf does not
+mis-rank) and the pre-registered fix was implemented
+correctly (the mechanism check's predicted q outcome holds:
+the unsafe child's our-q becomes exactly −1.0). The fix
+nevertheless fails catastrophically — 0.245 vs the parent is
+the worst head-to-head of any v27-family version — because
+the mean backup's averaging is load-bearing, not a bug: it
+is the only thing that preserves a ranking gradient in
+creator-rich positions, where the leaf distribution is
+nearly binary. Pure minimax backup at opponent nodes
+collapses that gradient (q-collapse), neutralises v27's
+tie-break, and hands the root decision to a prior that
+prefers attacks over preventions. **Pure minimax backup /
+max-backup for the opponent is CLOSED** as a fix for
+blunder dilution. The remaining mis-rankings (iter-40's
+blunder dilution) are real but second-order: fixing them by
+destroying the gradient costs far more than the dilution
+itself. Any future backup change must preserve a gradient
+across moves whose subtrees all contain a −1.0 line.
+
+**Secondary numbers, recorded for the program.** vs v0
+0.7800 (de-dup 0.6923; 52/100 unique — the worst
+determinism collapse since v36); swap vs v27 0.3700
+(100/100 unique); ladder MCTS beaten outright 26-11-3
+while the heuristic leg loses 9 games (non-transitive
+shape). Defence solved in the narrow sense on every leg
+(153/153 losses via open four, 0 missed blocks; pooled
+clean-missed-prevention rate 1.4%, just above the
+v27-family range, driven by the swap leg's 2.7%). Cost:
+~3x per move vs v27.
+
+**Pickup note.** The original H3 worker was killed by a
+restart drain mid-battery (leg 1 + tactical done); the
+pickup worker finished legs 2–3, the ladder, the defence
+audit, and this log. Three further runtime restarts hit the
+pickup (swap leg ×2, ladder ×1); auto-resume + per-game
+seeding lost zero games — every resumed run reproduced the
+uninterrupted run exactly. All aggregates in §3 were
+recomputed from the raw per-game records and match the
+stored JSON values exactly.
