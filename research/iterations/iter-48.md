@@ -614,3 +614,54 @@ White deficit here; v48's is the more accurate
 one. **Caveat (standing): holdout does not predict
 played strength — the battery is the verdict.**
 
+
+## 8. α sweep and fast loops
+
+**Leaf cost (2026-11-21, `ml/runs/ml5-h1/leaf-bench.txt`):**
+`bench_value_leaf.py --checkpoint ml/runs/ml5-h1/value-net.pt
+--positions 20 --leaf-samples 200 --sims 100`: per-move at 100
+sims mean 4,120 ms / median 3,458 ms / p95 6,786 ms; net leaf
+evals per move mean 80.7 (17–99); per-leaf net eval median
+5.94 ms. Comparable to v44's bench (mean 5,190 ms under load
+7.45) — same architecture, as expected.
+
+### 8.1 α sweep (2026-11-21, ~02:12–04:06 PST)
+
+`sweep_alpha.py --version 48 --alphas 0.125 0.25 0.5 --games 20
+--opponent v44 --seed-a 1001 --seed-b 2001` (dev seeds, no
+openings). One runtime restart killed the run during game 19
+of the α=0.125 leg; the driver resumed from game 19
+(6W-11L-2D) with per-game seeding — nothing lost. Log:
+`ml/runs/ml5-h1/sweep-alpha.log`; per-alpha JSONs in
+`research/iterations/alpha-v48-<α>-vs-v44.json`.
+
+| α | W-L-D | win rate | 95% CI | as Black | as White | unique |
+|---|-------|----------|--------|----------|----------|--------|
+| 0.125 | 6-11-3 | 0.3750 | [0.1998, 0.5905] | 2-6-2 (0.300) | 4-5-1 (0.450) | 20/20 |
+| 0.25 | 5-15-0 | 0.2500 | [0.1119, 0.4687] | 2-8-0 (0.200) | 3-7-0 (0.300) | 20/20 |
+| **0.5** | **9-11-0** | **0.4500** | [0.2582, 0.6579] | 5-5-0 (0.500) | 4-6-0 (0.400) | 20/20 |
+
+Win rate is U-shaped in α (0.375 / 0.250 / 0.450) — NOT the
+monotone-decreasing shape v44's sweep showed (0.725 / 0.600 /
+0.475), and NOT v37's monotone shape either (0.25 > 0.5 >
+1.0 vs v8). **Selection (§3.1 rule, best win rate):
+α=0.5.** Registry updated (`scoring.py`,
+`value_weight: 0.5`). The no-signal rule does not apply
+(arms differ by up to 4 wins). The 20-game CIs overlap
+heavily, so the α ranking is a point-estimate call, not a
+proven ordering — and ALL THREE arms sit below 0.50
+against v44, so the sweep's honest message is that v48
+loses to v44 on dev seeds at every α. The 100-game
+clause-1 leg (validation seeds, openings) is the real
+verdict.
+
+Two observations: (1) at α=0.125 and α=0.25, v48's White
+OUTPERFORMS its Black (0.450 vs 0.300; 0.300 vs 0.200) —
+the reverse of v44's White collapse, and consistent with
+the §7.3 finding that the patch closed the White-side
+accuracy gap. The patch may have fixed White at the cost
+of overall strength vs v44, or the net is simply weaker
+in this matchup. (2) Three of the twenty α=0.125 games
+were 225-ply full-board draws (~10 min each) — the
+v48-vs-v44 matchup produces marathon draws, which will
+make the 100-game battery legs slow.
