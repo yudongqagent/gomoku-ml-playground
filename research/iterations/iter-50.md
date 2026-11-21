@@ -301,6 +301,23 @@ heuristic legs (v50 below v37 on both, by 0.11 vs v0 and 0.025
 vs v7) is consistent with cooling α costing a little against
 heuristic opponents.
 
+### 5.4 swap vs v7 (tempo judge, balanced placement, seed 11) — COMPLETE
+
+`batch-v50-vs-v7-swap.json`: **40W-55L-5D, win rate 0.4250,
+Wilson 95% CI [0.3327, 0.5229]**. As Black 23W-26L-3D (0.47);
+as White 17W-29L-2D (0.375) — under swap the colour split
+narrows sharply vs normal rules (0.54/0.31), as the swap rule
+removes the first-player confound. Uniqueness **100/100** (swap
+placement varies the openings); de-dup identical, 0.4250. This
+leg survived the third runtime restart (chain killed at 5
+games, resumed cleanly from game 5 — the marathon game 5
+replayed deterministically from its per-game seed).
+
+Comparison: v37 swap vs v7 was 0.4400 (42W-54L-4D); v44 swap vs
+v7 was 0.3900 (38W-60L-2D). v50's 0.4250 sits between them,
+closest to v37 — again the v37-level read, not the v44-level
+read.
+
 ## 6. Ladder
 
 (TODO)
