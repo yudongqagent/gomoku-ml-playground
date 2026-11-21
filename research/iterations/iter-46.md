@@ -1,8 +1,10 @@
 # Iteration 46 — v46: White-side statistics, then patch what the statistics point to (batch 12, H2)
 
-**Status: PRE-REGISTERED — §1 was written and committed BEFORE any
-statistics collection or eval of v46. Statistics (§2), patch or
-fallback decision (§3), fast loop (§4), and battery (§5) follow.**
+**Status: COMPLETE — v46 REJECTED 2/4 (§5).** §1 was written and
+committed BEFORE any statistics collection or eval of v46
+(pre-registered). Statistics (§2) found no patchable White
+asymmetry, so the §1.2 fallback triggered (§3); fast loop (§4)
+found no defect; the battery (§5) fails clauses 1 and 2.
 
 **Method (carried over).** The fast 10-game loop stays the finding
 method: play 10 games, read every move, find each game's losing move
@@ -567,3 +569,154 @@ mistake at all three. These are shared search-horizon misses,
 not v46 defects: the min-aggregation is not implicated in any
 fast-loop loss. **No defect found; no patch; proceed to the
 battery.**
+
+## 5. Battery — REJECTED 2/4
+
+All aggregates below were recomputed from the raw per-game
+records and match the drivers' summaries exactly. Battery
+seeds 100/200 throughout (§1.3).
+
+### 5.1 Head-to-head vs v27, normal rules (clause 1) — FAIL
+
+`ml/scripts/selfplay_batch.py --engine-a v46 --engine-b v27
+--games 100 --seed-a 100 --seed-b 200`
+(`research/iterations/batch-v46-vs-v27.json`, resumed from
+game 68 after a VM kill; per-game seeding reproduces the
+uninterrupted run): **50W-44L-6D, win rate 0.5300, 95% CI
+[0.4329, 0.6249]** — the CI lower bound is below 0.50, so
+clause 1 FAILS. De-dup cut: 95 unique games, 0.5053, CI
+[0.4065, 0.6036] — also fails. As Black 30W-20L-0D (0.6000),
+as White 20W-24L-6D (0.4600).
+
+### 5.2 vs v0, normal rules (secondary)
+
+`--engine-a v46 --engine-b v0 --games 100 --seed-a 100
+--seed-b 200` (`batch-v46-vs-v0.json`): **88W-10L-2D, win
+rate 0.8900, 95% CI [0.8137, 0.9375]**; de-dup 79 unique,
+0.8608, CI [0.7676, 0.9204]. As Black 46W-3L-1D (0.9300), as
+White 42W-7L-1D (0.8500). Against v27's 96W-3L-1D (0.9650)
+on the same seeds: 10 losses vs 3 — and v27 lost 0 as White
+while v46 lost 7. **The §1.2 caution is realized**: pure min
+undervalues attacks whose value depends on the opponent NOT
+finding the best reply; against v0, which blunders
+constantly, those attacks usually work, but v46 prices them
+at their worst case and does not play them — so it drifts
+into positions where v0's greedy play builds open fours.
+(The defence audit, §5.7, confirms the losses are not
+prevention failures.)
+
+### 5.3 Swap vs v27 (secondary)
+
+`--engine-a v46 --engine-b v27 --games 100 --swap-rule
+--placement balanced --placement-seed 11 --judge tempo
+--seed-a 100 --seed-b 200`
+(`batch-v46-vs-v27-swap.json`): **47W-50L-3D, win rate
+0.4850, 95% CI [0.3894, 0.5817]**; 100/100 unique. As Black
+32W-20L-0D (0.6154), as White 15W-30L-3D (0.3438). The
+second player chose Black in 88/100 games (v46 chose Black
+45/50 when second; v27 chose Black 43/50) — the balanced
+openings favour Black. v46 won 33/50 when v27 opened but
+only 14/50 when it opened itself: the White side under swap
+is weak (0.3438), consistent with the normal-rules White
+split (0.4600).
+
+### 5.4 Ladder (clause 2) — FAIL
+
+`ml/scripts/eval_version.py --version 46 --ladder-games 40
+--out research/iterations/ladder-v46.json`: **ladder Elo
+381.7, interval [209.4, 554.0]** — below v27's 636.4, and
+the interval's upper bound (554.0) is below the bar, so
+clause 2 FAILS clearly.
+
+| Opponent | Result | Win rate | 95% CI | As Black | As White |
+|---|---|---|---|---|---|
+| random | 40W-0L-0D | 1.0000 | [0.9124, 1.0000] | 20W-0L-0D | 20W-0L-0D |
+| heuristic | 36W-4L-0D | 0.9000 | [0.7695, 0.9604] | 20W-0L-0D | 16W-4L-0D |
+| mcts | 32W-8L-0D | 0.8000 | [0.6524, 0.8950] | 19W-1L-0D | 13W-7L-0D |
+
+Comparison with v27's ladder (20 games/opponent: random
+20-0, heuristic 19W-0L-1D at 0.975, mcts 13W-7L-0D at 0.65
+→ Elo 636.4): v46's mcts leg is BETTER than v27's (0.80 vs
+0.65 — the min leaf helps against the strong, non-blundering
+MCTS), but the heuristic leg is much worse (0.90 vs 0.975,
+all 4 losses as White) — and the Elo is driven by the
+heuristic leg (anchor 0). Same mechanism as §5.2: the
+min-aggregation's cost concentrates against the greedy
+opponent. No saturation issue: the only 40-0 leg is random
+(the pre-registered leg-result reading is not needed — the
+heuristic leg is 36-4, far from saturation). The ladder's
+tactical probe independently confirms old 20/20.
+
+### 5.5 Tactical (clause 3) — PASS
+
+v27 re-verified FIRST on the same command
+(`eval_tactical_full.py --version 27 --suite both --seed
+100`): 20/20 old, 29/29 hard. v46
+(`eval_tactical_full.py --version 46 --suite both --seed
+100`): **20/20 old, 29/29 hard**, no failures. Artefact
+`research/iterations/tactical-v46.json`.
+
+### 5.6 Tests (clause 4) — PASS
+
+ml pytest **458 passed, 7 skipped, 58 xfailed**; npm test
+**55/55**; `tsc --noEmit` clean.
+
+### 5.7 Defence audit
+
+`ml/scripts/classify_batch_losses.py` on all three legs
+(artefacts `classify-v46-vs-v27.json`,
+`classify-v46-vs-v0.json`, `classify-v46-vs-v27-swap.json`):
+
+| Leg | Losses | Via open four | Missed blocks | Clean missed preventions in losses |
+|---|---|---|---|---|
+| vs v27 | 44 | 44 | 0 | 1 / 202 threatened turns (0.5%) |
+| vs v0 | 10 | 10 | 0 | 0 / 55 (0.0%) |
+| swap vs v27 | 50 | 50 | 0 | 0 / 251 (0.0%) |
+| **Total** | **104** | **104** | **0** | **1 / 508 (0.2%)** |
+
+**Defence stays solved**: all 104 battery losses are via
+open four, 0 missed blocks in any game. The single clean
+missed prevention (vs-v27 game 77, ply 31: played (10,6),
+leaving the creator (5,5) live) is one instance in 100
+games — noise-level, not a mechanism. v46's losses are not
+prevention failures: the deterioration vs weak opponents is
+over-pessimism about the opponent's reply (attacks
+undervalued), not defence.
+
+### 5.8 Verdict — REJECTED (2 of 4 clauses)
+
+| Clause | Requirement | v46 | Result |
+|---|---|---|---|
+| 1 h2h vs v27 | > 0.50, CI lower > 0.50 | 0.5300, CI [0.4329, 0.6249] | FAIL |
+| 2 ladder Elo | > 636.4 | 381.7 [209.4, 554.0] | FAIL |
+| 3 tactical | 20/20 + 29/29 | 20/20 + 29/29 | PASS |
+| 4 tests | all suites green | pytest 458/7/58, npm 55/55, tsc clean | PASS |
+
+**v46 is REJECTED.** No challenge match (not a bar-passer);
+v27 stays the bar reference, v18 stays the strength
+champion.
+
+**What this closes.** Leaf-level pure-min aggregation as a
+blunder-dilution fix: the mechanism's cost (over-pessimism
+vs blundering opponents — vs v0 0.89 vs v27's 0.965, ladder
+heuristic leg 0.90 vs 0.975, Elo 381.7 vs 636.4) exceeds its
+benefit (no measurable gain vs v27: 0.53 with the CI
+including 0.50; the mcts ladder leg improved 0.65 → 0.80
+but the heuristic leg collapsed). The min leaf helps against
+an opponent that always finds the best reply and hurts
+against one that blunders — and the battery's Elo anchor is
+the blunderer. The v40 finding stands: the remaining
+mis-rankings are averaging/visit-allocation (search
+problems), and the leaf-level variant does not fix them
+either. H3's backup-rule variant (v47) is a DIFFERENT
+mechanism and is NOT closed by this result — but it should
+expect the same vs-blunderer cost if it also makes the
+engine pessimistic about opponent replies; v47's battery
+should watch the heuristic leg first.
+
+**What stands independently.** The §2 statistics result is
+unaffected by the fallback's failure: across 80 games and
+3,783 turns there is no White-side error-rate asymmetry
+worth patching, and the White gap as a systematic-defect
+framing stays CLOSED (iter-41's finding, now confirmed at
+population level).

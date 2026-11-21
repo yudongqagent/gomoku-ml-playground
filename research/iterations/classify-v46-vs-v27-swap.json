@@ -1,0 +1,817 @@
+{
+  "batch": "batch-v46-vs-v27-swap.json",
+  "engine_a": "scoring-v46",
+  "engine_b": "scoring-v27",
+  "games": 100,
+  "losses": 50,
+  "losses_via_open_four": 50,
+  "missed_blocks": 0,
+  "missed_blocks_in_losses": 0,
+  "threatened_turns": 492,
+  "threatened_turns_in_losses": 251,
+  "clean_missed_preventions": 0,
+  "clean_missed_preventions_in_losses": 0,
+  "games_with_missed_prevention": 0,
+  "per_game": [
+    {
+      "game": 0,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 1,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 7,
+      "missed_preventions": []
+    },
+    {
+      "game": 2,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 5,
+      "missed_preventions": []
+    },
+    {
+      "game": 3,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 4,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 12,
+      "missed_preventions": []
+    },
+    {
+      "game": 5,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 6,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 7,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 8,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 9,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 10,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 9,
+      "missed_preventions": []
+    },
+    {
+      "game": 11,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 5,
+      "missed_preventions": []
+    },
+    {
+      "game": 12,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 5,
+      "missed_preventions": []
+    },
+    {
+      "game": 13,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 5,
+      "missed_preventions": []
+    },
+    {
+      "game": 14,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 12,
+      "missed_preventions": []
+    },
+    {
+      "game": 15,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 0,
+      "missed_preventions": []
+    },
+    {
+      "game": 16,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 17,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 0,
+      "missed_preventions": []
+    },
+    {
+      "game": 18,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 19,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 20,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 21,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 22,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 23,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 24,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 7,
+      "missed_preventions": []
+    },
+    {
+      "game": 25,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 26,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 5,
+      "missed_preventions": []
+    },
+    {
+      "game": 27,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 28,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 1,
+      "missed_preventions": []
+    },
+    {
+      "game": 29,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 30,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 12,
+      "missed_preventions": []
+    },
+    {
+      "game": 31,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 32,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 33,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 34,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 35,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 36,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 37,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 38,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 39,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 40,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 41,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 15,
+      "missed_preventions": []
+    },
+    {
+      "game": 42,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 43,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 0,
+      "missed_preventions": []
+    },
+    {
+      "game": 44,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 1,
+      "missed_preventions": []
+    },
+    {
+      "game": 45,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 46,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 47,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 48,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 10,
+      "missed_preventions": []
+    },
+    {
+      "game": 49,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 50,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 1,
+      "missed_preventions": []
+    },
+    {
+      "game": 51,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 52,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 7,
+      "missed_preventions": []
+    },
+    {
+      "game": 53,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 16,
+      "missed_preventions": []
+    },
+    {
+      "game": 54,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 55,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 8,
+      "missed_preventions": []
+    },
+    {
+      "game": 56,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 57,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 58,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 59,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 60,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 61,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 10,
+      "missed_preventions": []
+    },
+    {
+      "game": 62,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 8,
+      "missed_preventions": []
+    },
+    {
+      "game": 63,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 64,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 0,
+      "missed_preventions": []
+    },
+    {
+      "game": 65,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 8,
+      "missed_preventions": []
+    },
+    {
+      "game": 66,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 7,
+      "missed_preventions": []
+    },
+    {
+      "game": 67,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 68,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 9,
+      "missed_preventions": []
+    },
+    {
+      "game": 69,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 1,
+      "missed_preventions": []
+    },
+    {
+      "game": 70,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 71,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 72,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 73,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 7,
+      "missed_preventions": []
+    },
+    {
+      "game": 74,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 75,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 0,
+      "missed_preventions": []
+    },
+    {
+      "game": 76,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 77,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 78,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 7,
+      "missed_preventions": []
+    },
+    {
+      "game": 79,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 80,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 81,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 4,
+      "missed_preventions": []
+    },
+    {
+      "game": 82,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 83,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 1,
+      "missed_preventions": []
+    },
+    {
+      "game": 84,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 85,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 17,
+      "missed_preventions": []
+    },
+    {
+      "game": 86,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 3,
+      "missed_preventions": []
+    },
+    {
+      "game": 87,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 5,
+      "missed_preventions": []
+    },
+    {
+      "game": 88,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 15,
+      "missed_preventions": []
+    },
+    {
+      "game": 89,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 5,
+      "missed_preventions": []
+    },
+    {
+      "game": 90,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 91,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 6,
+      "missed_preventions": []
+    },
+    {
+      "game": 92,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 11,
+      "missed_preventions": []
+    },
+    {
+      "game": 93,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 1,
+      "missed_preventions": []
+    },
+    {
+      "game": 94,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 5,
+      "missed_preventions": []
+    },
+    {
+      "game": 95,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 1,
+      "missed_preventions": []
+    },
+    {
+      "game": 96,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 7,
+      "missed_preventions": []
+    },
+    {
+      "game": 97,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 2,
+      "missed_preventions": []
+    },
+    {
+      "game": 98,
+      "a_lost": true,
+      "loss_via_open_four": true,
+      "missed_blocks": [],
+      "threatened_turns": 7,
+      "missed_preventions": []
+    },
+    {
+      "game": 99,
+      "a_lost": false,
+      "loss_via_open_four": null,
+      "missed_blocks": [],
+      "threatened_turns": 5,
+      "missed_preventions": []
+    }
+  ]
+}
