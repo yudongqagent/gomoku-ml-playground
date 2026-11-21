@@ -531,3 +531,39 @@ every one of the 20 positions. Absolute times are inflated
 by the H1 workstream sharing the VM during the bench; the
 alternating-engines ratio is the robust number. The battery
 decides whether the cost is worth it.
+
+## 4. Fast loop (10 games vs v27, 10 games vs v0)
+
+`ml/scripts/fast_loop_match.py --version-a 46 --opponent v27
+--games 10 --seed-a 1146 --seed-b 2146`
+(`research/iterations/fl-v46-vs-v27.json`) and the same vs v0
+with seeds 1147/2147 (`fl-v46-vs-v0.json`):
+
+- **vs v27: 6W-4L-0D, win rate 0.6000, 95% CI
+  [0.3127, 0.8318]**, 828.2 s, 10/10 unique. As Black 4W-1L,
+  as White 2W-3L. (Game 8 ran 161 plies, a v46 win as Black.)
+- **vs v0: 9W-1L-0D, win rate 0.9000, 95% CI
+  [0.5958, 0.9821]**, 588.3 s, 10/10 unique. The §1.2 caution
+  (min-aggregation hurting vs v0's constant blunders) does not
+  show up in 10 games; the 100-game battery leg decides.
+
+**Loss analysis** (`ml/scripts/find_losing_moves.py`, depth-4
+VCF solver, solver-verified losing moves, never guessed):
+
+| Loss | Losing ply (1-indexed) | Played | Saving moves | Already lost? |
+|---|---|---|---|---|
+| vs v27 g0 (Black, 44 plies) | 41 | (3,4) | — | yes |
+| vs v27 g3 (White, 41 plies) | 38 | (8,4) | — | yes |
+| vs v27 g5 (White, 35 plies) | 30 | (7,5) | (3,9) | no |
+| vs v27 g7 (White, 39 plies) | 34 | (9,4) | (6,4) | no |
+| vs v0 g4 (Black, 28 plies) | 23 | (10,4) | (11,3), (6,5), (7,5) | no |
+
+Two losses are already-lost drift (no reply avoids the loss).
+For the three with saving moves, the control was run: at each
+position, with the game's seed, **v27 chooses the identical
+losing move** — v46 reproduces its game move exactly at all
+three positions (determinism check) and v27 makes the same
+mistake at all three. These are shared search-horizon misses,
+not v46 defects: the min-aggregation is not implicated in any
+fast-loop loss. **No defect found; no patch; proceed to the
+battery.**
