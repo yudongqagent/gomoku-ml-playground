@@ -986,6 +986,76 @@ def _rollout3_leaf_value(board: np.ndarray, player: int) -> float:
     return -_rollout_leaf_value(b3, -player)
 
 
+def _rollout4_leaf_value(board: np.ndarray, player: int) -> float:
+    """v49 4-ply label: v18's rollout-leaf value evaluated 4 plies
+    ahead under the teacher's own rollout policy (ML batch 5 H2 —
+    see ``research/iterations/iter-49.md`` §1).
+
+    The teacher is v18's rollout leaf — the SAME teacher as v24
+    (1-ply), v37 (2-ply) and v44 (3-ply), for comparability. The
+    label for a quiet position (``board``, ``player`` to move) is:
+
+    * ply 1 (teacher's move): ``m1 = _rollout_move(board, player)``.
+      If terminal (``term1`` is not None), the label is ``term1``
+      — from ``player``'s perspective, as in
+      :func:`_rollout_leaf_value` at ply 0.
+    * ply 2 (opponent's reply): ``m2 = _rollout_move(board+m1,
+      -player)``. If terminal, the label is ``-term2`` (``term2``
+      is from the opponent's perspective; negated to ``player``'s,
+      as in :func:`_rollout_leaf_value` at ply 1).
+    * ply 3 (teacher's move): ``m3 = _rollout_move(board+m1+m2,
+      player)``. If terminal, the label is ``term3`` — from
+      ``player``'s perspective, as at ply 1.
+    * ply 4 (opponent's reply): ``m4 = _rollout_move(
+      board+m1+m2+m3, -player)``. If terminal, the label is
+      ``-term4`` — from the opponent's perspective, negated to
+      ``player``'s, as at ply 2.
+    * otherwise the label is ``_rollout_leaf_value(
+      board+m1+m2+m3+m4, player)`` — ``player`` to move again at
+      the resulting position, so NO negation (the even-horizon
+      form, like the 2-ply form — unlike the 3-ply form, which
+      ends with the opponent to move and negates).
+
+    The label is in [-1, 1] from the side-to-move perspective,
+    exactly like v24's, v37's and v44's. The function is defined
+    on quiet positions (the labelling pipeline only calls it where
+    ``_terminal_leaf_value == 0.0``); on non-quiet positions it
+    still answers, with the rollout's own convention (see
+    :func:`_rollout2_leaf_value`). The board is not mutated (the
+    rollout plays on copies via :func:`gomoku_ml.game.apply_move`).
+
+    Effective horizon: 4 plies of rollout-policy play + the 2
+    plies inside :func:`_rollout_leaf_value` = 6 plies, vs v44's
+    5, v37's 4 and v24's 2. The move-selection rule is the
+    teacher's own policy for the same reasons as v37's (no
+    optimizer's-curse bias in the labels; the minimax reply was
+    measured and rejected at 2-ply, ~50x the cost with no better
+    discrimination — iter-37 §0). The parity hypothesis (iter-49
+    §0): the even horizon should reverse the 3-ply labels'
+    systematic optimism — the leaf is evaluated after the
+    OPPONENT just moved, as at 1-ply and 2-ply, so the 4-ply
+    labels should look more like the 2-ply labels (mean ≈ −0.06,
+    fraction positive ≈ 0.23) than the 3-ply labels (mean +0.10,
+    fraction positive 0.73)."""
+    m1, term1 = _rollout_move(board, player)
+    if term1 is not None:
+        return term1
+    b1 = game.apply_move(board, m1, player)
+    m2, term2 = _rollout_move(b1, -player)
+    if term2 is not None:
+        return -term2
+    b2 = game.apply_move(b1, m2, -player)
+    m3, term3 = _rollout_move(b2, player)
+    if term3 is not None:
+        return term3
+    b3 = game.apply_move(b2, m3, player)
+    m4, term4 = _rollout_move(b3, -player)
+    if term4 is not None:
+        return -term4
+    b4 = game.apply_move(b3, m4, -player)
+    return _rollout_leaf_value(b4, player)
+
+
 class HeuristicMCTS:
     """PUCT search with v1 priors and a terminal-aware leaf value.
 

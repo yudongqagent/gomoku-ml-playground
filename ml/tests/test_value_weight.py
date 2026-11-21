@@ -96,6 +96,26 @@ def test_value_weight_v44_registry_passthrough(tmp_path):
         entry["value_checkpoint"] = saved
 
 
+def test_value_weight_v49_registry_passthrough(tmp_path):
+    # v49's registry entry (ML batch 5 H2): checkpoint path is
+    # fixed; value_weight is the §1.4 α-sweep winner, one of the
+    # swept grid {0.0625, 0.125, 0.25} (0.25 is also the
+    # pre-sweep placeholder, so the test passes before the sweep
+    # sets the winner). A player built from the registry must
+    # carry whatever the entry holds.
+    ckpt = _random_net_checkpoint(tmp_path)
+    entry = scoring.ENGINE_VERSIONS[49]
+    assert entry["value_checkpoint"] == "ml/runs/ml5-h2/value-net.pt"
+    assert entry["value_weight"] in (0.0625, 0.125, 0.25)
+    saved = entry["value_checkpoint"]
+    try:
+        entry["value_checkpoint"] = ckpt
+        player = scoring.get_player(49, seed=0)
+        assert player._mcts.value_weight == entry["value_weight"]
+    finally:
+        entry["value_checkpoint"] = saved
+
+
 def test_v8_registry_has_no_value_weight():
     # v8's entry has no value_weight key, so the dispatch passes
     # None and v8 keeps VALUE_WEIGHT 0.25 exactly.
