@@ -883,3 +883,33 @@ is wrong) — so no loss-motivated retrain is authorised by
 - v44's tactical was re-verified on the corrected suite
   first (log `ml/runs/ml5-h2/tactical-v44-reverify.log`):
   **20/20 + 29/29** — the bar reference's numbers stand.
+
+### 6.2 vs v44 — COMPLETE 2026-11-21 ~16:32 UTC — **CLAUSE 1 FAILS**
+
+`selfplay_batch.py --engine-a v49 --engine-b v44 --games 100
+--openings research/openings-ml4.json --seed-a 100 --seed-b 200`
+(log `ml/runs/ml5-h2/batt-v44.log`; JSON
+`research/iterations/batch-v49-vs-v44.json`). 13,194 s wall,
+no interruptions. All numbers below recomputed from the raw
+per-game records.
+
+- **43W-48L-9D, win rate 0.4750, Wilson 95% CI [0.3799,
+  0.5720]** — win rate < 0.50 and CI lower < 0.50 ✗. v49
+  LOSES to v44 head-to-head. The even-parity 4-ply labels do
+  NOT beat the odd-parity 3-ply labels: the parity reversal
+  (§0) did not translate into played strength.
+- Uniqueness audit: **100 unique games in 100** (the
+  --openings set + per-game seeding; the best uniqueness of
+  any ML-vs-ML leg — v44's was 93). De-dup cut identical.
+- Colour splits: as Black **25W-19L-6D (0.5600)**, as White
+  **18W-29L-3D (0.3900)** — a White gap (0.17), though not
+  the v44-vs-v37-style collapse (0.16). Black won 54, White
+  won 37.
+- Comparison: the 20-game sweep leg at the same α was 0.55
+  (10W-8L-2D) — the 100-game leg reverses it to 0.475. The
+  sweep's point-estimate ranking did not reproduce at 100
+  games (the CIs overlap: sweep [0.3421, 0.7418] vs battery
+  [0.3799, 0.5720]); the battery is the verdict, as always.
+  The α sweep selected the best of three noisy arms, and the
+  winner's-regression is visible: all three arms' 20-game
+  CIs contain the 100-game result.
