@@ -318,6 +318,29 @@ v7 was 0.3900 (38W-60L-2D). v50's 0.4250 sits between them,
 closest to v37 — again the v37-level read, not the v44-level
 read.
 
+### 5.5 vs v37 — the mirror match (openings) — COMPLETE
+
+`batch-v50-vs-v37.json`: **48W-46L-6D, win rate 0.5100,
+Wilson 95% CI [0.4135, 0.6058]**. As Black 28W-20L-2D (0.58);
+as White 20W-26L-4D (0.44). Uniqueness **100/100** — the
+openings did their job even in the mirror (same net on both
+sides); de-dup identical, 0.5100. This leg survived the
+fourth AND fifth runtime restarts (killed at 21 and at 70
+games; resumed cleanly both times, zero games lost). Two
+225-ply marathon draws in this leg (games 34 and 77) — the
+mirror's two identical engines agree so often that neither
+finds a forcing line and the board fills.
+
+This is the direct α measurement: the same checkpoint at
+α=0.125 vs α=0.25 is statistically indistinguishable over
+100 games (0.51, CI [0.4135, 0.6058] spanning 0.50 by a wide
+margin). Cooling α does NOT by itself change the 2-ply net's
+played strength — and the vs-v0 (0.475 vs v37's 0.585) and
+vs-v7 (0.425 vs v37's 0.450) legs suggest that if anything it
+costs a little against heuristic opponents, though both CIs
+overlap. The mirror result is the ablation's cleanest single
+number: α alone cannot reproduce v44's Elo gain.
+
 ## 6. Ladder
 
 (TODO)
