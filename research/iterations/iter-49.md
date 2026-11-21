@@ -817,3 +817,49 @@ hotness (mean|v| 0.22 vs 0.20, ±1 fraction 0.128 vs 0.106)
 alone pushes α down. If the 100-game battery confirms the
 sweep, the α lesson generalises further: cooler α tracks
 label hotness, not just parity.
+
+### 5.2 Fast loop iteration 1 (α=0.0625, seeds 1001/2001)
+
+- vs v44: the α=0.0625 sweep leg itself (20 games, same dev
+  seeds) — **10W-8L-2D (0.5500)**. As Black 5-3-2, as White
+  5-5-0. All 20 games unique.
+- vs v0: **3W-7L-0D (0.30)**, CI [0.1078, 0.6032], 442 s
+  (`research/iterations/fast-v49-vs-v0-iter1.json`). Worse
+  than v44's 0.55 and v37's 0.35 in the same loop, though all
+  three CIs are wide (10 games each).
+- Loss classification (both matches): **15 losses, 15 via open
+  four, 0 missed blocks, 0 clean missed preventions in 72
+  threatened turns.** Defence as measured is clean — the
+  losses are positional drift into unstoppable open fours,
+  not blundered blocks. Same pattern as v37/v44.
+- Losing moves (`find_losing_moves.py`, VCF solver depth 4;
+  raw `ml/runs/ml5-h2/losing-moves-iter1.txt`): **14 of 15
+  losses were already lost** at the first VCF moment. **ONE
+  genuine blunder:** vs v44 game 15 (White, 57 plies), ply
+  43 — (12,5), 1 save (8,9).
+
+**Workup — vs-v44 game 15, ply 43 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml5-h2/diag-v44-g15-ply43.txt`)
+shows a q-vs-LEAF inversion: the actual (12,5) has our-q
+−0.114 vs the save's −0.142 (a 0.028 gap, within noise), but
+the exact 1-ply leaf ranks the save clearly first (v22 leaf
++0.139 vs +0.014; v14 leaf +0.039 vs −0.098). The priors are
+essentially tied (0.1110 actual vs 0.1112 save — the prior
+marginally favours the save). The leaf is RIGHT; the
+backed-up root q inverts it through subtree averaging on a
+very flat root (top move 10 visits over 108 children). This
+is v40's "blunder dilution / visit allocation" class — a
+search problem, not a leaf problem (the leaf-blind direction
+is CLOSED, and batch 12 rejected both blunder-dilution fixes:
+v46's leaf-level pure-min and v47's pure minimax backup).
+Not patchable within H2's remit: changing visit allocation is
+shared heuristic-track code, and "more sims" is a closed
+lever.
+
+**Fast-loop STOP after iteration 1:** no patchable weakness
+class for v49 within H2's design space. The single blunder is
+a visit-allocation inversion in shared search code, not a
+value-head failure. The §4 history-dependence is NOT
+implicated in the blunder (the leaf is right, the averaging
+is wrong) — so no loss-motivated retrain is authorised by
+§1.5. The battery is the verdict.
