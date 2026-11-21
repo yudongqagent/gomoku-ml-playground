@@ -319,3 +319,215 @@ change, registered as version 46 with
   relaunch the SAME command. The drivers seed per game (`seed +
   game_index`) and audit uniqueness — every leg reports its
   distinct-game count and de-dup rate.
+
+## 2. Phase 1 results — the statistics (80 games, 3,783 turns)
+
+**Corpus as pre-registered.** (S1) 60-game v27 self-play, seeds
+1046/2046, 58 unique games
+(`research/iterations/stats-v27-selfplay-60.json`, 35W-23L-2D
+from engine A's perspective); (S2) 20-game v27 vs v0, seeds
+1047/2047, 16 unique games
+(`research/iterations/stats-v27-vs-v0-20.json`, 20W-0L-0D).
+Analysis by the committed `ml/scripts/white_stats.py`; merged
+output `research/iterations/white-stats-v46.json` (legs:
+sp-0-9, sp-10-39, sp-40-59, vs-v0-20; per-leg outputs
+`white-stats-v46-sp1039.json`, `white-stats-v46-sp4059.json`,
+`white-stats-v46-v0.json`). Total analysis elapsed 12.0 h
+across legs (VCF enumeration + losing-move analysis per game;
+the batch-12 H1 workstream shared the VM throughout).
+**Pickup note:** the original H2 worker was killed by a restart
+drain mid-analysis; the pickup resumed from the per-game
+checkpoints (sp-10-39: 16→30, sp-40-59: 13→20, vs-v0: 8→20 —
+no completed game was re-analysed). The sp-0-9 leg's checkpoint
+covers games 0-9 of the 60-game file, so it cannot go through
+`--merge`'s completeness check (which requires next_game ==
+the input file's game count); it was merged directly from its
+checkpoint state, verified to cover exactly games 0-9
+(first-threat game ids 0–9, all error/decisive game ids ⊆
+0–9), and the merge asserted self-play coverage 0–59 exactly
+once. The error records from that leg still carry the input
+file's basename (`stats-v27-selfplay-60.json`) — cosmetic
+only; the game numbers identify them.
+
+### 2.1 Statistic 1 — win rate by colour
+
+| Leg | Black wins | White wins | Draws | Black rate [95% CI] | White rate [95% CI] |
+|---|---|---|---|---|---|
+| Self-play (60) | 35 | 23 | 2 | 0.5833 [0.4573, 0.6994] | 0.3833 [0.2709, 0.5098] |
+| vs v0 (20) | 10 | 10 | 0 | 0.5000 [0.2993, 0.7007] | 0.5000 [0.2993, 0.7007] |
+| Pooled (80) | 45 | 33 | 2 | 0.5625 | 0.4125 |
+
+In self-play the engines are identical (they differ only by RNG
+stream), so Black's 35–23 edge is first-move advantage plus
+noise (engine A won 20 as Black and 15 as White). Against v0,
+v27 went 10–0 as Black AND 10–0 as White — White is not weak
+against the greedy opponent. Per §1.1, statistic 1 alone is
+NOT enough: a win-rate gap without an error-rate gap is
+first-move advantage / drift, not a patchable mechanism.
+
+### 2.2 The patch-rule statistics (3 and 8) — the read-off
+
+Pooled gaps (White minus Black), the pre-registered read-off
+from `white_stats.summarize`:
+
+| Band | Statistic | Black | White | Diff | 95% CI | (a)? |
+|---|---|---|---|---|---|---|
+| midgame | 3 creator | 0.0164 (3/183) | 0.0164 (3/183) | 0.0000 | [-0.0260, 0.0260] | no |
+| midgame | 8 VCF | 0.0410 (8/195) | 0.0455 (9/198) | +0.0044 | [-0.0358, 0.0446] | no |
+| endgame | 3 creator | 0.0000 (0/127) | 0.0229 (3/131) | +0.0229 | [-0.0027, 0.0485] | no |
+| endgame | 8 VCF | 0.0355 (5/141) | 0.0872 (13/149) | +0.0518 | [-0.0028, 0.1064] | no |
+| opening | 3 creator | 0.0000 (0/27) | 0.0000 (0/84) | 0.0000 | [0.0, 0.0] | excluded |
+| opening | 8 VCF | 0.0000 (0/27) | 0.0000 (0/84) | 0.0000 | [0.0, 0.0] | excluded |
+
+**(a) FAILS on every statistic × band.** The closest approach
+is endgame VCF: the point estimate (+5.18 pp) clears the 5 pp
+magnitude bar, but the 95% CI [-0.28 pp, +10.64 pp] includes
+0 — it misses by 0.28 pp on the lower bound. (a) requires
+BOTH conditions, so it fails. Midgame is a dead tie on
+creators (3 errors each) and +0.44 pp on VCF.
+
+**The signal does not reproduce across slices/matchups**
+(per-leg gaps, White minus Black):
+
+| Leg | Midgame VCF | Endgame VCF |
+|---|---|---|
+| sp-0-9 | +0.0400 (1/25 vs 0/31), CI incl. 0 | +0.0500 (1/20 vs 0/10), CI incl. 0 |
+| sp-10-39 | −0.0211 (2/82 vs 3/66), CI incl. 0 | +0.0868 (6/47 vs 2/49), CI incl. 0 |
+| sp-40-59 | +0.0678 (4/59 vs 0/41), CI excl. 0 | −0.0592 (1/48 vs 2/25), CI incl. 0 |
+| vs-v0-20 | −0.0252 (2/32 vs 5/57), CI incl. 0 | +0.1295 (5/34 vs 1/57), CI excl. 0 |
+| self-play pooled | +0.0204, CI [-0.0186, 0.0595] | +0.0219, CI [-0.0431, 0.0870] |
+
+Two single-slice gaps exclude 0 (sp-40-59 midgame VCF,
+vs-v0 endgame VCF) — but they point in opposite directions
+across slices (sp-10-39 midgame VCF is −0.0211, sp-40-59
+endgame VCF is −0.0592), and the self-play-only pooled gaps
+are +0.0204 / +0.0219 with CIs including 0. That is what
+slice noise looks like, not a systematic defect. The
+pre-registered rule reads the pooled gap, and the pooled gap
+fails (a).
+
+### 2.3 Supporting statistics (2, 4–7, 9, 10)
+
+Pooled rates, per colour × band (3,783 turns: Black 1,915,
+White 1,868):
+
+| Statistic | Band | Black | White |
+|---|---|---|---|
+| 2 threatened-turn rate | opening | 0.0563 | 0.1750 |
+| 2 threatened-turn rate | midgame | 0.2460 | 0.2521 |
+| 2 threatened-turn rate | endgame | 0.1838 | 0.1979 |
+| 4 forced-block share | opening | 0.0000 | 0.0250 |
+| 4 forced-block share | midgame | 0.1075 | 0.1391 |
+| 4 forced-block share | endgame | 0.1302 | 0.1949 |
+| 5 quiet creator creation | opening | 0.1854 | 0.1016 |
+| 5 quiet creator creation | midgame | 0.4536 | 0.4123 |
+| 5 quiet creator creation | endgame | 0.4576 | 0.4111 |
+| 5 quiet VCF creation | opening | 0.2119 | 0.1068 |
+| 5 quiet VCF creation | midgame | 0.5633 | 0.5190 |
+| 5 quiet VCF creation | endgame | 0.5379 | 0.4881 |
+| 7 VCF-start exposure | midgame | 0.2718 | 0.5707 |
+| 7 VCF-start exposure | endgame | 1.1986 | 0.7248 |
+| 10 v1 regret (mean) | opening | 613.8 | 178.8 |
+| 10 v1 regret (mean) | midgame | 9520.5 | 8654.2 |
+| 10 v1 regret (mean) | endgame | 11872.7 | 11716.5 |
+
+- **6 First threat:** Black first holds a VCF start at mean
+  ply 10.7 (n=79, never 1) and a creator at 10.9; White at
+  15.6 (n=80, never 0) and 15.8. Black threatens ~5 plies
+  earlier — first-move advantage, as expected.
+- **9 Decisive phase:** White losses 45 (24 midgame, 21
+  endgame), Black losses 33 (11 midgame, 22 endgame);
+  already-lost at first-loser detection in 28/45 White
+  losses and 25/33 Black losses — most losses are
+  already-lost drift, consistent with iter-41's loss-by-loss
+  finding (distributed drift + no-signature horizon losses).
+- **Error instances:** 44 total (creator: Black 3 / White 3
+  midgame, White 3 endgame; VCF: Black 8 / White 9 midgame,
+  Black 5 / White 13 endgame), against 680 controls
+  (threatened turns where the mover prevented). The 13 White
+  endgame VCF errors' best-preventing v1 ranks are 1–6
+  (mostly 1–3) and their played v1 ranks mostly 1–2: the
+  preventing move is usually top-ranked by v1 and the engine
+  plays its top move and still misses — there is no
+  "preventing move ranked below 8th" signature to patch.
+  (Moot: (a) already fails, so (b) is never reached — but
+  the instance inspection independently shows no shared
+  low-rank signature hiding in the closest band.)
+
+**Reading.** Every positive finding is first-move-advantage
+shaped: Black threatens earlier (~5 plies) and creates more
+often; White faces more threats in the opening and blocks
+more often (forced-block share higher in every band). But
+there is NO error-rate gap behind any of it — White prevents
+as well as Black does (midgame creator errors tied 3–3;
+midgame VCF +0.44 pp). White's worse record is the position
+it defends, not the defence it plays.
+
+### 2.4 Verdict — "no asymmetry worth patching"
+
+(a) fails on every statistic × band (the closest, endgame
+VCF, clears the magnitude bar but its CI includes 0 by
+0.28 pp, and the signal does not reproduce across
+slices/matchups). Per the §1.1 decision rule this is **"no
+asymmetry worth patching" → the fallback (§1.2) triggers**.
+This is the population-level confirmation of iter-41's
+loss-by-loss finding: the White gap is not a systematic
+v27-White defect, and there is no statistics-nominated patch
+to build. A negative statistics result is a program finding,
+not a failed iteration — the numbers above are committed in
+full (`research/iterations/white-stats-v46.json`).
+
+## 3. Phase 2 — the fallback triggers: v46 = v27 + leaf-level top-K min aggregation
+
+**Decision.** The §1.1 decision rule fires the fallback:
+(a) failed on every statistic × band (§2.2), so v46 is v27
+with the pre-registered leaf change of §1.2
+(`leaf_mode="rollout2_v1_both_mink4"`), registered as version
+46. No statistics patch was designed — there was nothing to
+patch.
+
+**Implementation** (`ml/gomoku_ml/mcts_heuristic.py`,
+`_rollout_leaf_value_mink4` + `_rollout_end_value`, +145
+lines; registry entry in `ml/gomoku_ml/scoring.py`, version
+46 = v27's entry with only `leaf_mode` changed). The change
+is confined to the rollout leaf's quiet-case opponent-reply
+step: the MIN over the opponent's top-K = 4 replies by v1
+total score (pure min, no blend; K = 4 fixed by the
+mechanism). Terminal positions, the ply-0 rollout move, and
+all forced replies are v27-identical (verified by test, not
+just by reading); the backup rule, priors, root rule, and
+the τ=0.05 tie-break are untouched. The documented corner
+case stands: if the opponent holds an open-four creation AND
+four or more higher-total replies, the creator falls outside
+the top-K and the min misses the −1 — that needs four 200k+
+replies outranking a 200k+ creator, and the battery decides
+whether it matters in practice. This is the LEAF-level
+blunder-dilution variant, distinct from v47's backup-rule
+change.
+
+**Tests.** 7 new v46 tests in `ml/tests/test_mcts_heuristic.py`
+(registration + v27-untouched control, unknown-leaf-mode
+rejection, terminal equality vs v27, independent min
+recomputation on two corpus positions for both colours,
+mink4 ≤ v27 leaf on quiet midgame positions, no board
+mutation, determinism). Full ml pytest green: **458 passed,
+7 skipped, 58 xfailed**; npm test **55/55**; `tsc --noEmit`
+clean. (Pickup note: the implementation + tests were written
+by the original H2 worker and left uncommitted; the pickup
+verified the diff against §1.2 line by line, ran the tests,
+and committed them — no failures were left behind.)
+
+**Cost guard** (§1.2). Mean move time on a fresh 20-position
+quiet-position bench from v27 self-play games (games 0–17,
+19, 20 at ply 15–16 — the earliest quiet ply in 15–40;
+game 18 skipped, no quiet position in plies 15–40; engines
+alternated per position; one warm-up position discarded;
+artefact `research/iterations/bench-v46-cost.json`):
+**v27 mean 1.80 s** (median 1.83, range 1.18–2.32),
+**v46 mean 2.83 s** (median 2.99, range 1.53–3.77),
+**ratio 1.57×** — inside the expected ~1.5–2× (4 gradient
+evaluations instead of 1 at the leaf). v46 is slower at
+every one of the 20 positions. Absolute times are inflated
+by the H1 workstream sharing the VM during the bench; the
+alternating-engines ratio is the robust number. The battery
+decides whether the cost is worth it.
