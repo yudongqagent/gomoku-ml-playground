@@ -857,3 +857,23 @@ uninterrupted run):
   The White fix was bought by losing Black-side strength
   — a redistribution, confirmed on the second heuristic
   opponent.
+
+### 9.5 vs v37 (strongest ML version by head-to-head, openings)
+
+`selfplay_batch.py --engine-a v48 --engine-b v37 --games 100
+--openings research/openings-ml4.json --seed-a 100 --seed-b 200`
+(logs `batt-v37.log`, `batt-v37-resume.log`; one runtime
+restart — resumed cleanly from game 70):
+
+- **29W-65L-6D, win rate 0.3200, Wilson 95% CI [0.2367,
+  0.4166]** — recomputed from raw records; matches the
+  driver exactly. (v44's number vs v37: 0.31 — v48 is
+  level with v44 here, both well below v37.)
+- Uniqueness: **94/100 unique**. De-dup cut: 25W-63L-6D,
+  0.2979, CI [0.2148, 0.3968].
+- By colour: as Black 18W-29L-3D (0.3900); as White
+  11W-36L-3D (0.2500). White is still the weak side
+  against v37 — but 0.25 is better than v44's White 0.16
+  vs v37, so the patch did lift White against the
+  strongest ML opponent too; Black (0.39 vs v44's
+  implied ~0.46) gave back most of the gain.
