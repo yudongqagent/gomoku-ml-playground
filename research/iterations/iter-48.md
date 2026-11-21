@@ -488,3 +488,129 @@ base. Same architecture and training recipe as v37
 sweep {0.125, 0.25, 0.5} vs v44, 20 games each,
 dev seeds 1001/2001.
 
+### 7.1 Labelling (actuals)
+
+`generate_distill_data.py label --label-mode
+rollout2` over the four battery-legs games files
+(converted from the battery JSONs; winner mapped
+black→1 / white→−1 / draw→0 for the int64 shard
+field). 10.0 min total, no interruptions.
+
+| Leg | Games | Plies | Quiet positions | ±1 labels | Held-out games |
+|---|---|---|---|---|---|
+| vs v0 | 100 | 6,342 | 5,116 (4,546 train / 570 holdout) | 271 (5.3%) | 10 |
+| vs v7 | 100 | 4,896 | 3,998 (3,677 train / 321 holdout) | 293 (7.3%) | 10 |
+| vs v8 | 100 | 4,599 | 3,753 (3,186 train / 567 holdout) | 300 (8.0%) | 10 |
+| vs v37 | 100 | 5,429 | 4,487 (4,194 train / 293 holdout) | 281 (6.3%) | 10 |
+| **Total new** | **400** | **21,266** | **17,354 (15,603 train / 1,751 holdout)** | **1,145 (6.6%)** | **40** |
+
+Quiet counts match the §6 diagnosis EXACTLY per
+leg (5,116 / 3,998 / 3,753 / 4,487) — the labelling
+reproduces the diagnosis positions. Base shards
+copied verbatim from `gomoku-ml3-h2` and verified:
+33,849 train / 3,378 holdout = 37,227, matching
+v37's record. **Total train set: 49,452 positions**
+(33,849 base + 15,603 new); total holdout 5,129.
+Memmap bundle `ml/runs/ml5-h1/data-mmap/`: 1,097
+shards, 49,452 samples, planes (49452, 8, 15, 15).
+
+### 7.2 Training (actuals)
+
+**Training COMPLETE 2026-11-21 ~02:01 PST**
+(started ~01:36 PST, ~25 min, no interruptions):
+config `ml/configs/ml5-h1.yaml`, 15 epochs, batch
+64, memmap bundle (49,452 samples; 46,979 train /
+2,473 val, seed-0 split). Run dir
+`ml/runs/ml5-h1-train/`; log `ml/runs/ml5-h1/
+train.log`. 11,025 steps, ~82–140 s/epoch.
+
+| Epoch | Train loss | Val loss |
+|---|---|---|
+| 1 | 0.0999 | 0.0986 |
+| 2 | 0.0958 | 0.0955 |
+| 3 | 0.0943 | 0.0946 |
+| 4 | 0.0935 | 0.0937 |
+| 5 | 0.0918 | 0.0949 |
+| 6 | 0.0907 | 0.0918 |
+| 7 | 0.0894 | 0.0906 |
+| 8 | 0.0880 | 0.0877 |
+| 9 | 0.0863 | 0.0892 |
+| 10 | 0.0843 | 0.0874 |
+| 11 | 0.0830 | 0.0853 |
+| 12 | 0.0812 | 0.0847 |
+| 13 | 0.0811 | 0.0844 |
+| 14 | 0.0806 | **0.0841** |
+| 15 | 0.0804 | 0.0846 |
+
+Val loss decreased overall (small bumps at epochs
+5, 9, 15) — no overfitting by epoch 15. **Best
+checkpoint: epoch 14 (`best.pt`, val 0.0841)** —
+the `--out` copy at `ml/runs/ml5-h1/value-net.pt`
+is verified bit-identical in weights to `best.pt`
+(max |Δ| 0.0), so the registry path holds the
+best-by-val-loss checkpoint as pre-registered.
+Architecture verified: ResNet 16ch/2 blocks,
+126,759 params, 48 tensors — identical counts to
+v24's, v37's, v44's, and v8's checkpoints.
+Checkpoint md5: `a8c7a0bcfd749ac774ec9762c829d672`.
+
+### 7.3 Holdout diagnostics (actuals)
+
+Game-level holdouts (never trained on), targets =
+2-ply labels. v48 net = `ml/runs/ml5-h1/
+value-net.pt`; v37 net = `ml/runs/ml3-h2/
+value-net.pt` (same targets, same positions —
+direct comparison). Overall sign agreement via
+`eval_value_holdout.py` (its by-side split is
+contaminated — §0 — so by-side comes from the new
+`score_shards_by_side.py`, which recovers TRUE
+sides by replay).
+
+| Holdout | n pos | v48 sign (full) | v48 sign (no-hist) | v37 sign (full) | v37 sign (no-hist) |
+|---|---|---|---|---|---|
+| v7 (base) | 2,050 | 0.7600 | 0.7595 | 0.7395 | 0.5163 |
+| v18 (base) | 790 | 0.8321 | 0.8423 | 0.8436 | 0.5846 |
+| random (base) | 538 | 0.6942 | 0.5403 | 0.6623 | 0.6604 |
+| vs-v0 (new) | 570 | 0.7073 | 0.7132 | 0.6582 | 0.4951 |
+| vs-v7 (new) | 321 | 0.8176 | 0.8208 | 0.7453 | 0.5409 |
+| vs-v8 (new) | 567 | 0.6923 | 0.7081 | 0.6450 | 0.4852 |
+| vs-v37 (new) | 293 | 0.7560 | 0.7560 | 0.7285 | 0.6014 |
+| **base pooled** | **3,378** | **0.7666** | — | **0.7519** | — |
+| **new pooled** | **1,751** | **0.7329** | — | **0.6837** | — |
+
+v48 beats v37's net on 6 of 7 holdouts (only v18
+full is lower, −0.011) and by +0.049 pooled on
+the new patch-cell holdouts. **The v48 net is
+HISTORY-ROBUST on engine positions** (v7 no-hist
+drop 0.0005, v18 no-hist BETTER than full) — the
+v37 collapse (0.7395 → 0.5163) is gone, like
+v44's net. The exception is random positions
+(no-hist 0.5403 vs full 0.6942) — the net leans
+on history for random-playout positions, the
+least game-like source; engine positions are
+what the leaf sees in real games.
+
+**By TRUE side on the patch-cell positions**
+(`score_shards_by_side.py`, 2-ply labels):
+
+| Split | v48 Black | v48 White | White − Black | v37 Black | v37 White |
+|---|---|---|---|---|---|
+| ALL positions (17,354; 90% trained-on) | 0.7399 | 0.7837 | **+0.044** | — | — |
+| HOLDOUT only (1,751; unseen) | 0.7368 | 0.7291 | **−0.008** | 0.6581 | 0.7094 |
+
+On unseen games the pooled White gap is −0.008 —
+essentially CLOSED, vs v44's −0.065…−0.103 on the
+same position distribution (different target, so
+the comparison is of the gap construct, not of
+absolute accuracy). Per-leg holdout cells are too
+noisy to read individually (10 games each,
+game-clustered: v0 White 0.5655 vs Black 0.8636
+while v8 White 0.8674 vs Black 0.5021 — opposite
+swings that cancel in the pooled number). v37's
+net on the same unseen positions has a White
+ADVANTAGE (+0.051) at lower overall accuracy
+(0.684 vs v48's 0.733) — both nets are free of a
+White deficit here; v48's is the more accurate
+one. **Caveat (standing): holdout does not predict
+played strength — the battery is the verdict.**
+
