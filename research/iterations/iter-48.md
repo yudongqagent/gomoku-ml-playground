@@ -760,3 +760,19 @@ search code, none a value-head failure. The §7.3
 history-robustness is NOT implicated in any blunder.
 No loss-motivated retrain is authorised. The battery
 is the verdict.
+
+## 9. Validation battery
+
+### 9.1 Tactical — CLAUSE 3 PASSES
+
+`eval_tactical_full.py --version 48 --suite both --seed 100`
+(log `ml/runs/ml5-h1/tactical-v48.log`):
+
+- Old suite: **20/20** ✓
+- Hard suite (corrected): **29/29** ✓ — including
+  **setup-v1v0s-g92: chose (9,6)**, the quiet setup v31
+  failed, and v1bl-g2 (the v40 regression position):
+  passed.
+- v44 re-verified on the corrected suite first (log
+  `ml/runs/ml5-h1/tactical-v44-reverify.log`): 20/20 +
+  29/29 — the bar reference's numbers stand.
