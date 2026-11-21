@@ -1,0 +1,368 @@
+[
+  {
+    "batch": "batch-v45-vs-v27-swap.json",
+    "engine_a": "scoring-v45",
+    "engine_b": "scoring-v27",
+    "games": 100,
+    "losses": 39,
+    "via_open_four": 39,
+    "missed_blocks": 0,
+    "missed_block_games": 0,
+    "clean_missed_preventions": 0,
+    "missed_prevention_games": 0,
+    "threatened_turns": 201,
+    "details": [
+      {
+        "plies": 27,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 4,
+        "game": 2
+      },
+      {
+        "plies": 28,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 2,
+        "game": 9
+      },
+      {
+        "plies": 23,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 4,
+        "game": 10
+      },
+      {
+        "plies": 36,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 1,
+        "game": 12
+      },
+      {
+        "plies": 28,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 4,
+        "game": 13
+      },
+      {
+        "plies": 33,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 6,
+        "game": 14
+      },
+      {
+        "plies": 24,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 5,
+        "game": 15
+      },
+      {
+        "plies": 44,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 3,
+        "game": 21
+      },
+      {
+        "plies": 105,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 11,
+        "game": 22
+      },
+      {
+        "plies": 106,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 10,
+        "game": 23
+      },
+      {
+        "plies": 68,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 6,
+        "game": 29
+      },
+      {
+        "plies": 40,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 7,
+        "game": 31
+      },
+      {
+        "plies": 41,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 2,
+        "game": 34
+      },
+      {
+        "plies": 78,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 7,
+        "game": 35
+      },
+      {
+        "plies": 30,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 4,
+        "game": 39
+      },
+      {
+        "plies": 37,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 4,
+        "game": 42
+      },
+      {
+        "plies": 27,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 2,
+        "game": 50
+      },
+      {
+        "plies": 33,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 4,
+        "game": 52
+      },
+      {
+        "plies": 41,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 10,
+        "game": 60
+      },
+      {
+        "plies": 36,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 5,
+        "game": 61
+      },
+      {
+        "plies": 29,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 4,
+        "game": 63
+      },
+      {
+        "plies": 33,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 5,
+        "game": 66
+      },
+      {
+        "plies": 30,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 2,
+        "game": 67
+      },
+      {
+        "plies": 28,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 3,
+        "game": 69
+      },
+      {
+        "plies": 31,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 4,
+        "game": 70
+      },
+      {
+        "plies": 40,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 2,
+        "game": 71
+      },
+      {
+        "plies": 45,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 9,
+        "game": 72
+      },
+      {
+        "plies": 41,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 9,
+        "game": 74
+      },
+      {
+        "plies": 61,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 9,
+        "game": 76
+      },
+      {
+        "plies": 33,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 7,
+        "game": 80
+      },
+      {
+        "plies": 36,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 5,
+        "game": 81
+      },
+      {
+        "plies": 83,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 8,
+        "game": 82
+      },
+      {
+        "plies": 35,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 4,
+        "game": 84
+      },
+      {
+        "plies": 45,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 5,
+        "game": 85
+      },
+      {
+        "plies": 73,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 6,
+        "game": 90
+      },
+      {
+        "plies": 34,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 3,
+        "game": 91
+      },
+      {
+        "plies": 47,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 6,
+        "game": 92
+      },
+      {
+        "plies": 24,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 5,
+        "game": 94
+      },
+      {
+        "plies": 41,
+        "loser_colour": "white",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 4,
+        "game": 98
+      }
+    ]
+  }
+]

@@ -1,0 +1,954 @@
+{
+  "positions": [
+    {
+      "id": "v35-vcf-prev-v27v7-g4-ply44",
+      "choose_move": [
+        14,
+        7
+      ],
+      "vcf_root_move": [
+        13,
+        7
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        13,
+        7
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "v35-vcf-prev-v27v7-g10-ply44",
+      "choose_move": [
+        3,
+        6
+      ],
+      "vcf_root_move": [
+        3,
+        6
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        3,
+        6
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "v35-vcf-prev-v27v7-g21-ply33",
+      "choose_move": [
+        5,
+        7
+      ],
+      "vcf_root_move": [
+        5,
+        7
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        5,
+        7
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "v35-vcf-prev-v27v7-g44-ply40",
+      "choose_move": [
+        12,
+        10
+      ],
+      "vcf_root_move": [
+        10,
+        13
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        10,
+        13
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "v35-vcf-prev-v27v7-g32-ply24",
+      "choose_move": [
+        10,
+        2
+      ],
+      "vcf_root_move": [
+        10,
+        2
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        10,
+        2
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "v35-search-first-fast-v0-g2-ply12",
+      "choose_move": [
+        4,
+        8
+      ],
+      "vcf_root_move": [
+        8,
+        8
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        8,
+        8
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "v35-search-first-fast-v0-g3-ply9",
+      "choose_move": [
+        5,
+        9
+      ],
+      "vcf_root_move": [
+        5,
+        5
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        5,
+        5
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "v35-search-first-fast-v0-g5-ply9",
+      "choose_move": [
+        9,
+        5
+      ],
+      "vcf_root_move": [
+        5,
+        5
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        5,
+        5
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-win-h-open4",
+      "choose_move": [
+        2,
+        7
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": [
+        7,
+        7
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-win-v-open4",
+      "choose_move": [
+        7,
+        2
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": [
+        7,
+        7
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-win-diag-open4",
+      "choose_move": [
+        2,
+        2
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": [
+        7,
+        7
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-win-antidiag-open4",
+      "choose_move": [
+        11,
+        2
+      ],
+      "vcf_root_move": [
+        6,
+        7
+      ],
+      "vcf_offensive": [
+        6,
+        7
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-win-half-open4",
+      "choose_move": [
+        7,
+        7
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": [
+        7,
+        7
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-win-gap-fill",
+      "choose_move": [
+        5,
+        7
+      ],
+      "vcf_root_move": [
+        5,
+        7
+      ],
+      "vcf_offensive": [
+        5,
+        7
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-win-diag-gap-fill",
+      "choose_move": [
+        5,
+        5
+      ],
+      "vcf_root_move": [
+        5,
+        5
+      ],
+      "vcf_offensive": [
+        5,
+        5
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-win-edge",
+      "choose_move": [
+        0,
+        0
+      ],
+      "vcf_root_move": [
+        0,
+        0
+      ],
+      "vcf_offensive": [
+        0,
+        0
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-win-two-fours",
+      "choose_move": [
+        7,
+        2
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": [
+        7,
+        7
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-block-h-four",
+      "choose_move": [
+        7,
+        7
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        7,
+        7
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-block-v-four",
+      "choose_move": [
+        7,
+        7
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        7,
+        7
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-block-diag-four",
+      "choose_move": [
+        7,
+        7
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        7,
+        7
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-block-edge-four",
+      "choose_move": [
+        4,
+        7
+      ],
+      "vcf_root_move": [
+        4,
+        7
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        4,
+        7
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-block-gap-four",
+      "choose_move": [
+        5,
+        7
+      ],
+      "vcf_root_move": [
+        5,
+        7
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        5,
+        7
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-counter-win-vs-open4",
+      "choose_move": [
+        7,
+        2
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": [
+        7,
+        7
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": true
+    },
+    {
+      "id": "tactical_positions-trap-avoid",
+      "choose_move": [
+        7,
+        7
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        7,
+        7
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-double-threat-create",
+      "choose_move": [
+        7,
+        7
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": [
+        7,
+        7
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-double-threat-defence",
+      "choose_move": [
+        7,
+        7
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        7,
+        7
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-vcf-1",
+      "choose_move": [
+        8,
+        3
+      ],
+      "vcf_root_move": [
+        8,
+        3
+      ],
+      "vcf_offensive": [
+        8,
+        3
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions-vcf-2",
+      "choose_move": [
+        8,
+        5
+      ],
+      "vcf_root_move": [
+        8,
+        5
+      ],
+      "vcf_offensive": [
+        8,
+        5
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v1v0s-g13",
+      "choose_move": [
+        10,
+        7
+      ],
+      "vcf_root_move": [
+        10,
+        7
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        10,
+        7
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v2v0-g0",
+      "choose_move": [
+        9,
+        8
+      ],
+      "vcf_root_move": [
+        9,
+        8
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        9,
+        8
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v2v0-g2",
+      "choose_move": [
+        5,
+        5
+      ],
+      "vcf_root_move": [
+        6,
+        5
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        6,
+        5
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v2v1s-g12",
+      "choose_move": [
+        12,
+        2
+      ],
+      "vcf_root_move": [
+        13,
+        2
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        13,
+        2
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v2v1s-g28",
+      "choose_move": [
+        4,
+        9
+      ],
+      "vcf_root_move": [
+        4,
+        9
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        4,
+        9
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v1v0s-g26",
+      "choose_move": [
+        8,
+        4
+      ],
+      "vcf_root_move": [
+        9,
+        4
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        9,
+        4
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v1v0s-g48",
+      "choose_move": [
+        4,
+        8
+      ],
+      "vcf_root_move": [
+        4,
+        9
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        4,
+        9
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v3v0-g20",
+      "choose_move": [
+        3,
+        9
+      ],
+      "vcf_root_move": [
+        3,
+        9
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        3,
+        9
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v3v0-g24",
+      "choose_move": [
+        3,
+        5
+      ],
+      "vcf_root_move": [
+        3,
+        5
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        3,
+        5
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v1v1s-g79",
+      "choose_move": [
+        7,
+        9
+      ],
+      "vcf_root_move": [
+        7,
+        9
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        7,
+        9
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v2v1s-g30",
+      "choose_move": [
+        5,
+        4
+      ],
+      "vcf_root_move": [
+        5,
+        4
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        5,
+        4
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v1bl-g2",
+      "choose_move": [
+        7,
+        5
+      ],
+      "vcf_root_move": [
+        6,
+        5
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        6,
+        5
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v2v1-g36",
+      "choose_move": [
+        9,
+        6
+      ],
+      "vcf_root_move": [
+        9,
+        6
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        9,
+        6
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v2v1-g60",
+      "choose_move": [
+        5,
+        8
+      ],
+      "vcf_root_move": [
+        5,
+        8
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        5,
+        8
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v1v1s-g39",
+      "choose_move": [
+        9,
+        4
+      ],
+      "vcf_root_move": [
+        9,
+        4
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        9,
+        4
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-prev-v1v1s-g45",
+      "choose_move": [
+        12,
+        7
+      ],
+      "vcf_root_move": [
+        11,
+        7
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        11,
+        7
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-setup-v1v0s-g92",
+      "choose_move": [
+        9,
+        6
+      ],
+      "vcf_root_move": null,
+      "vcf_offensive": null,
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-setup-v1v1s-g33",
+      "choose_move": [
+        6,
+        7
+      ],
+      "vcf_root_move": null,
+      "vcf_offensive": null,
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-setup-v2v1s-g94",
+      "choose_move": [
+        7,
+        8
+      ],
+      "vcf_root_move": null,
+      "vcf_offensive": null,
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-setup-v2v1-g2",
+      "choose_move": [
+        6,
+        6
+      ],
+      "vcf_root_move": null,
+      "vcf_offensive": null,
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-setup-v3v1s-g35",
+      "choose_move": [
+        11,
+        7
+      ],
+      "vcf_root_move": null,
+      "vcf_offensive": null,
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-setup-v3v1-g31",
+      "choose_move": [
+        4,
+        10
+      ],
+      "vcf_root_move": null,
+      "vcf_offensive": null,
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-setup-double-open-three",
+      "choose_move": [
+        7,
+        7
+      ],
+      "vcf_root_move": null,
+      "vcf_offensive": null,
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-winning-quiet-setup",
+      "choose_move": [
+        7,
+        7
+      ],
+      "vcf_root_move": [
+        7,
+        7
+      ],
+      "vcf_offensive": [
+        7,
+        7
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-winning-quiet-setup-2",
+      "choose_move": [
+        10,
+        10
+      ],
+      "vcf_root_move": [
+        10,
+        10
+      ],
+      "vcf_offensive": [
+        10,
+        10
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-vcf-race-block-or-win",
+      "choose_move": [
+        8,
+        3
+      ],
+      "vcf_root_move": [
+        8,
+        3
+      ],
+      "vcf_offensive": [
+        8,
+        3
+      ],
+      "vcf_defensive": [
+        8,
+        11
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-vcf-race-block-or-win-white",
+      "choose_move": [
+        8,
+        3
+      ],
+      "vcf_root_move": [
+        8,
+        3
+      ],
+      "vcf_offensive": [
+        8,
+        3
+      ],
+      "vcf_defensive": [
+        8,
+        11
+      ],
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-vcf-two-four-sequence",
+      "choose_move": [
+        9,
+        6
+      ],
+      "vcf_root_move": [
+        9,
+        6
+      ],
+      "vcf_offensive": [
+        9,
+        6
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "tactical_positions_hard-vcf-two-four-sequence-rot",
+      "choose_move": [
+        6,
+        5
+      ],
+      "vcf_root_move": [
+        6,
+        5
+      ],
+      "vcf_offensive": [
+        6,
+        5
+      ],
+      "vcf_defensive": null,
+      "leaves_opp_vcf": false
+    },
+    {
+      "id": "g0-ply29",
+      "choose_move": [
+        0,
+        6
+      ],
+      "vcf_root_move": [
+        0,
+        6
+      ],
+      "vcf_offensive": null,
+      "vcf_defensive": [
+        0,
+        6
+      ],
+      "leaves_opp_vcf": false
+    }
+  ]
+}

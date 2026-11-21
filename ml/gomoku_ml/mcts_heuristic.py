@@ -1092,7 +1092,49 @@ class HeuristicMCTS:
     (:meth:`_vcf_root_move`): before the search, an offensive VCF
     start is played immediately, and a defensive VCF prevention
     is played when the opponent holds a VCF start. False (the
-    default) is v18 behaviour exactly.
+    default) is v18 behaviour exactly. The offensive step runs
+    FIRST and is load-bearing: in race positions (both sides hold
+    a VCF start) it plays our forced win instead of letting the
+    defensive step block — a defensive-only variant was tried for
+    v35 and refuted by the tactical mechanism check (27/29: it
+    blocked instead of winning both race positions; see
+    ``research/iterations/iter-35.md`` §3).
+    ``vcf_root_search_first`` (v35, batch 10 H3) changes the
+    DEFENSIVE step to search-first: the search runs first, and
+    the defensive check overrides ONLY when the search's chosen
+    move is NOT a prevention (leaves opponent VCF starts live).
+    When the search already plays a prevention, its visits/q
+    signal — built from 100 sims — chooses among preventions,
+    not the prior's static score. The fast loop verified 3
+    override-harm instances for the plain check (it overrode a
+    correct search prevention by prior noise: fast-loop g2 ply
+    12, g3 ply 9, g5 ply 9) against 1 case where the prior
+    picked the right prevention over a wrong search prevention
+    (forensics g73; g44 is the second). Search-first is weakly
+    dominant over the no-check baseline: it overrides only a
+    move that loses by force (opponent VCF), so it can only
+    help, never harm, relative to v27. The offensive step is
+    unaffected (still short-circuits). Only meaningful with
+    ``vcf_root=True``; False (the default) is v29's behaviour
+    exactly. See ``research/iterations/iter-35.md`` §4.2.
+    ``vcf_full_recheck`` (v45, batch 12 H1) fixes v35's
+    ``_leaves_opp_vcf`` hole: with it on, the search-first gate
+    FULLY re-checks VCF after the candidate move (winning moves
+    first, then every four-creator on the resulting board)
+    instead of re-testing only the opponent's ORIGINAL VCF
+    starts. VCF starts are NOT monotone under our move (batch 11,
+    iter-39 §1.1 — our stone can remove one of our own defensive
+    replies, so a forcing sequence that failed before now works),
+    so the original-starts subset can miss a created VCF start
+    and wrongly call a non-prevention a prevention. With the fix
+    on, the defensive selector also runs UNGATED
+    (:meth:`_vcf_defensive_move_ungated`): the fixed gate can
+    fire when the opponent holds no VCF start on the current
+    board, where the gated selector's early exit would return
+    None and the fix would be dead. Only meaningful with
+    ``vcf_root=True`` and ``vcf_root_search_first=True``; False
+    (the default) is v35's behaviour exactly. See
+    ``research/iterations/iter-45.md`` §1.
     ``backup_rule`` (v47, batch 12 H3) selects the backup rule:
     ``"mean"`` (default) is every earlier version's negamax mean
     backup exactly; ``"minimax-opp"`` switches opponent nodes
@@ -1118,6 +1160,8 @@ class HeuristicMCTS:
         tie_break_q: bool = False,
         tie_break_q_threshold: float = 0.0,
         vcf_root: bool = False,
+        vcf_root_search_first: bool = False,
+        vcf_full_recheck: bool = False,
         backup_rule: str = "mean",
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
@@ -1150,6 +1194,19 @@ class HeuristicMCTS:
         self.tie_break_q = tie_break_q
         self.tie_break_q_threshold = tie_break_q_threshold
         self.vcf_root = vcf_root
+        self.vcf_root_search_first = vcf_root_search_first
+        self.vcf_full_recheck = vcf_full_recheck
+        # Instrumentation for the search-first defensive check
+        # (v45, batch 12 H1): when set to a list by a replay /
+        # audit script, each search-first turn appends
+        # (search_move, gate_fired, old_gate, defensive_move) —
+        # see choose_move. None (the default) disables logging
+        # entirely (zero cost in games). vcf_audit_old_gate
+        # additionally evaluates v35's original subset test at
+        # each logged turn, purely for the hole-incidence
+        # measurement — it never affects play.
+        self.vcf_fire_log: list | None = None
+        self.vcf_audit_old_gate: bool = False
         self.backup_rule = backup_rule
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
@@ -1194,6 +1251,231 @@ class HeuristicMCTS:
         dispatch changed (v16 gates on ``_root_player``, v18 does
         not). v18-as-White IS v16 exactly."""
         return _rollout_leaf_value(board, player)
+
+    def _vcf_offensive_move(
+        self, board: np.ndarray, player: int
+    ) -> int | None:
+        """Step 1 of the VCF-at-root check (v29, batch 9 H3),
+        factored out for reuse by v33's filtered search and v35's
+        search-first defensive (both keep the offensive step
+        unchanged): among our four-creating moves, the
+        highest-v1-prior one that starts a forced win
+        (``evaluate.starts_forced_win``, depth 3), ties by lowest
+        flat move index — or None. Tests in selection order and
+        returns the FIRST VCF start, which is exactly the
+        pre-registered selection rule (identical to testing all
+        and taking the max)."""
+        ours = evaluate.four_creating_moves(board, player)
+        if ours:
+            priors = _priors(board, player, self.prior_floor)
+            ours.sort(key=lambda m: (-priors.get(m, 0.0), m))
+            for m in ours:
+                if evaluate.starts_forced_win(board, player, m, depth=3):
+                    return m
+        return None
+
+    def _vcf_prevention_pool(
+        self, board: np.ndarray, player: int
+    ) -> list[int] | None:
+        """The FULL VCF-prevention pool (v33, batch 10 H1 — see
+        ``research/iterations/iter-33.md`` §1.1). Returns None
+        when the opponent holds NO VCF start on the current board
+        (the gate is closed — the same gate as v29's defensive
+        step, so quiet positions pay only the gate check);
+        otherwise the list of candidate moves (in prior-desc,
+        flat-index-asc order) after which the opponent has NO
+        VCF-starting move — possibly empty, when no prevention
+        exists. The definition is EXACTLY v29's step 2, with the
+        same subset + ordering optimisations (test only the
+        opponent's ORIGINAL four-creators — our move can only
+        remove them — VCF starts first, so ``any`` short-circuits
+        on the first surviving VCF start for non-preventions),
+        but WITHOUT v29's first-success early exit: the search
+        needs the whole pool. The board is not mutated.
+
+        Ported from ``research/batch-10`` with the rest of the
+        v35 machinery; no version on this branch enables
+        VCF-filtered search (v33's, not ported), so this method
+        is currently unused by any registered version — it is
+        kept (and port-verified) for completeness.
+        """
+        opp = evaluate.four_creating_moves(board, -player)
+        opp_vcf = [
+            m
+            for m in opp
+            if evaluate.starts_forced_win(board, -player, m, depth=3)
+        ]
+        if not opp_vcf:
+            return None
+        priors = _priors(board, player, self.prior_floor)
+        cands = sorted(
+            scoring._candidate_moves(board),
+            key=lambda m: (-priors.get(m, 0.0), m),
+        )
+        vcf_set = set(opp_vcf)
+        ordered = opp_vcf + [m for m in opp if m not in vcf_set]
+        pool: list[int] = []
+        for c in cands:
+            b2 = game.apply_move(board, c, player)
+            if not any(
+                evaluate.starts_forced_win(b2, -player, m, depth=3)
+                for m in ordered
+            ):
+                pool.append(c)
+        return pool
+
+    def _vcf_defensive_move(
+        self, board: np.ndarray, player: int
+    ) -> int | None:
+        """Defensive VCF step (v29): the highest-prior prevention
+        when the opponent holds a VCF start, or None (no threat,
+        or no prevention exists)."""
+        opp = evaluate.four_creating_moves(board, -player)
+        opp_vcf = [
+            m
+            for m in opp
+            if evaluate.starts_forced_win(board, -player, m, depth=3)
+        ]
+        if not opp_vcf:
+            return None
+        priors = _priors(board, player, self.prior_floor)
+        cands = sorted(
+            scoring._candidate_moves(board),
+            key=lambda m: (-priors.get(m, 0.0), m),
+        )
+        # Test only the opponent's ORIGINAL four-creators (subset
+        # property, see _vcf_root_move's docstring), VCF starts
+        # first.
+        vcf_set = set(opp_vcf)
+        ordered = opp_vcf + [m for m in opp if m not in vcf_set]
+        for c in cands:
+            b2 = game.apply_move(board, c, player)
+            if not any(
+                evaluate.starts_forced_win(b2, -player, m, depth=3)
+                for m in ordered
+            ):
+                return c
+        return None
+
+    def _vcf_defensive_move_ungated(
+        self, board: np.ndarray, player: int
+    ) -> int | None:
+        """Defensive VCF step WITHOUT the current-board gate (v45,
+        batch 12 H1 — see ``research/iterations/iter-45.md`` §1):
+        the highest-prior prevention, or None when no prevention
+        exists. The candidate scan is identical to
+        :meth:`_vcf_defensive_move`'s — every ORIGINAL
+        four-creator re-tested on each resulting board (that
+        subset IS sound: four-creators are monotone under our
+        move, so the original set covers every four-creator on
+        the resulting board) — but the ``if not opp_vcf: return
+        None`` early exit is gone. The gate is unsound once the
+        fixed :meth:`_leaves_opp_vcf` can fire: the opponent may
+        hold no VCF start on the current board while the search's
+        move CREATES one, and then the gated selector would return
+        None and the fix would be dead. Callers guarantee the
+        fixed gate has fired (the opponent holds a VCF start
+        after the search's move), so the scan is never wasted on
+        a quiet position. The test order is the four-creators'
+        natural order (no VCF-starts-first reordering — computing
+        the current-board VCF starts just to order the test would
+        pay the expensive enumeration the gate exists to avoid);
+        the selected move is identical to the gated scan's
+        whenever the gate is open (same test set, same
+        first-success rule)."""
+        opp = evaluate.four_creating_moves(board, -player)
+        priors = _priors(board, player, self.prior_floor)
+        cands = sorted(
+            scoring._candidate_moves(board),
+            key=lambda m: (-priors.get(m, 0.0), m),
+        )
+        for c in cands:
+            b2 = game.apply_move(board, c, player)
+            if not any(
+                evaluate.starts_forced_win(b2, -player, m, depth=3)
+                for m in opp
+            ):
+                return c
+        return None
+
+    def _leaves_opp_vcf_subset(
+        self, board: np.ndarray, player: int, move: int
+    ) -> bool:
+        """v35's ORIGINAL search-first gate test (batch 10 H3),
+        kept verbatim for the v35 port (``vcf_full_recheck`` off)
+        and for the hole-incidence audit: True if the opponent
+        still holds a VCF start AFTER ``move`` — i.e. ``move`` is
+        NOT a prevention. False when the opponent holds no VCF
+        start on the current board, or when ``move`` removes them
+        all. Only the opponent's ORIGINAL VCF starts are
+        re-tested on the resulting board.
+
+        KNOWN HOLE (batch 11, iter-39 §1.1): VCF starts are NOT
+        monotone under our move — our stone can remove one of our
+        own defensive replies (it can occupy a square that becomes
+        the defender's winning reply later in the forcing
+        sequence, once forced blocks build the line), so a
+        four-creator that was not a VCF start before can become
+        one after our move. This subset test then returns False
+        (claiming a prevention) when the opponent in fact holds a
+        VCF start after the move. v45 uses
+        :meth:`_leaves_opp_vcf_full` instead.
+        """
+        opp = evaluate.four_creating_moves(board, -player)
+        opp_vcf = [
+            m
+            for m in opp
+            if evaluate.starts_forced_win(board, -player, m, depth=3)
+        ]
+        if not opp_vcf:
+            return False
+        b2 = game.apply_move(board, move, player)
+        return any(
+            evaluate.starts_forced_win(b2, -player, m, depth=3)
+            for m in opp_vcf
+        )
+
+    def _leaves_opp_vcf_full(
+        self, board: np.ndarray, player: int, move: int
+    ) -> bool:
+        """v45's fixed search-first gate test (batch 12 H1): True
+        if the opponent holds a VCF start AFTER ``move`` — i.e.
+        ``move`` is NOT a prevention — by a FULL re-check on the
+        resulting board, with no monotonicity assumption. Winning
+        moves are checked FIRST: an immediate winning move is
+        itself a VCF start (``starts_forced_win`` returns True for
+        it at once) but is NOT necessarily a four-creator, so the
+        four-creator enumeration alone would miss it (batch 11's
+        second finding — the verification audit caught 2 false
+        candidates from exactly this bug). Then every
+        four-creator on the RESULTING board is tested, so a VCF
+        start created by our move (a non-start becoming a start)
+        is caught. This needs no computation on the current board
+        at all — the current board's VCF starts are irrelevant to
+        whether the opponent holds one after our move — so it is
+        typically CHEAPER than the subset test (one board's VCF
+        enumeration instead of two).
+        """
+        b2 = game.apply_move(board, move, player)
+        if scoring._winning_moves(b2, -player):
+            return True  # an immediate win is itself a VCF start
+        for m in evaluate.four_creating_moves(b2, -player):
+            if evaluate.starts_forced_win(b2, -player, m, depth=3):
+                return True
+        return False
+
+    def _leaves_opp_vcf(
+        self, board: np.ndarray, player: int, move: int
+    ) -> bool:
+        """True if the opponent still holds a VCF start AFTER
+        ``move`` — i.e. ``move`` is NOT a prevention. Dispatches
+        on ``vcf_full_recheck``: the full re-check
+        (:meth:`_leaves_opp_vcf_full`, v45) or v35's original
+        original-starts subset (:meth:`_leaves_opp_vcf_subset`,
+        which has the non-monotonicity hole)."""
+        if self.vcf_full_recheck:
+            return self._leaves_opp_vcf_full(board, player, move)
+        return self._leaves_opp_vcf_subset(board, player, move)
 
     def _vcf_root_move(
         self, board: np.ndarray, player: int
@@ -1250,44 +1532,12 @@ class HeuristicMCTS:
         many moves are tested and in what order, never which move
         is selected.
         """
-        # 1. Offensive VCF — test in selection order, first VCF
-        # start wins (identical to testing all and taking the max).
-        ours = evaluate.four_creating_moves(board, player)
-        if ours:
-            priors = _priors(board, player, self.prior_floor)
-            ours.sort(key=lambda m: (-priors.get(m, 0.0), m))
-            for m in ours:
-                if evaluate.starts_forced_win(board, player, m, depth=3):
-                    return m
-        # 2. Defensive VCF prevention — only when the opponent
-        # holds a VCF start on the current board (the gate that
-        # keeps this cheap in quiet positions: the per-candidate
-        # loop below runs only under a live VCF threat).
-        opp = evaluate.four_creating_moves(board, -player)
-        opp_vcf = [
-            m
-            for m in opp
-            if evaluate.starts_forced_win(board, -player, m, depth=3)
-        ]
-        if not opp_vcf:
-            return None
-        priors = _priors(board, player, self.prior_floor)
-        cands = sorted(
-            scoring._candidate_moves(board),
-            key=lambda m: (-priors.get(m, 0.0), m),
-        )
-        # Test only the opponent's ORIGINAL four-creators (subset
-        # property, see the docstring), VCF starts first.
-        vcf_set = set(opp_vcf)
-        ordered = opp_vcf + [m for m in opp if m not in vcf_set]
-        for c in cands:
-            b2 = game.apply_move(board, c, player)
-            if not any(
-                evaluate.starts_forced_win(b2, -player, m, depth=3)
-                for m in ordered
-            ):
-                return c
-        return None
+        # Both steps factored out (see _vcf_offensive_move /
+        # _vcf_defensive_move); v29's selection unchanged.
+        off = self._vcf_offensive_move(board, player)
+        if off is not None:
+            return off
+        return self._vcf_defensive_move(board, player)
 
     def choose_move(self, board: np.ndarray, player: int) -> int:
         # Immediate win (any winning move wins).
@@ -1305,14 +1555,58 @@ class HeuristicMCTS:
         if len(cands) == 1:
             return cands[0]
         # VCF-at-root (v29): forced wins the 100-sim search misses.
-        if self.vcf_root:
+        # Search-first (v35): only the OFFENSIVE step short-circuits
+        # here; the defensive step runs after the search below and
+        # overrides only a non-prevention (see _leaves_opp_vcf).
+        if self.vcf_root and not self.vcf_root_search_first:
             vcf_move = self._vcf_root_move(board, player)
             if vcf_move is not None:
                 return vcf_move
+        if self.vcf_root and self.vcf_root_search_first:
+            off = self._vcf_offensive_move(board, player)
+            if off is not None:
+                return off
         root = _Node(1.0)
         for _ in range(self.sims):
             self._run_one(root, board, player, None)
-        return self._choose_root_child(root, board, player)
+        search_move = self._choose_root_child(root, board, player)
+        if self.vcf_root and self.vcf_root_search_first:
+            leaves = self._leaves_opp_vcf(board, player, search_move)
+            def_move = None
+            if leaves:
+                # v45 (vcf_full_recheck): the fixed gate can fire
+                # when the opponent holds no VCF start on the
+                # current board (our move CREATED one), where the
+                # gated selector's early exit would return None
+                # and the fix would be dead — so the ungated scan
+                # runs instead. When the gate is open the two
+                # selectors return the same move (same test set,
+                # same first-success rule). v35 uses the gated
+                # selector, exactly as on research/batch-10.
+                if self.vcf_full_recheck:
+                    def_move = self._vcf_defensive_move_ungated(
+                        board, player
+                    )
+                else:
+                    def_move = self._vcf_defensive_move(board, player)
+            if self.vcf_fire_log is not None:
+                # The audit (old gate) runs only when the fixed gate
+                # fired: a hole is old=False AND new=True by
+                # definition, so when leaves is False the old gate
+                # is irrelevant. This keeps the replay ~2x faster.
+                old = (
+                    self._leaves_opp_vcf_subset(
+                        board, player, search_move
+                    )
+                    if self.vcf_audit_old_gate and leaves
+                    else None
+                )
+                self.vcf_fire_log.append(
+                    (search_move, leaves, old, def_move)
+                )
+            if def_move is not None:
+                return def_move
+        return search_move
 
     def _rng_or_first(self, moves: list[int]) -> int:
         """Break a final tie: the seeded RNG's choice, or the first
