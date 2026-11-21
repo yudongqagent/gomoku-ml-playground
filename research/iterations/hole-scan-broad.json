@@ -1,0 +1,181 @@
+{
+  "games": [
+    {
+      "file": "batch-v33-vs-v27.json",
+      "game": 0,
+      "turns": [
+        {
+          "ply": 27,
+          "live": true,
+          "played": [
+            5,
+            11
+          ],
+          "opp_vcf_current": 2,
+          "old": false,
+          "new": false
+        },
+        {
+          "ply": 29,
+          "live": false,
+          "reason": "forced block"
+        },
+        {
+          "ply": 31,
+          "live": true,
+          "played": [
+            6,
+            8
+          ],
+          "opp_vcf_current": 8,
+          "old": true,
+          "new": true
+        },
+        {
+          "ply": 33,
+          "live": true,
+          "played": [
+            2,
+            9
+          ],
+          "opp_vcf_current": 78,
+          "old": true,
+          "new": true
+        }
+      ]
+    },
+    {
+      "file": "batch-v33-vs-v27.json",
+      "game": 1,
+      "turns": [
+        {
+          "ply": 54,
+          "live": true,
+          "played": [
+            14,
+            7
+          ],
+          "opp_vcf_current": 1,
+          "old": false,
+          "new": false
+        },
+        {
+          "ply": 56,
+          "live": true,
+          "played": [
+            12,
+            3
+          ],
+          "opp_vcf_current": 1,
+          "old": false,
+          "new": false
+        },
+        {
+          "ply": 58,
+          "live": true,
+          "played": [
+            12,
+            1
+          ],
+          "opp_vcf_current": 6,
+          "old": true,
+          "new": true
+        },
+        {
+          "ply": 60,
+          "live": true,
+          "played": [
+            5,
+            5
+          ],
+          "opp_vcf_current": 92,
+          "old": true,
+          "new": true
+        }
+      ]
+    },
+    {
+      "file": "batch-v33-vs-v27.json",
+      "game": 2,
+      "turns": [
+        {
+          "ply": 61,
+          "live": false,
+          "reason": "forced block"
+        },
+        {
+          "ply": 63,
+          "live": false,
+          "reason": "forced block"
+        },
+        {
+          "ply": 65,
+          "live": false,
+          "reason": "forced block"
+        },
+        {
+          "ply": 67,
+          "live": true,
+          "played": [
+            6,
+            12
+          ],
+          "opp_vcf_current": 140,
+          "old": true,
+          "new": true
+        }
+      ]
+    },
+    {
+      "file": "batch-v33-vs-v27.json",
+      "game": 7,
+      "turns": [
+        {
+          "ply": 36,
+          "live": true,
+          "played": [
+            7,
+            13
+          ],
+          "opp_vcf_current": 0,
+          "old": false,
+          "new": false
+        },
+        {
+          "ply": 38,
+          "live": true,
+          "played": [
+            12,
+            2
+          ],
+          "opp_vcf_current": 1,
+          "old": false,
+          "new": false
+        },
+        {
+          "ply": 40,
+          "live": true,
+          "played": [
+            3,
+            12
+          ],
+          "opp_vcf_current": 7,
+          "old": true,
+          "new": true
+        },
+        {
+          "ply": 42,
+          "live": true,
+          "played": [
+            7,
+            1
+          ],
+          "opp_vcf_current": 91,
+          "old": true,
+          "new": true
+        }
+      ]
+    }
+  ],
+  "disagreements": []
+}

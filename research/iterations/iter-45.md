@@ -501,12 +501,291 @@ No defect found, no refinement made. Proceed to the battery.
 
 ## 5. Battery
 
-TODO.
+**Pickup note.** The original H1 worker was killed by a restart
+drain mid-battery (leg 1 at 77/100 games). A pickup worker resumed
+the SAME commands from the partial artifacts (auto-resume +
+per-game seeding reproduce the uninterrupted run exactly); nothing
+was re-run from scratch. All aggregates below are recomputed from
+the raw per-game records and cross-checked against the drivers'
+stored summaries (they agree everywhere). All legs use the
+pre-registered validation seeds 100/200 (§1.5). The battery ran
+under heavy contention: all three batch-12 workstreams (H1/H2/H3)
+were running concurrently on the ~1.5-CPU VM, so wall times are
+~2x the uncontended pace and are reported as observed.
+
+### 5.1 vs v27, normal rules (clause 1)
+
+`ml/scripts/selfplay_batch.py --engine-a v45 --engine-b v27
+--games 100 --seed-a 100 --seed-b 200` — resumed from game 77
+(42W-30L-5D) and completed 100 games. Artefact:
+`research/iterations/batch-v45-vs-v27.json`.
+
+**52W-43L-5D, win rate 0.5450, 95% CI [0.4475, 0.6391]**
+(recomputed; stored summary identical). Colour splits: as Black
+35W-13L-2D (0.7200, CI [0.5833, 0.8253]); as White 17W-30L-3D
+(0.3700, CI [0.2500, 0.5086]) — a strong colour asymmetry in the
+same direction as v35's family (the defensive check costs tempo
+as White; see §7). Uniqueness: **98/100 distinct games**;
+de-duplicated cut 51W-42L-5D, 0.5459, CI [0.4475, 0.6409] — the
+verdict is unchanged on the de-dup cut. Driver elapsed time
+2577.5s.
+
+**Clause 1 FAILS**: the win rate is above 0.50 but the Wilson
+95% CI lower bound (0.4475) is below 0.50, on both the full and
+the de-duplicated cut. (v35's number for reference: 0.53, CI
+[0.4329, 0.6249] — v45 is within noise of v35, as §3.2
+predicted: the gates agree almost everywhere, so v45 plays
+v35's move almost everywhere.)
+
+Loss classification (`classify_losses.py`, artefact
+`research/iterations/losses-v45-vs-v27.json`): **43 losses, 43
+via open four, 0 missed blocks, 0 clean missed preventions in
+227 threatened turns** — defence stays solved; the
+missed-prevention rate is 0, matching v35's 0 in 448 threatened
+turns. The fix did not reintroduce missed preventions.
+
+### 5.2 vs v0, normal rules (secondary)
+
+`ml/scripts/selfplay_batch.py --engine-a v45 --engine-b v0
+--games 100 --seed-a 100 --seed-b 200` (survived one runtime
+restart at game 30; resumed with the same command). Artefact:
+`research/iterations/batch-v45-vs-v0.json`.
+
+**99W-1L-0D, win rate 0.9900, 95% CI [0.9455, 0.9982]**
+(recomputed; stored summary identical). Colour splits: as Black
+49W-1L-0D (0.9800, CI [0.8950, 0.9965]); as White 50W-0L-0D
+(1.0000, CI [0.9286, 1.0000]). Uniqueness: **40/100 distinct
+games** — the known vs-v0 determinism collapse (the program's
+note: vs-v0 legs collapse to 41–45 unique even with no resume,
+because the engines are deterministic and RNG is consumed only
+on exact ties); de-duplicated cut 39W-1L-0D, 0.9750, CI
+[0.8712, 0.9956]. Driver elapsed time 6181.2s. (v35's number for
+reference: 0.975 vs v0 — v45 is 1.5 games better, within noise.)
+
+Loss classification (`classify_losses.py`, artefact
+`research/iterations/losses-v45-vs-v0.json`): **1 loss, via
+open four, 0 missed blocks, 0 clean missed preventions in 4
+threatened turns** — the single loss is a horizon loss, not a
+check failure.
+
+### 5.3 vs v27, swap rules (secondary)
+
+`ml/scripts/selfplay_batch.py --engine-a v45 --engine-b v27
+--games 100 --swap-rule --placement balanced --placement-seed
+11 --judge tempo --seed-a 100 --seed-b 200` (survived three
+runtime restarts, at games 17, 43 and 87; resumed with the same
+command each time). Artefact:
+`research/iterations/batch-v45-vs-v27-swap.json`.
+
+**54W-39L-7D, win rate 0.5750, 95% CI [0.4771, 0.6673]**
+(recomputed; stored summary identical). Colour splits: as Black
+31W-17L-4D (0.6346, CI [0.4987, 0.7520]); as White 23W-22L-3D
+(0.5104, CI [0.3736, 0.6457]). The tempo judge chose Black in
+88/100 games and White in 12/100; v45 as the second player
+(choosing its colour) went 29W-17L-4D (0.6200), as the opener
+25W-22L-3D (0.5300). Uniqueness: **99/100 distinct games**;
+de-duplicated cut 53W-39L-7D, 0.5707, CI [0.4724, 0.6638].
+Driver elapsed time 1661.0s. (v35's swap number for reference:
+0.62, CI clear of 0.50 — v45's 0.575 is lower but within noise
+of v35; the swap edge over v27 is NOT established for v45,
+unlike v35's.)
+
+Loss classification (`classify_losses.py`, artefact
+`research/iterations/losses-v45-vs-v27-swap.json`): **39
+losses, 39 via open four, 0 missed blocks, 0 clean missed
+preventions in 201 threatened turns** — defence stays solved
+under swap rules too.
+
+### 5.4 Tactical (clause 3)
+
+`eval_tactical_full.py --version 45 --suite both --seed 100`,
+after re-verifying v27 on this tree first (the port touched
+`mcts_heuristic.py`, so the inherited `tactical-v27.json` from
+batch 9 was not taken on trust). v27 re-verified: **20/20 old +
+29/29 hard** (artefact `tactical-v27-reverify.json` — identical
+pass counts to the batch-9 artifact; the port did not change
+v27). v45: **20/20 old + 29/29 hard** (artefact
+`tactical-v45.json`, no failures in either suite). **Clause 3
+PASSES.**
+
+### 5.5 Ladder (clause 2)
+
+`ml/scripts/eval_version.py --version 45 --ladder-games 40
+--out research/iterations/ladder-v45.json` (seed 100,
+mcts_sims=100 — the script defaults, matching §1.5; survived
+one runtime restart after the random leg, resumed from the
+heuristic leg with the RNG state restored). Artefact:
+`research/iterations/ladder-v45.json`.
+
+| Opponent | Result | Win rate | 95% CI | As Black | As White |
+|---|---|---|---|---|---|
+| random | 40W-0L-0D | 1.0000 | [0.9124, 1.0000] | 20W-0L-0D | 20W-0L-0D |
+| heuristic | 39W-0L-1D | 0.9875 | [0.8909, 0.9987] | 19W-0L-1D | 20W-0L-0D |
+| mcts | 29W-9L-2D | 0.7500 | [0.5981, 0.8581] | 19W-1L-0D | 10W-8L-2D |
+
+**Ladder Elo: 759.1, interval [364.8, 1153.3]** (the estimate
+comes from the heuristic leg alone — the random leg is
+saturated at 1.0 and the mcts leg is unanchored — per
+`evaluate.ladder_elo`). **Clause 2 PASSES**: 759.1 > v27's
+636.4 on the point estimate, the pre-registered rule (the same
+rule that passed v44 at 98.1 with an interval including 0, and
+failed v37 at −34.9). The intervals overlap (v27's is [240.3,
+1032.5]), so the Elo edge is not established beyond noise — but
+the point estimate is the highest ladder Elo in the program:
+v18 and v27 both sit at 636.4, and the batch-11 re-basing's
+best heuristic leg was 38-0-2 (score 0.975 → 636.4), while
+v45's 39-0-1 (score 0.9875) is half a point better. Per the
+pre-registered leg-reading rule, a 40-0 leg would strictly
+dominate v45's 39-0-1 — v45 did not post one (one draw as
+Black). The mcts leg (29-9-2, 0.75) matches v29's 0.75 (15-5
+at 20 games) and beats v27's 0.65 (13-7 at 20 games), with the
+familiar colour split (Black 19-1, White 10-8-2).
+
+### 5.6 Check fire rate + hole incidence (the §1.4 measurement)
+
+`replay_hole_incidence.py` over all three battery legs (the
+audit flag evaluates v35's subset gate at every turn where the
+fixed gate fires — the only turns where a hole is possible —
+and verifies the replayed moves match the recorded moves
+exactly). Artefacts: `replay-v45-vs-v27.json`,
+`replay-v45-vs-v0.json`, `replay-v45-vs-v27-swap.json`.
+
+| Leg | v45 turns | Gate fires | Overrides | No prevention | Holes (B1/B2) | Mismatches |
+|---|---|---|---|---|---|---|
+| vs v27 | 2,110 | 110 (5.21%) | 16 (0.76%) | 94 | 0 (0/0) | 0 |
+| vs v0 | 1,929 | 43 (2.23%) | 26 (1.35%) | 17 | 0 (0/0) | 0 |
+| swap vs v27 | 2,219 | 104 (4.69%) | 16 (0.72%) | 88 | 0 (0/0) | 0 |
+| **Battery total** | **6,258** | **257 (4.11%)** | **58 (0.93%)** | **199** | **0 (0/0)** | **0** |
+| Fast loop (§4.3) | 233 | 5 (2.15%) | 1 (0.43%) | 4 | 0 (0/0) | 0 |
+| **Grand total** | **6,491** | **262** | **59** | **203** | **0** | **0** |
+
+**Hole incidence: 0 in 6,258 battery turns (0 in 6,491 turns
+including the fast loop).** Per §1.4's pre-registered reading,
+the fix changed nothing in games, and any strength difference
+from v35 is noise — said explicitly in the verdict (§7). The 0
+replay mismatches prove the single-engine replay reproduces
+v45's moves exactly; the 0 holes prove v45 played v35's move on
+every turn of all 300 battery games (the gates are the ONLY
+difference between the versions, and the reverse disagreement
+is impossible by construction: the old gate tests a subset of
+what the new gate tests, so old=True implies new=True; and with
+0 holes the gated/ungated selectors never diverged either, since
+a divergence needs case B1). The broad hole scan (§3.0) also
+found 0 disagreements in its 12 live turns across 4 games
+(artefact `hole-scan-broad.json` — the scan was cut short by
+the restart drain that killed the original worker, and was not
+resumed: the battery replay supersedes it with 6,258 turns).
+No discriminating position — old False, new True — was found
+anywhere: not in the targeted scan, not in the broad scan, not
+in 6,491 replayed turns, and the synthetic winning-moves-first
+test position agrees too (both gates True there, verified
+directly during the pickup).
+
+Fire-rate reading: the check fires on ~4–5% of turns vs v27
+but finds a prevention in only ~15% of fires (16/110 normal,
+16/104 swap) — most fires are no-prevention positions where
+the opponent's VCF is already unstoppable and the search's move
+stands. Vs v0 the pattern inverts (26/43 fires find a
+prevention): v0's threats are simple and preventable. The
+override rate is under 1% of turns on every leg — the
+defensive check is a rare event in v45's play, which is why a
+hole in it can hide for so long.
+
+### 5.7 Cost
+
+The battery's driver elapsed times (2577.5s vs v27, 6181.2s vs
+v0, 1661.0s swap) are last-segment wall times under heavy
+contention (all three batch-12 workstreams sharing ~1.5 CPUs,
+plus five restart drains during the pickup), not a clean cost
+measure — they are reported here only as observed. The §4.4 fast-loop measurement
+stands: v45 runs ~84s/game vs v27 (excluding the 225-ply
+draw) vs v35's ~74s/game battery average, ~14% slower. The
+overhead is the ungated selector's unordered `any()` scan
+(§4.4), not the fixed gate: the gate itself is cheaper than
+the subset test (one board's VCF enumeration instead of two),
+and gate fires are rare (4.11% of turns). No ordering fix was
+made, per §4.4's decision.
 
 ## 6. Bar check (v45 vs v27)
 
-TODO.
+| Clause | Requirement | v45 | Result |
+|---|---|---|---|
+| 1. Head-to-head vs v27 | 100 games, win rate > 0.50 with Wilson 95% CI lower bound > 0.50 | 52W-43L-5D, 0.5450, CI [0.4475, 0.6391]; de-dup 51W-42L-5D, 0.5459, CI [0.4475, 0.6409] | **FAIL** |
+| 2. Ladder Elo | > v27's 636.4 | 759.1, interval [364.8, 1153.3] (40 games/opponent) | **PASS** |
+| 3. Tactical | ≥ v27's 20/20 + 29/29 on the corrected suite | 20/20 old + 29/29 hard (v27 re-verified first: 20/20 + 29/29) | **PASS** |
+| 4. Test suites | All green | ml pytest 473 passed / 7 skipped / 60 xfailed, 0 failures; npm test 55/55; tsc clean | **PASS** |
+
+**Verdict: REJECTED — 3 of 4 clauses pass, clause 1 fails.**
+The win rate vs v27 is above 0.50 but the Wilson 95% CI lower
+bound (0.4475) is below 0.50, on both the full and the
+de-duplicated cut. No challenge match: the champion rule (v2)
+runs only for bar-passers, and v45 is not one. v18 stays the
+strength champion; v27 stays the bar reference.
+
+Clause-2 note: the Elo pass is on the point estimate per the
+pre-registered rule, and the interval overlaps v27's — but the
+deeper point is in §7: the replay proves v45 played v35's move
+on every turn of the battery, so the 759.1 is not a fix effect.
+It is the heuristic leg's draw count (39-0-1 vs the 38-0-2 that
+yields 636.4) — half a point of noise near saturation,
+amplified by the logistic transform. v35's own ladder Elo was
+636.4 at 20 games/opponent; v45's 759.1 at 40 games/opponent
+is the same engine measured with one fewer draw in twice the
+games.
 
 ## 7. What this means
 
-TODO.
+**The hole is real, the fix is correct, and the fix changed
+nothing in games.** That is the whole result, and it is the
+result §1.4 pre-registered as a possible outcome. The
+non-monotonicity argument (§1.1) is sound — the code analysis
+stands, the g0-ply-29 phenomenon is real (occupying a setup
+square leaving five VCF starts live), and the fixed gate is
+correct by construction (it tests winning moves first, then
+every four-creator on the resulting board, which is exactly the
+definition of "the opponent holds a VCF start after our
+move"). But across 6,491 replayed turns in 310 games, plus the
+targeted and broad scans, the old and new gates never once
+disagreed. The hole needs a position where our move removes the
+defender's refutation inside a forcing sequence while the
+opponent holds no other VCF start — a contrived configuration
+that our engines' games never produce. The defect is closed as
+a defect regardless: v35's check can no longer mis-fire on it,
+and the regression tests pin the fixed behaviour.
+
+**v45 is v35, measured again.** Every battery number is within
+noise of v35's (h2h 0.545 vs 0.53; vs v0 0.99 vs 0.975; swap
+0.575 vs 0.62; tactical identical; 0 clean missed preventions
+in 432 threatened turns across the three legs vs v35's 0 in
+448). The replay explains why: the fix changed 0 moves. The
+one number that looks different — ladder Elo 759.1 vs v35's
+636.4 — is a draw-count artefact (§6), not a strength gain.
+Nothing here reopens the VCF-prevention lever, which stays
+CLOSED for the v27 family (iter-35 §7): the check eliminates
+missed preventions and the remaining losses are horizon losses
+(83/83 battery losses via open four, 0 missed blocks).
+
+**What stays open.** The colour asymmetry is the durable signal
+in this battery: v45 as Black vs v27 is 0.72 (normal) / 0.63
+(swap), as White 0.37 / 0.51; the ladder mcts leg is 19-1 as
+Black, 10-8-2 as White. The defensive check costs tempo as
+White against strong opponents while costing nothing against
+weak ones (50-0 as White vs v0) — the same opponent-dependent
+White weakness the program has seen since v29, now measured
+again on the fixed check. That is H2's (v46) territory, not
+this workstream's. The ungated selector's unordered scan
+(§4.4) is a known ~14% cost overhead, left deliberately
+unfixed.
+
+**For the coordinator.** v45 is rejected 3/4 on clause 1
+alone. The branch carries: the ported v35 machinery + the fix
+(commits `ff11286`, `9344518`, `f3efbb1`), the full battery
+(this commit), and the hole-incidence measurement (0/6,258).
+Whether the fix itself is worth merging to master is a
+coordinator call — the fix is verified correct and behaviourally
+null in games, so merging it changes no played move while
+closing a known defect; the v35 machinery it sits on was never
+merged either, so a merge would carry both. The broad hole scan
+(`hole-scan-broad.json`) is committed incomplete (4 games, 12
+live turns, 0 disagreements) — superseded by the battery replay
+and not worth resuming.
