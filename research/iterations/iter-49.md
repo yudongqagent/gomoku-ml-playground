@@ -913,3 +913,34 @@ per-game records.
   The α sweep selected the best of three noisy arms, and the
   winner's-regression is visible: all three arms' 20-game
   CIs contain the 100-game result.
+
+### 6.3 vs v0 (secondary) — COMPLETE 2026-11-21 ~19:04 UTC
+
+`selfplay_batch.py --engine-a v49 --engine-b v0 --games 100
+--seed-a 100 --seed-b 200` (no --openings; log
+`ml/runs/ml5-h2/batt-v0.log`; JSON
+`research/iterations/batch-v49-vs-v0.json`). Two VM
+replacements interrupted the leg (at 12 and 84 games); both
+resumes were clean.
+
+- **37W-61L-2D, win rate 0.3800, Wilson 95% CI [0.2910,
+  0.4779]** — v49 LOSES to the no-search anchor outright
+  (the CI is entirely below 0.50). The weakest vs-v0 number
+  of any recent ML version (v44 0.58, v37 0.585, v24 0.60,
+  v42 0.44, v43 0.485). Uniqueness:
+  **97/100**; de-dup cut 36W-59L-2D on 97 unique, 0.3814,
+  CI [0.2910, 0.4809].
+- Colour splits: as Black 26W-22L-2D (0.5400), as White
+  **11W-39L-0D (0.2200)** — a severe White collapse against
+  the heuristic anchor. Black won 65, White won 33. The
+  whole deficit is White: v49's Black (0.54) is close to
+  v44's Black (0.57) vs v0, while its White (0.22) is far
+  below v44's White (0.59). The White-collapse problem
+  (this batch's H1 topic) is v49's sharpest weakness — and
+  the §4 holdout by-side numbers (White BETTER than Black,
+  0.7590 vs 0.7045) predicted nothing about it, the fifth
+  instance of holdout not predicting played strength.
+- Note the sample spread across v49-vs-v0 measurements:
+  fast loop 0.30 (10 games), this leg 0.38 (100 games).
+  Both CIs overlap; the 100-game leg is the honest
+  headline.
