@@ -238,7 +238,30 @@ ablation.
 
 ## 5. Battery
 
-(TODO — recomputed aggregates from raw per-game records.)
+All legs 100 games, validation seeds 100/200, per-game seeding.
+Aggregates below are recomputed from the raw per-game records
+with `ml/runs/ml5-h3/aggregate.py` (validated: reproduces the
+driver's numbers exactly on v44's legs and the v50 fast loops).
+The battery survived 1 runtime restart (VM replacement) during
+the vs-v44 leg: the chain was killed at 38 games banked
+(23W-9L-6D) and resumed cleanly from game 38 with per-game
+seeding — zero games lost, no seed change.
+
+### 5.1 vs v44 (clause 1, openings) — COMPLETE
+
+`batch-v50-vs-v44.json`: **61W-31L-8D, win rate 0.6500, Wilson
+95% CI [0.5525, 0.7364]** — CI lower bound 0.5525 > 0.50, so
+**clause 1 PASSES**. As Black 33W-14L-3D (0.69); as White
+28W-17L-5D (0.61) — no White collapse against v44. Uniqueness
+**100/100** (openings worked: better than ML batch 4's 91–97);
+de-dup rate identical, 0.6500.
+
+First ablation read: v50 beats v44 0.65, close to v37's 0.69
+(v44's own leg vs v37 was 29W-67L-4D, 0.31 from v44's side).
+Cooling α to 0.125 on the 2-ply net did NOT bring v50 down to
+v44's level — v50 still plays at v37's level head-to-head. That
+points to the "labels drove the gain" branch of the §1.2
+decision rule; the ladder (§6) is the second half of that call.
 
 ## 6. Ladder
 
