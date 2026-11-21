@@ -100,3 +100,39 @@ def test_v8_registry_has_no_value_weight():
     # v8's entry has no value_weight key, so the dispatch passes
     # None and v8 keeps VALUE_WEIGHT 0.25 exactly.
     assert "value_weight" not in scoring.ENGINE_VERSIONS[8]
+
+
+def test_value_weight_v50_registry_passthrough(tmp_path):
+    # v50 (ML batch 5 H3, the α ablation): v37's checkpoint at
+    # α=0.125 — the ONLY difference from v37's entry is the
+    # value_weight. A player built from the registry must carry
+    # 0.125, and it must differ from v37's 0.25.
+    ckpt = _random_net_checkpoint(tmp_path)
+    entry = scoring.ENGINE_VERSIONS[50]
+    assert entry["value_checkpoint"] == "ml/runs/ml3-h2/value-net.pt"
+    assert entry["value_checkpoint"] == scoring.ENGINE_VERSIONS[37][
+        "value_checkpoint"
+    ]
+    assert entry["value_weight"] == 0.125
+    assert entry["value_weight"] != scoring.ENGINE_VERSIONS[37]["value_weight"]
+    assert scoring.ENGINE_VERSIONS[37]["value_weight"] == 0.25
+    saved = entry["value_checkpoint"]
+    try:
+        entry["value_checkpoint"] = ckpt
+        player = scoring.get_player(50, seed=0)
+        assert player._mcts.value_weight == 0.125
+    finally:
+        entry["value_checkpoint"] = saved
+
+
+def test_value_weight_v50_leaf_is_half_v37(tmp_path):
+    # Same checkpoint, α 0.125 vs 0.25: on a quiet position the
+    # v50 leaf value is exactly half the v37 leaf value — the α
+    # shrink is actually applied, not just stored.
+    board = _board_with([(7, 7), (8, 8)], [(7, 9), (9, 9)])
+    ckpt = _random_net_checkpoint(tmp_path)
+    m50 = ValueMCTS(checkpoint_path=ckpt, sims=10, value_weight=0.125)
+    m37 = ValueMCTS(checkpoint_path=ckpt, sims=10, value_weight=0.25)
+    v50 = m50._leaf_value(board, game.BLACK)
+    v37 = m37._leaf_value(board, game.BLACK)
+    assert abs(v50 - 0.5 * v37) < 1e-6

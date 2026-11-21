@@ -517,6 +517,25 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h3/value-net.pt",
          "value_weight": 0.125},  # sweep winner (0.725 vs 0.600 @ 0.25, 0.475 @ 0.5)
+    # v50 (iteration 50, ML batch 5): H3 — the α ablation. v8's
+    # PUCT MCTS with v37's value net (2-ply rollout-leaf labels on
+    # v24's 817 games / 37,227 positions, ResNet 16ch/2 blocks)
+    # at α = 0.125 instead of v37's 0.25 (see
+    # research/iterations/iter-50.md). v44 differs from v37 in
+    # TWO ways (3-ply labels AND α=0.125); v50 isolates the α
+    # effect. α is an inference-time parameter of ValueMCTS (a
+    # shrink on the net's quiet-position leaf value, applied in
+    # _value_leaf_value), NOT a training parameter — verified in
+    # iter-50.md §0.1 — so v50 needs NO retraining and NO new
+    # checkpoint: it reuses v37's checkpoint verbatim (md5
+    # 2fde492aae6d44cbe945e15bd5f1f959). The ONLY difference from
+    # v37 is this entry's value_weight; the ONLY difference from
+    # v44 is the checkpoint. Search, priors, sims, threat check,
+    # terminal cases: v8 unchanged.
+    50: {"name": "scoring-v50", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml3-h2/value-net.pt",
+         "value_weight": 0.125},
 }
 
 # --- weights --------------------------------------------------------------
