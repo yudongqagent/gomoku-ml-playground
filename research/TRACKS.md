@@ -216,7 +216,21 @@ the heuristic. The work continues autonomously; he runs nothing.
   vs 21 for v36). White collapse vs heuristic opponents is now
   the top ML-track problem. Batch 12 (heuristic) is next: v35's
   _leaves_opp_vcf hole (fix-and-measure) and a White-side
-  statistics framing.
+  statistics framing. Batch 12 complete 2026-11-21: 0/3; v45
+  (fixed VCF check) closest at 0.545 vs v27 — the hole fix found
+  0 hole instances in 6,258 turns, so it changed nothing in
+  games; its Elo 759.1 (highest in the program) is a draw-count
+  artefact (39-0-1 vs 38-0-2), not a fix effect. v46's White
+  statistics found no patchable asymmetry (population-level
+  confirmation of v41); its fallback (leaf-level top-K min)
+  closed a second blunder-dilution variant. v47's minimax backup
+  was catastrophic (0.245, tactical 21/29) — q-collapse destroys
+  the gradient the mean backup preserved; pure minimax backup is
+  CLOSED. Both blunder-dilution fixes are now closed; the mean
+  backup's averaging is load-bearing. The White gap is doubly
+  confirmed non-patchable in its current framings. ML batch 5 is
+  next: White-collapse diagnosis, 4-ply labels, and the α
+  ablation (2-ply at α=0.125).
 - **Dataset-dedup finding (ML batch 1):** the "10k dataset" is
   3,244 unique games, not 7,099 — and v8's "4,350" was 1,449
   unique. The B1 parallel generator seeds worker *w* with
@@ -234,3 +248,4 @@ the heuristic. The work continues autonomously; he runs nothing.
 | 2026-11-18 | v18 | v8 | 34–5–1 (40 games) | 0.8625 [0.724, 0.938] | Daily #3 — swap rules: v18 as Black 18–1, as White 16–4–1; second player took Black 33/40, White 7/40; Black won 22/40, White 17, 1 draw. ML win rate 0.125 (5/40) vs 0.15 yesterday — no movement toward 0.50; CI still excludes 0.50. ~107 min (ran alongside ML batch 3). |
 | 2026-11-19 | v18 | v8 | 31–9–0 (40 games) | 0.7750 [0.625, 0.877] | Daily #4 — swap rules: v18 as Black 16–2, as White 15–7; second player took Black 30/40, White 10/40; Black won 23/40, White 17, 0 draws. ML win rate 0.225 (9/40) vs 0.125 yesterday — up, but CIs overlap ([0.625, 0.877] vs [0.724, 0.938]), so within noise; no clear movement toward 0.50 yet. 40/40 unique games. ~36 min (ran alongside batch 11 v39/v40 batteries). |
 | 2026-11-20 | v18 | v44 | 81–15–4 (100 games) | 0.8300 [0.745, 0.891] | FULL MATCH for the ML champion change (v44 replaces v8) — swap rules, offset seeds (independent of the daily match's date seeds): v18 as Black 39–8–3, as White 42–7–1; second player took Black 82/100, White 18/100; Black won 46/100, White 50, 4 draws. ML win rate 0.17 — essentially unchanged from v8's daily average (~0.17 across #2–#4), so v44's Elo gain (98.1 vs 0.0) does not show up against v18 yet. 100/100 unique games. ~48 min, run in the main worktree (b7 is stale). |
+| 2026-11-20 | v18 | v44 | 23–14–3 (40 games) | 0.6125 [0.458, 0.747] | Daily #5 — swap rules, FIRST daily vs the new ML champion v44 (date seeds, independent of the morning's 100-game full match): v18 as Black 12–4–1 (17 games), as White 11–10–2 (23 games); second player took Black 29/40, White 11/40; Black won 22/40, White 15, 3 draws. ML win rate 0.35 (14/40) vs 0.225 yesterday (vs v8) — up, but CIs overlap ([0.458, 0.747] vs [0.625, 0.877]) and the same-day 100-game full match gave ML 0.17, so no clear movement toward 0.50 yet; CI now includes 0.50 — first swap-series daily where the heuristic edge is not statistically clear. 40/40 unique games. Run interrupted 3× by VM replacements (SIGTERM at 12, 34, 36 games); per-game seeding auto-resume reproduced the uninterrupted run exactly; final segment 456s once batch 12 had stopped. Total wall time ~3h40m (08:37–12:17 PST). |
