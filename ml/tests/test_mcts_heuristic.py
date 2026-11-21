@@ -6,7 +6,7 @@ import math
 import numpy as np
 import pytest
 
-from gomoku_ml import evaluate, game, scoring
+from gomoku_ml import evaluate, game, kernel_v1, scoring
 from gomoku_ml.mcts_heuristic import (
     HeuristicMCTS,
     _Node,
@@ -23,7 +23,9 @@ from gomoku_ml.mcts_heuristic import (
     _gradient_v1_gap_ours_leaf_value,
     _gradient_v1_leaf_value,
     _priors,
+    _rollout_end_value,
     _rollout_leaf_value,
+    _rollout_leaf_value_mink4,
     _rollout_move,
     _terminal_leaf_value,
 )
@@ -1605,6 +1607,159 @@ def test_v27_registered_with_selected_threshold():
     )
     a = scoring.get_player(27, seed=0)
     b = scoring.get_player(27, seed=0)
+    assert a.choose_move(board, game.BLACK) == b.choose_move(board, game.BLACK)
+
+
+# --- v46 (batch 12, H2): leaf-level top-K min aggregation ---------------
+# Pre-registered rule (iter-46.md §1.2): v27's rollout leaf with the
+# opponent's ply-1 reply replaced by the MIN over the opponent's
+# top-K = 4 replies by v1 total score, in the quiet case only.
+# Terminal positions, the ply-0 rollout move, and forced replies
+# are identical to v27's. Pure min, no min-mean blend.
+
+# Two real midgame positions from the v46 statistics corpus
+# (stats-v27-selfplay-60.json): game 0 at ply 20 and game 3 at ply
+# 40, both Black to move, both quiet (no winning move either side).
+_V46_POS_G0 = (
+    [(7, 7), (7, 4), (6, 9), (5, 7), (8, 9), (6, 3), (6, 5), (5, 8),
+     (5, 4), (4, 3)],
+    [(6, 6), (7, 8), (7, 5), (6, 7), (5, 9), (8, 5), (8, 3), (4, 7),
+     (5, 5), (7, 6)],
+)
+_V46_POS_G3 = (
+    [(7, 7), (6, 5), (8, 4), (8, 2), (7, 6), (7, 3), (9, 1), (3, 4),
+     (8, 8), (9, 4), (10, 7), (11, 5), (6, 3), (5, 1), (8, 6), (5, 5),
+     (9, 9), (3, 1), (3, 2), (10, 4)],
+    [(6, 6), (9, 5), (5, 4), (8, 3), (7, 9), (7, 4), (6, 4), (9, 7),
+     (9, 6), (8, 5), (10, 5), (5, 2), (5, 3), (7, 5), (5, 6), (9, 8),
+     (4, 2), (6, 2), (3, 3), (9, 3)],
+)
+
+
+def _independent_mink4(board, player):
+    """Recompute the v46 leaf from first principles (not by calling
+    ``_rollout_leaf_value_mink4``): the terminal check, the ply-0
+    rollout move, and the forced replies use the shared v27
+    primitives (already tested); the top-K selection and the min
+    are reimplemented here from ``kernel_v1.attack_v1_both`` so
+    the test verifies the aggregation logic, not the plumbing."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    move0, term0 = _rollout_move(board, player)
+    if term0 is not None:
+        return term0
+    b1 = game.apply_move(board, move0, player)
+    opp = -player
+    if scoring._winning_moves(b1, opp):
+        return -1.0
+    our_wins = scoring._winning_moves(b1, player)
+    if len(our_wins) >= 2:
+        return 1.0
+    if len(our_wins) == 1:
+        return _rollout_end_value(
+            game.apply_move(b1, our_wins[0], opp), player
+        )
+    black, white = kernel_v1.attack_v1_both(b1)
+    own, theirs = (black, white) if opp == game.BLACK else (white, black)
+    total = own + theirs
+    empty = b1 == game.EMPTY
+    total[~empty] = -1
+    flat = total.ravel()
+    order = sorted(
+        np.flatnonzero(empty.ravel()), key=lambda m: (-flat[m], m)
+    )
+    return min(
+        _rollout_end_value(game.apply_move(b1, int(r), opp), player)
+        for r in order[:4]
+    )
+
+
+def test_v46_registered_as_v27_with_mink4_leaf():
+    v46 = scoring.get_player(46, seed=0)
+    assert v46.name == "scoring-v46"
+    assert v46._mcts.leaf_mode == "rollout2_v1_both_mink4"
+    assert v46._mcts.tie_break_q is True
+    assert v46._mcts.tie_break_q_threshold == 0.05
+    assert v46._mcts.sims == 100
+    assert v46._mcts.c_puct == 1.5
+    assert v46._mcts.vcf_root is False
+    # Control: v27 is untouched by the registration.
+    v27 = scoring.get_player(27, seed=0)
+    assert v27._mcts.leaf_mode == "rollout2_v1_both"
+    assert v27._mcts.tie_break_q_threshold == 0.05
+
+
+def test_v46_unknown_leaf_mode_rejected():
+    with pytest.raises(ValueError):
+        HeuristicMCTS(sims=10, leaf_mode="rollout2_v1_both_mink5")
+
+
+def test_v46_leaf_equals_v27_on_terminal_positions():
+    # Immediate win for the player to move.
+    board = _board_with([(7, 7), (7, 8), (7, 9), (7, 10)], [(3, 3)])
+    assert _rollout_leaf_value_mink4(board, game.BLACK) == 1.0
+    assert _rollout_leaf_value_mink4(board, game.BLACK) == (
+        _rollout_leaf_value(board, game.BLACK)
+    )
+    # Opponent holds an open four (two winning moves).
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 7), (5, 8)])
+    assert _rollout_leaf_value_mink4(board, game.BLACK) == -1.0
+    assert _rollout_leaf_value_mink4(board, game.BLACK) == (
+        _rollout_leaf_value(board, game.BLACK)
+    )
+    # Must-block: opponent holds exactly one winning move.
+    board = _board_with([(3, 3)], [(5, 5), (5, 6), (5, 8), (5, 9)])
+    assert _rollout_leaf_value_mink4(board, game.BLACK) == -0.25
+    assert _rollout_leaf_value_mink4(board, game.BLACK) == (
+        _rollout_leaf_value(board, game.BLACK)
+    )
+
+
+def test_v46_leaf_min_over_top_k_replies():
+    # Both corpus positions are quiet for the player to move; the
+    # mink4 leaf must equal the independently recomputed min over
+    # the top-4 opponent replies, for both colours to move.
+    for black, white in (_V46_POS_G0, _V46_POS_G3):
+        board = _board_with(black, white)
+        for player in (game.BLACK, game.WHITE):
+            assert _terminal_leaf_value(board, player) == 0.0
+            assert _rollout_leaf_value_mink4(board, player) == (
+                _independent_mink4(board, player)
+            )
+
+
+def test_v46_leaf_no_worse_than_argmax_reply_value():
+    # The argmax reply is rank 1 in the top-K ordering, so the min
+    # over the top-K is <= the argmax reply's value — UNLESS the
+    # open-four priority fires in _rollout_move and the creator
+    # falls outside the top-K (the corner case in
+    # _rollout_leaf_value_mink4's docstring, which needs four
+    # 200k+ replies outranking a 200k+ creator). These quiet
+    # midgame positions have no such reply set, so mink4 <= v27's
+    # leaf here; if this test ever fails, the corner case fired
+    # and the positions must be replaced, not the inequality.
+    for black, white in (_V46_POS_G0, _V46_POS_G3):
+        board = _board_with(black, white)
+        for player in (game.BLACK, game.WHITE):
+            assert _rollout_leaf_value_mink4(board, player) <= (
+                _rollout_leaf_value(board, player)
+            )
+
+
+def test_v46_leaf_does_not_mutate_board():
+    for black, white in (_V46_POS_G0, _V46_POS_G3):
+        board = _board_with(black, white)
+        before = board.copy()
+        _rollout_leaf_value_mink4(board, game.BLACK)
+        _rollout_leaf_value_mink4(board, game.WHITE)
+        assert np.array_equal(board, before)
+
+
+def test_v46_deterministic_same_seed_same_move():
+    board = _board_with(*_V46_POS_G0)
+    a = scoring.get_player(46, seed=0)
+    b = scoring.get_player(46, seed=0)
     assert a.choose_move(board, game.BLACK) == b.choose_move(board, game.BLACK)
 
 

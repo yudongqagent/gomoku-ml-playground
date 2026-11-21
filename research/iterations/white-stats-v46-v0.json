@@ -1,0 +1,4191 @@
+{
+ "legs": [
+  {
+   "leg": "stats-v27-vs-v0-20.json",
+   "games": 20,
+   "wins": {
+    "black": 10,
+    "white": 10,
+    "draw": 0
+   },
+   "cells": {
+    "black": {
+     "opening": {
+      "turns": 120,
+      "threatened_turns": 4,
+      "clean_missed_preventions": 0,
+      "forced_blocks": 0,
+      "quiet_turns": 116,
+      "quiet_creator_created": 36,
+      "quiet_vcf_created": 43,
+      "vcf_threatened_turns": 4,
+      "clean_missed_vcf_preventions": 0,
+      "vcf_exposure_sum": 0,
+      "vcf_exposure_n": 4,
+      "regret_sum": 162218.0,
+      "regret_n": 120
+     },
+     "midgame": {
+      "turns": 184,
+      "threatened_turns": 45,
+      "clean_missed_preventions": 3,
+      "forced_blocks": 26,
+      "quiet_turns": 110,
+      "quiet_creator_created": 37,
+      "quiet_vcf_created": 59,
+      "vcf_threatened_turns": 57,
+      "clean_missed_vcf_preventions": 5,
+      "vcf_exposure_sum": 18,
+      "vcf_exposure_n": 57,
+      "regret_sum": 399920.0,
+      "regret_n": 184
+     },
+     "endgame": {
+      "turns": 209,
+      "threatened_turns": 53,
+      "clean_missed_preventions": 0,
+      "forced_blocks": 30,
+      "quiet_turns": 119,
+      "quiet_creator_created": 61,
+      "quiet_vcf_created": 75,
+      "vcf_threatened_turns": 57,
+      "clean_missed_vcf_preventions": 1,
+      "vcf_exposure_sum": 48,
+      "vcf_exposure_n": 57,
+      "regret_sum": 1541751.0,
+      "regret_n": 209
+     }
+    },
+    "white": {
+     "opening": {
+      "turns": 120,
+      "threatened_turns": 36,
+      "clean_missed_preventions": 0,
+      "forced_blocks": 7,
+      "quiet_turns": 77,
+      "quiet_creator_created": 7,
+      "quiet_vcf_created": 7,
+      "vcf_threatened_turns": 36,
+      "clean_missed_vcf_preventions": 0,
+      "vcf_exposure_sum": 0,
+      "vcf_exposure_n": 36,
+      "regret_sum": 42808.0,
+      "regret_n": 120
+     },
+     "midgame": {
+      "turns": 182,
+      "threatened_turns": 29,
+      "clean_missed_preventions": 2,
+      "forced_blocks": 32,
+      "quiet_turns": 119,
+      "quiet_creator_created": 54,
+      "quiet_vcf_created": 75,
+      "vcf_threatened_turns": 32,
+      "clean_missed_vcf_preventions": 2,
+      "vcf_exposure_sum": 4,
+      "vcf_exposure_n": 32,
+      "regret_sum": 780631.0,
+      "regret_n": 182
+     },
+     "endgame": {
+      "turns": 201,
+      "threatened_turns": 32,
+      "clean_missed_preventions": 3,
+      "forced_blocks": 50,
+      "quiet_turns": 111,
+      "quiet_creator_created": 64,
+      "quiet_vcf_created": 74,
+      "vcf_threatened_turns": 34,
+      "clean_missed_vcf_preventions": 5,
+      "vcf_exposure_sum": 16,
+      "vcf_exposure_n": 34,
+      "regret_sum": 2818951.0,
+      "regret_n": 201
+     }
+    }
+   },
+   "first_threat": [
+    {
+     "game": 0,
+     "black": {
+      "vcf": 15,
+      "creator": 15
+     },
+     "white": {
+      "vcf": 6,
+      "creator": 6
+     }
+    },
+    {
+     "game": 1,
+     "black": {
+      "vcf": 5,
+      "creator": 5
+     },
+     "white": {
+      "vcf": 20,
+      "creator": 20
+     }
+    },
+    {
+     "game": 2,
+     "black": {
+      "vcf": 15,
+      "creator": 15
+     },
+     "white": {
+      "vcf": 6,
+      "creator": 6
+     }
+    },
+    {
+     "game": 3,
+     "black": {
+      "vcf": 5,
+      "creator": 5
+     },
+     "white": {
+      "vcf": 14,
+      "creator": 14
+     }
+    },
+    {
+     "game": 4,
+     "black": {
+      "vcf": 9,
+      "creator": 9
+     },
+     "white": {
+      "vcf": 30,
+      "creator": 30
+     }
+    },
+    {
+     "game": 5,
+     "black": {
+      "vcf": 5,
+      "creator": 5
+     },
+     "white": {
+      "vcf": 20,
+      "creator": 20
+     }
+    },
+    {
+     "game": 6,
+     "black": {
+      "vcf": 9,
+      "creator": 9
+     },
+     "white": {
+      "vcf": 20,
+      "creator": 20
+     }
+    },
+    {
+     "game": 7,
+     "black": {
+      "vcf": 5,
+      "creator": 5
+     },
+     "white": {
+      "vcf": 14,
+      "creator": 14
+     }
+    },
+    {
+     "game": 8,
+     "black": {
+      "vcf": 9,
+      "creator": 9
+     },
+     "white": {
+      "vcf": 30,
+      "creator": 30
+     }
+    },
+    {
+     "game": 9,
+     "black": {
+      "vcf": 5,
+      "creator": 5
+     },
+     "white": {
+      "vcf": 20,
+      "creator": 20
+     }
+    },
+    {
+     "game": 10,
+     "black": {
+      "vcf": 9,
+      "creator": 9
+     },
+     "white": {
+      "vcf": 32,
+      "creator": 32
+     }
+    },
+    {
+     "game": 11,
+     "black": {
+      "vcf": 5,
+      "creator": 5
+     },
+     "white": {
+      "vcf": 20,
+      "creator": 20
+     }
+    },
+    {
+     "game": 12,
+     "black": {
+      "vcf": 11,
+      "creator": 31
+     },
+     "white": {
+      "vcf": 16,
+      "creator": 16
+     }
+    },
+    {
+     "game": 13,
+     "black": {
+      "vcf": 5,
+      "creator": 5
+     },
+     "white": {
+      "vcf": 14,
+      "creator": 14
+     }
+    },
+    {
+     "game": 14,
+     "black": {
+      "vcf": 19,
+      "creator": 19
+     },
+     "white": {
+      "vcf": 12,
+      "creator": 12
+     }
+    },
+    {
+     "game": 15,
+     "black": {
+      "vcf": 5,
+      "creator": 5
+     },
+     "white": {
+      "vcf": 20,
+      "creator": 20
+     }
+    },
+    {
+     "game": 16,
+     "black": {
+      "vcf": 9,
+      "creator": 9
+     },
+     "white": {
+      "vcf": 34,
+      "creator": 34
+     }
+    },
+    {
+     "game": 17,
+     "black": {
+      "vcf": 5,
+      "creator": 5
+     },
+     "white": {
+      "vcf": 20,
+      "creator": 20
+     }
+    },
+    {
+     "game": 18,
+     "black": {
+      "vcf": 9,
+      "creator": 9
+     },
+     "white": {
+      "vcf": 20,
+      "creator": 20
+     }
+    },
+    {
+     "game": 19,
+     "black": {
+      "vcf": 5,
+      "creator": 5
+     },
+     "white": {
+      "vcf": 20,
+      "creator": 20
+     }
+    }
+   ],
+   "errors": [
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 0,
+     "colour": "black",
+     "ply": 21,
+     "band": "midgame",
+     "played": [
+      7,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_opp_vcf_before": 3,
+     "n_opp_vcf_still_live": 3,
+     "best_preventing": [
+      8,
+      5
+     ],
+     "best_preventing_v1_rank": 3
+    },
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 2,
+     "colour": "black",
+     "ply": 21,
+     "band": "midgame",
+     "played": [
+      11,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_opp_vcf_before": 3,
+     "n_opp_vcf_still_live": 3,
+     "best_preventing": [
+      5,
+      8
+     ],
+     "best_preventing_v1_rank": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 3,
+     "colour": "black",
+     "ply": 19,
+     "band": "midgame",
+     "played": [
+      8,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 3,
+     "n_opp_vcf_before": 9,
+     "n_preventing": 8,
+     "best_preventing_v1_rank": 6
+    },
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 3,
+     "colour": "black",
+     "ply": 19,
+     "band": "midgame",
+     "played": [
+      8,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_opp_vcf_before": 9,
+     "n_opp_vcf_still_live": 4,
+     "best_preventing": [
+      5,
+      7
+     ],
+     "best_preventing_v1_rank": 6
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "white",
+     "ply": 98,
+     "band": "endgame",
+     "played": [
+      13,
+      2
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 6,
+     "n_preventing": 2,
+     "best_preventing_v1_rank": 5
+    },
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "white",
+     "ply": 98,
+     "band": "endgame",
+     "played": [
+      13,
+      2
+     ],
+     "played_v1_rank": 1,
+     "n_opp_vcf_before": 6,
+     "n_opp_vcf_still_live": 1,
+     "best_preventing": [
+      13,
+      4
+     ],
+     "best_preventing_v1_rank": 5
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 6,
+     "colour": "white",
+     "ply": 26,
+     "band": "midgame",
+     "played": [
+      9,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 3,
+     "n_opp_vcf_before": 7,
+     "n_preventing": 4,
+     "best_preventing_v1_rank": 4
+    },
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 6,
+     "colour": "white",
+     "ply": 26,
+     "band": "midgame",
+     "played": [
+      9,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_opp_vcf_before": 7,
+     "n_opp_vcf_still_live": 3,
+     "best_preventing": [
+      10,
+      11
+     ],
+     "best_preventing_v1_rank": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 7,
+     "colour": "black",
+     "ply": 19,
+     "band": "midgame",
+     "played": [
+      8,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 3,
+     "n_opp_vcf_before": 9,
+     "n_preventing": 8,
+     "best_preventing_v1_rank": 6
+    },
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 7,
+     "colour": "black",
+     "ply": 19,
+     "band": "midgame",
+     "played": [
+      8,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_opp_vcf_before": 9,
+     "n_opp_vcf_still_live": 4,
+     "best_preventing": [
+      7,
+      5
+     ],
+     "best_preventing_v1_rank": 6
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 132,
+     "band": "endgame",
+     "played": [
+      11,
+      3
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 3,
+     "n_opp_vcf_before": 5,
+     "n_preventing": 1,
+     "best_preventing_v1_rank": 1
+    },
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 132,
+     "band": "endgame",
+     "played": [
+      11,
+      3
+     ],
+     "played_v1_rank": 1,
+     "n_opp_vcf_before": 5,
+     "n_opp_vcf_still_live": 1,
+     "best_preventing": [
+      12,
+      3
+     ],
+     "best_preventing_v1_rank": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 12,
+     "colour": "white",
+     "ply": 48,
+     "band": "endgame",
+     "played": [
+      9,
+      9
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 3,
+     "n_opp_vcf_before": 9,
+     "n_preventing": 6,
+     "best_preventing_v1_rank": 6
+    },
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 12,
+     "colour": "white",
+     "ply": 48,
+     "band": "endgame",
+     "played": [
+      9,
+      9
+     ],
+     "played_v1_rank": 2,
+     "n_opp_vcf_before": 9,
+     "n_opp_vcf_still_live": 4,
+     "best_preventing": [
+      3,
+      7
+     ],
+     "best_preventing_v1_rank": 6
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 13,
+     "colour": "black",
+     "ply": 19,
+     "band": "midgame",
+     "played": [
+      8,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 3,
+     "n_opp_vcf_before": 9,
+     "n_preventing": 8,
+     "best_preventing_v1_rank": 6
+    },
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 13,
+     "colour": "black",
+     "ply": 19,
+     "band": "midgame",
+     "played": [
+      8,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_opp_vcf_before": 9,
+     "n_opp_vcf_still_live": 4,
+     "best_preventing": [
+      5,
+      7
+     ],
+     "best_preventing_v1_rank": 6
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 14,
+     "colour": "white",
+     "ply": 26,
+     "band": "midgame",
+     "played": [
+      6,
+      10
+     ],
+     "played_v1_rank": 8,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1,
+     "n_preventing": 3,
+     "best_preventing_v1_rank": 1
+    },
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 14,
+     "colour": "white",
+     "ply": 26,
+     "band": "midgame",
+     "played": [
+      6,
+      10
+     ],
+     "played_v1_rank": 8,
+     "n_opp_vcf_before": 1,
+     "n_opp_vcf_still_live": 1,
+     "best_preventing": [
+      3,
+      8
+     ],
+     "best_preventing_v1_rank": 1
+    },
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 16,
+     "colour": "black",
+     "ply": 41,
+     "band": "endgame",
+     "played": [
+      7,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_opp_vcf_before": 7,
+     "n_opp_vcf_still_live": 4,
+     "best_preventing": [
+      11,
+      6
+     ],
+     "best_preventing_v1_rank": 2
+    },
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 16,
+     "colour": "white",
+     "ply": 42,
+     "band": "endgame",
+     "played": [
+      4,
+      7
+     ],
+     "played_v1_rank": 2,
+     "n_opp_vcf_before": 5,
+     "n_opp_vcf_still_live": 2,
+     "best_preventing": [
+      10,
+      11
+     ],
+     "best_preventing_v1_rank": 4
+    },
+    {
+     "kind": "vcf",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 18,
+     "colour": "white",
+     "ply": 40,
+     "band": "endgame",
+     "played": [
+      6,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_opp_vcf_before": 8,
+     "n_opp_vcf_still_live": 4,
+     "best_preventing": [
+      2,
+      9
+     ],
+     "best_preventing_v1_rank": 2
+    }
+   ],
+   "controls": [
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 0,
+     "colour": "black",
+     "ply": 7,
+     "band": "opening",
+     "played": [
+      9,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 0,
+     "colour": "black",
+     "ply": 11,
+     "band": "opening",
+     "played": [
+      6,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 0,
+     "colour": "black",
+     "ply": 13,
+     "band": "midgame",
+     "played": [
+      6,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 0,
+     "colour": "white",
+     "ply": 16,
+     "band": "midgame",
+     "played": [
+      8,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 0,
+     "colour": "white",
+     "ply": 22,
+     "band": "midgame",
+     "played": [
+      4,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 0,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      10,
+      9
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 0,
+     "colour": "black",
+     "ply": 37,
+     "band": "endgame",
+     "played": [
+      6,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 6
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 0,
+     "colour": "white",
+     "ply": 42,
+     "band": "endgame",
+     "played": [
+      10,
+      5
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 3,
+     "n_opp_vcf_before": 7
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 1,
+     "colour": "white",
+     "ply": 6,
+     "band": "opening",
+     "played": [
+      4,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 1,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      5,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 1,
+     "colour": "white",
+     "ply": 12,
+     "band": "opening",
+     "played": [
+      3,
+      10
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 1,
+     "colour": "black",
+     "ply": 21,
+     "band": "midgame",
+     "played": [
+      9,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 1,
+     "colour": "black",
+     "ply": 27,
+     "band": "midgame",
+     "played": [
+      7,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 1,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      8,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 1,
+     "colour": "black",
+     "ply": 33,
+     "band": "endgame",
+     "played": [
+      11,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 2,
+     "colour": "black",
+     "ply": 7,
+     "band": "opening",
+     "played": [
+      10,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 2,
+     "colour": "black",
+     "ply": 11,
+     "band": "opening",
+     "played": [
+      8,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 2,
+     "colour": "black",
+     "ply": 13,
+     "band": "midgame",
+     "played": [
+      11,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 2,
+     "colour": "white",
+     "ply": 16,
+     "band": "midgame",
+     "played": [
+      6,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 2,
+     "colour": "white",
+     "ply": 22,
+     "band": "midgame",
+     "played": [
+      8,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 2,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      9,
+      10
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 2,
+     "colour": "black",
+     "ply": 37,
+     "band": "endgame",
+     "played": [
+      6,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 6
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 2,
+     "colour": "white",
+     "ply": 42,
+     "band": "endgame",
+     "played": [
+      5,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 3,
+     "n_opp_vcf_before": 7
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 3,
+     "colour": "white",
+     "ply": 6,
+     "band": "opening",
+     "played": [
+      7,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 3,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      9,
+      5
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 3,
+     "colour": "white",
+     "ply": 12,
+     "band": "opening",
+     "played": [
+      9,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 3,
+     "colour": "white",
+     "ply": 14,
+     "band": "midgame",
+     "played": [
+      9,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 8
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 3,
+     "colour": "black",
+     "ply": 15,
+     "band": "midgame",
+     "played": [
+      9,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      6,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "white",
+     "ply": 14,
+     "band": "midgame",
+     "played": [
+      8,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "white",
+     "ply": 22,
+     "band": "midgame",
+     "played": [
+      4,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "white",
+     "ply": 24,
+     "band": "midgame",
+     "played": [
+      6,
+      2
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      2,
+      3
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "black",
+     "ply": 37,
+     "band": "endgame",
+     "played": [
+      11,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "black",
+     "ply": 41,
+     "band": "endgame",
+     "played": [
+      13,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "black",
+     "ply": 45,
+     "band": "endgame",
+     "played": [
+      12,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "black",
+     "ply": 55,
+     "band": "endgame",
+     "played": [
+      10,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "white",
+     "ply": 66,
+     "band": "endgame",
+     "played": [
+      4,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "white",
+     "ply": 70,
+     "band": "endgame",
+     "played": [
+      7,
+      13
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "white",
+     "ply": 72,
+     "band": "endgame",
+     "played": [
+      5,
+      12
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "black",
+     "ply": 77,
+     "band": "endgame",
+     "played": [
+      1,
+      13
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "black",
+     "ply": 99,
+     "band": "endgame",
+     "played": [
+      11,
+      4
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 4,
+     "colour": "black",
+     "ply": 101,
+     "band": "endgame",
+     "played": [
+      11,
+      5
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 0
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 5,
+     "colour": "white",
+     "ply": 6,
+     "band": "opening",
+     "played": [
+      7,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 5,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      9,
+      5
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 5,
+     "colour": "white",
+     "ply": 12,
+     "band": "opening",
+     "played": [
+      10,
+      3
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 5,
+     "colour": "black",
+     "ply": 21,
+     "band": "midgame",
+     "played": [
+      6,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 5,
+     "colour": "black",
+     "ply": 27,
+     "band": "midgame",
+     "played": [
+      11,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 5,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      6,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 5,
+     "colour": "black",
+     "ply": 33,
+     "band": "endgame",
+     "played": [
+      8,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 6,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      3,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 6,
+     "colour": "white",
+     "ply": 14,
+     "band": "midgame",
+     "played": [
+      6,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 6,
+     "colour": "black",
+     "ply": 21,
+     "band": "midgame",
+     "played": [
+      11,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 6,
+     "colour": "white",
+     "ply": 22,
+     "band": "midgame",
+     "played": [
+      8,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 7,
+     "colour": "white",
+     "ply": 6,
+     "band": "opening",
+     "played": [
+      4,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 7,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      5,
+      9
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 7,
+     "colour": "white",
+     "ply": 12,
+     "band": "opening",
+     "played": [
+      4,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 7,
+     "colour": "white",
+     "ply": 14,
+     "band": "midgame",
+     "played": [
+      7,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 8
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 7,
+     "colour": "black",
+     "ply": 15,
+     "band": "midgame",
+     "played": [
+      6,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      3,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "white",
+     "ply": 14,
+     "band": "midgame",
+     "played": [
+      6,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "white",
+     "ply": 22,
+     "band": "midgame",
+     "played": [
+      8,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "white",
+     "ply": 24,
+     "band": "midgame",
+     "played": [
+      12,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      11,
+      12
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "black",
+     "ply": 37,
+     "band": "endgame",
+     "played": [
+      4,
+      3
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "black",
+     "ply": 41,
+     "band": "endgame",
+     "played": [
+      5,
+      1
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "black",
+     "ply": 45,
+     "band": "endgame",
+     "played": [
+      3,
+      2
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "white",
+     "ply": 60,
+     "band": "endgame",
+     "played": [
+      6,
+      0
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "white",
+     "ply": 64,
+     "band": "endgame",
+     "played": [
+      1,
+      5
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 5
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "white",
+     "ply": 74,
+     "band": "endgame",
+     "played": [
+      6,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "white",
+     "ply": 76,
+     "band": "endgame",
+     "played": [
+      3,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 6
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "black",
+     "ply": 77,
+     "band": "endgame",
+     "played": [
+      3,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 8,
+     "colour": "black",
+     "ply": 83,
+     "band": "endgame",
+     "played": [
+      5,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 9,
+     "colour": "white",
+     "ply": 6,
+     "band": "opening",
+     "played": [
+      4,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 9,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      5,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 9,
+     "colour": "white",
+     "ply": 12,
+     "band": "opening",
+     "played": [
+      3,
+      10
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 9,
+     "colour": "black",
+     "ply": 21,
+     "band": "midgame",
+     "played": [
+      9,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 9,
+     "colour": "black",
+     "ply": 27,
+     "band": "midgame",
+     "played": [
+      7,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 9,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      8,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 9,
+     "colour": "black",
+     "ply": 33,
+     "band": "endgame",
+     "played": [
+      11,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      6,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 14,
+     "band": "midgame",
+     "played": [
+      8,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 22,
+     "band": "midgame",
+     "played": [
+      4,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 24,
+     "band": "midgame",
+     "played": [
+      6,
+      2
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 33,
+     "band": "endgame",
+     "played": [
+      3,
+      2
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 37,
+     "band": "endgame",
+     "played": [
+      1,
+      3
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 39,
+     "band": "endgame",
+     "played": [
+      1,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 41,
+     "band": "endgame",
+     "played": [
+      2,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 43,
+     "band": "endgame",
+     "played": [
+      1,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 44,
+     "band": "endgame",
+     "played": [
+      1,
+      5
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 50,
+     "band": "endgame",
+     "played": [
+      5,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 56,
+     "band": "endgame",
+     "played": [
+      5,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 61,
+     "band": "endgame",
+     "played": [
+      9,
+      13
+     ],
+     "played_v1_rank": 5,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 63,
+     "band": "endgame",
+     "played": [
+      1,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 69,
+     "band": "endgame",
+     "played": [
+      1,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 74,
+     "band": "endgame",
+     "played": [
+      6,
+      12
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 78,
+     "band": "endgame",
+     "played": [
+      10,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 5
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 83,
+     "band": "endgame",
+     "played": [
+      11,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 87,
+     "band": "endgame",
+     "played": [
+      11,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 89,
+     "band": "endgame",
+     "played": [
+      13,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 94,
+     "band": "endgame",
+     "played": [
+      12,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 101,
+     "band": "endgame",
+     "played": [
+      11,
+      11
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 103,
+     "band": "endgame",
+     "played": [
+      12,
+      9
+     ],
+     "played_v1_rank": 7,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 104,
+     "band": "endgame",
+     "played": [
+      13,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 5
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "black",
+     "ply": 119,
+     "band": "endgame",
+     "played": [
+      13,
+      3
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 122,
+     "band": "endgame",
+     "played": [
+      10,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 10,
+     "colour": "white",
+     "ply": 128,
+     "band": "endgame",
+     "played": [
+      11,
+      2
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 7
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 11,
+     "colour": "white",
+     "ply": 6,
+     "band": "opening",
+     "played": [
+      4,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 11,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      5,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 11,
+     "colour": "white",
+     "ply": 12,
+     "band": "opening",
+     "played": [
+      3,
+      10
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 11,
+     "colour": "black",
+     "ply": 21,
+     "band": "midgame",
+     "played": [
+      9,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 11,
+     "colour": "black",
+     "ply": 27,
+     "band": "midgame",
+     "played": [
+      7,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 11,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      8,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 11,
+     "colour": "black",
+     "ply": 33,
+     "band": "endgame",
+     "played": [
+      11,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 12,
+     "colour": "black",
+     "ply": 17,
+     "band": "midgame",
+     "played": [
+      3,
+      10
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 12,
+     "colour": "black",
+     "ply": 19,
+     "band": "midgame",
+     "played": [
+      1,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 12,
+     "colour": "black",
+     "ply": 29,
+     "band": "midgame",
+     "played": [
+      5,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 12,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      8,
+      2
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 12,
+     "colour": "white",
+     "ply": 32,
+     "band": "midgame",
+     "played": [
+      9,
+      2
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 12,
+     "colour": "black",
+     "ply": 35,
+     "band": "endgame",
+     "played": [
+      9,
+      5
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 6
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 12,
+     "colour": "black",
+     "ply": 37,
+     "band": "endgame",
+     "played": [
+      9,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 8
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 12,
+     "colour": "white",
+     "ply": 38,
+     "band": "endgame",
+     "played": [
+      9,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 12,
+     "colour": "white",
+     "ply": 40,
+     "band": "endgame",
+     "played": [
+      11,
+      5
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 5
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 12,
+     "colour": "black",
+     "ply": 51,
+     "band": "endgame",
+     "played": [
+      7,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 0
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 13,
+     "colour": "white",
+     "ply": 6,
+     "band": "opening",
+     "played": [
+      7,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 13,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      9,
+      5
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 13,
+     "colour": "white",
+     "ply": 12,
+     "band": "opening",
+     "played": [
+      9,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 13,
+     "colour": "white",
+     "ply": 14,
+     "band": "midgame",
+     "played": [
+      9,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 8
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 13,
+     "colour": "black",
+     "ply": 15,
+     "band": "midgame",
+     "played": [
+      9,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 14,
+     "colour": "black",
+     "ply": 13,
+     "band": "midgame",
+     "played": [
+      8,
+      4
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 14,
+     "colour": "black",
+     "ply": 17,
+     "band": "midgame",
+     "played": [
+      10,
+      3
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 14,
+     "colour": "white",
+     "ply": 20,
+     "band": "midgame",
+     "played": [
+      6,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 14,
+     "colour": "white",
+     "ply": 24,
+     "band": "midgame",
+     "played": [
+      6,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 14,
+     "colour": "black",
+     "ply": 27,
+     "band": "midgame",
+     "played": [
+      3,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 14,
+     "colour": "black",
+     "ply": 29,
+     "band": "midgame",
+     "played": [
+      2,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 0
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 15,
+     "colour": "white",
+     "ply": 6,
+     "band": "opening",
+     "played": [
+      4,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 15,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      5,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 15,
+     "colour": "white",
+     "ply": 12,
+     "band": "opening",
+     "played": [
+      3,
+      10
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 15,
+     "colour": "black",
+     "ply": 21,
+     "band": "midgame",
+     "played": [
+      9,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 15,
+     "colour": "black",
+     "ply": 27,
+     "band": "midgame",
+     "played": [
+      7,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 15,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      8,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 15,
+     "colour": "black",
+     "ply": 33,
+     "band": "endgame",
+     "played": [
+      11,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 16,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      3,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 16,
+     "colour": "white",
+     "ply": 14,
+     "band": "midgame",
+     "played": [
+      6,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 16,
+     "colour": "white",
+     "ply": 22,
+     "band": "midgame",
+     "played": [
+      8,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 16,
+     "colour": "white",
+     "ply": 24,
+     "band": "midgame",
+     "played": [
+      12,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 16,
+     "colour": "black",
+     "ply": 35,
+     "band": "endgame",
+     "played": [
+      5,
+      4
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 16,
+     "colour": "black",
+     "ply": 37,
+     "band": "endgame",
+     "played": [
+      6,
+      9
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 16,
+     "colour": "black",
+     "ply": 41,
+     "band": "endgame",
+     "played": [
+      7,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 7
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 16,
+     "colour": "white",
+     "ply": 42,
+     "band": "endgame",
+     "played": [
+      4,
+      7
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 5
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 16,
+     "colour": "black",
+     "ply": 49,
+     "band": "endgame",
+     "played": [
+      7,
+      12
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 0
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 17,
+     "colour": "white",
+     "ply": 6,
+     "band": "opening",
+     "played": [
+      7,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 17,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      9,
+      5
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 17,
+     "colour": "white",
+     "ply": 12,
+     "band": "opening",
+     "played": [
+      10,
+      3
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 17,
+     "colour": "black",
+     "ply": 21,
+     "band": "midgame",
+     "played": [
+      6,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 17,
+     "colour": "black",
+     "ply": 27,
+     "band": "midgame",
+     "played": [
+      7,
+      11
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 17,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      6,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 17,
+     "colour": "white",
+     "ply": 34,
+     "band": "endgame",
+     "played": [
+      4,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 17,
+     "colour": "white",
+     "ply": 36,
+     "band": "endgame",
+     "played": [
+      4,
+      8
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 17,
+     "colour": "black",
+     "ply": 43,
+     "band": "endgame",
+     "played": [
+      12,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 17,
+     "colour": "black",
+     "ply": 45,
+     "band": "endgame",
+     "played": [
+      10,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 17,
+     "colour": "white",
+     "ply": 52,
+     "band": "endgame",
+     "played": [
+      10,
+      11
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 18,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      11,
+      8
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 18,
+     "colour": "white",
+     "ply": 14,
+     "band": "midgame",
+     "played": [
+      8,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 18,
+     "colour": "black",
+     "ply": 21,
+     "band": "midgame",
+     "played": [
+      8,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 18,
+     "colour": "black",
+     "ply": 25,
+     "band": "midgame",
+     "played": [
+      6,
+      3
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 18,
+     "colour": "white",
+     "ply": 28,
+     "band": "midgame",
+     "played": [
+      7,
+      3
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 18,
+     "colour": "white",
+     "ply": 30,
+     "band": "midgame",
+     "played": [
+      8,
+      5
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 18,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      5,
+      5
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 3
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 18,
+     "colour": "black",
+     "ply": 33,
+     "band": "endgame",
+     "played": [
+      9,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 18,
+     "colour": "black",
+     "ply": 35,
+     "band": "endgame",
+     "played": [
+      4,
+      5
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 6
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 18,
+     "colour": "white",
+     "ply": 36,
+     "band": "endgame",
+     "played": [
+      4,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 6
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 18,
+     "colour": "white",
+     "ply": 40,
+     "band": "endgame",
+     "played": [
+      6,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 8
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 19,
+     "colour": "white",
+     "ply": 6,
+     "band": "opening",
+     "played": [
+      4,
+      7
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 19,
+     "colour": "white",
+     "ply": 10,
+     "band": "opening",
+     "played": [
+      5,
+      9
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 19,
+     "colour": "white",
+     "ply": 12,
+     "band": "opening",
+     "played": [
+      3,
+      10
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 4
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 19,
+     "colour": "black",
+     "ply": 21,
+     "band": "midgame",
+     "played": [
+      9,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 19,
+     "colour": "black",
+     "ply": 27,
+     "band": "midgame",
+     "played": [
+      11,
+      7
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 19,
+     "colour": "black",
+     "ply": 31,
+     "band": "midgame",
+     "played": [
+      8,
+      6
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 19,
+     "colour": "white",
+     "ply": 34,
+     "band": "endgame",
+     "played": [
+      10,
+      4
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 19,
+     "colour": "white",
+     "ply": 36,
+     "band": "endgame",
+     "played": [
+      8,
+      4
+     ],
+     "played_v1_rank": 2,
+     "n_creators": 2,
+     "n_opp_vcf_before": 2
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 19,
+     "colour": "black",
+     "ply": 43,
+     "band": "endgame",
+     "played": [
+      10,
+      12
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 19,
+     "colour": "black",
+     "ply": 45,
+     "band": "endgame",
+     "played": [
+      6,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 1
+    },
+    {
+     "kind": "creator",
+     "leg": "stats-v27-vs-v0-20.json",
+     "game": 19,
+     "colour": "white",
+     "ply": 52,
+     "band": "endgame",
+     "played": [
+      11,
+      10
+     ],
+     "played_v1_rank": 1,
+     "n_creators": 1,
+     "n_opp_vcf_before": 4
+    }
+   ],
+   "decisive": [
+    {
+     "game": 0,
+     "a_colour": "white",
+     "plies": 45,
+     "losing_ply": 41,
+     "losing_move": "(10,5)",
+     "saving_moves": [],
+     "n_saving": 0,
+     "n_checked": 73,
+     "already_lost": true,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "white"
+    },
+    {
+     "game": 1,
+     "a_colour": "black",
+     "plies": 42,
+     "losing_ply": 34,
+     "losing_move": "(10,7)",
+     "saving_moves": [],
+     "n_saving": 0,
+     "n_checked": 83,
+     "already_lost": true,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "black"
+    },
+    {
+     "game": 2,
+     "a_colour": "white",
+     "plies": 45,
+     "losing_ply": 41,
+     "losing_move": "(5,10)",
+     "saving_moves": [],
+     "n_saving": 0,
+     "n_checked": 73,
+     "already_lost": true,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "white"
+    },
+    {
+     "game": 3,
+     "a_colour": "black",
+     "plies": 22,
+     "losing_ply": 18,
+     "losing_move": "(8,8)",
+     "saving_moves": [
+      "(4,5)",
+      "(5,5)",
+      "(4,7)",
+      "(5,7)",
+      "(5,8)",
+      "(9,8)",
+      "(4,9)",
+      "(10,9)"
+     ],
+     "n_saving": 8,
+     "n_checked": 41,
+     "already_lost": false,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "black"
+    },
+    {
+     "game": 4,
+     "a_colour": "white",
+     "plies": 101,
+     "losing_ply": 97,
+     "losing_move": "(13,2)",
+     "saving_moves": [
+      "(13,4)",
+      "(12,5)"
+     ],
+     "n_saving": 2,
+     "n_checked": 108,
+     "already_lost": false,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "white"
+    },
+    {
+     "game": 5,
+     "a_colour": "black",
+     "plies": 42,
+     "losing_ply": 34,
+     "losing_move": "(7,10)",
+     "saving_moves": [],
+     "n_saving": 0,
+     "n_checked": 83,
+     "already_lost": true,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "black"
+    },
+    {
+     "game": 6,
+     "a_colour": "white",
+     "plies": 31,
+     "losing_ply": 25,
+     "losing_move": "(9,11)",
+     "saving_moves": [
+      "(6,4)",
+      "(7,5)",
+      "(9,10)",
+      "(10,11)"
+     ],
+     "n_saving": 4,
+     "n_checked": 78,
+     "already_lost": false,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "white"
+    },
+    {
+     "game": 7,
+     "a_colour": "black",
+     "plies": 22,
+     "losing_ply": 18,
+     "losing_move": "(8,8)",
+     "saving_moves": [
+      "(5,4)",
+      "(7,4)",
+      "(9,4)",
+      "(5,5)",
+      "(7,5)",
+      "(8,5)",
+      "(8,9)",
+      "(9,10)"
+     ],
+     "n_saving": 8,
+     "n_checked": 41,
+     "already_lost": false,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "black"
+    },
+    {
+     "game": 8,
+     "a_colour": "white",
+     "plies": 97,
+     "losing_ply": 85,
+     "losing_move": "(7,9)",
+     "saving_moves": [],
+     "n_saving": 0,
+     "n_checked": 108,
+     "already_lost": true,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "white"
+    },
+    {
+     "game": 9,
+     "a_colour": "black",
+     "plies": 42,
+     "losing_ply": 34,
+     "losing_move": "(10,7)",
+     "saving_moves": [],
+     "n_saving": 0,
+     "n_checked": 83,
+     "already_lost": true,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "black"
+    },
+    {
+     "game": 10,
+     "a_colour": "white",
+     "plies": 135,
+     "losing_ply": 101,
+     "losing_move": "(10,12)",
+     "saving_moves": [],
+     "n_saving": 0,
+     "n_checked": 96,
+     "already_lost": true,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "white"
+    },
+    {
+     "game": 11,
+     "a_colour": "black",
+     "plies": 42,
+     "losing_ply": 34,
+     "losing_move": "(10,7)",
+     "saving_moves": [],
+     "n_saving": 0,
+     "n_checked": 83,
+     "already_lost": true,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "black"
+    },
+    {
+     "game": 12,
+     "a_colour": "white",
+     "plies": 51,
+     "losing_ply": 47,
+     "losing_move": "(9,9)",
+     "saving_moves": [
+      "(4,0)",
+      "(5,1)",
+      "(4,2)",
+      "(5,3)",
+      "(4,6)",
+      "(3,7)"
+     ],
+     "n_saving": 6,
+     "n_checked": 90,
+     "already_lost": false,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "white"
+    },
+    {
+     "game": 13,
+     "a_colour": "black",
+     "plies": 22,
+     "losing_ply": 18,
+     "losing_move": "(8,8)",
+     "saving_moves": [
+      "(4,5)",
+      "(5,5)",
+      "(4,7)",
+      "(5,7)",
+      "(5,8)",
+      "(9,8)",
+      "(4,9)",
+      "(10,9)"
+     ],
+     "n_saving": 8,
+     "n_checked": 41,
+     "already_lost": false,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "black"
+    },
+    {
+     "game": 14,
+     "a_colour": "white",
+     "plies": 29,
+     "losing_ply": 25,
+     "losing_move": "(6,10)",
+     "saving_moves": [
+      "(3,8)",
+      "(4,8)"
+     ],
+     "n_saving": 2,
+     "n_checked": 52,
+     "already_lost": false,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "white"
+    },
+    {
+     "game": 15,
+     "a_colour": "black",
+     "plies": 42,
+     "losing_ply": 34,
+     "losing_move": "(10,7)",
+     "saving_moves": [],
+     "n_saving": 0,
+     "n_checked": 83,
+     "already_lost": true,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "black"
+    },
+    {
+     "game": 16,
+     "a_colour": "white",
+     "plies": 49,
+     "losing_ply": 41,
+     "losing_move": "(4,7)",
+     "saving_moves": [
+      "(9,4)",
+      "(11,4)",
+      "(9,5)",
+      "(10,5)",
+      "(12,5)",
+      "(11,6)",
+      "(10,11)"
+     ],
+     "n_saving": 7,
+     "n_checked": 78,
+     "already_lost": false,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "white"
+    },
+    {
+     "game": 17,
+     "a_colour": "black",
+     "plies": 54,
+     "losing_ply": 46,
+     "losing_move": "(7,10)",
+     "saving_moves": [],
+     "n_saving": 0,
+     "n_checked": 92,
+     "already_lost": true,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "black"
+    },
+    {
+     "game": 18,
+     "a_colour": "white",
+     "plies": 49,
+     "losing_ply": 39,
+     "losing_move": "(6,9)",
+     "saving_moves": [
+      "(2,4)",
+      "(3,4)",
+      "(9,5)",
+      "(10,5)",
+      "(2,9)",
+      "(8,9)",
+      "(9,10)"
+     ],
+     "n_saving": 7,
+     "n_checked": 90,
+     "already_lost": false,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "white"
+    },
+    {
+     "game": 19,
+     "a_colour": "black",
+     "plies": 54,
+     "losing_ply": 46,
+     "losing_move": "(10,7)",
+     "saving_moves": [],
+     "n_saving": 0,
+     "n_checked": 92,
+     "already_lost": true,
+     "leg": "stats-v27-vs-v0-20.json",
+     "loser_colour": "black"
+    }
+   ],
+   "elapsed_seconds": 13756.5
+  }
+ ],
+ "summary": {
+  "pooled_cells": {
+   "black": {
+    "opening": {
+     "turns": 120,
+     "threatened_turns": 4,
+     "clean_missed_preventions": 0,
+     "forced_blocks": 0,
+     "quiet_turns": 116,
+     "quiet_creator_created": 36,
+     "quiet_vcf_created": 43,
+     "vcf_threatened_turns": 4,
+     "clean_missed_vcf_preventions": 0,
+     "vcf_exposure_sum": 0,
+     "vcf_exposure_n": 4,
+     "regret_sum": 162218.0,
+     "regret_n": 120
+    },
+    "midgame": {
+     "turns": 184,
+     "threatened_turns": 45,
+     "clean_missed_preventions": 3,
+     "forced_blocks": 26,
+     "quiet_turns": 110,
+     "quiet_creator_created": 37,
+     "quiet_vcf_created": 59,
+     "vcf_threatened_turns": 57,
+     "clean_missed_vcf_preventions": 5,
+     "vcf_exposure_sum": 18,
+     "vcf_exposure_n": 57,
+     "regret_sum": 399920.0,
+     "regret_n": 184
+    },
+    "endgame": {
+     "turns": 209,
+     "threatened_turns": 53,
+     "clean_missed_preventions": 0,
+     "forced_blocks": 30,
+     "quiet_turns": 119,
+     "quiet_creator_created": 61,
+     "quiet_vcf_created": 75,
+     "vcf_threatened_turns": 57,
+     "clean_missed_vcf_preventions": 1,
+     "vcf_exposure_sum": 48,
+     "vcf_exposure_n": 57,
+     "regret_sum": 1541751.0,
+     "regret_n": 209
+    }
+   },
+   "white": {
+    "opening": {
+     "turns": 120,
+     "threatened_turns": 36,
+     "clean_missed_preventions": 0,
+     "forced_blocks": 7,
+     "quiet_turns": 77,
+     "quiet_creator_created": 7,
+     "quiet_vcf_created": 7,
+     "vcf_threatened_turns": 36,
+     "clean_missed_vcf_preventions": 0,
+     "vcf_exposure_sum": 0,
+     "vcf_exposure_n": 36,
+     "regret_sum": 42808.0,
+     "regret_n": 120
+    },
+    "midgame": {
+     "turns": 182,
+     "threatened_turns": 29,
+     "clean_missed_preventions": 2,
+     "forced_blocks": 32,
+     "quiet_turns": 119,
+     "quiet_creator_created": 54,
+     "quiet_vcf_created": 75,
+     "vcf_threatened_turns": 32,
+     "clean_missed_vcf_preventions": 2,
+     "vcf_exposure_sum": 4,
+     "vcf_exposure_n": 32,
+     "regret_sum": 780631.0,
+     "regret_n": 182
+    },
+    "endgame": {
+     "turns": 201,
+     "threatened_turns": 32,
+     "clean_missed_preventions": 3,
+     "forced_blocks": 50,
+     "quiet_turns": 111,
+     "quiet_creator_created": 64,
+     "quiet_vcf_created": 74,
+     "vcf_threatened_turns": 34,
+     "clean_missed_vcf_preventions": 5,
+     "vcf_exposure_sum": 16,
+     "vcf_exposure_n": 34,
+     "regret_sum": 2818951.0,
+     "regret_n": 201
+    }
+   }
+  },
+  "gaps": {
+   "opening": {
+    "clean_missed_prevention_rate": {
+     "black": 0.0,
+     "white": 0.0,
+     "white_minus_black": 0.0,
+     "ci_95": [
+      0.0,
+      0.0
+     ],
+     "n_black": 4,
+     "n_white": 36
+    },
+    "clean_missed_vcf_prevention_rate": {
+     "black": 0.0,
+     "white": 0.0,
+     "white_minus_black": 0.0,
+     "ci_95": [
+      0.0,
+      0.0
+     ],
+     "n_black": 4,
+     "n_white": 36
+    }
+   },
+   "midgame": {
+    "clean_missed_prevention_rate": {
+     "black": 0.0667,
+     "white": 0.069,
+     "white_minus_black": 0.0023,
+     "ci_95": [
+      -0.1152,
+      0.1198
+     ],
+     "n_black": 45,
+     "n_white": 29
+    },
+    "clean_missed_vcf_prevention_rate": {
+     "black": 0.0877,
+     "white": 0.0625,
+     "white_minus_black": -0.0252,
+     "ci_95": [
+      -0.1367,
+      0.0863
+     ],
+     "n_black": 57,
+     "n_white": 32
+    }
+   },
+   "endgame": {
+    "clean_missed_prevention_rate": {
+     "black": 0.0,
+     "white": 0.0938,
+     "white_minus_black": 0.0938,
+     "ci_95": [
+      -0.0072,
+      0.1947
+     ],
+     "n_black": 53,
+     "n_white": 32
+    },
+    "clean_missed_vcf_prevention_rate": {
+     "black": 0.0175,
+     "white": 0.1471,
+     "white_minus_black": 0.1295,
+     "ci_95": [
+      0.0057,
+      0.2533
+     ],
+     "n_black": 57,
+     "n_white": 34
+    }
+   }
+  },
+  "rates": {
+   "pooled": {
+    "black": {
+     "opening": {
+      "turns": 120,
+      "threatened_turn_rate": 0.0333,
+      "clean_missed_prevention_rate": 0.0,
+      "forced_block_share": 0.0,
+      "quiet_creator_creation_rate": 0.3103,
+      "quiet_vcf_creation_rate": 0.3707,
+      "vcf_exposure_mean": 0.0,
+      "clean_missed_vcf_prevention_rate": 0.0,
+      "v1_regret_mean": 1351.8
+     },
+     "midgame": {
+      "turns": 184,
+      "threatened_turn_rate": 0.2446,
+      "clean_missed_prevention_rate": 0.0667,
+      "forced_block_share": 0.1413,
+      "quiet_creator_creation_rate": 0.3364,
+      "quiet_vcf_creation_rate": 0.5364,
+      "vcf_exposure_mean": 0.3158,
+      "clean_missed_vcf_prevention_rate": 0.0877,
+      "v1_regret_mean": 2173.5
+     },
+     "endgame": {
+      "turns": 209,
+      "threatened_turn_rate": 0.2536,
+      "clean_missed_prevention_rate": 0.0,
+      "forced_block_share": 0.1435,
+      "quiet_creator_creation_rate": 0.5126,
+      "quiet_vcf_creation_rate": 0.6303,
+      "vcf_exposure_mean": 0.8421,
+      "clean_missed_vcf_prevention_rate": 0.0175,
+      "v1_regret_mean": 7376.8
+     }
+    },
+    "white": {
+     "opening": {
+      "turns": 120,
+      "threatened_turn_rate": 0.3,
+      "clean_missed_prevention_rate": 0.0,
+      "forced_block_share": 0.0583,
+      "quiet_creator_creation_rate": 0.0909,
+      "quiet_vcf_creation_rate": 0.0909,
+      "vcf_exposure_mean": 0.0,
+      "clean_missed_vcf_prevention_rate": 0.0,
+      "v1_regret_mean": 356.7
+     },
+     "midgame": {
+      "turns": 182,
+      "threatened_turn_rate": 0.1593,
+      "clean_missed_prevention_rate": 0.069,
+      "forced_block_share": 0.1758,
+      "quiet_creator_creation_rate": 0.4538,
+      "quiet_vcf_creation_rate": 0.6303,
+      "vcf_exposure_mean": 0.125,
+      "clean_missed_vcf_prevention_rate": 0.0625,
+      "v1_regret_mean": 4289.2
+     },
+     "endgame": {
+      "turns": 201,
+      "threatened_turn_rate": 0.1592,
+      "clean_missed_prevention_rate": 0.0938,
+      "forced_block_share": 0.2488,
+      "quiet_creator_creation_rate": 0.5766,
+      "quiet_vcf_creation_rate": 0.6667,
+      "vcf_exposure_mean": 0.4706,
+      "clean_missed_vcf_prevention_rate": 0.1471,
+      "v1_regret_mean": 14024.6
+     }
+    }
+   },
+   "stats-v27-vs-v0-20.json": {
+    "black": {
+     "opening": {
+      "turns": 120,
+      "threatened_turn_rate": 0.0333,
+      "clean_missed_prevention_rate": 0.0,
+      "forced_block_share": 0.0,
+      "quiet_creator_creation_rate": 0.3103,
+      "quiet_vcf_creation_rate": 0.3707,
+      "vcf_exposure_mean": 0.0,
+      "clean_missed_vcf_prevention_rate": 0.0,
+      "v1_regret_mean": 1351.8
+     },
+     "midgame": {
+      "turns": 184,
+      "threatened_turn_rate": 0.2446,
+      "clean_missed_prevention_rate": 0.0667,
+      "forced_block_share": 0.1413,
+      "quiet_creator_creation_rate": 0.3364,
+      "quiet_vcf_creation_rate": 0.5364,
+      "vcf_exposure_mean": 0.3158,
+      "clean_missed_vcf_prevention_rate": 0.0877,
+      "v1_regret_mean": 2173.5
+     },
+     "endgame": {
+      "turns": 209,
+      "threatened_turn_rate": 0.2536,
+      "clean_missed_prevention_rate": 0.0,
+      "forced_block_share": 0.1435,
+      "quiet_creator_creation_rate": 0.5126,
+      "quiet_vcf_creation_rate": 0.6303,
+      "vcf_exposure_mean": 0.8421,
+      "clean_missed_vcf_prevention_rate": 0.0175,
+      "v1_regret_mean": 7376.8
+     }
+    },
+    "white": {
+     "opening": {
+      "turns": 120,
+      "threatened_turn_rate": 0.3,
+      "clean_missed_prevention_rate": 0.0,
+      "forced_block_share": 0.0583,
+      "quiet_creator_creation_rate": 0.0909,
+      "quiet_vcf_creation_rate": 0.0909,
+      "vcf_exposure_mean": 0.0,
+      "clean_missed_vcf_prevention_rate": 0.0,
+      "v1_regret_mean": 356.7
+     },
+     "midgame": {
+      "turns": 182,
+      "threatened_turn_rate": 0.1593,
+      "clean_missed_prevention_rate": 0.069,
+      "forced_block_share": 0.1758,
+      "quiet_creator_creation_rate": 0.4538,
+      "quiet_vcf_creation_rate": 0.6303,
+      "vcf_exposure_mean": 0.125,
+      "clean_missed_vcf_prevention_rate": 0.0625,
+      "v1_regret_mean": 4289.2
+     },
+     "endgame": {
+      "turns": 201,
+      "threatened_turn_rate": 0.1592,
+      "clean_missed_prevention_rate": 0.0938,
+      "forced_block_share": 0.2488,
+      "quiet_creator_creation_rate": 0.5766,
+      "quiet_vcf_creation_rate": 0.6667,
+      "vcf_exposure_mean": 0.4706,
+      "clean_missed_vcf_prevention_rate": 0.1471,
+      "v1_regret_mean": 14024.6
+     }
+    }
+   }
+  },
+  "first_threat": {
+   "pooled": {
+    "black_vcf": {
+     "mean_ply": 8.2,
+     "n": 20,
+     "never": 0
+    },
+    "black_creator": {
+     "mean_ply": 9.2,
+     "n": 20,
+     "never": 0
+    },
+    "white_vcf": {
+     "mean_ply": 19.4,
+     "n": 20,
+     "never": 0
+    },
+    "white_creator": {
+     "mean_ply": 19.4,
+     "n": 20,
+     "never": 0
+    }
+   },
+   "stats-v27-vs-v0-20.json": {
+    "black_vcf": {
+     "mean_ply": 8.2,
+     "n": 20,
+     "never": 0
+    },
+    "black_creator": {
+     "mean_ply": 9.2,
+     "n": 20,
+     "never": 0
+    },
+    "white_vcf": {
+     "mean_ply": 19.4,
+     "n": 20,
+     "never": 0
+    },
+    "white_creator": {
+     "mean_ply": 19.4,
+     "n": 20,
+     "never": 0
+    }
+   }
+  },
+  "decisive": {
+   "white": {
+    "endgame": 8,
+    "already_lost": 4,
+    "midgame": 2
+   },
+   "black": {
+    "endgame": 7,
+    "already_lost": 7,
+    "midgame": 3
+   }
+  }
+ }
+}
