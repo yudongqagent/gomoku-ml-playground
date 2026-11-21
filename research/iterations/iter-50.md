@@ -283,6 +283,24 @@ priors dominate, and against v0's greedy play the net's attack
 gradient matters more. The mirror match (§5.5) tests this
 directly.
 
+### 5.3 vs v7 (normal rules) — COMPLETE
+
+`batch-v50-vs-v7.json`: **38W-53L-9D, win rate 0.4250, Wilson
+95% CI [0.3327, 0.5229]**. As Black 24W-20L-6D (0.54); as White
+14W-33L-3D (**0.31**) — the White collapse vs heuristic
+opponents again (White 0.61 vs v44, 0.30 vs v0, 0.31 vs v7).
+Uniqueness 99/100; de-dup 0.4192, CI [0.3268, 0.5176]. This leg
+survived the second runtime restart (chain killed at 73 games,
+resumed cleanly from game 73 — zero games lost).
+
+Comparison: v37 vs v7 was 0.4500 (43W-53L-4D); v44 vs v7 was
+0.4500 (44W-54L-2D). v50's 0.4250 sits just below both, with
+heavily overlapping CIs — the same direction as the vs-v0 leg,
+but within noise on its own. The pattern across the two
+heuristic legs (v50 below v37 on both, by 0.11 vs v0 and 0.025
+vs v7) is consistent with cooling α costing a little against
+heuristic opponents.
+
 ## 6. Ladder
 
 (TODO)
