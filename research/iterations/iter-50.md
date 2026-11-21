@@ -193,7 +193,27 @@ dev seeds flatter).
 
 ## 3. Fast loops
 
-(TODO)
+Iteration 1, dev seeds 1001/2001 (never the validation seeds),
+10 games each. Logs: `ml/runs/ml5-h3/fast-v50-v0.log`,
+`ml/runs/ml5-h3/fast-v50-v44.log`.
+
+| leg | W-L-D | win rate | 95% CI | as Black | as White | unique |
+|-----|-------|----------|--------|----------|----------|--------|
+| vs v0 | 7-3-0 | 0.7000 | [0.3968, 0.8922] | 4-1-0 (0.80) | 3-2-0 (0.60) | 10/10 |
+| vs v44 | 6-3-1 | 0.6500 | [0.3537, 0.8631] | 3-1-1 (0.70) | 3-2-0 (0.60) | 10/10 |
+
+Both legs are consistent with v50 playing at roughly v37's
+level (v37's battery numbers: 0.60 vs v0, 0.69 vs v44) — but 10
+games cannot distinguish v37-level from v44-level play (the vs
+v44 CI spans 0.35–0.86), and dev seeds flatter. No patch is
+sought from these loops: v50 is an ablation, and any change to
+the engine would break the isolation of the α effect. The loss
+read (§3.1) is a smoke check only; the 100-game battery is the
+verdict.
+
+### 3.1 Loss read (light)
+
+(TODO — filled in while the battery runs.)
 
 ## 4. Tactical (corrected suite, seed 100)
 
