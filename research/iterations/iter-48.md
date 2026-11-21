@@ -665,3 +665,98 @@ in this matchup. (2) Three of the twenty α=0.125 games
 were 225-ply full-board draws (~10 min each) — the
 v48-vs-v44 matchup produces marathon draws, which will
 make the 100-game battery legs slow.
+
+### 8.2 Fast loop iteration 1 (α=0.5, seeds 1001/2001)
+
+- vs v44: the α=0.5 sweep leg itself (20 games, same dev
+  seeds) — **9W-11L-0D (0.4500)**. As Black 5-5-0, as White
+  4-6-0. All 20 games unique.
+- vs v0: **5W-4L-1D (0.55)**, CI [0.2737, 0.7986], 585 s
+  (`research/iterations/fast-v48-vs-v0-iter1.json`). Same
+  headline as v44's 0.55 in the same loop. Colour split:
+  as Black 1W-3L-1D (0.300), as White 4W-1L-0D (0.800) —
+  White is now the STRONG side vs v0, the reverse of the
+  original collapse (v42 White 0.28, v43 White 0.21 vs v0).
+  Ten games is a small sample, but the direction matches
+  the §7.3 holdout finding.
+- Loss classification (both matches): **15 losses, 15 via
+  open four, 0 missed blocks, 0 clean missed preventions
+  in 72 threatened turns.** Defence as measured is clean
+  — the losses are positional drift into unstoppable open
+  fours, not blundered blocks. Same pattern as v37/v44.
+- Losing moves (`find_losing_moves.py`, VCF solver depth
+  4; raw `ml/runs/ml5-h1/losing-moves.txt`): **10 of 15
+  losses were already lost** at the first VCF moment.
+  **FIVE genuine blunders:** vs v44 game 8 (Black, 36
+  plies), ply 30 — (8,8), 1 save; vs v44 game 13 (White,
+  43 plies), ply 37 — (7,11), 5 saves; vs v44 game 18
+  (Black, 38 plies), ply 30 — (11,8), 5 saves; vs v0
+  game 2 (Black, 70 plies), ply 50 — (11,4), 7 saves;
+  vs v0 game 8 (Black, 28 plies), ply 22 — (9,9), 5
+  saves. Four of the five blunders are as Black.
+
+**Workup — vs-v44 game 8, ply 30 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml5-h1/diag-v44-g8-ply30.txt`)
+shows a FLAT root: the actual (8,8) has the best our-q
+(−0.047), the most visits (13), and the 1-ply leaf agrees
+(actual −0.186 v22, save −0.185 v22 — tied). The VCF is
+beyond the 100-sim search's horizon AND beyond the 2-ply
+label's 4-ply horizon — the net agrees with the exact
+heuristic leaf, and both rank the loser (tied-)first.
+Shared search-horizon limit (v44's g12 class), NOT a
+value-head failure.
+
+**Workup — vs-v44 game 13, ply 37 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml5-h1/diag-v44-g13-ply37.txt`)
+shows a q-vs-LEAF inversion: the actual (7,11) has our-q
+−0.028 vs the saves' −0.115/−0.074/−0.075, but the exact
+1-ply leaf ranks ALL FIVE saves clearly first (+0.069 to
++0.149 vs the actual's +0.007). The leaf is RIGHT; the
+backed-up root q inverts it through subtree averaging on
+a flat root (top move 12 visits over 108 children). One
+save, (7,3), even has the best our-q (+0.019) but only 1
+visit — the most-visited root decision never sees it.
+v40's blunder-dilution / visit-allocation class — a
+search problem, not a leaf problem (the leaf-blind
+direction is CLOSED; v46/v47's fixes were CLOSED in
+batch 12). Not patchable within H1's remit.
+
+**Workup — vs-v44 game 18, ply 30 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml5-h1/diag-v44-g18-ply30.txt`)
+shows a FLAT root: the top six children all have 5
+visits; the actual (11,8) has the best our-q (−0.029)
+and the 1-ply leaf is essentially tied across actual and
+saves (v22 −0.195 vs −0.168…−0.193). Shared-horizon
+class, NOT a value-head failure.
+
+**Workup — vs-v0 game 2, ply 50 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml5-h1/diag-v0-g2-ply50.txt`)
+shows the actual (11,4) TIED for best our-q (−0.001, 5
+visits) and the 1-ply leaf ranking it (tied-)first
+(v22 +0.113, v20 +0.168 — tied with saves on both).
+The net agrees with the exact leaf; the saves are
+indistinguishable at 1 ply. Shared-horizon class, NOT
+a value-head failure. (The prior favours the saves,
+0.056 vs 0.027 — but the root decision is
+most-visited and the actual got 5 visits vs 4.)
+
+**Workup — vs-v0 game 8, ply 22 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml5-h1/diag-v0-g8-ply22.txt`)
+shows the q nearly right and the prior wrong: the best
+save (7,11) has BETTER our-q (+0.006) than the actual
+(+0.000) and the v22 leaf agrees (+0.042 vs +0.007),
+but only 13 visits vs the actual's 21 — the actual's
+prior (0.1226) is 1.4x the save's (0.0852). EXACTLY
+v37's game-2 blunder class (and v44's g9): a PRIOR
+problem in shared heuristic-track code (`_priors`),
+whose change would alter v8/v7/v44 equally — NOT
+patchable within H1's remit.
+
+**Fast-loop STOP after iteration 1:** no patchable
+weakness class for v48 within H1's design space. The
+five blunders are three shared-horizon, one
+visit-allocation, one shared-prior — all in shared
+search code, none a value-head failure. The §7.3
+history-robustness is NOT implicated in any blunder.
+No loss-motivated retrain is authorised. The battery
+is the verdict.
