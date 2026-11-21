@@ -517,6 +517,23 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h3/value-net.pt",
          "value_weight": 0.125},  # sweep winner (0.725 vs 0.600 @ 0.25, 0.475 @ 0.5)
+    # v48 (iteration 48, ML batch 5): H1 — v8's PUCT MCTS with the
+    # value net distilled from v18's rollout leaf with 2-ply labels
+    # (v37's recipe) on v37's 37,227-position base PLUS the
+    # patch-cell positions from v44's battery legs against v0, v7,
+    # v8, and v37 (all four cells cleared the pre-registered 0.05
+    # White-gap bar in the §6 diagnosis — a GENERAL White-side
+    # value-head defect, not a heuristic-specific one; see
+    # research/iterations/iter-48.md). The ONLY differences from
+    # v37 are the checkpoint (49,452 train positions: 33,849 base
+    # + 15,603 patch-cell) and the swept α (``value_weight`` —
+    # placeholder 0.25 until the §7 α sweep sets it). Search,
+    # priors, sims, threat check, terminal cases: v8 unchanged, so
+    # the battery is a clean A/B of the White-collapse data patch.
+    48: {"name": "scoring-v48", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml5-h1/value-net.pt",
+         "value_weight": 0.25},
 }
 
 # --- weights --------------------------------------------------------------

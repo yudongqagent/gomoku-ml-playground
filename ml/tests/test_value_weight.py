@@ -78,8 +78,7 @@ def test_value_weight_registry_passthrough(tmp_path):
         entry["value_checkpoint"] = saved
 
 
-def test_value_weight_v44_registry_passthrough(tmp_path):
-    # v44's registry entry (ML batch 4 H3): checkpoint path is
+def test_value_weight_v44_registry_passthrough(tmp_path):    # v44's registry entry (ML batch 4 H3): checkpoint path is
     # fixed; value_weight is the §1.4 α-sweep winner, one of the
     # swept grid {0.125, 0.25, 0.5}. A player built from the
     # registry must carry whatever the entry holds.
@@ -91,6 +90,24 @@ def test_value_weight_v44_registry_passthrough(tmp_path):
     try:
         entry["value_checkpoint"] = ckpt
         player = scoring.get_player(44, seed=0)
+        assert player._mcts.value_weight == entry["value_weight"]
+    finally:
+        entry["value_checkpoint"] = saved
+
+
+def test_value_weight_v48_registry_passthrough(tmp_path):
+    # v48's registry entry (ML batch 5 H1): checkpoint path is
+    # fixed; value_weight is the §7 α-sweep winner, one of the
+    # swept grid {0.125, 0.25, 0.5}. A player built from the
+    # registry must carry whatever the entry holds.
+    ckpt = _random_net_checkpoint(tmp_path)
+    entry = scoring.ENGINE_VERSIONS[48]
+    assert entry["value_checkpoint"] == "ml/runs/ml5-h1/value-net.pt"
+    assert entry["value_weight"] in (0.125, 0.25, 0.5)
+    saved = entry["value_checkpoint"]
+    try:
+        entry["value_checkpoint"] = ckpt
+        player = scoring.get_player(48, seed=0)
         assert player._mcts.value_weight == entry["value_weight"]
     finally:
         entry["value_checkpoint"] = saved
