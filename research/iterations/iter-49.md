@@ -944,3 +944,30 @@ resumes were clean.
   fast loop 0.30 (10 games), this leg 0.38 (100 games).
   Both CIs overlap; the 100-game leg is the honest
   headline.
+
+### 6.4 vs v7 (secondary) — COMPLETE 2026-11-21 ~20:58 UTC
+
+`selfplay_batch.py --engine-a v49 --engine-b v7 --games 100
+--seed-a 100 --seed-b 200` (no --openings; log
+`ml/runs/ml5-h2/batt-v7.log`; JSON
+`research/iterations/batch-v49-vs-v7.json`). Two VM
+replacements interrupted the leg (at 90 and 95 games); both
+resumes were clean.
+
+- **46W-47L-7D, win rate 0.4950, Wilson 95% CI [0.3990,
+  0.5914]** — v49 holds the heuristic bar reference
+  essentially even, the best vs-v7 number of any ML version
+  (v44 0.45, v37 0.45, v24 0.445). Uniqueness: **100/100**;
+  de-dup cut identical.
+- Colour splits: as Black 24W-22L-4D (0.5200), as White
+  22W-25L-3D (0.4700) — balanced; no White gap against v7
+  (contrast v37's White 0.31 and v44's White 0.40 vs v7).
+  Black won 49, White won 44.
+- Non-transitivity, stark: v49 ≈ v7 (0.495) and v7 beats v0
+  (0.665), yet v49 loses to v0 (0.38) — the cycle v49 ≈ v7 >
+  v0 > v49. v49's White collapse is opponent-specific: White
+  0.22 vs v0, 0.39 vs v44, but 0.47 vs v7. The distilled net
+  plays the strong heuristic opponent evenly and falls apart
+  against the crude greedy one — the same inversion v7 itself
+  showed vs v0 (0.665 vs v0, below its 0.705 vs v1), in the
+  opposite direction.
