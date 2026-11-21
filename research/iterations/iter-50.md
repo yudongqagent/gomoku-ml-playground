@@ -263,6 +263,26 @@ v44's level — v50 still plays at v37's level head-to-head. That
 points to the "labels drove the gain" branch of the §1.2
 decision rule; the ladder (§6) is the second half of that call.
 
+### 5.2 vs v0 (no-search anchor) — COMPLETE
+
+`batch-v50-vs-v0.json`: **46W-51L-3D, win rate 0.4750, Wilson
+95% CI [0.3799, 0.5720]**. As Black 31W-16L-3D (0.65); as White
+15W-35L-0D (**0.30**) — the opponent-dependent White collapse
+shows up for v50 too (White 0.61 vs v44, 0.30 vs v0; same
+pattern as v42's 0.59/0.28 and v44's White 0.16 vs v37).
+Uniqueness 98/100; de-dup 0.4745, CI [0.3785, 0.5724].
+
+Comparison (same validation seeds, same opponent — only α
+differs): v37 vs v0 was 0.5850 (56W-39L-5D, CI [0.4870,
+0.6767]); v44 vs v0 was 0.5800. v50's 0.4750 is 0.11 below
+v37's point estimate (CIs overlap, so not conclusive at 95%,
+but the direction is clear). Cooling α to 0.125 on the 2-ply
+net appears to HURT against the greedy heuristic even while
+keeping the edge over v44 — the cooler net value lets the
+priors dominate, and against v0's greedy play the net's attack
+gradient matters more. The mirror match (§5.5) tests this
+directly.
+
 ## 6. Ladder
 
 (TODO)
