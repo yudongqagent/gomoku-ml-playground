@@ -166,7 +166,30 @@ dev seeds flatter).
 
 ## 2. Registry entry + targeted tests
 
-(TODO — filled in after the code change.)
+- Registry entry added in `ml/gomoku_ml/scoring.py` (commit
+  `b0a2dd2`): `50: {"name": "scoring-v50", ...,
+  "value_checkpoint": "ml/runs/ml3-h2/value-net.pt",
+  "value_weight": 0.125}` — identical to v37's entry except the
+  `value_weight`. No new checkpoint: v50 reuses v37's file
+  verbatim (md5 `2fde492aae6d44cbe945e15bd5f1f959`, verified on
+  copy).
+- Wiring verified live: `get_player(50)` yields
+  `value_weight == 0.125` and the same checkpoint path as
+  `get_player(37)` (0.25); `ValueMCTS.__init__` has no duplicate
+  parameters (the recurring silent-merge trap — checked with
+  `inspect.signature`).
+- Targeted tests added in `ml/tests/test_value_weight.py`:
+  `test_value_weight_v50_registry_passthrough` (entry carries
+  v37's checkpoint path and `value_weight` 0.125, differing from
+  v37's 0.25; a registry-built player carries 0.125) and
+  `test_value_weight_v50_leaf_is_half_v37` (same checkpoint, α
+  0.125 vs 0.25: the v50 quiet-leaf value is exactly half the
+  v37 leaf value — the shrink is actually applied, not just
+  stored). Both pass.
+- Full suites on this branch: pytest **459 passed, 1 skipped, 58
+  xfailed** (570s); npm test **55/55**; tsc clean. Clause 4
+  green at the start of the eval phase (re-run at the end before
+  reporting).
 
 ## 3. Fast loops
 
@@ -174,7 +197,16 @@ dev seeds flatter).
 
 ## 4. Tactical (corrected suite, seed 100)
 
-(TODO — v44 re-verified first.)
+- v44 re-verified first on the corrected suite (log
+  `ml/runs/ml5-h3/tactical-v44-reverify.log`): **20/20 old +
+  29/29 hard** — the corrected suite does not change v44's
+  tactical.
+- v50 (`eval_tactical_full.py --version 50 --suite both --seed
+  100`, log `ml/runs/ml5-h3/tactical-v50.log`): **20/20 old +
+  29/29 hard**. Clause 3 passes. Expected: α only shrinks the
+  net's quiet-position value; the tactical positions are decided
+  by the exact terminal cases and the threat check, which α does
+  not touch.
 
 ## 5. Battery
 
