@@ -828,3 +828,32 @@ uninterrupted run):
   (0.44) shows v48 is weaker overall. The patch traded
   Black-side strength for White-side strength — a
   redistribution, not an improvement.
+
+### 9.4 vs v7 (heuristic, normal rules)
+
+`selfplay_batch.py --engine-a v48 --engine-b v7 --games 100
+--seed-a 100 --seed-b 200` (log `ml/runs/ml5-h1/batt-v7.log`,
+6,376 s, no resume):
+
+- **23W-70L-7D, win rate 0.2650, Wilson 95% CI [0.1884,
+  0.3590]** — recomputed from raw records; matches the
+  driver exactly. (v44's bar number vs v7: 0.45 — v48 is
+  far worse against the heuristic engine it was patched
+  to beat.)
+- Uniqueness: **99/100 unique**. De-dup cut: 23W-69L-7D,
+  0.2677, CI [0.1903, 0.3624].
+- By colour: as Black 11W-35L-4D (0.2600); as White
+  12W-35L-3D (0.2700). **The White gap vs v7 is closed
+  too — White is (nominally) the better side.** But the
+  closure came from Black collapsing to White's level,
+  not from White rising: v48's Black vs v7 (0.26) is
+  roughly where v42's White was (0.15–0.28 territory).
+- The honest summary of the patch: the diagnosis was
+  right (a general White-side value-head defect, worst
+  on White-win and White-lose positions), the data patch
+  fixed the gap on both heuristic opponents, but the
+  retrained net (2-ply labels on the v37 base + new
+  cells) is weaker overall than v44's 3-ply-labelled net.
+  The White fix was bought by losing Black-side strength
+  — a redistribution, confirmed on the second heuristic
+  opponent.
