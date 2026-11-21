@@ -213,7 +213,15 @@ verdict.
 
 ### 3.1 Loss read (light)
 
-(TODO — filled in while the battery runs.)
+All 6 fast-loop losses replayed with the heuristic scans only
+(no MCTS): every loss ends with the opponent creating ≥2 winning
+moves (an open four / double threat) 2–3 plies before the end;
+v50 missed **no win and no block** in any of the 6 losses. The
+losses are positional — letting the opponent build the decisive
+threat — not tactical blunders. Same pattern as v44's fast loop
+(9 losses, 9 via open four, 0 missed blocks). Nothing patchable
+here, and nothing to patch: any engine change would break the
+ablation.
 
 ## 4. Tactical (corrected suite, seed 100)
 
