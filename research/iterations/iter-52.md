@@ -554,7 +554,13 @@ coincide. v52 wins every unique game, both colours 50–0.
 
 ### Tactical
 
-[To be filled when tactical finishes.]
+v27 re-verified first on the corrected suite: **old 20/20, hard
+29/29** (`research/iterations/tactical-v27-reverify.txt`). v52
+at `--seed 100`: **old 20/20, hard 29/29**
+(`research/iterations/tactical-v52.txt`). **Clause 3 PASSES.**
+v52 inherits v27's tactical record exactly (the TSS hook only
+fires on genuine forcing wins, and the win/block scans run
+before it).
 
 ## 6. Verdict
 
