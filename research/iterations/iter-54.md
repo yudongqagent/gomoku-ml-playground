@@ -384,11 +384,84 @@ resumed cleanly from the partial JSON (game 64, game
 | Leg | Result | White quiet (labelled) |
 |---|---|---|
 | (c) vs v0, dev seeds | 52W-43L-5D (complete) | **2,634** (6,609 plies; expected ~2,500) |
-| (d) vs v7, dev seeds | 27W-26L-2D at game 55 (in progress) | — |
-| (e) vs ladder MCTS, dev seeds | not started | — |
+| (d) vs v7, dev seeds | 48W-49L-3D (complete) | **1,877** (4,681 plies; expected ~1,900) |
+| (e) vs ladder MCTS, dev seeds | 47W-52L-1D (complete) | **1,671** (4,418 plies; expected ~1,800) |
 
-Running patch total: (a)+(b)+(c) = 7,073 White
-positions; expected final total ~10,800.
+All three legs complete 2026-11-22 ~22:32 UTC
+(`PATCH_GAMES_DONE`, no further restarts after 21:02).
+Note: v44 LOSES to the ladder MCTS on dev seeds
+(47-52-1) while beating it 25-15 on the ladder's seed
+100 — different seeds, different games; these are
+training-data games, not evals.
+
+Patch totals (all five legs, game-level holdout every
+10th game):
+
+| Leg | White train | White holdout | White total |
+|---|---|---|---|
+| (a) vs v0 | 2,240 | 296 | 2,536 |
+| (b) vs v7 | 1,756 | 147 | 1,903 |
+| (c) vs v0-dev | 2,463 | 171 | 2,634 |
+| (d) vs v7-dev | 1,705 | 172 | 1,877 |
+| (e) vs mcts-dev | 1,531 | 140 | 1,671 |
+| **Total patch** | **9,695** | **926** | **10,621** |
+
+Total patch 10,621 White positions vs the §2
+expectation of ~10,600 — on target. Memmap bundle
+`ml/runs/ml6-h1/data-mmap/`: 1,187 shards, **43,544
+samples** (33,849 base + 9,695 patch), planes
+(43544, 8, 15, 15). Measured White share of the
+bundle ≈ 0.60 (sampled 1/7) — the §2 estimate of
+~57% was arithmetic-sloppy; the actual is ~60%
+White vs 50% in the base.
+
+## 7. Training (actuals)
+
+**Training COMPLETE 2026-11-22 ~22:52 UTC** (started
+~22:34 UTC, ~18 min, no interruptions): config
+`ml/configs/ml6-h1.yaml`, 15 epochs, batch 64,
+memmap bundle (43,544 samples; 41,367 train / 2,177
+val, seed-0 split). Run dir `ml/runs/ml6-h1-train/`;
+log `ml/runs/ml6-h1/train.log`. 9,705 steps,
+~46–117 s/epoch.
+
+| Epoch | Train loss | Val loss |
+|---|---|---|
+| 1 | 0.1017 | 0.0999 |
+| 2 | 0.0963 | 0.0984 |
+| 3 | 0.0946 | 0.0976 |
+| 4 | 0.0927 | 0.0963 |
+| 5 | 0.0905 | 0.0940 |
+| 6 | 0.0889 | 0.0911 |
+| 7 | 0.0865 | 0.0907 |
+| 8 | 0.0838 | 0.0882 |
+| 9 | 0.0831 | 0.0888 |
+| 10 | 0.0809 | 0.0879 |
+| 11 | 0.0795 | 0.0864 |
+| 12 | 0.0778 | 0.0856 |
+| 13 | 0.0779 | **0.0849** |
+| 14 | 0.0766 | 0.0851 |
+| 15 | 0.0769 | 0.0849 |
+
+Val loss decreased overall (small bump at epoch 9)
+— no overfitting by epoch 15. **Best checkpoint:
+epoch 13 (`best.pt`, val 0.0849)** — best_val_loss
+0.0848611 (epoch 15's 0.0849072 is slightly higher).
+
+**Checkpoint-selection correction (recorded, not
+hidden):** `train.py --out` saves the FINAL-epoch
+model, not best.pt — verified: `--out` vs `final.pt`
+max |ΔW| = 0.0, vs `best.pt` max |ΔW| = 1294.0 (that
+figure is the batch-norm `num_batches_tracked`
+counter, 9705 − 8411 steps — not a weight). The
+pre-registration (§2) requires best-by-val-loss, so
+the registry checkpoint is `best.pt` copied to
+`ml/runs/ml6-h1/value-net.pt` (md5-verified identical
+to best.pt, max |ΔW| 0.0). Registry md5:
+`8b7cff2b0a56c4343a544579468aa9ce`. Architecture
+verified: ResNet 16ch/2 blocks, 126,759 params, 48
+tensors — identical counts to v24's, v37's, v44's,
+and v8's checkpoints.
 
 ### 6.3 Baseline test suites (before training)
 
