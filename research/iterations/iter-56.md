@@ -826,7 +826,32 @@ the verdict.
 
 ## 5. α sweep and fast loops
 
-(to be filled in.)
+### 5.0 Threading note (applies to all game-playing work from here on)
+
+The sweep started at the engine default (2 torch threads) and was
+prohibitively slow under the day's contention (5 game-playing
+processes: this sweep, H1's fast loop, H2's sweep, 2× cross-track
+v52-vs-v44 matches; load 5–6.5): ~6–8s per ply, with 225-ply draws
+costing 1,360–1,888s each. `ValueMCTS.__init__` hard-codes
+`torch.set_num_threads(2)`, and `common.torch_threads` documents that
+batch=1 forward passes gain nothing from intra-op parallelism while
+oversubscribed threads spin and starve the work. A/B measured
+2026-11-22 with `ml/runs/ml6-h3/bench_threads.py` (same 6 fixed
+positions, 100 sims): 2 threads median 5.96s/move then 16.48s/move
+across two runs (thrashing spikes); 1 thread 4.19s then 3.20s — a
+1.4–5x speedup, stable. Move choices verified IDENTICAL on 6/6
+positions between 1 and 2 threads, so the pin changes only tensor-op
+parallelisation, not the math (up to ~1e-7 reduction-order noise,
+the same tolerance the program accepts for batched-vs-single eval).
+All game-playing run scripts from here on go through
+`ml/runs/ml6-h3/run_1thread.py`, a process-local launcher that pins
+1 thread and neutralises the engine's `set_num_threads(2)` — no
+shared code is touched. Consequence recorded: sweep arm 1 games 0–6
+were played at 2 threads, games 7–39 at 1 thread; the engines are
+the same up to the float noise above, so no game is discarded and
+no arm is restarted.
+
+(to be filled in: sweep results, fast loops.)
 
 ## 6. Validation battery
 
