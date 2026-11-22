@@ -441,9 +441,34 @@ this is the expected smoke-test outcome, not evidence of
 strength.)
 
 Iteration 1, leg 2 (vs v27, 10 games, seeds 1053/2053):
-[To be filled when the resumed run finishes — the first attempt
-was interrupted by a runtime restart at 6/10 games (3W-2L-1D)
-and resumed from the partial file.]
+**v52 6W-3L-1D** (win rate 0.6500, Wilson 95% CI [0.3537,
+0.8631]) — `research/iterations/fastloop-v52-vs-v27-i1.json`
+(recomputed from raw records; 10/10 unique games, de-dup win
+rate 0.65). The CI includes 0.50 — 10 games prove nothing; the
+battery is the verdict. The run was interrupted by a runtime
+restart at 6/10 games and resumed from the partial file
+(`resumed_from_game: 6`).
+
+Loss workup (`classify_batch_losses.py` +
+`ml/scripts/workup_v52_losses.py`): all 3 losses via open four
+(3/3), **0 missed blocks** (in losses: 0), 0 clean missed
+preventions in 10 threatened turns. Defence is solved. TSS
+fired on **0 v52 turns in all 3 losses** and 0 turns in the
+draw (225 plies) — no false positives, and no v52-specific
+losing move to patch: the losses are pure v27-equivalent play
+(v52 == v27 on every turn of the losses), v27 outplaying the
+base engine positionally.
+
+In all 6 wins, TSS fired 2–5x per game, always in the endgame
+(last ~7 plies) and always followed — converting already-won
+positions. The pattern is "win-more" so far: TSS fires exactly
+when v52 is already winning and never when it is losing. Whether
+TSS turns any v27-loss into a v52-win — the only thing that
+moves the battery — is unanswered by 10 games.
+
+**Fast-loop verdict: NO PATCH.** The mechanism behaves as
+designed (fires only on genuine forcing wins, never wrongly,
+never in losses). Proceed to the battery.
 
 ## 5. Battery
 
