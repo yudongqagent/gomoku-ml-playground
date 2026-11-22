@@ -542,6 +542,25 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
          "tie_break_q_threshold": 0.05, "backup_rule": "softmax-opp",
          "softmax_beta": 2.0},
+    # v53 (iteration 53, batch 13): H3 — v27 + a 3-ply rollout leaf
+    # (RE-SCOPED per research/iterations/iter-53.md §6; the
+    # original 2-ply spec is recorded in iter-53 §§0-5 — v18/v27's
+    # leaf is ALREADY a 2-ply rollout leaf, so the 2-ply spec was
+    # NOT A NEW VERSION). The 3-ply leaf
+    # (leaf_mode "rollout3ply_v53"; see gomoku_ml.mcts_heuristic
+    # _rollout3ply_search_leaf_value) rolls out exactly 3 plies
+    # under the teacher's own policy (_rollout_move) and evaluates
+    # the symmetric v1 gradient at the resulting position, negated
+    # from the opponent-to-move perspective (after an odd number
+    # of plies the opponent is to move at the rollout end).
+    # Everything else is v27 unchanged: 100 sims, c_puct 1.5, v1
+    # priors, most-visited root, threshold τ=0.05 on the q-gap
+    # tie-break. Versions 45-52 are the batch-12 / ML-batch-5 /
+    # batch-13 parallel workstreams'.
+    53: {"name": "scoring-v53", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout3ply_v53", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05},
 }
 
 # --- weights --------------------------------------------------------------

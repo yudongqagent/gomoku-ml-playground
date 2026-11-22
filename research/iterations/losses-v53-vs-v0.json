@@ -1,0 +1,35 @@
+[
+  {
+    "batch": "batch-v53-vs-v0.json",
+    "engine_a": "scoring-v53",
+    "engine_b": "v0",
+    "games": 100,
+    "losses": 2,
+    "via_open_four": 2,
+    "missed_blocks": 0,
+    "missed_block_games": 0,
+    "clean_missed_preventions": 0,
+    "missed_prevention_games": 0,
+    "threatened_turns": 12,
+    "details": [
+      {
+        "plies": 44,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 6,
+        "game": 0
+      },
+      {
+        "plies": 44,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 6,
+        "game": 94
+      }
+    ]
+  }
+]
