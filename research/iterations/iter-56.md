@@ -851,7 +851,56 @@ were played at 2 threads, games 7–39 at 1 thread; the engines are
 the same up to the float noise above, so no game is discarded and
 no arm is restarted.
 
-(to be filled in: sweep results, fast loops.)
+(to be filled in: fast loops.)
+
+### 5.1 α sweep results
+
+40 games per arm vs v44, seeds 1001/2001 (same seeds all arms
+— paired), 1-thread pin from game 7 of arm 1 on (§5.0). Two
+VM replacements during the sweep; both resumes verified
+(`resumed_from_game` matches the saved count; per-game seeding
+reproduces the uninterrupted run).
+
+| α | W–L–D | Win rate | Wilson 95% CI |
+|---|---|---|---|
+| 0.0625 | 11–26–3 | 0.3125 | [0.1907, 0.4671] |
+| 0.125 | 15–22–3 | 0.4125 | [0.2742, 0.5661] |
+| **0.25** | **15–18–7** | **0.4625** | [0.3182, 0.6134] |
+
+**Winner: α = 0.25** (the sweep script's pick; the registry
+placeholder already was 0.25, so no value change — only the
+comment above was updated). The trend is monotonic in α, and
+the winner sits at the grid's top end — which §1.4 explicitly
+anticipated ("the winner may sit at either end") and declined
+to extend (0.5 was excluded because v44's sweep already
+showed it losing on HOTTER labels). The no-signal rule does
+not apply (arms span 0.3125–0.4625, far more than one win
+apart). Paired check on the first 22 games (same seeds):
+α=0.0625 0.3636 vs α=0.125 ~0.31 — the arm-1/arm-2 gap
+reverses on the paired subset, so the α=0.125 > α=0.0625
+ranking rests on the full 40 games, not the paired prefix;
+the α=0.25 win is by 4.5 points over α=0.125 (18.5 vs 16.5
+in win-equivalents) and is the sweep's call under the
+pre-registered pick-the-best rule.
+
+**The headline is not the winner but the level: even at its
+best α, v56 LOSES to v44 in the sweep (0.4625, CI includes
+0.50 but centred below it).** Compare the sweeps that
+preceded it: v37's α sweep picked 0.25 at 0.65 vs v8; v44's
+picked 0.125 at 0.60 vs v8. v56's best arm against the
+CHAMPION is 0.4625 — the parity correction did not produce a
+net that beats v44 at any α on this grid. The battery
+(clause 1, 100 games, different seeds + openings) is the
+verdict, and the sweep is not the battery — but the sweep
+says the correction, in this form, did not recover
+v37-level played strength (v37 beat v44 0.69–0.31). The
+mechanism hypothesis for §7: the symmetric label's
+win-halving (L3==+1 preserved 0.000, §0) with loss
+preservation (L3==−1 preserved 0.833) makes the net's value
+scale asymmetric — wins worth ~0.35, losses costing ~1.0 —
+so the engine plays loss-averse, defensive Gomoku and gets
+out-attacked by v44's optimistic net. The fast loops (§5.2)
+will show whether that reads as passive play in the games.
 
 ## 6. Validation battery
 

@@ -586,8 +586,9 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # ``_rollout3sym_leaf_value``: the colour-swap-symmetrised
     # 3-ply value ``(L3(B, p) - L3(-B, p)) / 2``, which cancels
     # the odd-horizon parity shift per position while keeping the
-    # 5-ply horizon) and the swept α (``value_weight`` — 0.25
-    # placeholder until the §1.4 sweep sets it). Search, priors,
+    # 5-ply horizon) and the swept α (``value_weight`` 0.25, the
+    # §1.4 sweep winner — 0.4625 vs v44, best of {0.0625: 0.3125,
+    # 0.125: 0.4125, 0.25: 0.4625}). Search, priors,
     # sims, threat check, terminal cases: v8 unchanged, so the
     # battery is a clean A/B of the label correction — and,
     # against v37's numbers, of whether the parity shift was what
