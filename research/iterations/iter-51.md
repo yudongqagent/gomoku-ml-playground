@@ -561,6 +561,158 @@ swap leg's five 225-ply draws (and the normal leg's seven) are
 all full-board grinds; they inflate wall time but not the win
 rate.
 
+### 3.3 Mechanism analysis — why soft-min fails (the §1.4 diagnosis, confirmed by the battery)
+
+The mechanism check (§1.4) already diagnosed the failure
+before the battery ran; the battery confirms every element of
+it.
+
+1. **The mean backup's prevention gradient comes from the
+   expansion leaf, and soft-min discards it.** v27's
+   prevention (2,3) on g13 has ONE visited child at +1.0
+   (opponent) — the expansion leaf (+0.25) averaged with four
+   −1.0 descents gives mean −0.75. Soft-min recomputes q from
+   visited children only, so with one visited child the
+   softmax IS that child's value: v51's prevention has q
+   −1.0. The rule that was supposed to preserve the gradient
+   destroys it at the exact point where it matters.
+2. **Visit starvation is a vicious circle.** Once a child's q
+   is −1.0, UCB stops visiting it (v51 prevention: 2 visits
+   vs v27's 5), so it never accumulates the several visited
+   children the softmax needs to produce a gradient. The
+   pre-registration's worst-case analysis assumed several
+   visited children per root child; at 100 sims, root
+   children in creator-rich positions have 2–5.
+3. **Gradient preservation is visit-count-dependent, not a
+   property of the rule.** It works only where the priors
+   already point: g43's safes (prior 0.1342) got 9–11 visits
+   and a real gradient; g13's preventions (prior ~0.032)
+   starved. The rule helps exactly where it is not needed.
+4. **The battery shows the same shape at scale.** The
+   tactical suite fails the EXACT same 8 prevention
+   positions as v47 (21/29), the fast loop found clean
+   missed preventions at ~6x the v27-family rate (5/68,
+   7.4%), and the battery's defence audit finds 8 clean
+   missed preventions vs v27 (2.5% of threatened turns, vs
+   the v27-family 0.4–1.3%). Soft-min is v47 with a smoother
+   collapse: better than minimax everywhere (h2h 0.3150 vs
+   0.245, tactical same 21/29, ladder Elo −52.5 vs 214.8 —
+   worse on Elo only because v47's Elo came from a heuristic
+   leg it won), but the same failure class.
+
+The general lesson, now confirmed twice (v47 minimax, v51
+soft-min): **any child-level backup aggregation degenerates
+at 100 sims**, because the aggregation's input — the visited
+children — is too thin to carry a gradient, and the
+aggregation itself discards the expansion leaf that carried
+the mean backup's gradient. A backup rule that preserves a
+gradient across all-−1.0 subtrees would have to keep the
+leaf's contribution (e.g. by including the node's own
+pre-descent value in the aggregation, or by aggregating over
+the full visit-weighted subtree rather than the visited
+children alone) — but that is a different rule, requiring its
+own pre-registration and version, and it would need to
+survive the visit-starvation circle too. This lever —
+child-level backup aggregation at opponent nodes — is now
+CLOSED in both its pure (v47) and smooth (v51) forms.
+
+### 3.4 Ladder — clause 2 FAILS (Elo −52.5)
+
+`research/iterations/ladder-v51.json`, 40 games per
+opponent, seed 100 (eval_version.py --version 51
+--ladder-games 40). Legs:
+
+| opponent | W-L-D | win rate | 95% CI | as Black | as White |
+|---|---|---|---|---|---|
+| random | 40-0-0 | 1.0000 | [0.9124, 1.0000] | 20-0 | 20-0 |
+| heuristic (v0) | 17-23-0 | 0.4250 | [0.2851, 0.5781] | 17-3 | **0-20** |
+| mcts | 28-12-0 | 0.7000 | [0.5457, 0.8193] | 16-4 | 12-8 |
+
+**Ladder Elo: −52.5, interval [−159.7, 54.7]** — far below
+the 636.4 bar. The Elo is computed from the heuristic leg
+only (the random leg is uninformative at 40-0, and the MCTS
+leg does not anchor the Elo), so the −52.5 is the Elo
+implied by 0.425 vs the heuristic anchor. The interval
+includes 0, but the point estimate is 689 points below the
+bar — this is not a marginal failure.
+
+Two things worth recording. First, the White collapse
+reproduces on the ladder: v51-as-White loses 0-20 to the
+heuristic anchor, the same 4-distinct-games determinism
+collapse as the battery leg (the ladder uses different
+seeds, so this is an independent replication). Second, v51
+**beats the ladder MCTS outright, 28-12 (0.70, CI clear of
+0.50)** — only the third version ever to do so (after v18
+and v44), and far better than v47's 0-40. The MCTS opponent
+is a non-blundering searcher, so v51's soft-min — which
+punishes lines the opponent can refute — helps against it,
+while the greedy heuristic's blunders (which the mean
+backup exploits by averaging) are exactly what soft-min
+throws away. The non-transitivity (beats MCTS 0.70, loses
+to heuristic 0.425) is the clearest single demonstration
+that the backup rule's value is opponent-dependent: it
+helps against a searcher that doesn't blunder, and hurts
+against a greedy player that does.
+
+### 3.5 Defence audit — defence stays solved on blocks, fails on preventions
+
+`classify_batch_losses.py` on all three legs (A's turns in
+A's losses):
+
+| leg | losses | via open four | missed blocks | threatened turns (losses) | clean missed preventions | rate |
+|---|---|---|---|---|---|---|
+| vs v27 | 65 | 65 | 0 | 320 | 8 (in 8 games) | 2.5% |
+| vs v0 | 53 | 53 | 0 | 336 | 0 | 0.0% |
+| swap vs v27 | 57 | 57 | 0 | 345 | 6 (in 4 games) | 1.7% |
+
+All 175 losses across the three legs are via open four, and
+there are 0 missed blocks anywhere — the defence-on-blocks
+requirement is fully satisfied. The failure is entirely in
+prevention: 14 clean missed preventions vs v27 across the
+two legs (2.5% and 1.7% of threatened turns, vs the
+v27-family 0.4–1.3%), and 0 vs v0 — the White losses to v0
+are drift losses (slow positional bleed, no single missed
+prevention), consistent with the fast-loop finding. The
+prevention failure is the mechanism, not a bug: the
+soft-min backup cannot see preventions whose subtrees all
+contain a −1.0 line, because it collapses their q to −1.0
+exactly as minimax did.
+
 ## 4. Verdict
 
-[To be filled.]
+**v51: REJECTED — 1 of 4 clauses passed.**
+
+| clause | requirement | v51 | verdict |
+|---|---|---|---|
+| 1. h2h vs v27 | ≥100 games, win rate >0.50, Wilson 95% CI lower >0.50 | 28W-65L-7D, 0.3150, CI [0.2322, 0.4115] | **FAIL** |
+| 2. ladder Elo | > 636.4 | −52.5, interval [−159.7, 54.7] (random 40-0, heuristic 17-23, mcts 28-12) | **FAIL** |
+| 3. tactical | 20/20 + 29/29 | 20/20 old, 21/29 hard (same 8 prevention failures as v47) | **FAIL** |
+| 4. test suites | all green | pytest 466 passed / 1 skipped / 58 xfailed / 0 failures; npm test 55/55; tsc clean | PASS |
+
+Secondary metrics: vs v0 47W-53L-0D, 0.4700 (de-dup
+0.8205, but White 0-50 raw / 0-4 de-dup); swap vs v27
+37W-57L-6D, 0.4000, CI [0.3094, 0.4980]. No challenge match
+vs v18 (requires a bar pass).
+
+**What v51 establishes.** (1) Soft-min backup at opponent
+nodes is v47 with a smoother collapse: better than minimax
+on h2h (0.3150 vs 0.245) and vs the ladder MCTS (0.70 vs
+0.00), identical on tactical (21/29, the same 8 prevention
+failures). (2) Child-level backup aggregation degenerates
+at 100 sims in both its pure and smooth forms — the lever
+is now CLOSED. Any future backup rule must keep the
+expansion leaf's contribution and survive visit starvation;
+that is a new pre-registration, not a tuning of this one.
+(3) The backup rule's value is opponent-dependent: soft-min
+helps against a non-blundering searcher (MCTS 0.70) and
+hurts against a greedy blunderer (heuristic 0.425) — the
+mean backup's averaging is load-bearing against blunderers,
+which is the same lesson v46/v47 taught from the other
+side. (4) v51-as-White cannot beat the greedy baseline: 0-50
+in the battery, 0-20 on the ladder, with only 4 distinct
+White games in 50 — the worst determinism collapse in the
+program (39/100 unique), and an independent replication of
+the White collapse across two seeds and two harnesses.
+(5) The mechanism check (§1.4) predicted the battery
+exactly: the four-position check (1/4 pass) and the
+collapse diagnosis were confirmed by every battery leg.
