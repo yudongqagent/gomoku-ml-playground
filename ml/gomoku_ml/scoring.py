@@ -576,6 +576,27 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout3ply_v53", "tie_break_q": True,
          "tie_break_q_threshold": 0.05},
+    # v56 (iteration 56, ML batch 6): H3 — v8's PUCT MCTS with the
+    # value net distilled from v18's rollout leaf with
+    # PARITY-CORRECTED 3-ply labels (see
+    # research/iterations/iter-56.md). The ONLY difference from
+    # v44 is the checkpoint (trained on the SAME 37,227 quiet
+    # positions — v7/v18 self-play + random playouts, same
+    # game-level holdout — but labelled with
+    # ``_rollout3sym_leaf_value``: the colour-swap-symmetrised
+    # 3-ply value ``(L3(B, p) - L3(-B, p)) / 2``, which cancels
+    # the odd-horizon parity shift per position while keeping the
+    # 5-ply horizon) and the swept α (``value_weight`` — 0.25
+    # placeholder until the §1.4 sweep sets it). Search, priors,
+    # sims, threat check, terminal cases: v8 unchanged, so the
+    # battery is a clean A/B of the label correction — and,
+    # against v37's numbers, of whether the parity shift was what
+    # cost v44 played strength vs v37. Versions 54-55 are the
+    # parallel ML-batch-6 workstreams'.
+    56: {"name": "scoring-v56", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml6-h3/value-net.pt",
+         "value_weight": 0.25},
 }
 
 # --- weights --------------------------------------------------------------

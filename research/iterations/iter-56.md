@@ -114,12 +114,118 @@ Games files copied verbatim from `gomoku-ml1-h1`
 (`games-{v7,v18,random}.json`, md5-verified against the source
 — see the task-premise correction above).
 
-**Port smoke checks:** (to be filled in — v44/v37/v8 load and
-play in this worktree; v56 registered, no checkpoint yet;
-`_rollout3sym_leaf_value` runs.)
+**Port smoke checks:** v44, v37 and v8 all load and play in this
+worktree (empty-board move 112 each — the centre, as expected);
+v56 is registered (no checkpoint yet — training produces it);
+`_rollout3sym_leaf_value` runs (empty board: 0.0, as the
+colour-symmetry argument requires).
 
 **Verification measurements (implementation checks of the
-pre-registered §1.1 design — §0.1–§0.4):** (to be filled in.)
+pre-registered §1.1 design — `/tmp/diag_v56_s0.py`, 500 quiet
+positions from the v7 games, the SAME sample as iter-44 §0 —
+confirmed by the 1/2/3-ply numbers reproducing iter-44 §0
+EXACTLY: means −0.0627 / −0.0560 / +0.0999, fraction positive
+0.212 / 0.234 / 0.734, pure-gradient mean(v3−v2) = +0.1236 with
+v3 > v2 on 99.4%, sign agreement 3-ply-vs-2-ply 0.4920):**
+
+### §0.1 Mirror identity — 0/500 mismatches
+
+`L3(−B, p) == L3(B, −p)` on all 500 sampled positions (tolerance
+1e-9). The labeller IS mirror-symmetric as derived in §1.1, so
+the symmetric form cancels the shift as designed. **The §1.5
+stop condition (mirror-identity failure) does NOT trigger.**
+
+### §0.2 Terminal handling — wins are halved, losses preserved
+
+| L3 value | n | preserved (±1) | near-half (≈±0.5) | mean\|L3sym\| |
+|---|---|---|---|---|
+| +1 | 32 | 0.000 | 0.812 | 0.351 |
+| −1 | 18 | 0.833 | 0.167 | 0.932 |
+
+The asymmetry is structural and was NOT predicted in §1.1 (only
+the halving mechanism was): rollout WINS almost always depend on
+moving first — the side to move sets the win up with their next
+move, and the opponent moving first disrupts it — while rollout
+LOSSES are robust, because they come from the opponent's
+EXISTING threats, which do not depend on move order. So the
+symmetric label halves essentially every +1 (to ~+0.35) while
+preserving most −1s. The halved wins still top the scale
+(+0.35 vs gradients ≤ 0.2), so the ranking "winning >
+threatening > neutral" is preserved — but the win signal is
+compressed, exactly as the §1.1 known limitation warned (the
+fraction halved is now measured: 100% of +1s, 17% of −1s).
+The battery is the arbiter of whether the compression costs
+play. The ±0.25 must-block values are gone entirely (fraction
+0.000 vs 3-ply's 0.130) — halved into gradient-range values,
+as §1.1 predicted.
+
+### §0.3 Shift cancellation — 70% of the gradient gap removed; the mean prediction is REFUTED
+
+| Label | mean | mean\|v\| | frac > 0 | ±1 frac |
+|---|---|---|---|---|
+| 1-ply | −0.0627 | 0.1469 | 0.212 | 0.048 |
+| 2-ply | −0.0560 | 0.1881 | 0.234 | 0.086 |
+| 3-ply | +0.0999 | 0.2056 | 0.734 | 0.100 |
+| **3-ply-sym** | **−0.1292** | 0.1979 | **0.242** | 0.030 |
+
+Pure-gradient pairs (|v| < 0.2 both): mean(vsym−v2) = **+0.0369**
+(median +0.0335, vsym > v2 on 71.2%), vs mean(v3−v2) = +0.1236
+(99.4%). **Symmetrisation removes 70% of the 3-ply-vs-2-ply
+gap on gradients.** Sign agreement with 2-ply is 0.7360 (vs
+0.4920 for raw 3-ply). Pearson r: sym-vs-2-ply 0.6893,
+sym-vs-3-ply 0.7509, 3-ply-vs-2-ply 0.8865 — the symmetric
+function is a genuinely different target from both, closer to
+2-ply in distribution (mean −0.13 vs −0.06, frac>0 0.24 vs
+0.23, mean|v| 0.20 vs 0.19) than to 3-ply.
+
+**The §1.1 prediction "mean ≈ 0, fraction positive ≈ 0.5" is
+REFUTED.** The symmetric label centres at −0.1292, not 0. The
+reason is §0.2's asymmetry: the tempo-neutral value
+`(V(B,p) − V(B,−p))/2` is NOT centred at 0 on this position
+distribution, because wins are first-move-dependent (halved)
+while losses are not (preserved) — the terminal contribution
+drags the mean down by ~0.11 relative to the gradients. On
+gradients alone the symmetric label sits +0.037 ABOVE 2-ply,
+which is the tempo-neutral-vs-pessimistic convention gap (the
+2-ply label includes the opponent-just-moved pessimism; the
+symmetric label does not), not uncancelled shift. Net
+assessment: the correction does what §1.1 designed it to do
+on gradients (the harmful non-uniform part of the shift is
+largely cancelled) and introduces a known, measured
+pessimistic tilt on terminals. Whether the trade helps play is
+what the battery measures — the design stands (no §1.5 stop
+condition triggers).
+
+### §0.4 Cost — median 88.95 ms, mean 95.72 ms per label
+
+Measured under contention (sibling ML-batch-6 workers running
+— iter-49 noted the same inflation vs iter-44's unloaded
+measures, so absolute ms are not comparable across batches;
+the RATIO is what matters: ~2× the 3-ply label, as designed).
+Projected full set (37,227 positions): ~59 min — far under the
+2-hour bar. **No dataset-size compromise is needed: v56 labels
+v24's FULL position set** (the pre-registered subset rule is
+therefore moot but recorded anyway).
+
+**The setup-v1v0s-g92 diagnostic (the motivating position):**
+reproduces v44's numbers exactly at the root (1-ply +0.1290,
+2-ply +1.0000, 3-ply +1.0000) and extends them: the symmetric
+root label is **+0.3750** — the setup win IS first-move-
+dependent (White moving first disrupts it), so it is halved,
+as §1.1's limitation predicted; it still reads as a clear win
+(well above the 0.2 gradient cap). At the children (from
+Black's perspective): (9,6) is +1.0000 and (5,4) is +1.0000 —
+once the setup stone is placed, the win is first-player-
+robust, so both children preserve exactly. The symmetric
+labels do NOT improve child-level discrimination at g92 over
+the 2-ply/3-ply labels (both children +1.0, as at every depth
+≥ 2) — the same honest consequence as v37's and v44's: the
+labels teach the win at the PRE-setup position, not the child
+ranking. For the tactical suite, v56's net must NOT invert
+the order (as v31's did); if it values (9,6) ≈ (5,4), the v1
+prior (which ranks (9,6) FIRST, 0.1122) breaks the tie
+correctly. The clause-3 run of setup-v1v0s-g92 is the
+pre-registered mechanism check (§6.1).
 
 ## 1. Design and pre-registration
 

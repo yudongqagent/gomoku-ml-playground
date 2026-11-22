@@ -1,0 +1,79 @@
+# ML batch 6 H3 (v56) — deeper-teacher DISTILLATION config.
+#
+# Trains v8's ResNet 16ch/2 blocks from scratch to predict v18's
+# rollout-leaf value evaluated 3 plies ahead, parity-corrected (_rollout3sym_leaf_value,
+# a 5-ply-horizon value, colour-swap-symmetrised) on the SAME quiet positions v24 used —
+# v7 self-play, v18 self-play, and random playouts (see
+# research/iterations/iter-56.md §1 for the pre-registration).
+# Same recipe as v24 (its config ml1-h1.yaml) except
+# checkpoint_every_epochs: 1 (v24's resume lesson: a restart drain
+# killed training mid-run with no per-epoch checkpoint).
+# Value-only loss (policy_weight 0.0): the policy head is unused at
+# inference and the game-move policy targets are an auxiliary the
+# distillation does not need. Otherwise v8's recipe exactly
+# (b3-h2-train-4350.yaml): batch 64, lr 0.002 cosine, warmup 20,
+# wd 1e-4, augmentation on, val_fraction 0.05, seed 0. Epochs 15:
+# ~35k samples x 15 = ~525k sample-passes, comparable to v8's 834k
+# on 167k samples; best-by-val-loss checkpointing guards against
+# overfitting from the extra passes.
+#
+# Data: .npz shards from ml/scripts/generate_distill_data.py label
+# (game-level holdout: every 10th game routed to *-holdout dirs and
+# NEVER passed here). Pass all three train dirs with --data.
+#
+# Run (from the worktree root):
+#   OMP_NUM_THREADS=1 TORCH_THREADS=1 \
+#   /home/hatch/workspace/projects/gomoku-ml-playground/ml/.venv/bin/python -u \
+#     ml/scripts/train.py --config ml6-h3 --run-dir ml/runs/ml6-h3-train \
+#     --data ml/runs/ml6-h3/data/v7 ml/runs/ml6-h3/data/v18 ml/runs/ml6-h3/data/random
+#
+# Threads pinned to 1 per B1's finding: under contention the default
+# 4 torch threads slowed a batched forward pass ~290x.
+
+run_name: ml6-h3-distill
+seed: 0
+
+architecture:
+  name: resnet
+  params:
+    channels: 16
+    blocks: 2
+
+base_checkpoint: null
+resume: null
+
+selfplay:
+  games: 1   # unused by train.py (data comes from --data); >= 1 required by validation
+  sims_per_move: 50
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_epsilon: 0.25
+  temperature: 1.0
+  temperature_moves: 30
+  resign_threshold: null
+  max_moves: 225
+  checkpoint_every_games: 10
+
+train:
+  epochs: 15
+  batch_size: 64
+  lr: 0.002
+  lr_schedule: cosine
+  lr_step_size: 10
+  lr_gamma: 0.5
+  warmup_steps: 20
+  weight_decay: 0.0001
+  policy_weight: 0.0
+  value_weight: 1.0
+  augmentation: true
+  val_fraction: 0.05
+  checkpoint_every_epochs: 1
+
+eval:
+  games: 4
+  sims: 32
+  opponents: [random, heuristic]
+  mcts_sims: 100
+  tactical: true
+  tactical_sims: 50
+  auto: false
