@@ -379,3 +379,14 @@ Rate under contention is ~150 s/game wall-clock
 batch-6 workers share the VM), so the three legs take
 ~12 h. Legs are labelled as each completes; training
 starts when all three are labelled.
+
+### 6.3 Baseline test suites (before training)
+
+Full suite run on this branch (niced, under load ~3.5,
+1:44:25): pytest 502 passed / 1 skipped / 58 xfailed
+with 2 failures, both `test_longrun.py` subprocess
+`TimeoutExpired`s; npm 54/55 with 1 timeout failure;
+tsc clean. All three failures are contention flakes:
+the two pytest tests pass on re-run (2 passed in
+238 s) and npm passes 55/55 on re-run. Baseline is
+green; clause 4 re-runs the full suite at the end.
