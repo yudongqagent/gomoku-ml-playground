@@ -680,3 +680,54 @@ running), not a net difference (same 16ch architecture;
 80.7 evals/move matches v48's exactly). Battery games run
 ~2–5 min each under contention; the 100-game matches are
 the long pole of this workstream.
+
+### 7.1 α sweep (2026-11-22, ~18:21–22:36 UTC / 10:21–14:36 PST)
+
+`sweep_alpha.py --version 55 --alphas 0.125 0.25 0.5 --games 40
+--opponent v44 --seed-a 1001 --seed-b 2001` (dev seeds, no
+openings). Two VM restarts killed the run mid-leg; the
+driver resumed from the saved JSON each time with per-game
+seeding (α=0.125 from game 2 at 1W-0L-1D; α=0.25 from game
+17 at 11W-6L-0D) — nothing lost. Early pace was ~5–9
+min/game under 5-way contention (two sibling workstreams +
+two cross-track matches); after the siblings' phases
+finished it fell to ~60–70 s/game. Log:
+`ml/runs/ml6-h2/sweep-alpha.log`; per-alpha JSONs in
+`research/iterations/alpha-v55-<α>-vs-v44.json`.
+
+| α | W-L-D | win rate | 95% CI | as Black | as White | unique |
+|---|-------|----------|--------|----------|----------|--------|
+| 0.125 | 20-18-2 | 0.5250 | [0.3750, 0.6706] | 11-8-1 (0.575) | 9-10-1 (0.475) | 40/40 |
+| **0.25** | **23-17-0** | **0.5750** | [0.4219, 0.7149] | 11-9-0 (0.550) | 12-8-0 (0.600) | 40/40 |
+| 0.5 | 21-19-0 | 0.5250 | [0.3750, 0.6706] | 11-9-0 (0.550) | 10-10-0 (0.500) | 40/40 |
+
+Win rate is inverted-U in α (0.525 / 0.575 / 0.525) —
+NOT the monotone-decreasing shape v44's sweep showed
+(0.725 / 0.600 / 0.475 vs v8) and NOT v48's U-shape
+(0.375 / 0.250 / 0.450 at 20 games vs v44). **Selection
+(§1.4 rule, best win rate): α=0.25.** The no-signal rule
+does not fire (23 wins vs 20 — a 3-win gap, outside the
+within-2-wins band). The 40-game CIs overlap heavily, so
+the α ranking is a point-estimate call, not a proven
+ordering — but the honest headline is the level, not the
+ranking: ALL THREE arms sit ABOVE 0.50 against v44, where
+v48's arms all sat below 0.50 (0.375 / 0.250 / 0.450).
+First played signal that the 3-ply retrain plays at v44's
+level, not v48's — the label-depth reading of the §1.6
+mechanism rule, to be confirmed or refuted by the
+100-game clause-1 leg (validation seeds, openings).
+Registry: `value_weight` was already 0.25 as the
+placeholder; the comment now records it as the sweep
+winner (no value change).
+
+Two observations: (1) at the winning α=0.25, v55's White
+OUTPERFORMS its Black (0.600 vs 0.550) — no White
+collapse at any α (worst White 0.475 at α=0.125), consistent
+with the §6 holdout finding (pooled true-side gap −0.026).
+The 3-ply labels did not reintroduce the White defect the
+patch had closed. (2) Two 225-ply full-board marathon
+draws occurred in the α=0.125 leg only (games 1 and 24);
+the 0.25 and 0.5 legs had none (max 100
+plies in the 0.5 leg). The v55-vs-v44 matchup can still
+produce marathons, but far less often than v48-vs-v44
+(3 of 20 in v48's 0.125 leg).
