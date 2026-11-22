@@ -515,6 +515,34 @@ draws are 225-ply full-board games — the two engines grind to
 a full board when neither finds a win (which is also why the
 leg's wall time is dominated by a handful of very long games).
 
+**Leg 2 — vs v0, normal rules (secondary): 47W-53L-0D,
+win rate 0.4700, CI [0.3751, 0.5671]**
+(`research/iterations/batch-v51-vs-v0.json`; resumed once from
+game 35 after a runtime restart; resumed run 2190.6s). v51
+LOSES to the frozen baseline on the raw count — far below
+v27's 0.965 and below v47's 0.78 — but the leg is dominated by
+a determinism collapse and a colour split that must be read
+together. As Black 47W-3L-0D (0.9400); as White **0W-50L-0D
+(0.0000)** — v51-as-White loses every game to v0. Uniqueness
+is poor: **39/100 unique** — the worst determinism collapse in
+the program (v36's 21/100 was a different mechanism: v36's
+games repeated across BOTH colours; here the collapse is
+entirely White: as White only **4 unique games in 50**, the
+same 4 losses repeated 12–13 times each, while Black has 35
+unique in 50). De-dup 32W-7L-0D, 0.8205, CI [0.6733, 0.9102]
+— the de-dup cut clears 0.50, but it is driven by Black
+(de-dup as Black 32W-3L, 0.9143; as White 0W-4L, 0.0000, CI
+[0.0000, 0.4899]). The honest read: v51-as-Black genuinely
+beats v0, and v51-as-White genuinely loses to v0 — but the
+White evidence is 4 independent losses, not 50. The effective
+N is ~39, not 100. The mechanism is the mirror-match one
+(iter-47 §3.2): per-game seeding does not help when the two
+engines' decisions are near-deterministic functions of the
+position — v0 plays greedily, and v51's collapsed q's make its
+search near-deterministic too, so the same White loss replays
+game after game. The White collapse vs the greedy baseline is
+v51's worst single result: even v47-as-White beat v0 0.86.
+
 ## 4. Verdict
 
 [To be filled.]
