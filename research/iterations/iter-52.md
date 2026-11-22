@@ -423,13 +423,39 @@ the MCTS + 2-ply-rollout horizon) or in positions where the
 MCTS's visit allocation dilutes the forcing line — exactly what
 Check B (mined real-game positions) arbitrates.
 
-### Check B — mined positions
+### Check B — mined positions: PASSES, 5/5 verified differs
 
-[To be filled when the mining run finishes. Note: the first
-mining attempt was interrupted by a runtime restart at game 9/50
-(387 turns, 48 fires, 21 differs) and restarted from scratch —
-the mining script has no resume logic. The partial numbers are
-consistent with the final run's early games.]
+`ml/scripts/mine_tss_positions.py` →
+`research/iterations/tss-mechanism-check-b.json` (criterion: >= 1
+verified differ). 50 v27-vs-v27 games (seeds 777/1777), 2481
+turns: **TSS fired 288 times (11.6% fire rate)**, 167 confirms
+(TSS move == v27's move) and **121 differs (4.9% of turns)** —
+positions where TSS found a forcing win the MCTS did not play.
+All 5 verified differs (first 5, 3 playouts each, v52 attacking
+vs v27 defending) converted: the attacker won 3/3 in every case.
+
+| differ | TSS move | v27 move | playouts |
+|---|---|---|---|
+| game 0 (Black) | (7,8) | (7,5) | 3–0 Black |
+| game 1 (White) | (3,10) | (3,9) | 3–0 White |
+| game 1 (White) | (6,12) | (2,11) | 3–0 White |
+| game 1 (White) | (3,12) | (3,8) | 3–0 White |
+| game 2 (Black) | (7,6) | (4,6) | 3–0 Black |
+
+This is the mechanism evidence Check A could not provide: in
+real games, TSS finds forcing wins the MCTS misses ~2.4 times
+per game, and they convert. Caveat: a verified differ proves
+the TSS move wins — it does not prove v27's move loses (v27
+might play a different winning line). The battery (§5) is the
+arbiter of the net effect.
+
+Note: the mining run was interrupted twice by runtime restarts
+(at game 9/50, then at game 26/50) before per-game
+checkpointing was added; the final run resumed from the
+checkpoint at game 42/50 and completed. The mining is
+deterministic — all three attempts produced identical numbers
+at every checkpoint (e.g. game 14: 608 turns, 78 fires, 34
+differs in all three runs).
 
 ## 4. Fast loop
 
