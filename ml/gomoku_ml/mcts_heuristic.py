@@ -169,20 +169,60 @@ _BLEND_VISIT_WEIGHT = 0.1
 
 
 class _Node:
-    """One MCTS node. ``children`` is None until expansion."""
+    """One MCTS node. ``children`` is None until expansion.
 
-    __slots__ = ("prior", "visit_count", "value_sum", "children")
+    ``softmax`` (v51, batch 13 H1) marks an opponent node under
+    the soft-min backup rule: its q is the softmax-weighted mean
+    of the opponent-perspective values of its visited children
+    (``-child.q``), weighted by ``exp(beta * value)``, instead of
+    the mean. ``softmax_value`` caches that value, maintained by
+    :meth:`HeuristicMCTS._run_one` after every descent through
+    the node; it is None until the first descent (no visited
+    children yet), and :attr:`q` falls back to the mean until
+    then — which is the node's leaf value right after expansion.
+    """
 
-    def __init__(self, prior: float) -> None:
+    __slots__ = (
+        "prior", "visit_count", "value_sum", "children",
+        "softmax", "softmax_value",
+    )
+
+    def __init__(self, prior: float, softmax: bool = False) -> None:
         self.prior = prior
         self.visit_count = 0
         self.value_sum = 0.0
         self.children: dict[int, "_Node"] | None = None
+        self.softmax = softmax
+        self.softmax_value: float | None = None
 
     @property
     def q(self) -> float:
-        """Mean backed-up value from this node's player perspective."""
+        """Backed-up value from this node's player perspective.
+
+        The mean (``value_sum / visit_count``) for mean nodes;
+        the cached soft-min value for soft-min nodes once any
+        child has been visited (before that, the mean — the
+        node's leaf value)."""
+        if self.softmax and self.softmax_value is not None:
+            return self.softmax_value
         return self.value_sum / self.visit_count if self.visit_count else 0.0
+
+
+def _softmax_mean(values: list[float], beta: float) -> float:
+    """Softmax-weighted mean of ``values`` with temperature ``beta``:
+    ``sum(w_i * v_i)`` with ``w_i`` proportional to
+    ``exp(beta * v_i)``. The v51 soft-min backup
+    (:meth:`HeuristicMCTS._run_one`) applies it to the
+    opponent-perspective values of a soft-min node's visited
+    children. Max-subtracted weights, so no overflow is possible;
+    the result stays in ``[min(values), max(values)]``. A single
+    value returns that value exactly (no smoothing with one
+    child — see iter-51.md §1.4 for why that matters at 100
+    sims)."""
+    top = max(values)
+    weights = [math.exp(beta * (v - top)) for v in values]
+    total = sum(weights)
+    return sum(w * v for w, v in zip(weights, values)) / total
 
 
 def _priors(
@@ -1071,6 +1111,27 @@ class HeuristicMCTS:
     start is played immediately, and a defensive VCF prevention
     is played when the opponent holds a VCF start. False (the
     default) is v18 behaviour exactly.
+
+    ``backup_rule`` (v51, batch 13 H1) selects the backup rule:
+    ``"mean"`` (default) is the v6/v7 mean backup exactly;
+    ``"softmax-opp"`` switches opponent nodes (odd depth from the
+    root) to a SOFT-MIN backup — q is the softmax-weighted mean
+    of the opponent-perspective values of the node's visited
+    children (``-child.q``), weights ``exp(beta * value)`` with
+    ``beta = softmax_beta`` — while our nodes (even depth,
+    including the root) keep the mean (of the soft-min values
+    returned by their children). The soft-min weights the
+    opponent's worst reply heavily but keeps the other replies'
+    contribution, so it prices the opponent's best reply (undoing
+    iter-40 §1.1a's blunder dilution) without collapsing the
+    "how it loses" gradient the way v47's pure minimax did
+    (iter-47 §3.1 — q-collapse: ALL 74 visited children at −1.0
+    on g13). ``softmax_beta`` (default 2.0; v51 sets it
+    explicitly) is the temperature: at β=2 a 1.0 value gap gets
+    weight ratio e² ≈ 7.4. See
+    ``research/iterations/iter-51.md`` §1.2 for the pre-registered
+    rule and the worst-case analysis against the τ=0.05 tie-break
+    threshold.
     """
 
     def __init__(
@@ -1084,6 +1145,8 @@ class HeuristicMCTS:
         tie_break_q: bool = False,
         tie_break_q_threshold: float = 0.0,
         vcf_root: bool = False,
+        backup_rule: str = "mean",
+        softmax_beta: float = 2.0,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
             leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
@@ -1101,6 +1164,15 @@ class HeuristicMCTS:
                 f"unknown root_decision: {root_decision!r} "
                 f"(known: {list(_ROOT_DECISIONS)})"
             )
+        if backup_rule not in ("mean", "softmax-opp"):
+            raise ValueError(
+                f"unknown backup_rule: {backup_rule!r} "
+                "(known: 'mean', 'softmax-opp')"
+            )
+        if not (softmax_beta > 0.0):
+            raise ValueError(
+                f"softmax_beta must be positive, got {softmax_beta!r}"
+            )
         self.sims = sims
         self.c_puct = c_puct
         self.rng = rng
@@ -1110,6 +1182,8 @@ class HeuristicMCTS:
         self.tie_break_q = tie_break_q
         self.tie_break_q_threshold = tie_break_q_threshold
         self.vcf_root = vcf_root
+        self.backup_rule = backup_rule
+        self.softmax_beta = softmax_beta
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -1604,7 +1678,11 @@ class HeuristicMCTS:
         """One simulation. Returns the value from ``player``'s
         perspective and updates every node on the path (including
         the newly expanded leaf). Mutates ``board`` in place but
-        restores it before returning."""
+        restores it before returning. Under
+        ``backup_rule="softmax-opp"`` (v51) a soft-min node returns
+        its updated soft-min q rather than the single-simulation
+        value, so its mean parent accumulates soft-min values
+        (see the descent branch below)."""
         # Terminal check: the move that led here just ended the game.
         if last_move is not None:
             if game.is_winning_move(board, last_move, -player):
@@ -1616,14 +1694,32 @@ class HeuristicMCTS:
                 return 0.0
         # Expansion: first visit — compute priors, evaluate the leaf.
         if node.children is None:
-            priors = _priors(board, player, self.prior_floor)
-            node.children = {m: _Node(p) for m, p in priors.items()}
-            if last_move is None:  # root: no leaf value
-                # Record the root player (the engine's colour for
-                # this move) — the v16 leaf branches on it. Set on
-                # every root call: the instance is reused across
-                # games in both colours.
+            if last_move is None:  # root: record the root player
+                # FIRST, before the children are created: the
+                # children's softmax flag (v51) is decided by
+                # whether this node's player is the root player,
+                # and the v16 leaf branches on it. Set on every
+                # root call: the instance is reused across games
+                # in both colours. (Behaviour-neutral for every
+                # other version: the assignment is the same, only
+                # earlier — nothing between here and the old site
+                # reads _root_player.)
                 self._root_player = player
+            priors = _priors(board, player, self.prior_floor)
+            # v51: children of a node whose player-to-move is the
+            # root player are OPPONENT nodes (odd depth) — soft-min
+            # backup under backup_rule="softmax-opp"; all other
+            # children are our nodes (mean backup). Default
+            # backup_rule="mean" leaves every flag False.
+            child_softmax = (
+                self.backup_rule == "softmax-opp"
+                and player == self._root_player
+            )
+            node.children = {
+                m: _Node(p, softmax=child_softmax)
+                for m, p in priors.items()
+            }
+            if last_move is None:  # root: no leaf value
                 node.visit_count += 1
                 return 0.0
             value = self._leaf_value(board, player)
@@ -1637,4 +1733,24 @@ class HeuristicMCTS:
         board[move // 15, move % 15] = 0
         node.visit_count += 1
         node.value_sum += value
+        if node.softmax:
+            # v51 soft-min backup: this node's q is the
+            # softmax-weighted mean of the opponent-perspective
+            # values of its VISITED children (-child.q), weights
+            # exp(beta * value), recomputed after every descent —
+            # every simulation that changes a child's q passes
+            # through here, so the cached value is always fresh.
+            # Unvisited children are excluded (their q is
+            # undefined, not a signal). The node's returned value
+            # is its soft-min q, so its (mean) parent accumulates
+            # soft-min values.
+            node.softmax_value = _softmax_mean(
+                [
+                    -c.q
+                    for c in node.children.values()
+                    if c.visit_count >= 1
+                ],
+                self.softmax_beta,
+            )
+            return node.softmax_value
         return value

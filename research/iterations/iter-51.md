@@ -324,8 +324,103 @@ de-dup rates for every leg):
 
 ### 1.4 Mechanism-check outcome (after implementation — NOT a redesign)
 
-[To be filled after §1.2 is implemented and the check in §1.2 is
-run, before any game eval.]
+**FAIL — the soft-min collapses exactly like v47's minimax on
+three of the four positions.** Run after the §1.2 implementation,
+before any game eval (script `/tmp/diag_v51_check.py`; the check
+itself is a test:
+`ml/tests/test_mcts_v51.py::test_v51_mechanism_outcome`).
+The v27 control reproduces iter-47's numbers EXACTLY on all four
+positions (g13: preventions −0.75, 5v each, pick (11,7); g2:
+(7,5) −0.5938, 8v, pick (7,5); g61: unsafe 11v −0.6364 vs best
+safe −0.6755; g43: unsafe 9v −0.5556 vs best safe −0.6356), so
+the fixtures are right and the failure is v51's, not the setup's.
+Backup invariants hold on all four trees (0 violations: soft-min
+nodes report the softmax over visited children of −child.q, mean
+nodes report value_sum / visit_count); flag propagation is correct
+(root children soft-min, depth-2 mean). Cost: v51's 100-sim search
+takes 0.47–0.93s on these positions vs v27's 0.59–1.04s — the
+soft-min is NOT slower (v47's ~3x cost does not reproduce), so
+cost is not the issue.
+
+| Position | Criterion (pre-registered) | v51 measured | Result |
+|---|---|---|---|
+| g13 | best prevention our-q > −1.0 AND gap vs best non-prevention > 0.05 | preventions −1.0000 (2v each); ALL 74 visited children at −1.0; gap 0.0; pick (5,4) — the move that lost the original game, same as v47 | **FAIL** |
+| g2 | same | preventions −1.0000 (2v each); 75/77 at −1.0; best non-prevention −0.8008, gap −0.199 (prevention WORSE); pick (7,9) | **FAIL** |
+| g61 | unsafe strictly worst AND best safe > −1.0 | unsafe −0.9293 (7v) — ranks BEST of the four; safes all −1.0000; pick (4,5) (a safe, via 9v vs 7v) | **FAIL** (ranking inverted) |
+| g43 | same | unsafe −0.9293 (4v) strictly worst; safes −0.7071 (11v) / −0.8752 (9v); pick (8,8) ✓ | **PASS** |
+
+**Verified mechanism of the collapse** (script
+`/tmp/diag_v51_collapse.py`, g13 prevention subtrees):
+
+1. **The mean backup's prevention gradient comes from the
+   EXPANSION LEAF, not from mixing children.** Under v27 the
+   prevention (2,3) has ONE visited child — the opponent's
+   reply (3,3), 4v, opponent-perspective q = +1.0 (its
+   grandchildren are all at our-q −1.0). The prevention's
+   −0.75 is the average of its +0.25 expansion leaf with four
+   −1.0 descents (−3.75/5). The "gradient" is the expansion
+   visit counted in the mean.
+2. **The soft-min discards the expansion leaf.** A soft-min
+   node recomputes q from its VISITED CHILDREN ONLY. With one
+   visited child, the softmax IS that child's value — no
+   smoothing is possible with one child, whatever β is. Under
+   v51 the prevention (2,3) has 2 visits and one visited child
+   at +1.0 (opponent), so q = −1.0 exactly — while its
+   discarded mean is −0.375 (the same +0.25 expansion leaf
+   averaged with one −1.0 descent). The formula's smoothing
+   never engages: the analysis in §1.2 assumed several visited
+   children with mixed values, but at 100 sims over ~74 root
+   children a root child gets 1–5 visits, hence 0–1 visited
+   children.
+3. **Visit starvation compounds it.** Once the soft-min
+   reports −1.0 after the first descent, UCB sees the
+   prevention as tied with the −1.0 mass and stops visiting it
+   (2v vs v27's 5v) — so it never accumulates the multiple
+   visited children the softmax would need. A vicious circle:
+   the rule needs visits to show a gradient, and the gradient
+   is what earns visits.
+4. **The gradient preservation is visit-count-dependent,
+   which is why g43 passes and g61 inverts.** The soft-min
+   mixes only where visits are plentiful. On g43 the safes
+   have high priors (0.1342) → 9–11 visits → multiple visited
+   children → the softmax mixes and the gradient survives. On
+   g61 the unsafe (prior 0.0757, 7v) mixes its creator child
+   (+1.0) with its blunder children (−1.0) and lands at
+   −0.9293 — the dilution IS partially undone (0.636 → 0.929)
+   — but the safes (2–3v) collapse to −1.0, inverting the
+   ranking. The preventions on g13/g2 have LOW priors (~0.032)
+   → starved → collapsed. The soft-min cannot rescue
+   low-prior preventions: it preserves a gradient only where
+   the prior already points, which is exactly where the
+   gradient is least needed.
+
+**What this establishes.** The failure is structural, not a
+β problem and not an implementation bug (the invariants hold;
+the formula is verified by unit test against the analytic
+value — the g61 unsafe's −0.9293263119 is exactly the β=2
+softmax of {+1.0, −1.0, −1.0}, i.e. its subtree is the creator
+child plus two blunder children, as diagnosed).
+ANY child-level backup aggregation
+(min, max, softmax) degenerates at 100 sims: a node with one
+visited child reports that child's value and discards its own
+expansion leaf, and the mean backup is the only rule that
+counts the expansion visit. v51's collapse is v47's collapse
+with a different formula — the pre-registration's worst-case
+analysis was correct about the formula but wrong about the
+tree: it assumed the soft-min node would HAVE several visited
+children to smooth over. A rule that aggregated the expansion
+leaf WITH the children might escape this, but that is a
+different rule requiring its own pre-registration — it is NOT
+attempted here. The pre-registered v51 stands as implemented,
+and per §1.2 the battery still runs: the battery is the
+verdict on game strength, and the check is a mechanism
+diagnostic, not a gate. (Prediction for the battery, recorded
+here before it runs: tactical should fail on the prevention
+positions much as v47's did — 8 prevention failures is the
+shape to expect — and the head-to-head should land well below
+0.50, though probably above v47's 0.245, since the soft-min
+keeps a gradient on well-visited nodes where minimax kept
+none.)
 
 ## 2. Fast loop
 
