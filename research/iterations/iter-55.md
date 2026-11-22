@@ -731,3 +731,66 @@ the 0.25 and 0.5 legs had none (max 100
 plies in the 0.5 leg). The v55-vs-v44 matchup can still
 produce marathons, but far less often than v48-vs-v44
 (3 of 20 in v48's 0.125 leg).
+
+### 7.2 Fast loop iteration 1 (α=0.25, seeds 1001/2001)
+
+- vs v44: the α=0.25 sweep leg itself (40 games, same dev
+  seeds) — **23W-17L-0D (0.5750)**. As Black 11-9-0, as
+  White 12-8-0. All 40 games unique.
+- vs v0: **3W-7L-0D (0.300)**, CI [0.1078, 0.6032], 160 s
+  (`research/iterations/fast-v55-vs-v0-iter1.json`). Colour
+  split: as Black 2W-3L-0D (0.400), as White 1W-4L-0D
+  (0.200). Well below v48's 0.55 and v44's 0.55 in the
+  same loop — but 10 games with a CI spanning [0.11, 0.60],
+  so the 100-game battery leg is the real read, not this.
+- Loss classification (both matches):
+  **24 losses, 24 via open four, 0 missed blocks, 0 clean
+  missed preventions in 125 threatened turns** (vs v0:
+  7 losses, 38 threatened turns; vs v44: 17 losses, 87
+  threatened turns). Defence as measured is clean — the
+  losses are positional drift into unstoppable open
+  fours, not blundered blocks. Same pattern as v37/v44/v48.
+- Losing moves (`find_losing_moves.py`, VCF solver depth
+  4; raw `ml/runs/ml6-h2/losing-moves.txt`): **18 of 24
+  losses were already lost** at the first VCF moment.
+  **SIX genuine blunders:** vs v44 game 5 (White, 65
+  plies), ply 59 — (9,10), 2 saves; vs v44 game 6 (Black,
+  98 plies), ply 82 — (7,3), 6 saves; vs v44 game 7
+  (White, 67 plies), ply 61 — (11,3), 5 saves; vs v44
+  game 18 (Black, 40 plies), ply 34 — (11,9), 8 saves;
+  vs v44 game 26 (Black, 70 plies), ply 60 — (8,3), 1
+  save; vs v0 game 7 (White, 23 plies), ply 15 — (10,10),
+  2 saves. The v0 losses are 6-of-7 already lost, at very
+  early plies (12, 15, 15, 18, 21, 38) in short games —
+  v55 drifts into lost positions against v0's play early,
+  it does not blunder late.
+
+**Workup — vs-v0 game 7, ply 15 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml6-h2/diag-v0-g7-ply15.txt`)
+shows the actual (10,10) won on visits (12, our-q −0.114,
+prior 0.1238) while both saves have BETTER our-q ((10,5):
+6 visits, −0.049; (12,5): 6 visits, −0.051) and a +0.250
+terminal leaf (four-creator) against the actual's 0.000.
+The search's q ranks the saves first; the prior-driven
+visit allocation picks the actual.
+
+**Workup — vs-v44 game 18, ply 34 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml6-h2/diag-v44-g18-ply34.txt`)
+shows the identical pattern: actual (11,9) 15 visits,
+our-q +0.033, prior 0.0698; save (12,5) 11 visits, BETTER
+our-q +0.057, +0.250 terminal leaf on every leaf variant
+against the actual's 0.000 / v22 −0.118. The q gap is
+small (+0.024), so the higher prior dominates the visit
+allocation.
+
+**Fast-loop verdict: STOP after iteration 1.** Both
+workups show the same mechanism — the leaf and backed-up
+q rank a save above the played move, but visit-count
+selection picks the higher-prior move on a small q gap.
+That is the known visit-allocation / blunder-dilution
+pattern (v40's finding): the fix would be a q-based root
+decision or a backup change, both CLOSED levers, and the
+ML track's lever is the net, not the search. No patchable
+weakness class remains. The vs-v0 0.300 (10 games) is
+noted for the battery leg to adjudicate, not a fast-loop
+finding to chase.
