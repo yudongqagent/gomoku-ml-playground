@@ -55,7 +55,7 @@ def main() -> int:
         raise SystemExit("plane 3 is not 0/1 — cannot read side to move")
     black_to_move = p3[:, 0, 0] > 0.5
 
-    model = load_model_from_checkpoint(args.checkpoint)
+    model, _payload = load_model_from_checkpoint(args.checkpoint)
     model.eval()
     preds = []
     with torch.no_grad():

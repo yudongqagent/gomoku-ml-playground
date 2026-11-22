@@ -491,3 +491,177 @@ function centred near +0.10, like v44's — the α sweep
 Memmap bundle `ml/runs/ml6-h2/data-mmap/`: 1,097 shards,
 49,452 samples, planes (49452, 8, 15, 15) — identical
 shard/sample counts to v48's bundle.
+
+## 5. Training (actuals)
+
+**Training COMPLETE 2026-11-22 ~17:49 UTC** (started
+16:34 UTC; one runtime restart killed the run at step
+10,840/11,025 — epoch 15, ~90 seconds short of finishing
+— and the pre-registered resume rule fired: `best.pt`
+backed up first (verified bit-identical to
+checkpoint-10290.pt, epoch 14, val 0.0919), resumed from
+checkpoint-10290.pt with `--epochs 1`; the resumed
+epoch-15 val 0.0915 beat the pre-kill best, so the resumed
+run's best IS the global best and the `--out` copy is
+correct): config `ml/configs/ml6-h2.yaml`, 15 epochs,
+batch 64, memmap bundle (49,452 samples; 46,979 train /
+2,473 val, seed-0 split). Run dir `ml/runs/ml6-h2-train/`;
+log `ml/runs/ml6-h2/train.log`. 11,025 steps, ~190–392
+s/epoch (slow — H3's training ran concurrently for most
+of the run).
+
+| Epoch | Train loss | Val loss |
+|---|---|---|
+| 1 | 0.1033 | 0.0997 |
+| 2 | 0.1015 | 0.0981 |
+| 3 | 0.0999 | 0.0977 |
+| 4 | 0.0992 | 0.0978 |
+| 5 | 0.0983 | 0.0986 |
+| 6 | 0.0977 | 0.0967 |
+| 7 | 0.0962 | 0.0957 |
+| 8 | 0.0956 | 0.0939 |
+| 9 | 0.0944 | 0.0946 |
+| 10 | 0.0929 | 0.0945 |
+| 11 | 0.0917 | 0.0935 |
+| 12 | 0.0906 | 0.0928 |
+| 13 | 0.0898 | 0.0924 |
+| 14 | 0.0894 | 0.0919 |
+| 15 | 0.0891 | **0.0915** |
+
+Val loss decreased overall (small bumps at epochs 4, 5,
+9) — no overfitting by epoch 15. **Best checkpoint:
+epoch 15 (`best.pt`, val 0.0915)** — the `--out` copy at
+`ml/runs/ml6-h2/value-net.pt` is verified bit-identical in
+weights to `best.pt` AND to `final.pt` (max |Δ| 0.0 both),
+so the registry path holds the best-by-val-loss checkpoint
+as pre-registered. (Absolute val loss is not comparable
+to v48's 0.0841 or v44's 0.1136 — different targets and
+mixes: v55's 3-ply labels on the patch mix sit between
+v48's cooler 2-ply target and v44's hotter base-only 3-ply
+target.) Architecture verified: ResNet 16ch/2 blocks,
+126,759 params, 48 tensors — identical counts and shapes
+to v37's, v44's, and v48's checkpoints.
+Checkpoint md5: `8ead4de5222d8ef230215b2f0b746b23`.
+
+## 6. Holdout diagnostics (actuals)
+
+Game-level holdouts (never trained on), targets = 3-ply
+labels. v55 net = `ml/runs/ml6-h2/value-net.pt`; v48 net =
+`ml/runs/ml5-h1/value-net.pt`; v44 net =
+`ml/runs/ml4-h3/value-net.pt`. Sign agreement + MSE via the
+FIXED `eval_value_holdout.py` (plane-3 TRUE sides — §0);
+Pearson r via `ml/scripts/holdout_corr.py`. Raw outputs in
+`ml/runs/ml6-h2/holdout.log`. Sanity check: this run
+reproduces v44's published 3-ply numbers EXACTLY on its
+own base holdout (v7 0.7460, v18 0.7163, random 0.7786 —
+full planes; no-history 0.7360/0.7035/0.7880; MSEs
+0.0847/0.1057/0.2624) — the eval setup is sound.
+
+### (a) v55 net on its own holdout (in-distribution)
+
+| Holdout | n pos | v55 sign (full) | v55 sign (no-hist) | v55 r | v44 sign (full) | v48 sign (full) |
+|---|---|---|---|---|---|---|
+| v7 (base) | 2,050 | 0.7350 | 0.7381 | 0.1950 | 0.7460 | 0.2840 |
+| v18 (base) | 790 | 0.7047 | 0.6881 | 0.0646 | 0.7163 | 0.3171 |
+| random (base) | 538 | 0.7730 | 0.7992 | 0.3620 | 0.7786 | 0.5460 |
+| vs-v0 (new) | 570 | 0.7495 | 0.7298 | −0.0197 | 0.7475 | 0.2702 |
+| vs-v7 (new) | 321 | 0.7880 | 0.7342 | 0.2074 | 0.7880 | 0.2405 |
+| vs-v8 (new) | 567 | 0.6719 | 0.6581 | 0.0762 | 0.6798 | 0.3300 |
+| vs-v37 (new) | 293 | 0.7552 | 0.7517 | 0.2564 | 0.7552 | 0.2448 |
+| **base pooled** | **3,378** | **0.7339** | — | — | **0.7442** | — |
+| **new pooled** | **1,751** | **0.7338** | — | — | **0.7356** | — |
+| **all pooled** | **5,129** | **0.7339** | **0.7281** | — | **0.7413** | **0.3164** |
+
+**Verdict: the distillation learned the 3-ply label function
+— the §1.7 stop condition (chance-level holdout) does NOT
+trigger.** Pooled in-distribution sign agreement 0.7339 vs
+0.50 chance. It is slightly LOWER than v44's 0.7442 on the
+base holdout and essentially identical on the patch
+holdout (0.7338 vs v44's 0.7356) — v44's net, which never
+trained on the patch positions, fits them as well as
+v55's net does. **The patch data adds nothing to the 3-ply
+holdout fit.** If v55 plays differently from v44, it will
+not be because it fits these positions better on holdout.
+**The v55 net is HISTORY-ROBUST** (pooled no-history drop
+0.006: 0.7339 → 0.7281; v7 and random no-history are
+BETTER than full) — the v37 collapse is absent, like
+v44's and v48's nets.
+
+**By TRUE side (v55 net, full planes):**
+
+| Holdout | Black | White | White − Black |
+|---|---|---|---|
+| v7 | 0.7730 | 0.6964 | −0.077 |
+| v18 | 0.6684 | 0.7410 | +0.073 |
+| random | 0.7687 | 0.7774 | +0.009 |
+| vs-v0 | 0.6148 | 0.8745 | +0.260 |
+| vs-v7 | 0.7310 | 0.8552 | +0.124 |
+| vs-v8 | 0.8765 | 0.4829 | −0.394 |
+| vs-v37 | 0.7677 | 0.7407 | −0.027 |
+| **pooled** | **0.7469** | **0.7208** | **−0.026** |
+| **patch pooled** | **0.7466** | **0.7208** | **−0.026** |
+
+The per-leg cells swing wildly (vs-v0 White +0.26, vs-v8
+White −0.39) — 10 games per leg is heavily game-clustered,
+exactly as iter-48 §7.3 warned; the pooled number is the
+read. **The 3-ply retrain did NOT reintroduce a large White
+deficit on the holdout:** pooled White gap −0.026, vs
+v48's −0.008 (2-ply targets) and v44's diagnosis gap of
+−0.065…−0.103 on the full 17,354-position set. (v44's net
+on this same holdout subset shows −0.022 pooled — the
+holdout's per-leg cells are noise-dominated, and the
+pooled holdout gap is smaller than the full-set diagnosis
+gap for both nets.) The mechanism check (§1.5a) is
+therefore inconclusive on holdout alone — the battery's
+played by-colour splits are the real read. **Caveat
+(standing): holdout does not predict played strength —
+the battery is the verdict.**
+
+**A true-side correction to iter-44 §4:** with TRUE sides
+(the fixed eval), v44's net shows a White deficit on v7
+positions (0.7070 vs 0.7845, gap −0.078, n≈950/side, ~4
+SE) — iter-44's "no White collapse" (Black 0.7463 / White
+0.7421, gap 0.004) was measured with the contaminated
+index-inferred split. The v18 cell goes the other way
+(+0.096), so the pooled base gap is small (−0.016), but
+the v7-cell deficit is real and was hidden by the
+contamination.
+
+### (b) v48's net on the 3-ply holdout (cross-depth)
+
+Sign agreement 0.24–0.55 (pooled 0.3164) — BELOW chance on
+engine positions, exactly as the parity caveat predicted
+(v48's net centres near −0.06, the 3-ply targets near
++0.10). **Pearson r (the pre-registered primary measure):
+v7 0.0626, v18 0.0680, random 0.4400, vs-v0 −0.0633,
+vs-v7 0.0395, vs-v8 −0.1175, vs-v37 −0.0017.** On engine
+positions the 2-ply-trained patch net captures almost none
+of the 3-ply function in correlation terms (random's 0.44
+is the ±1-terminal-dominated exception). **The 3-ply labels
+are a genuinely different target on this mix** — the
+label-depth change is real, not cosmetic. If v55 plays at
+v48's level, it will not be because the labels were
+equivalent.
+
+### (c) v44's net on the 3-ply holdout
+
+Sign agreement 0.7442 base / 0.7356 patch pooled (table
+(a)); Pearson r v7 0.2027, v18 0.1480, random 0.3508,
+vs-v0 0.0176, vs-v7 0.0877, vs-v8 −0.0109, vs-v37 0.1682.
+v44's net fits the patch positions about as well as
+v55's does on every measure (sign and r) — the patch data
+does not improve the 3-ply fit. Note the near-zero r on
+vs-v0 for ALL THREE nets (−0.020 / −0.063 / +0.018)
+despite sign agreement ~0.75: the nets get the sign right
+but the magnitudes don't track (distillation compression —
+nets predict small values ~0.08 while the targets carry ±1
+spikes), the same pattern iter-44 §4 noted.
+
+**Tooling note:** while fixing `holdout_corr.py` (its first
+version called `load_model_from_checkpoint` as if it
+returned a bare model; it returns `(model, payload)`), a
+runtime security notice fired on a repo-grep exec result.
+Per the tasking, this is the known false-positive pattern
+(ML batch 5 H2): the flagged item was skipped, the fact
+was re-verified by plain file viewing (which runs nothing),
+and the work continued — the notice did not stop the task.
