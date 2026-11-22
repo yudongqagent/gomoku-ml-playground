@@ -576,6 +576,24 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout3ply_v53", "tie_break_q": True,
          "tie_break_q_threshold": 0.05},
+    # v54 (iteration 54, ML batch 6): H1 — v8's PUCT MCTS with a
+    # value net trained on v37's 2-ply rollout-leaf labels on
+    # v37's exact base (37,227 quiet positions, same game-level
+    # holdout) PLUS a White-only patch: White-to-move quiet
+    # positions only, from games against heuristic opponents
+    # only (v44's committed battery legs vs v0/v7 + fresh
+    # v44-vs-v0/v7/ladder-MCTS legs at dev seeds) — see
+    # research/iterations/iter-54.md §2. The patch tests v48's
+    # redistribution hypothesis: v48's both-sides patch closed
+    # the White gap but cost Black at least as much; v54 adds
+    # zero Black-side patch positions. Search, priors, sims,
+    # threat check, terminal cases: v8 unchanged.
+    # value_weight is the α-sweep winner (placeholder 0.25 =
+    # v37's winner until the sweep runs; see iter-54.md §2).
+    54: {"name": "scoring-v54", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml6-h1/value-net.pt",
+         "value_weight": 0.25},
 }
 
 # --- weights --------------------------------------------------------------
