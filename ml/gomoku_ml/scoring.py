@@ -536,6 +536,28 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml5-h1/value-net.pt",
          "value_weight": 0.5},
+    # v49 (iteration 49, ML batch 5): H2 — v8's PUCT MCTS with the
+    # value net distilled from v18's rollout leaf with 4-ply labels
+    # (see research/iterations/iter-49.md). The ONLY differences
+    # from v44 are the checkpoint (trained on the SAME 37,227 quiet
+    # positions — v7/v18 self-play + random playouts, same
+    # game-level holdout — but labelled with
+    # ``_rollout4_leaf_value``: the rollout-leaf value 4 plies
+    # ahead under the teacher's own rollout policy, a 6-ply-horizon
+    # value vs v44's 5-ply) and the swept α (``value_weight`` —
+    # 0.0625, the §1.4 sweep winner). The even
+    # horizon should reverse v44's odd-horizon parity shift (the
+    # 4-ply labels centre near -0.06 like v37's 2-ply labels, not
+    # near +0.10 like v44's — iter-49 §0), testing whether depth
+    # helps again at even parity. Search, priors, sims, threat
+    # check, terminal cases: v8 unchanged, so the battery is a
+    # clean A/B of the 4-ply-label net — and, against v37's and
+    # v44's numbers, of 4-ply vs 2-ply vs 3-ply labels on identical
+    # positions.
+    49: {"name": "scoring-v49", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml5-h2/value-net.pt",
+         "value_weight": 0.0625},  # sweep winner (0.550 vs 0.500 @ 0.125, 0.425 @ 0.25)
     # v50 (iteration 50, ML batch 5): H3 — the α ablation. v8's
     # PUCT MCTS with v37's value net (2-ply rollout-leaf labels on
     # v24's 817 games / 37,227 positions, ResNet 16ch/2 blocks)
