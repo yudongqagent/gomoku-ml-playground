@@ -1,6 +1,8 @@
 # Iteration 49 — v49: 4-ply labels (ML batch 5, H2)
 
-**Status: IN PROGRESS — pre-registered; labelling not yet started.**
+**Status: COMPLETE — v49 REJECTED (2/4 clauses: tactical and
+test suites pass; head-to-head vs v44 and ladder Elo fail).
+See §7 for the verdict.**
 Comparison target is v44 (the ML track's champion and bar
 reference). This is the H2 workstream of ML batch 5 (H1 is v48,
 the White-collapse diagnosis; H3 is v50, the α ablation); work
@@ -950,9 +952,9 @@ resumes were clean.
 `selfplay_batch.py --engine-a v49 --engine-b v7 --games 100
 --seed-a 100 --seed-b 200` (no --openings; log
 `ml/runs/ml5-h2/batt-v7.log`; JSON
-`research/iterations/batch-v49-vs-v7.json`). Two VM
-replacements interrupted the leg (at 90 and 95 games); both
-resumes were clean.
+`research/iterations/batch-v49-vs-v7.json`). One VM
+replacement interrupted the leg (at 95 games); the resume
+was clean.
 
 - **46W-47L-7D, win rate 0.4950, Wilson 95% CI [0.3990,
   0.5914]** — v49 holds the heuristic bar reference
@@ -977,9 +979,9 @@ resumes were clean.
 `selfplay_batch.py --engine-a v49 --engine-b v37 --games 100
 --openings research/openings-ml4.json --seed-a 100 --seed-b 200`
 (log `ml/runs/ml5-h2/batt-v37.log`; JSON
-`research/iterations/batch-v49-vs-v37.json`). Two VM
-replacements interrupted the leg (at 40 and 49 games); both
-resumes were clean.
+`research/iterations/batch-v49-vs-v37.json`). One VM
+replacement interrupted the leg (at 49 games); the resume
+was clean.
 
 - **45W-46L-9D, win rate 0.4950, Wilson 95% CI [0.3990,
   0.5914]** — v49 holds v37 essentially even. The 4-ply net
@@ -1023,3 +1025,154 @@ clean.
   identical to v44's swap leg. That is a property of the
   shared swap machinery (both engines use the same judge when
   choosing), not of v49.
+
+### 6.7 Ladder — COMPLETE 2026-11-22 ~02:56 UTC — **CLAUSE 2 FAILS**
+
+`eval_version.py --version 49 --ladder-games 40 --out
+research/iterations/ladder-v49.json` (log
+`ml/runs/ml5-h2/ladder.log`; JSON committed). 40 games per
+leg, seed 100. One VM replacement interrupted the run after
+2/3 legs; the ladder resumed from the mcts leg with RNG state
+restored — nothing lost.
+
+| Opponent | W-L-D | win rate | 95% CI | as Black | as White |
+|----------|-------|----------|--------|----------|----------|
+| random | 40-0-0 | 1.0000 | [0.9124, 1.0000] | 20-0-0 | 20-0-0 |
+| heuristic (v0) | 12-27-1 | 0.3125 | [0.1907, 0.4671] | 9-10-1 | 3-17-0 |
+| mcts (100 sims) | 18-22-0 | 0.4500 | [0.3071, 0.6017] | 9-11-0 | 9-11-0 |
+
+- **Ladder Elo: −137.0, interval [−251.1, −22.9]** (anchors:
+  random −800, heuristic 0) — estimate < 98.1 ✗, and the
+  interval is entirely below 0, so this is a decisive fail,
+  not a noise call. The heuristic leg is what kills it:
+  0.3125 vs v0 (White 3-17-0), the same White collapse as
+  the 100-game leg (§6.3). The mcts leg (0.45) also loses,
+  so v49 does not repeat v44's feat of beating the ladder
+  MCTS outright.
+- **Elo −137.0 is the lowest ML-track ladder Elo since v43's
+  −88.7** (v8 0.0, v24 52.5, v37 −34.9, v44 98.1). The
+  paradox of this version is the mirror of v44's: v49 holds
+  v7 (0.495) and v37 (0.495) even yet posts a deeply negative
+  ladder Elo, because the ladder's cold 40-game legs punish
+  its White collapse against the heuristic anchor (0.3125)
+  while v44's consistency (no leg below 0.62) was rewarded.
+  Both numbers are real; they measure different things — and
+  the bar's clause 2 exists precisely because head-to-head
+  alone lies.
+
+### 6.8 Test suites — **CLAUSE 4 PASSES**
+
+- ml pytest (final tree, 2026-11-22 ~02:57 UTC):
+  **468 passed, 1 skipped, 58 xfailed, 0 failed** (4:07;
+  log `ml/runs/ml5-h2/pytest-final.log`). Includes the 11
+  new v49 tests (10 rollout4-label tests + the v49 registry
+  passthrough). No failures, pre-existing or otherwise.
+- npm test: **55/55 passed** (vitest, 4 files).
+- `tsc --noEmit`: **clean** (exit 0).
+
+## 7. Verdict — **v49 REJECTED (2/4 clauses)**
+
+| Clause | Bar | v49 | Verdict |
+|--------|-----|-----|---------|
+| 1. h2h vs v44 (100 games) | win rate > 0.50, Wilson CI lower > 0.50 | 0.4750, CI [0.3799, 0.5720] | **FAIL** |
+| 2. Ladder Elo | > 98.1 | −137.0, interval [−251.1, −22.9] | **FAIL** (decisive) |
+| 3. Tactical | 20/20 + 29/29 | 20/20 + 29/29 | **PASS** |
+| 4. Test suites | all green | pytest 468/0, npm 55/55, tsc clean | **PASS** |
+
+**v49 is rejected.** v44 stays the ML champion and the bar
+reference; the daily cross-track match stays v18 vs v44. No
+merge to master.
+
+The honest headline is two-sided, and both sides are real:
+
+1. **The parity hypothesis was exactly right — and it bought
+   nothing.** The 4-ply labels reverse the 3-ply shift on
+   every measure (§0: mean −0.0630 vs +0.0999, fraction
+   positive 0.216 vs 0.734, sign agreement with 2-ply 0.828
+   vs 0.492, gradient shift −0.0012 vs +0.1236). The parity
+   mechanism is now confirmed in both directions. But the
+   4-ply net plays no better than the 2-ply net (0.495 vs
+   v37) and worse than the 3-ply net (0.475 vs v44). The
+   parity shift was never the whole story: the deeper target
+   is harder to distil (holdout sign falls monotone with
+   depth: 0.7766 → 0.7519 → 0.7442 → 0.7313), and the extra
+   horizon information does not survive distillation into
+   played strength.
+2. **v49 is the best ML version ever against v7 — and the
+   worst ever against v0.** It holds v7 even (0.495 normal,
+   0.485 swap — both the best ML numbers against v7) while
+   losing to the no-search anchor (0.38, CI entirely below
+   0.50) on a White collapse (0.22). The White problem is
+   opponent-specific (White 0.22 vs v0, 0.39 vs v44, 0.31
+   vs v37, 0.47 vs v7, 0.51 under swap) and is now the
+   sharpest open weakness on the ML track — H1's diagnosis
+   (v48) is the key next step, and v49's legs are fresh
+   evidence for it.
+
+What this batch establishes for the program:
+
+- **The label-depth lever is now fully mapped at both
+  parities and is CLOSED:** 1-ply (v24) 0.515 vs v8 / Elo
+  52.5; 2-ply (v37) 0.75 / −34.9; 3-ply (v44) 0.67 / 98.1;
+  4-ply (v49) 0.475 vs v44 / Elo −137.0. Depth helps once
+  (1→2) and then saturates — at odd parity the shift
+  dominates (2→3), at even parity the harder target
+  dominates (3→4, and 4-ply ≈ 2-ply head-to-head). The
+  2-ply recipe remains the strongest known labelling. No
+  further depth (5-ply, 6-ply) is worth testing: the
+  marginal label information shrinks while the distillation
+  cost grows, at both parities.
+- **History-dependence tracks label parity:** the even-parity
+  nets (v37, v49) collapse without history planes (drops
+  0.195, 0.179) while the odd-parity net (v44) does not
+  (0.007). The label's information content, not the
+  architecture, drives the shortcut — and the shortcut's
+  presence does not predict played strength either way
+  (v37 collapses and is the strongest ML version
+  head-to-head; v44 doesn't and holds the champion title).
+- **The α lesson generalises to hotness:** v49's sweep
+  winner (0.0625) sits two steps below v37's winner (0.25)
+  on SAME-parity labels — the hotter 4-ply labels (mean|v|
+  0.22 vs 0.20) alone push α down. Cooler α tracks label
+  hotness, not just parity. And the sweep's winner's
+  regression is visible (0.55 at 20 games → 0.475 at 100):
+  20-game sweeps rank α noisily; future sweeps should use
+  more games per arm or accept the ranking as a weak signal.
+- **Holdout does not predict played strength — fifth
+  instance** (v31, v38, v42, v43, v49): v49's holdout
+  by-side numbers showed White BETTER than Black (0.7590
+  vs 0.7045) while its played White collapsed to 0.22
+  against v0. Holdout sign accuracy measures the fit to
+  the label function, not the engine's strength as White
+  against a greedy opponent.
+- **Strength is matchup-dependent, not a single number:**
+  v37 > v44 (0.69), v44 > v49 (0.525), v49 ≈ v37 (0.495);
+  v49 ≈ v7 (0.495), v7 > v0 (0.665), v0 > v49 (0.62). Any
+  single ranking of the ML versions is a fiction; the bar's
+  two independent measures (h2h vs the champion AND ladder
+  Elo) exist precisely because one number lies — and v49
+  fails them both while holding the strongest heuristic
+  opponent even.
+
+Open threads for the coordinator / next batch:
+
+- The White collapse vs heuristic opponents is the top
+  ML-track problem and v49 is its sharpest case (White 0.22
+  vs v0, 3-17-0 in the ladder heuristic leg). H1's v48
+  diagnosis should use v49's legs as evidence; if the
+  mechanism is the value head misreading greedy-heuristic
+  positions, training on positions from games against v0
+  is the natural patch.
+- v49's Black play vs v37 (0.68) is the strongest
+  single-colour ML result in the program — the 4-ply labels
+  teach Black-side attack well. Understanding why the same
+  net's White play falls apart (0.31 vs v37, 0.22 vs v0)
+  may locate the White-collapse mechanism faster than
+  aggregate diagnostics.
+- The ladder Elo interval ([−251.1, −22.9]) is entirely
+  below 0: no confirmatory re-run is needed — the clause-2
+  fail is decisive, unlike v44's point-estimate pass.
+- The battery survived 7 VM replacements across the sweep
+  and the battery legs (6 during the battery legs) with zero
+  games lost (per-game seeding + auto-resume);
+  uniqueness was 97–100/100 on every leg.
