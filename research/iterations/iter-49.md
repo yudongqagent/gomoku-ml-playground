@@ -971,3 +971,29 @@ resumes were clean.
   against the crude greedy one — the same inversion v7 itself
   showed vs v0 (0.665 vs v0, below its 0.705 vs v1), in the
   opposite direction.
+
+### 6.5 vs v37 (secondary) — COMPLETE 2026-11-22 ~00:43 UTC
+
+`selfplay_batch.py --engine-a v49 --engine-b v37 --games 100
+--openings research/openings-ml4.json --seed-a 100 --seed-b 200`
+(log `ml/runs/ml5-h2/batt-v37.log`; JSON
+`research/iterations/batch-v49-vs-v37.json`). Two VM
+replacements interrupted the leg (at 40 and 49 games); both
+resumes were clean.
+
+- **45W-46L-9D, win rate 0.4950, Wilson 95% CI [0.3990,
+  0.5914]** — v49 holds v37 essentially even. The 4-ply net
+  is NOT stronger than the 2-ply net head-to-head (the second
+  branch of the §1 hypothesis: the label-depth lever
+  saturates at 2 plies even at even parity), but it is also
+  not weaker the way v44 was (v44 lost 0.31 to v37).
+  Uniqueness: **99/100**; de-dup cut 44W-46L-9D on 99
+  unique, 0.4899, CI [0.3937, 0.5869].
+- Colour splits: as Black **31W-13L-6D (0.6800)**, as White
+  **14W-33L-3D (0.3100)** — v49's Black beats v37's White
+  decisively while its White loses. Black won 64, White won
+  27. In both colours v49 is better against v37 than v44 was
+  (v44: Black 0.46, White 0.16) — yet v49 loses to v44
+  head-to-head (0.475). The ML-track cycle is now: v37 >
+  v44 (0.69), v44 > v49 (0.525), v49 ≈ v37 (0.495).
+  No single ranking of the three distilled nets is honest.
