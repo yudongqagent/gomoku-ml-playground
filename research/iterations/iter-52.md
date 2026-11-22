@@ -534,7 +534,15 @@ threats), not tactical blunders.
 
 ### vs v0, 100 games, normal rules
 
-[To be filled when the leg finishes.]
+**v52 100W-0L-0D, win rate 1.0000, Wilson 95% CI [0.9630,
+1.0000]** — `research/iterations/batch-v52-vs-v0.json`
+(recomputed; matches the script summary). v27's vs-v0 was
+0.9650, so v52 improves on it — but the leg is heavily
+duplicated: **only 22/100 unique games** (de-dup 22W-0L-0D, CI
+[0.8513, 1.0000]), worse than the program's usual 41–45 unique
+per 100 vs v0. The TSS makes v52's play MORE deterministic (it
+fires the same forcing move regardless of seed), so short games
+coincide. v52 wins every unique game, both colours 50–0.
 
 ### swap vs v27, 100 games
 
