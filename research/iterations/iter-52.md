@@ -1,0 +1,686 @@
+# Iteration 52 — v52: threat-space search (TSS) at the root (batch 13, H2)
+
+**Status: PRE-REGISTERED — design fixed below (§1) BEFORE any eval of
+v52. Cost bench (§1.4), mechanism check (§3), fast loop (§4), and
+battery (§5) follow.**
+
+**METHOD (carried over).** The fast 10-game loop stays the finding
+method: play 10 games, read every move, find each game's losing move
+(solver/deeper-search verified, never guessed), patch, regression-test,
+repeat — max 4 iterations, or stop when an iteration finds no new
+patchable weakness class. The 4-clause bar stays the validation
+gate. Fast-loop games use development seeds distinct from the bar
+battery's pre-registered seeds (100/200). **Fast loops run against
+v0 as well as v27** (iter-17 §5). The full battery runs on the FINAL
+version only. The 100-game battery is the verdict — small-sample
+smokes mislead; single-position diagnostics cannot validate a
+global search change; the v1 walk-back oracle shares the
+argmax-of-sum flaw (iter-18) — every nominated save needs playouts
+or exact computation.
+
+## 0. The problem
+
+v27 (the bar reference: v18's 2-ply rollout leaf both colours + the
+q-gap threshold tie-break τ=0.05) is a 100-sim MCTS whose effective
+horizon is ~4-6 plies: the tree itself reaches deeper in forcing
+lines, but visit allocation follows the v1 prior, and the 2-ply
+rollout leaf only sees two plies past the leaf. Forcing wins that
+need 3+ attacker moves — especially wins whose first move is an
+open-three creator rather than a four-creator — fall outside that
+horizon. v29's VCF-at-root check covers only fours-only sequences
+(`evaluate.starts_forced_win`, depth 3): a win whose first move
+creates an open three (not a four) is invisible to it, and the
+check's defensive half is a verified design flaw (iter-29 §3.4:
+preventions picked by prior noise, 3e-6 apart, losing 3/3 while the
+search's move wins 3/3) — and VCF-prevention for the v27 family is
+now CLOSED in all three forms (v29 prior-pick, v33 search-pick,
+v35 search-first; re-confirmed v45, batch 12). The gap this
+iteration targets is the OFFENSIVE one: deep forcing wins through
+open threes and double threats that neither the MCTS nor the VCF
+check sees.
+
+Threat-space search (TSS, Allis) is the classic Gomoku solver
+technique for exactly this gap: search ONLY forcing moves, so the
+search reaches much deeper than a full-width search, and play the
+winning forcing sequence if one exists. It is a genuinely new
+mechanism — distinct from v29's VCF-at-root (fours only) and from
+the MCTS (all moves).
+
+## 1. Design and pre-registration
+
+**Comparison target: v27** (the bar reference, batch-13 plan:
+ladder Elo 636.4). Clause 1 is head-to-head vs v27 (normal rules,
+100 games, alternating colours, win rate > 0.50 with Wilson 95%
+CI lower bound > 0.50); clause 2 is ladder Elo strictly higher
+than v27's 636.4 (identical 40 games/opponent: random, heuristic,
+mcts, mcts_sims=100 — batch 11's re-basing); clause 3 is tactical
+pass rate >= v27's (20/20 old suite + 29/29 hard suite, on the
+CORRECTED suite — batch 9's pre-registered program correction
+adds (9,7) to winning-quiet-setup-2); clause 4 is all test suites
+green (ml pytest, npm test, tsc). **Secondary head-to-heads, also
+pre-registered:** v52 vs v0 (100 games) and a 100-game swap match
+vs v27 under the tempo judge (the harness default). A new strength
+champion ALSO needs to pass the bar AND win a 100-game direct
+challenge vs v18 (champion rule v2, TRACKS.md). Non-transitivity
+is recorded prominently.
+
+**Base: v27 exactly** — 100 sims, c_puct 1.5, sharp v1 priors,
+rollout leaf both colours, τ=0.05 threshold tie-break, most-
+visited root. The TSS is a root hook ONLY: when it finds a forcing
+win it plays it, otherwise the engine is exactly v27 (verified by
+`test_v52_falls_through_to_v27_when_tss_silent`).
+
+### 1.1 The TSS move set (pre-registered)
+
+The attacker (the side to move at the root) searches ONLY forcing
+moves:
+
+* **Four-creating moves** — moves after which the attacker has >= 1
+  winning move next turn. Enumerated exactly (a kernel-prefiltered
+  enumeration, `mcts_heuristic._four_creating_moves_fast`, verified
+  0-mismatch against `evaluate.four_creating_moves` in
+  `test_tss.py`): the prefilter is the **v1 kernel** (>= 20000) —
+  the v0 kernel's contiguous-run scoring is BLIND to broken-four
+  creators (XX_XX; a broken-four creator's v0 score is ~100-200),
+  which the oracle test caught (22 mismatches on the first
+  v0-only attempt). Each candidate is exact-tested locally (the
+  winning moves after the move must involve it). Contract note:
+  returns every near move when the player ALREADY holds a winning
+  move (its test is "a winning move exists after the move"); the
+  fast version returns only genuine creators. TSS never enumerates
+  in the pre-existing case — every caller checks for a winning move
+  first — so the two agree everywhere TSS looks.
+* **True-open-three-creating moves** — moves creating a _XXX_
+  (contiguous, both ends empty). Enumerated with the **v0 kernel
+  only**: v0 attack >= 1000 (the (3,2) weight is 1000, the (4,1) /
+  (4,2) weights are 1000/10000, and no combination of sub-1000
+  per-direction values reaches 1000 — the largest is 100), minus
+  four-creators. Verified 0-mismatch against a brute-force run-scan
+  oracle in `test_tss.py`. NOTE the v0 kernel, not v1: v1's
+  window-based `open_ends` counts the cells just OUTSIDE the
+  5-window, so v1 scores a genuine open three as a mere THREE
+  (400) when the cells two out from the run are occupied — the
+  oracle test caught exactly this (an open-three creator with v1
+  attack 405, v0 1021). v1 is blind to such threes (a pre-existing
+  v1 property — its priors undervalue those moves); v0's run-based
+  scoring sees the run directly.
+* **Gap-three creators are EXCLUDED** (pre-registered): a gap three
+  (XX_X) is killed by occupying the gap, so it rarely forces;
+  including them would multiply the branching for near-zero win
+  rate.
+* **Double threats are NOT a separate move class**: a move creating
+  >= 2 threats is in the union above (each threat is a four or an
+  open three); the search detects double threats by counting threats
+  after the move.
+
+### 1.2 The search (pre-registered)
+
+`mcts_heuristic.tss_winning_move(board, player)` — deterministic
+(no RNG):
+
+* An immediate winning move is returned first (standing fact: it IS
+  a VCF start but is NOT necessarily a four-creator — the fast test
+  checks winning moves first).
+* Forcing moves are tried in (v1 prior desc, flat index asc) order
+  at the root; in the recursion, four-creators first, then v1
+  attack score desc (order affects only speed in the recursion).
+  The FIRST move starting a forced win is returned.
+* **Depth: 4 attacker forcing moves** (`TSS_DEPTH = 4`). VCF uses
+  depth 3 (after the first move); TSS at 4 attacker moves with
+  open-three threats reaches ~7-8 plies, genuinely beyond the MCTS
+  + 2-ply-rollout horizon (~4-6 plies).
+* **Defender replies (exact — every reply must lose for the
+  attacker to win):**
+  * after a four (exactly 1 winning square): the block is the ONLY
+    reply (anything else loses at once);
+  * after open three(s): replies are the squares blocking ALL of the
+    attacker's open threes (recomputed from the resulting board —
+    the batch-11 non-monotonicity lesson: full re-check after every
+    move; the attacker may hold a standing three from an earlier
+    move in the sequence, e.g. after a counter-four exchange) UNION
+    the defender's four-creating moves (counter-threats: a
+    counter-four forces the attacker to block instead of
+    converting). If the reply set is empty, the attacker wins
+    (double threat, no defence). Defender open-three creators are
+    NOT replies: they do not stop the attacker converting the
+    standing threat next move (open three -> open four -> win), so
+    they cannot refute a line;
+  * after a defender counter-four: the attacker's reply is the
+    forced block (>= 2 defender winning moves refutes the line).
+  * if the defender holds a winning move when the attacker is to
+    move, the attacker MUST block it (>= 2 refutes the line); the
+    block must itself be forcing for the sequence to continue.
+* **Limitation (pre-registered):** every attacker move in a sequence
+  must be forcing, except forced blocks after defender counter-fours.
+  Sequences needing a quiet defensive interlude are out of scope —
+  that is what the MCTS is for.
+* **TSS is OFFENSIVE only.** There is no defensive prevention check:
+  VCF-prevention for the v27 family is CLOSED (v29/v33/v35/v45). If
+  the opponent holds a forcing win, the MCTS handles it as v27 does.
+  The hook runs AFTER the win/block scans in `choose_move`, so an
+  immediate win or a forced block always takes precedence over the
+  TSS.
+
+### 1.3 Mechanism check (pre-registered)
+
+**Check A — constructed positions.** 7 positions, all fixed BEFORE
+this check runs (the 5 constructed ones live in
+`ml/gomoku_ml/tss_mechanism_positions.json`; the 2 VCF controls
+come from the tactical suites):
+
+* T1 `tss-double-three-black`: Black (7,6),(8,6),(6,7),(6,8);
+  White (3,3),(11,11),(12,3). Black to move. Expected (6,6):
+  creates two open threes (horizontal ends (5,6),(9,6); vertical
+  ends (6,5),(6,9)), no common block, White has no counter-four.
+* T2 `tss-double-three-white`: colours swapped. White to move.
+  Expected (6,6).
+* T3 `tss-three-sequence-black`: Black (5,7),(6,7),(7,8),(5,9),
+  (6,9); White (2,2),(12,2),(2,12),(12,12),(11,3). Black to move.
+  Expected {(7,7),(7,9),(8,9),(8,7)} — every winning first move,
+  verified by hand:
+  * (7,7): open three (horizontal); White blocks an end; (7,9)
+    makes two open threes (horizontal (5,9),(6,9),(7,9) +
+    vertical (7,7),(7,8),(7,9)) → win.
+  * (7,9): open three (horizontal); White blocks an end; (7,7)
+    makes two open threes → win.
+  * (8,9): diagonal open three (6,7),(7,8),(8,9); White blocks an
+    end; (7,9) makes the open four (5,9),(6,9),(7,9),(8,9) → win.
+  * (8,7): diagonal open three (6,9),(7,8),(8,7); White blocks an
+    end; (7,7) makes the open four (5,7),(6,7),(7,7),(8,7) → win.
+  * Refuted (TSS must NOT return them): (4,9) — White blocks
+    (7,9), killing the vertical pair; (4,7) — White blocks (7,7),
+    killing the double threat; (5,6) — White blocks (8,9),
+    breaking the follow-up; (5,10) — White blocks (8,7).
+  * NOTE: (7,6)-style first moves are NOT in the set — the
+    position was designed so the winning first moves are all
+    open-three creators (no four-creator wins at the root), which
+    is what makes T3 a TSS-specific test: `starts_forced_win`
+    returns False on every expected move (none creates a four).
+* T4 `tss-three-sequence-white`: colours swapped. White to move.
+  Expected {(7,7),(7,9),(8,9),(8,7)} by symmetry.
+* T5 `vcf-1` (old suite) and T6 `vcf-two-four-sequence` (hard
+  suite): VCF controls — TSS must return a VCF start (it subsumes
+  the offensive VCF check).
+* T7 `tss-counter-four-refutation`: T1's Black stones plus White
+  (11,11),(12,11),(13,11) — White holds an open three, so the
+  counter-four (10,11) (creating an open four) refutes Black's
+  double threat. TSS must return None.
+
+**Check A pass criterion: TSS correct on >= 6/7 positions.**
+MCTS-miss sub-criterion: on >= 1 of T1–T4, v27 (seed 100) plays a
+move OUTSIDE the expected set while TSS returns a move inside it.
+
+**Check B — mined positions.** 50 v27-vs-v27 games (normal rules,
+alternating colours, seeds 777/1777 — dev seeds, distinct from the
+battery's 100/200). At every turn, run TSS (production budget)
+without perturbing the game (TSS consumes no RNG) and record fires,
+confirms (TSS move == v27's move), and differs (TSS move != v27's
+move). Each differ (first 5, to bound runtime) is verified with 3
+playouts from the position: play the TSS move, then v52 on the
+attacker's side vs v27 defending (seeds 0/1/2). A differ is
+VERIFIED if the attacker wins 3/3 against v27's defence.
+**Check B pass criterion: >= 1 verified differ.** If 0 differs
+occur in 50 games, the check is INCONCLUSIVE (not failed) — the
+mechanism may simply be rare in v27-vs-v27 play — and the fast
+loop is the arbiter of the in-game fire rate.
+
+Script: `ml/scripts/check_tss_mechanism.py` (Check A) and
+`ml/scripts/mine_tss_positions.py` (Check B).
+
+### 1.4 Cost budget (pre-registered, set from the bench)
+
+The cost is bounded by a DETERMINISTIC node budget (a node count,
+not a wall clock — so resumed runs reproduce exactly), never a
+time budget. The budget is set from the bench below
+(`ml/scripts/bench_tss.py`, run BEFORE this pre-registration was
+committed, with a high provisional budget of 100000 nodes so the
+bench sees the unconstrained distribution; 100 quiet v7 self-play
+positions + 100 creator-rich v27 midgame positions, seed 777):
+
+| bench (n=100) | fired | budget exceeded | time median / p90 / p99 / max / mean | nodes median / p90 / p99 / max / mean |
+|---|---|---|---|---|
+| quiet (v7 self-play) | 11 (11%) | 0 | 3.5ms / 3230ms / 9917ms / 10578ms / 869ms | 0 / 740 / 2273 / 2273 / 196 |
+| creator-rich (v27 midgame) | 5 (5%) | 0 | 111ms / 5896ms / 24991ms / 53189ms / 2221ms | 20 / 1394 / 2763 / 12916 / 464 |
+
+Times measured under 2–3-way CPU contention with the other batch-13
+workers (load ~3.6 on ~1.5 CPUs), so they are inflated roughly 2x
+over uncontended; node counts are contention-independent and are
+what the budget rests on. The distribution is extremely
+heavy-tailed: the median call is cheap (3.5ms / 111ms) but the
+tail is dominated by "prove no win exists" searches (the mean is
+~10x the median). No call hit the 100000-node provisional budget
+(max 12916), so the search terminates well within budget — the
+budget bounds TIME, not termination.
+
+**Pre-registered budget: TSS_NODE_BUDGET = 3000 nodes** (the
+creator-rich p99 node count, 2763, rounded up). It binds only on
+~1% of positions (the extreme tail) and caps the worst-case move
+time at ~6s uncontended (~10s contended) instead of the observed
+53s max. On budget exhaustion the search aborts and returns None
+(fall through to the MCTS) — never a partial answer.
+
+Two honest caveats. First, the plan's p99-time-under-1s criterion
+is NOT met: the p99 time is ~25s contended (~5s uncontended),
+because the per-node cost is ~2ms uncontended, dominated by
+kernel calls (a cProfile of 20 creator-rich positions: 49% of
+time in `scoring._winning_moves`, 39% in `kernel_v1.attack_v1_both`).
+A budget low enough for p99 < 1s (~500 nodes) would abort a
+quarter of all searches (p90 = 1394 nodes) and gut the mechanism,
+so the budget bounds the tail instead of the median. Second, the
+bench above is the PRE-refactor code: profiling drove a refactor
+(local winning-move checks on the lines through the just-played
+stone, replacing full-board scans wherever the winning moves must
+involve that stone; the enumeration unified into `_forcing_sets`
+with one v1 call for four-creators — v0 is blind to broken fours —
+and one v0 call for open-three creators — v1 is blind to some
+open threes; the redundant third kernel call for move ordering
+eliminated), which cut the profiled time 11.1s → 9.5s (~15%) with
+IDENTICAL node counts (1423/1328 nodes on the same 20 positions —
+the refactor changed cost, not the search). A first refactor
+attempt (v0-only enumeration) was caught by the oracle test: 22
+mismatches, all broken-four creators missed by v0's
+contiguous-run scoring. The refactor is verified by 21 tests
+(including a new local-vs-full winning-move equivalence test).
+The bench re-run on the final code (same seed, same positions;
+`research/iterations/tss-bench-final.txt`):
+
+| bench (n=100) | fired | time median / p90 / p99 / max / mean | nodes median / p90 / p99 / max / mean |
+|---|---|---|---|
+| quiet (v7 self-play) | 11 (11%) | 2.7ms / 2088ms / 6245ms / 6699ms / 550ms | 0 / 740 / 2273 / 2273 / 196 |
+| creator-rich (v27 midgame) | 5 (5%) | 86ms / 4229ms / 14769ms / 45214ms / 1673ms | 20 / 1394 / 2763 / 12916 / 464 |
+
+Node counts are IDENTICAL to the pre-refactor run (the refactor
+changed cost, not the search — the search explores the same nodes
+in the same order); times are ~25–37% lower (mean 869→550ms
+quiet, 2221→1673ms creator-rich; the tail positions benefited
+most). The 3000-node budget still binds only on ~1% of positions
+(p99 = 2763 nodes) and caps the worst case at ~4s uncontended
+(the 45214ms max is the 12916-node tail position, contended;
+at ~2ms/node uncontended, 3000 nodes ≈ 6s).
+
+For comparability: v29's VCF check measured median 90ms / p90
+2.9s / max 36s / mean 1.65s on the same quiet-position bench, and
+~7s/move in creator-rich games. v52's profile is comparable
+(mean ~0.9–2.2s contended, worst case bounded to ~6s uncontended
+by the budget), and the battery is affordable at ~50 min/leg.
+
+### 1.5 Eval seeds (pre-registered)
+
+- Battery h2h vs v27: v52=100 / v27=200; vs v0: v52=100 / v0=200.
+- Ladder: seed 100, 40 games/opponent, mcts_sims=100
+  (`ml/scripts/eval_version.py --version 52 --ladder-games 40
+  --out research/iterations/ladder-v52.json` — the auto-resume
+  driver).
+- Swap: 100 games vs v27, balanced placement, placement_seed
+  11, tempo judge, seeds 100/200.
+- Tactical: `eval_tactical_full.py --version 52 --suite both
+  --seed 100`. v27's tactical is re-verified first on the
+  corrected suite.
+- Challenge match (ONLY if v52 passes all 4 clauses): 100
+  games vs v18, seeds 100/200, normal rules.
+- Fast-loop dev seeds: 1052/2052 (vs v0), 1053/2053 (vs v27)
+  — distinct from the battery's 100/200 and from batch-12's
+  loop seeds (1045/2045, 1046/2046).
+- Harness commands follow iter-27 §1.4 / iter-45 §1.5 exactly
+  (`selfplay_batch.py`, `eval_version.py` for the ladder,
+  `eval_tactical_full.py` for tactical). All match drivers
+  AUTO-RESUME from partial `--out` files — if a run is killed,
+  relaunch the SAME command. Per-game seeding
+  (`seed + game_index`) with a uniqueness audit on every leg.
+
+### 1.6 What does NOT change
+
+100 sims, c_puct 1.5, sharp v1 priors, the rollout leaf, the
+τ=0.05 tie-break, most-visited root. No q-based root decision
+(CLOSED). No sims change (more sims is NOT monotonically better).
+No prior change. No defensive VCF check (CLOSED). No leaf change.
+`baseline.py` stays FROZEN. No kernel re-sync unless v52 passes
+the bar.
+
+## 2. Implementation
+
+`ml/gomoku_ml/mcts_heuristic.py` — the TSS block sits between
+`_rollout3_leaf_value` and `class HeuristicMCTS`:
+
+* `_winning_moves_through(board, player, move)` — winning moves on
+  the 4 lines through the just-played stone (local check; the
+  winning moves must involve that stone whenever none pre-existed).
+* `_forcing_sets(board, player)` — the enumeration: `(fours,
+  threes, a1)`. Four-creators via the v1 kernel (>= 20000,
+  catches broken fours) + a local exact test; open-three creators
+  via the v0 kernel (>= 1000, minus fours). Two kernel calls, one
+  per class — each kernel is blind to the other's patterns.
+* `_four_creating_moves_fast`, `open_three_creating_moves`,
+  `_all_open_threes`, `_forcing_moves_and_fours`,
+  `tss_forcing_moves` — the public enumeration surface.
+* `_tss_after_attacker_move(board, attacker, depth_left, budget,
+  last_move)` / `_tss_win(board, attacker, depth_left, budget,
+  last_defender_move)` — the mutually recursive search. The
+  threats check is local to the last attacker move; the defender's
+  entry check is local to the last defender move; the attacker's
+  entry check stays the FULL scan (a safety net — provably
+  redundant, but it converts any proof error into a correct True
+  rather than a missed win).
+* `tss_winning_move(board, player, depth=4, node_budget=3000,
+  stats=None)` — the root entry point. Immediate win first; then
+  forcing moves in prior order; first forced win returned.
+* `HeuristicMCTS.__init__` gains `tss_root: bool = False`; the
+  hook in `choose_move` runs AFTER the `vcf_root` block (i.e.
+  after the win/block scans), so an immediate win or forced block
+  always takes precedence. When TSS returns None the engine is
+  exactly v27 (verified by
+  `test_v52_falls_through_to_v27_when_tss_silent`).
+
+`ml/gomoku_ml/scoring.py` — `ENGINE_VERSIONS[52]` = v27 +
+`"tss_root": True`; `ScoringPlayer.__init__` passes `tss_root`
+through to `HeuristicMCTS`.
+
+Tests: `ml/tests/test_tss.py`, 21 tests, all passing — oracle
+equivalences (four-creators vs `evaluate.four_creating_moves`,
+open-three creators vs a brute-force run-scan oracle, local vs
+full winning-move check), all mechanism positions, suite VCF
+positions, quiet-position None, immediate-win-first, depth
+accounting, node-budget abort, v52 registration, v52 plays the
+TSS win on T1, v52 == v27 fall-through on 5 TSS-silent positions.
+
+## 3. Mechanism check
+
+### Check A — constructed positions: PASSES, 7/7
+
+`ml/scripts/check_tss_mechanism.py` →
+`research/iterations/tss-mechanism-check-a.json` (criterion:
+TSS correct on >= 6/7):
+
+| position | TSS | correct | v27 (seed 100) | v27 correct |
+|---|---|---|---|---|
+| T1 tss-double-three-black | (6,6) | yes | (6,6) | yes |
+| T2 tss-double-three-white | (6,6) | yes | (6,6) | yes |
+| T3 tss-three-sequence-black | (8,7) | yes | (8,7) | yes |
+| T4 tss-three-sequence-white | (8,7) | yes | (8,7) | yes |
+| T7 tss-counter-four-refutation | None | yes | (10,11) | n/a |
+| T5 vcf-1 (control) | (8,3) | yes (VCF start) | (8,3) | yes |
+| T6 vcf-two-four-sequence (control) | (9,6) | yes (VCF start) | (9,6) | yes |
+
+The mechanism is CORRECT: TSS finds the double-three win, the
+two-move open-three sequence (in both colours), both VCF controls
+(it subsumes the offensive VCF check), and correctly returns None
+on the counter-four refutation (White's counter-four (10,11)
+refutes Black's double threat).
+
+**But the MCTS-miss sub-criterion FAILS: 0/4 on T1–T4.** v27 plays
+the correct forcing move on ALL FOUR constructed positions. The
+constructed positions are too shallow/simple for the MCTS to miss
+— v27's MCTS + 2-ply rollout already sees a double three and a
+two-move open-three sequence. So Check A proves TSS is correct
+but does NOT demonstrate a case where TSS finds something the
+MCTS misses. (On T7, v27 plays (10,11) — the correct defensive
+block of White's counter-four; the script marks it
+v27_correct=False only because T7's expected set is empty by
+definition. That is the right defensive play, not a miss.)
+
+The value of TSS, if any, must live in DEEPER sequences (beyond
+the MCTS + 2-ply-rollout horizon) or in positions where the
+MCTS's visit allocation dilutes the forcing line — exactly what
+Check B (mined real-game positions) arbitrates.
+
+### Check B — mined positions: PASSES, 5/5 verified differs
+
+`ml/scripts/mine_tss_positions.py` →
+`research/iterations/tss-mechanism-check-b.json` (criterion: >= 1
+verified differ). 50 v27-vs-v27 games (seeds 777/1777), 2481
+turns: **TSS fired 288 times (11.6% fire rate)**, 167 confirms
+(TSS move == v27's move) and **121 differs (4.9% of turns)** —
+positions where TSS found a forcing win the MCTS did not play.
+All 5 verified differs (first 5, 3 playouts each, v52 attacking
+vs v27 defending) converted: the attacker won 3/3 in every case.
+
+| differ | TSS move | v27 move | playouts |
+|---|---|---|---|
+| game 0 (Black) | (7,8) | (7,5) | 3–0 Black |
+| game 1 (White) | (3,10) | (3,9) | 3–0 White |
+| game 1 (White) | (6,12) | (2,11) | 3–0 White |
+| game 1 (White) | (3,12) | (3,8) | 3–0 White |
+| game 2 (Black) | (7,6) | (4,6) | 3–0 Black |
+
+This is the mechanism evidence Check A could not provide: in
+real games, TSS finds forcing wins the MCTS misses ~2.4 times
+per game, and they convert. Caveat: a verified differ proves
+the TSS move wins — it does not prove v27's move loses (v27
+might play a different winning line). The battery (§5) is the
+arbiter of the net effect.
+
+Note: the mining run was interrupted twice by runtime restarts
+(at game 9/50, then at game 26/50) before per-game
+checkpointing was added; the final run resumed from the
+checkpoint at game 42/50 and completed. The mining is
+deterministic — all three attempts produced identical numbers
+at every checkpoint (e.g. game 14: 608 turns, 78 fires, 34
+differs in all three runs).
+
+## 4. Fast loop
+
+Iteration 1, leg 1 (vs v0, 10 games, seeds 1052/2052):
+**v52 10W-0L-0D** (win rate 1.0000, Wilson 95% CI [0.7225,
+1.0000]) — `research/iterations/fastloop-v52-vs-v0-i1.json`.
+Clean sweep, no losses to analyze. (v27 beats v0 0.9650, so
+this is the expected smoke-test outcome, not evidence of
+strength.) Uniqueness: only 6/10 unique games (de-dup 6W-0L-0D,
+CI [0.6097, 1.0]) — the known vs-v0 determinism collapse (v0 is
+fully deterministic and v52's opening is prior-dominated, so
+short games coincide); the verdict stands on the de-dup cut.
+
+Iteration 1, leg 2 (vs v27, 10 games, seeds 1053/2053):
+**v52 6W-3L-1D** (win rate 0.6500, Wilson 95% CI [0.3537,
+0.8631]) — `research/iterations/fastloop-v52-vs-v27-i1.json`
+(recomputed from raw records; 10/10 unique games, de-dup win
+rate 0.65). The CI includes 0.50 — 10 games prove nothing; the
+battery is the verdict. The run was interrupted by a runtime
+restart at 6/10 games and resumed from the partial file
+(`resumed_from_game: 6`).
+
+Loss workup (`classify_batch_losses.py` +
+`ml/scripts/workup_v52_losses.py`): all 3 losses via open four
+(3/3), **0 missed blocks** (in losses: 0), 0 clean missed
+preventions in 10 threatened turns. Defence is solved. TSS
+fired on **0 v52 turns in all 3 losses** and 0 turns in the
+draw (225 plies) — no false positives, and no v52-specific
+losing move to patch: the losses are pure v27-equivalent play
+(v52 == v27 on every turn of the losses), v27 outplaying the
+base engine positionally.
+
+In all 6 wins, TSS fired 2–5x per game, always in the endgame
+(last ~7 plies) and always followed — converting already-won
+positions. The pattern is "win-more" so far: TSS fires exactly
+when v52 is already winning and never when it is losing. Whether
+TSS turns any v27-loss into a v52-win — the only thing that
+moves the battery — is unanswered by 10 games.
+
+**Fast-loop verdict: NO PATCH.** The mechanism behaves as
+designed (fires only on genuine forcing wins, never wrongly,
+never in losses). Proceed to the battery.
+
+## 5. Battery
+
+All legs use per-game seeding with a uniqueness audit; aggregates
+and Wilson 95% CIs recomputed from raw records with
+`ml/scripts/recompute_match.py` (program convention: a draw counts
+as half a win). Drivers auto-resume — the vs-v27 leg survived two
+runtime restarts (resumed at game 24, then at game 91).
+
+### vs v27, 100 games, normal rules
+
+**v52 60W-38L-2D, win rate 0.6100, Wilson 95% CI [0.5120,
+0.6998]** — `research/iterations/batch-v52-vs-v27.json`
+(recomputed; matches the script summary exactly). **Clause 1
+PASSES on the pre-registered nominal rule** (CI lower bound
+0.5120 > 0.50) — but it is as narrow as a pass can be:
+**the de-dup cut FAILS by 0.0005** (95/100 unique games,
+56W-37L-2D, rate 0.6000, CI [0.4995, 0.6928]). Past clause-1
+calls in this program all stood on the de-dup cut; v52's does
+not. The pass rests on the nominal 100-game rule as written;
+a confirmatory re-run would be needed for confidence.
+
+Per-colour split is extreme: **A as Black 39W-11L-0D (0.78)**,
+**A as White 21W-27L-2D (0.44)**. v52 dominates as Black and
+loses as White — the TSS finds Black's forcing wins far more
+often than White's (Black moves first and builds threats
+earlier), while as White v52 is v27 with a rarely-firing hook.
+
+Defence audit (`classify_batch_losses.py`): all 38 losses via
+open four (38/38), **0 missed blocks** (all games), 0 clean
+missed preventions in 185 threatened turns in losses. Defence
+is solved; the losses are positional (v27 building unstoppable
+threats), not tactical blunders.
+
+### vs v0, 100 games, normal rules
+
+**v52 100W-0L-0D, win rate 1.0000, Wilson 95% CI [0.9630,
+1.0000]** — `research/iterations/batch-v52-vs-v0.json`
+(recomputed; matches the script summary). v27's vs-v0 was
+0.9650, so v52 improves on it — but the leg is heavily
+duplicated: **only 22/100 unique games** (de-dup 22W-0L-0D, CI
+[0.8513, 1.0000]), worse than the program's usual 41–45 unique
+per 100 vs v0. The TSS makes v52's play MORE deterministic (it
+fires the same forcing move regardless of seed), so short games
+coincide. v52 wins every unique game, both colours 50–0.
+
+### swap vs v27, 100 games
+
+**v52 64W-33L-3D, win rate 0.6550, Wilson 95% CI [0.5577,
+0.7409]** — `research/iterations/batch-v52-vs-v27-swap.json`
+(recomputed; matches the script summary). 100/100 unique games
+(the swap placement variety eliminates duplicates). Per-colour:
+Black 38W-11L-3D (0.76), White 26W-22L-0D (0.54) — the swap rule
+narrows the Black/White gap vs the normal leg (0.78/0.44), and
+v52 wins as White under swap (0.54) where it lost as White
+under normal rules (0.44). The swap result corroborates the
+normal-rules verdict: v52 is genuinely stronger than v27, not
+an artefact of the first-move advantage. Defence audit: all 33
+losses via open four, 0 missed blocks, 1 clean missed
+prevention in 174 threatened turns in losses (0.6%) — the only
+missed prevention in v52's entire battery (71 losses: 38 vs
+v27 + 33 swap + 0 vs v0, all via open four, 0 missed blocks).
+
+### Ladder (40 games/opponent)
+
+**v52 saturates the 40-game ladder — the first version ever to
+do so.** `research/iterations/ladder-v52.json` (seed 100,
+mcts_sims=100):
+
+| opponent | result | win rate | CI |
+|---|---|---|---|
+| random (anchor −800) | 40W-0L-0D | 1.0000 | [0.9124, 1.0] |
+| heuristic/v0 (anchor 0) | 40W-0L-0D | 1.0000 | [0.9124, 1.0] |
+| mcts (100 sims) | 31W-9L-0D | 0.7750 | [0.625, 0.8768] |
+
+**Ladder Elo: unbounded (estimate None, interval [407.0,
+∞)).** v52 beats the ladder MCTS outright (31–9, elo_diff
++214.8; Black 18W-2L, White 13W-7L) and sweeps the anchor leg
+40–0–0, vs v27's 38–0–2 (Elo 636.4). **Clause 2 PASSES** on
+the point estimate (unbounded > 636.4) — **but it rests on a
+draw-count difference (2 fewer draws than v27: 40–0–0 vs
+38–0–2), stated explicitly per the task**, and the interval
+lower bound (407.0) is BELOW 636.4. The pass is real (v52's
+anchor-leg score 1.0 exceeds v27's 0.975) but the Elo number
+itself is uninformative — the ladder cannot distinguish HOW
+far above 636.4 v52 sits, only that it saturates. The ladder's
+own tactical probe: 20/20 (old suite).
+
+### Challenge vs v18 (strength champion), 100 games, normal rules
+
+**v52 61W-36L-3D, win rate 0.6250, Wilson 95% CI [0.5271,
+0.7136]** — `research/iterations/challenge-v52-vs-v18.json`
+(recomputed; matches the script summary). De-dup: 94/100
+unique, 56W-35L-3D, rate 0.6117, CI [0.5106, 0.7040] — the
+challenge passes on BOTH cuts (unlike clause 1, whose de-dup
+cut fails by 0.0005). Per-colour: Black 38W-11L-1D (0.77),
+White 23W-25L-2D (0.48). Defence audit: all 36 losses via open
+four, 0 missed blocks, 0 missed preventions.
+
+Champion rule v2 requires the direct challenge (CI lower >
+0.50) AND Elo above 636.4. Both hold: CI lower 0.5271 > 0.50
+(0.5106 on the de-dup cut) and the ladder Elo is unbounded
+(saturated). **v52 takes the strength champion title from
+v18** — subject to the parent's adjudication of the borderline
+clause-1 pass that qualified it for the challenge (see §6).
+
+### Tactical
+
+v27 re-verified first on the corrected suite: **old 20/20, hard
+29/29** (`research/iterations/tactical-v27-reverify.txt`). v52
+at `--seed 100`: **old 20/20, hard 29/29**
+(`research/iterations/tactical-v52.txt`). **Clause 3 PASSES.**
+v52 inherits v27's tactical record exactly (the TSS hook only
+fires on genuine forcing wins, and the win/block scans run
+before it).
+
+## 6. Verdict
+
+### Clause 1 — h2h vs v27 (100 games): PASS (nominal), borderline
+
+60W-38L-2D, win rate 0.6100, Wilson 95% CI [0.5120, 0.6998]
+— the lower bound clears 0.50 by 0.012. **But the de-dup cut
+fails by 0.0005** (95/100 unique, 56W-37L-2D, CI [0.4995,
+0.6928]). Past clause-1 calls in this program all stood on the
+de-dup cut; v52's does not. The pass rests on the pre-registered
+nominal 100-game rule as written. Per-colour: Black 39W-11L-0D
+(0.78), White 21W-27L-2D (0.44) — the TSS finds Black's forcing
+wins far more often than White's.
+
+### Clause 2 — ladder Elo > 636.4: PASS (via saturation)
+
+v52 saturates the 40-game ladder (heuristic leg 40W-0L-0D, vs
+v27's 38-0-2): the Elo point estimate is unbounded (interval
+[407.0, ∞)), hence > 636.4. **Explicit caveat: the pass rests
+on a draw-count difference (2 fewer draws than v27)**, and the
+interval lower bound (407.0) is below 636.4. v52 is the first
+version ever to saturate the 40-game ladder. It also beats the
+ladder MCTS outright (31W-9L-0D, elo_diff +214.8).
+
+### Clause 3 — tactical >= 20/20 + 29/29: PASS
+
+v52: old 20/20, hard 29/29 (v27 re-verified first at 20/20 +
+29/29).
+
+### Clause 4 — all test suites green: PASS
+
+ml pytest: 478 passed, 1 skipped, 58 xfailed, 0 failures
+(`research/iterations/pytest-full.log`). npm test: 55/55.
+tsc: clean.
+
+### Overall: v52 PASSES all 4 clauses (borderline on two counts)
+
+On the pre-registered rules as written, v52 passes every
+clause — the fourth version ever to do so (after v7, v27, v29
+on the heuristic track; v44 on the ML track). But the pass is
+borderline on TWO independent counts, and both must travel with
+any pass claim:
+
+1. **Clause 1's de-dup cut fails by 0.0005** (CI [0.4995,
+   0.6928] on 95 unique games). The nominal 100-game rule
+   passes (0.5120), but no past clause-1 call has failed the
+   de-dup cut. A confirmatory 100-game re-run at fresh seeds
+   would settle whether v52 genuinely beats v27.
+2. **Clause 2 rests on a draw-count difference** (ladder
+   heuristic leg 40–0–0 vs v27's 38–0–2). The Elo is unbounded
+   (saturated ladder) but the interval lower bound (407.0) is
+   below 636.4.
+
+The corroborating evidence is strong: the swap leg (0.6550, CI
+[0.5577, 0.7409], 100/100 unique) confirms v52 beats v27 under
+the official rule; Check B (5/5 verified differs) confirms the
+mechanism finds real forcing wins in real games; and the direct
+challenge vs v18 passes on BOTH cuts (nominal CI lower 0.5271,
+de-dup 0.5106). The challenge result is the strongest single
+piece of evidence for v52: it beats the strength champion by a
+margin that survives de-duplication.
+
+**Champion status: v52 takes the strength champion title from
+v18** (direct challenge 61–36–3, CI lower 0.5271 > 0.50, Elo
+unbounded > 636.4), and becomes the new bar reference
+(replacing v27) — subject to the parent's adjudication of the
+clause-1 de-dup caveat. If the parent applies the de-dup
+standard to clause 1, v52 is REJECTED and v18 keeps the title;
+the challenge result stands as evidence either way. The daily
+cross-track match should switch to v52 vs v44 if the title is
+confirmed.

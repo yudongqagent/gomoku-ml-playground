@@ -169,20 +169,60 @@ _BLEND_VISIT_WEIGHT = 0.1
 
 
 class _Node:
-    """One MCTS node. ``children`` is None until expansion."""
+    """One MCTS node. ``children`` is None until expansion.
 
-    __slots__ = ("prior", "visit_count", "value_sum", "children")
+    ``softmax`` (v51, batch 13 H1) marks an opponent node under
+    the soft-min backup rule: its q is the softmax-weighted mean
+    of the opponent-perspective values of its visited children
+    (``-child.q``), weighted by ``exp(beta * value)``, instead of
+    the mean. ``softmax_value`` caches that value, maintained by
+    :meth:`HeuristicMCTS._run_one` after every descent through
+    the node; it is None until the first descent (no visited
+    children yet), and :attr:`q` falls back to the mean until
+    then — which is the node's leaf value right after expansion.
+    """
 
-    def __init__(self, prior: float) -> None:
+    __slots__ = (
+        "prior", "visit_count", "value_sum", "children",
+        "softmax", "softmax_value",
+    )
+
+    def __init__(self, prior: float, softmax: bool = False) -> None:
         self.prior = prior
         self.visit_count = 0
         self.value_sum = 0.0
         self.children: dict[int, "_Node"] | None = None
+        self.softmax = softmax
+        self.softmax_value: float | None = None
 
     @property
     def q(self) -> float:
-        """Mean backed-up value from this node's player perspective."""
+        """Backed-up value from this node's player perspective.
+
+        The mean (``value_sum / visit_count``) for mean nodes;
+        the cached soft-min value for soft-min nodes once any
+        child has been visited (before that, the mean — the
+        node's leaf value)."""
+        if self.softmax and self.softmax_value is not None:
+            return self.softmax_value
         return self.value_sum / self.visit_count if self.visit_count else 0.0
+
+
+def _softmax_mean(values: list[float], beta: float) -> float:
+    """Softmax-weighted mean of ``values`` with temperature ``beta``:
+    ``sum(w_i * v_i)`` with ``w_i`` proportional to
+    ``exp(beta * v_i)``. The v51 soft-min backup
+    (:meth:`HeuristicMCTS._run_one`) applies it to the
+    opponent-perspective values of a soft-min node's visited
+    children. Max-subtracted weights, so no overflow is possible;
+    the result stays in ``[min(values), max(values)]``. A single
+    value returns that value exactly (no smoothing with one
+    child — see iter-51.md §1.4 for why that matters at 100
+    sims)."""
+    top = max(values)
+    weights = [math.exp(beta * (v - top)) for v in values]
+    total = sum(weights)
+    return sum(w * v for w, v in zip(weights, values)) / total
 
 
 def _priors(
@@ -868,6 +908,145 @@ def _rollout_leaf_value(
     return _attack_gradient_v1(cur, p)
 
 
+# --- v53 2-ply rollout search leaf (batch 13, H3) --------------------------
+# Written FRESH from the pre-registered spec in
+# ``research/iterations/iter-53.md`` §1.1 — deliberately NOT an
+# alias of :func:`_rollout_leaf_value`, so the differential test
+# (``tests/test_regression_v53.py``) tests the SPEC against v27's
+# leaf rather than an alias against itself. The spec: at a leaf
+# with ``player`` to move, play exactly 2 rollout plies under the
+# teacher's own policy (:func:`_rollout_move` — win if possible,
+# block a single opponent winning move, open-four priority, else
+# the v1-total argmax) and evaluate the symmetric v1 gradient at
+# the resulting position. Terminal handling follows v16/v18's
+# conventions exactly: the leaf-start terminal (including the
+# -0.25 must-block, a fact about the real position) is exact;
+# terminals reached INSIDE the rollout return the exact terminal
+# value, sign-adjusted to ``player``'s perspective; at the
+# rollout's END only wins/losses are terminal — a must-block
+# there is gradient-evaluated (iter-16 §2.1: a rollout-end
+# must-block is a prediction under the rollout policy, not a
+# fact). No blend (v19's blend was rejected and is not part of
+# v27). The board is not mutated (the rollout plays on copies).
+#
+# Premise note (iter-53 §0): this spec, implemented faithfully,
+# IS v18/v27's leaf — ``_rollout_leaf_value`` already rolls out
+# exactly 2 plies (``_ROLLOUT_PLIES = 2``) under this same
+# policy. The batch-13 plan's "1-ply (one random move)" premise
+# conflated the ML label-depth naming (plies BEFORE the teacher
+# leaf: ``_rollout2_leaf_value`` is 2 plies + the v18 leaf = 4
+# plies effective) with the search leaf's own depth. The
+# differential test is the verdict on whether the spec's natural
+# implementation coincides with v27's leaf.
+def _rollout2ply_search_leaf_value(board: np.ndarray, player: int) -> float:
+    """v53 search leaf: v7's terminal-aware values for terminal
+    positions; for quiet positions, roll out exactly 2 plies under
+    the teacher's own rollout policy (:func:`_rollout_move`) and
+    evaluate the symmetric v1 gradient at the resulting position.
+    See ``research/iterations/iter-53.md`` §1.1 for the
+    pre-registered spec. Blend is NOT applied (v19 rejected, not
+    part of v27). The board is not mutated."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    # Ply 1: player to move.
+    m1, term1 = _rollout_move(board, player)
+    if term1 is not None:
+        return term1
+    b1 = game.apply_move(board, m1, player)
+    # Ply 2: opponent's reply.
+    m2, term2 = _rollout_move(b1, -player)
+    if term2 is not None:
+        return -term2
+    b2 = game.apply_move(b1, m2, -player)
+    # Rollout end: player to move again. Only wins/losses are
+    # terminal here; a must-block is gradient-evaluated.
+    if scoring._winning_moves(b2, player):
+        return 1.0
+    if len(scoring._winning_moves(b2, -player)) >= 2:
+        return -1.0
+    return _attack_gradient_v1(b2, player)
+
+
+# --- v53 3-ply rollout search leaf (batch 13, H3, re-scoped) -----------------
+# The re-scoped v53 (``research/iterations/iter-53.md`` §6): v27 +
+# a 3-ply rollout leaf — the only unpriced rung of the heuristic
+# depth ladder (1 ply rejected by v16, 2 plies = v18/v27, 4 plies
+# rejected twice by v16/v40). Written fresh from the pre-registered
+# spec in iter-53 §6.1, reusing the SAME deterministic rollout
+# policy (:func:`_rollout_move`) as the 2-ply leaf, so depth is the
+# only change. The parity handling at the rollout end is a design
+# decision, not a detail: after an ODD number of rollout plies the
+# side to move is the opponent, so the rollout-end value is
+# computed from the opponent's perspective and negated to the leaf
+# player's perspective — for BOTH the terminal checks (an opponent
+# winning move is a loss, −1.0; our double threat is a win, +1.0)
+# and the gradient (``-_attack_gradient_v1(b3, -player)``, which
+# equals ``_attack_gradient_v1(b3, player)`` by the gradient's
+# antisymmetry under colour swap — the explicit negated form is
+# used so the parity handling is visible in the code). Terminal
+# handling otherwise follows v16/v18's conventions exactly: the
+# leaf-start terminal (including the −0.25 must-block, a fact
+# about the real position) is exact; terminals reached INSIDE the
+# rollout return the exact terminal value, sign-adjusted to
+# ``player``'s perspective (ply 1 and ply 3 are ``player``'s plies,
+# ply 2 the opponent's); at the rollout's END only wins/losses are
+# terminal — a must-block there is gradient-evaluated (iter-16
+# §2.1). No blend (v19 rejected, not part of v27). The board is
+# not mutated (the rollout plays on copies).
+def _rollout3ply_search_leaf_value(board: np.ndarray, player: int) -> float:
+    """v53 (re-scoped) search leaf: v7's terminal-aware values for
+    terminal positions; for quiet positions, roll out exactly 3
+    plies under the teacher's own rollout policy
+    (:func:`_rollout_move`) and evaluate the symmetric v1 gradient
+    at the resulting position, negated from the opponent-to-move
+    perspective. See ``research/iterations/iter-53.md`` §6.1 for
+    the pre-registered spec. Blend is NOT applied (v19 rejected,
+    not part of v27). The board is not mutated."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    # Ply 1: player to move.
+    m1, term1 = _rollout_move(board, player)
+    if term1 is not None:
+        return term1
+    b1 = game.apply_move(board, m1, player)
+    # Ply 2: opponent's reply.
+    m2, term2 = _rollout_move(b1, -player)
+    if term2 is not None:
+        return -term2
+    b2 = game.apply_move(b1, m2, -player)
+    # Ply 3: player to move again.
+    m3, term3 = _rollout_move(b2, player)
+    if term3 is not None:
+        return term3
+    b3 = game.apply_move(b2, m3, player)
+    # Rollout end: OPPONENT to move. Only wins/losses are
+    # terminal here; a must-block is gradient-evaluated. The
+    # terminal checks are the 2-ply leaf's checks with the sides
+    # swapped (the side to move is the opponent): an opponent
+    # winning move is a loss for player, our double threat a win.
+    # NOTE: the opponent-winning-move check below is DEAD CODE
+    # under the current rollout policy — ply 3 blocks a single
+    # opponent threat (and a double threat ends the rollout at
+    # ply 3), and our ply-3 stone cannot create an opponent
+    # winning move. It stays because it is in the pre-registered
+    # spec (iter-53 §6.1 step 5), mirrors the 2-ply leaf's
+    # rollout-end checks, and guards against future policy
+    # changes; tests/test_regression_v53.py asserts the
+    # unreachability property on every sampled rollout-end
+    # position.
+    if scoring._winning_moves(b3, -player):
+        return -1.0
+    if len(scoring._winning_moves(b3, player)) >= 2:
+        return 1.0
+    # Gradient from the side-to-move's (opponent's) perspective,
+    # negated to player's perspective. Equals
+    # _attack_gradient_v1(b3, player) by antisymmetry; the
+    # explicit negated form keeps the parity handling visible.
+    return -_attack_gradient_v1(b3, -player)
+
+
 def _rollout2_leaf_value(board: np.ndarray, player: int) -> float:
     """v37 2-ply label: v18's rollout-leaf value evaluated 2 plies
     ahead under the teacher's own rollout policy (ML batch 3 H2 —
@@ -986,6 +1165,480 @@ def _rollout3_leaf_value(board: np.ndarray, player: int) -> float:
     return -_rollout_leaf_value(b3, -player)
 
 
+# --- v52 threat-space search (batch 13, H2) -------------------------------
+# Threat-space search (Allis's TSS): search ONLY forcing moves to a
+# deeper horizon than the 100-sim MCTS, and play the winning forcing
+# sequence if one exists. A genuinely new mechanism, distinct from
+# v29's VCF-at-root (which searches only fours — a VCF sequence is a
+# TSS sequence in which every attacker move is a four-creator) and
+# from the MCTS (which searches all moves). By restricting the move
+# set to forcing moves, TSS searches much deeper than the MCTS and
+# finds deep forcing wins the MCTS can't see. Pre-registered design:
+# research/iterations/iter-52.md §1.
+#
+# ATTACKER MOVE SET (forcing moves only), enumerated by
+# :func:`_forcing_sets` — two kernel calls, one per class, because
+# each kernel is blind to the other's patterns (v0's contiguous-run
+# scoring is blind to broken fours; v1's window-based open_ends
+# misses some true open threes):
+# * four-creating moves — v1 prefilter (>= 20000) + a local exact
+#   test, verified 0-mismatch against
+#   :func:`gomoku_ml.evaluate.four_creating_moves` in test_tss.py;
+# * true-open-three-creating moves — v0 attack >= 1000, minus
+#   four-creators, verified against a brute-force run-scan oracle
+#   in test_tss.py. Gap-three creators are
+#   EXCLUDED (pre-registered): a gap three is killed by occupying
+#   the gap, so it rarely forces; including them would multiply the
+#   branching for near-zero win rate.
+# Double threats are NOT a separate move class: a move creating >= 2
+# threats is in the union (each threat is a four or an open three);
+# the search detects them by counting threats after the move.
+#
+# DEFENDER REPLIES (exact — every reply must lose for the attacker
+# to win):
+# * after a four (exactly 1 winning square): the block is the ONLY
+#   reply (anything else loses at once);
+# * after open three(s): replies are the squares blocking ALL of the
+#   attacker's open threes (recomputed from the resulting board —
+#   the batch-11 non-monotonicity lesson: full re-check after every
+#   move) UNION the defender's four-creating moves (counter-threats:
+#   a counter-four forces the attacker to block instead of
+#   converting). If the reply set is empty, the attacker wins
+#   (double threat, no defence). Defender open-three creators are
+#   NOT replies: they do not stop the attacker converting the
+#   standing threat next move (open three -> open four -> win), so
+#   they cannot refute a line.
+# * after a defender counter-four: the attacker's reply is the forced
+#   block (>= 2 defender winning moves refutes the line).
+# An immediate winning move IS a forcing win and is checked first
+# (standing fact: it is a VCF start but not necessarily a
+# four-creator — the fast test checks winning moves first).
+#
+# DEPTH: TSS_DEPTH attacker forcing moves (pre-registered). Forced
+# blocks after defender counter-fours do not consume depth (they are
+# replies, not forcing moves) — so the NODE BUDGET is the termination
+# guarantee for counter-four loops (each iteration adds 2 stones, but
+# the budget caps the total work deterministically). On budget
+# exhaustion the search aborts and returns None (fall through to the
+# MCTS) — never a partial answer.
+#
+# LIMITATION (pre-registered): every attacker move in a sequence must
+# be forcing, except forced blocks after defender counter-fours.
+# Sequences needing a quiet defensive interlude are out of scope —
+# that is what the MCTS is for. TSS is OFFENSIVE only: there is no
+# defensive prevention check (VCF-prevention for the v27 family is
+# CLOSED — v29/v33/v35/v45); if the opponent holds a forcing win,
+# the MCTS handles it as v27 does.
+
+_TSS_DIRECTIONS = ((0, 1), (1, 0), (1, 1), (1, -1))
+
+# Max attacker forcing moves in a TSS sequence (pre-registered,
+# iter-52 §1). VCF uses depth 3 (after the first move); TSS at 4
+# attacker moves with open-three threats reaches ~7-8 plies,
+# genuinely beyond the MCTS + 2-ply-rollout horizon (~4-6 plies).
+TSS_DEPTH = 4
+
+# Max TSS nodes per root call (pre-registered, iter-52 §1.4 — set
+# from the cost bench: the creator-rich p99 node count is 2763, so
+# 3000 binds only on ~1% of positions (the extreme tail, max 12916
+# nodes) and caps the worst-case move time at ~6s uncontended
+# (~10s contended) instead of the observed 53s max. The plan's
+# p99-time-under-1s criterion is NOT met (p99 time is ~5s
+# uncontended — the per-node cost is ~2ms, dominated by kernel
+# calls): a budget low enough for p99 < 1s (~500 nodes) would abort
+# a quarter of all searches and gut the mechanism, so the budget
+# bounds the tail instead of the median. Deterministic (a node
+# count, not a wall clock), so resumed runs reproduce exactly.
+TSS_NODE_BUDGET = 3000
+
+
+class _TSSBudgetExceeded(Exception):
+    """Internal: the TSS node budget is exhausted — abort the search."""
+
+
+class _TSSBudget:
+    """Deterministic node budget for one TSS root call."""
+
+    __slots__ = ("limit", "used")
+
+    def __init__(self, limit: int) -> None:
+        self.limit = limit
+        self.used = 0
+
+    def tick(self) -> None:
+        self.used += 1
+        if self.used > self.limit:
+            raise _TSSBudgetExceeded
+
+
+def _winning_moves_through(
+    board: np.ndarray, player: int, move: int
+) -> list[int]:
+    """Winning moves for ``player`` on the 4 lines through ``move``
+    (within distance 4 — a winning move completing a five that
+    includes ``move`` is one of the five's cells). The local version
+    of :func:`gomoku_ml.scoring._winning_moves`: TSS uses it wherever
+    the winning moves must involve the just-played stone (no
+    pre-existing winning move — every caller establishes that), which
+    is ~3x cheaper than the full near-empty scan (and skips the
+    ``_near_empty`` call entirely). Verified against the full scan in
+    ``ml/tests/test_tss.py``."""
+    out: list[int] = []
+    y, x = move // game.SIZE, move % game.SIZE
+    for dy, dx in _TSS_DIRECTIONS:
+        for k in range(-4, 5):
+            yy, xx = y + k * dy, x + k * dx
+            if (
+                0 <= yy < game.SIZE
+                and 0 <= xx < game.SIZE
+                and board[yy, xx] == game.EMPTY
+            ):
+                m = yy * game.SIZE + xx
+                if game.is_winning_move(board, m, player):
+                    out.append(m)
+    return out
+
+
+def _forcing_sets(
+    board: np.ndarray, player: int
+) -> tuple[set[int], list[int], np.ndarray]:
+    """The TSS forcing-move enumeration: ``(fours, threes, a1)`` —
+    the four-creator set, the true-open-three-creator list, and the
+    flat v1 attack array (for move ordering in :func:`_tss_win`).
+    Two kernel calls, one per class — each kernel is blind to the
+    other's patterns, so neither alone suffices:
+
+    * fours via the V1 kernel: a four-creator scores v1 attack >=
+      20000 in the direction of the four (a window with 4 friendly
+      stones scores FOUR or OPEN_FOUR — see
+      :func:`gomoku_ml.scoring._score_from_counts`), INCLUDING
+      broken-four creators (XX_XX), which the v0 kernel's
+      contiguous-run scoring is BLIND to (a broken-four creator's
+      v0 score is ~100-200 — the run is split by the gap). The
+      prefilter can only ADD non-creators (e.g. double-open-three
+      creators score 58000) — it cannot drop a creator — so the
+      local exact test (:func:`_winning_moves_through` — the
+      winning moves after the move must involve it) makes the set
+      exact.
+    * threes via the V0 kernel: a move's v0 attack score is >= 1000
+      iff it creates a four, a true open three, or a win (the (3,2)
+      weight is 1000; no combination of sub-1000 per-direction
+      values reaches 1000 — the largest is 100; see
+      :data:`gomoku_ml.baseline._WEIGHTS`). Minus the four-creators
+      (exact set above), the >= 1000 cells are exactly the
+      open-three creators. The v0 kernel — NOT v1 — is the right
+      instrument here: v1's window-based ``open_ends`` counts the
+      cells just OUTSIDE the 5-window, so v1 scores a genuine open
+      three as a mere THREE (400) when the cells two out from the
+      run are occupied (found: an open-three creator with v1 attack
+      405, v0 1021).
+
+    Precondition: ``player`` holds NO winning move on ``board``
+    (every TSS caller checks first — a winning move is returned
+    before any enumeration). Without it the local test would miss
+    pre-existing winning moves.
+    """
+    black1, white1 = kernel_v1.attack_v1_both(board)
+    a1 = black1 if player == game.BLACK else white1
+    empty = board == game.EMPTY
+    fours: set[int] = set()
+    for m in np.flatnonzero(empty & (a1 >= scoring.FOUR)):
+        m = int(m)
+        b2 = game.apply_move(board, m, player)
+        if _winning_moves_through(b2, player, m):
+            fours.add(m)
+    a0 = kernel_numpy.attack_all(board, player)
+    threes = [
+        int(m)
+        for m in np.flatnonzero(empty & (a0 >= _GRADIENT_STRONG))
+        if int(m) not in fours
+    ]
+    return fours, threes, a1.reshape(-1)
+
+
+def _four_creating_moves_fast(board: np.ndarray, player: int) -> list[int]:
+    """Moves by which ``player`` CREATES a four (after the move they
+    have a winning move, and they had none before). A v1 kernel
+    prefilter (>= 20000 — catches broken fours, which v0 is blind
+    to) plus a local exact test per candidate (see
+    :func:`_forcing_sets`). Verified 0-mismatch against
+    :func:`gomoku_ml.evaluate.four_creating_moves` in
+    ``ml/tests/test_tss.py``.
+
+    Contract note vs :func:`gomoku_ml.evaluate.four_creating_moves`:
+    that function returns every near move when ``player`` ALREADY
+    holds a winning move (its test is "a winning move exists after
+    the move", which a pre-existing four satisfies for any move).
+    This function returns only genuine creators. TSS never
+    enumerates in the pre-existing case — every caller checks for a
+    winning move first — so the two agree everywhere TSS looks."""
+    fours, _threes, _a1 = _forcing_sets(board, player)
+    return sorted(fours)
+
+
+def open_three_creating_moves(board: np.ndarray, player: int) -> list[int]:
+    """Moves creating a TRUE open three (_XXX_, contiguous, both ends
+    empty) for ``player``. The v0 kernel's >= 1000 cells minus the
+    four-creators (see :func:`_forcing_sets`). Verified against a
+    brute-force run-scan oracle in ``ml/tests/test_tss.py``.
+
+    The v0 kernel — NOT v1 — is the right instrument here, and the
+    oracle test caught why: v1's window-based ``open_ends`` counts
+    the cells just OUTSIDE the 5-window, so v1 scores a genuine open
+    three as a mere THREE (400) when the cells two out from the run
+    are occupied (found: an open-three creator with v1 attack 405,
+    v0 1021). v1 is blind to such threes (a pre-existing v1 property
+    — its priors undervalue those moves); v0's run-based scoring sees
+    the run directly."""
+    _fours, threes, _a1 = _forcing_sets(board, player)
+    return sorted(threes)
+
+
+def _all_open_threes(board: np.ndarray, player: int) -> list[frozenset[int]]:
+    """Every true open three ``player`` holds on ``board``, each as
+    the frozenset of its two open-end squares. A maximal contiguous
+    run of exactly 3 friendly stones with both flanking cells
+    on-board and empty. Each run is found once (from its start
+    cell)."""
+    threes: list[frozenset[int]] = []
+    for y, x in zip(*((board == player).nonzero())):
+        y, x = int(y), int(x)
+        for dy, dx in _TSS_DIRECTIONS:
+            py, px = y - dy, x - dx
+            if (
+                0 <= py < game.SIZE
+                and 0 <= px < game.SIZE
+                and board[py, px] == player
+            ):
+                continue  # not the run start
+            length = 1
+            ey, ex = y + dy, x + dx
+            while (
+                0 <= ey < game.SIZE
+                and 0 <= ex < game.SIZE
+                and board[ey, ex] == player
+            ):
+                length += 1
+                ey += dy
+                ex += dx
+            if length != 3:
+                continue
+            # (ey, ex) is the cell just past the run's far end;
+            # (py, px) the cell just before its start. Both must be
+            # on-board and empty for the three to be open.
+            if not (0 <= py < game.SIZE and 0 <= px < game.SIZE):
+                continue
+            if not (0 <= ey < game.SIZE and 0 <= ex < game.SIZE):
+                continue
+            if board[py, px] != game.EMPTY or board[ey, ex] != game.EMPTY:
+                continue
+            threes.append(
+                frozenset({game.xy_to_move(px, py), game.xy_to_move(ex, ey)})
+            )
+    return threes
+
+
+def _forcing_moves_and_fours(
+    board: np.ndarray, player: int
+) -> tuple[list[int], set[int], np.ndarray]:
+    """The TSS attacker move set (four-creators ∪ true-open-three-
+    creators, sorted by flat index) plus the four-creator set and
+    the flat v1 attack array (both for move ordering in
+    :func:`_tss_win`). See :func:`_forcing_sets` for the
+    enumeration. Gap-three creators are excluded by design (see the
+    v52 comment block above)."""
+    fours, threes, a1 = _forcing_sets(board, player)
+    return sorted(fours | set(threes)), fours, a1
+
+
+def tss_forcing_moves(board: np.ndarray, player: int) -> list[int]:
+    """The TSS attacker move set: four-creators ∪ true-open-three-
+    creators (sorted by flat index; callers order by prior/score)."""
+    moves, _, _ = _forcing_moves_and_fours(board, player)
+    return moves
+
+
+def _tss_after_attacker_move(
+    board: np.ndarray,
+    attacker: int,
+    depth_left: int,
+    budget: _TSSBudget,
+    last_move: int,
+) -> bool:
+    """Defender to move on ``board``; the attacker has just played
+    ``last_move`` (a forcing move, or a forced block after a defender
+    counter-four) and holds a threat. True if the attacker forces a
+    win against ALL defender replies. ``depth_left`` counts further
+    attacker forcing moves (the move just played already consumed
+    one).
+
+    No defender-winning-move check at entry: it is provably
+    impossible (the attacker's move cannot create a defender winning
+    move, and every caller establishes the defender has none —
+    :func:`_tss_win` checks at entry, and the counter-four sub-case
+    below blocks the single defender win it creates). The threats
+    check is LOCAL to ``last_move`` (the attacker's winning moves
+    must involve it — none pre-existed)."""
+    budget.tick()
+    threats = _winning_moves_through(board, attacker, last_move)
+    if len(threats) >= 2:
+        return True  # open four: unblockable
+    if len(threats) == 1:
+        # The block is the defender's ONLY reply.
+        b3 = game.apply_move(board, threats[0], -attacker)
+        over, _winner = game.game_over(b3)
+        if over:
+            return False  # the block won for the defender (or a draw)
+        return _tss_win(b3, attacker, depth_left, budget, threats[0])
+    # No immediate winning move: the attacker's threat is one or more
+    # open threes (recomputed from the board — the attacker may hold
+    # a standing three from an earlier move in the sequence, e.g.
+    # after a counter-four exchange).
+    threes = _all_open_threes(board, attacker)
+    if not threes:
+        return False  # no standing threat: the forcing sequence ended
+    # Defender replies: squares blocking ALL open threes, plus
+    # counter-fours (defender four-creators — a counter-four forces
+    # the attacker to block instead of converting). Recomputed on
+    # the resulting board (batch-11 lesson: full re-check).
+    block_all = threes[0].intersection(*threes[1:])
+    replies = block_all | set(_four_creating_moves_fast(board, -attacker))
+    if not replies:
+        return True  # double threat, no defence
+    for r in sorted(replies):
+        b3 = game.apply_move(board, r, -attacker)
+        over, _winner = game.game_over(b3)
+        if over:
+            return False  # the reply won for the defender (or a draw)
+        # The defender's winning moves on b3 must involve the reply
+        # (none pre-existed on the board before it) — local check.
+        dthreats = _winning_moves_through(b3, -attacker, r)
+        if len(dthreats) >= 2:
+            return False  # counter open four: the line is refuted
+        if len(dthreats) == 1:
+            # Counter-four: the attacker MUST block.
+            b4 = game.apply_move(b3, dthreats[0], attacker)
+            over, winner = game.game_over(b4)
+            if over:
+                if winner == attacker:
+                    continue  # the block itself won — this reply loses
+                return False  # draw (board full): no forced win
+            # The standing threat persists (or the block created a
+            # new one): the defender is still to move under attack.
+            if not _tss_after_attacker_move(
+                b4, attacker, depth_left, budget, dthreats[0]
+            ):
+                return False
+        else:
+            # Plain block: the attacker's next move must be forcing.
+            if not _tss_win(b3, attacker, depth_left, budget, r):
+                return False
+    return True
+
+
+def _tss_win(
+    board: np.ndarray,
+    attacker: int,
+    depth_left: int,
+    budget: _TSSBudget,
+    last_defender_move: int,
+) -> bool:
+    """Attacker to move; the defender has just played
+    ``last_defender_move``. True if the attacker forces a win via
+    forcing moves only, within ``depth_left`` more attacker forcing
+    moves.
+
+    The attacker's entry check is the FULL scan (a safety net — it
+    is provably redundant, since the defender's stone cannot create
+    an attacker winning move and none pre-existed, but it converts
+    any proof error into a correct True rather than a missed win).
+    The defender's entry check is LOCAL to ``last_defender_move``
+    (the defender's winning moves must involve it — none pre-existed
+    on the board before it)."""
+    budget.tick()
+    if scoring._winning_moves(board, attacker):
+        return True
+    opp_wins = _winning_moves_through(board, -attacker, last_defender_move)
+    if len(opp_wins) >= 2:
+        return False  # already lost: two unblockable wins
+    if len(opp_wins) == 1:
+        # The attacker MUST block (the defender's forced block may
+        # itself have counter-attacked — a real case); the block must
+        # itself be forcing for the sequence to continue (a quiet
+        # block breaks the forcing chain — pre-registered limitation).
+        block = opp_wins[0]
+        forcing, _, _ = _forcing_moves_and_fours(board, attacker)
+        if block not in forcing:
+            return False
+        b2 = game.apply_move(board, block, attacker)
+        return _tss_after_attacker_move(
+            b2, attacker, depth_left - 1, budget, block
+        )
+    if depth_left <= 0:
+        return False
+    forcing, fours, a1 = _forcing_moves_and_fours(board, attacker)
+    if not forcing:
+        return False
+    # Try four-creators first (most forcing), then by v1 attack score
+    # desc (ties: lowest flat index — deterministic). Order affects
+    # only speed here (the root's selection rule is the prior order
+    # in :func:`tss_winning_move`).
+    forcing.sort(key=lambda m: (0 if m in fours else 1, -int(a1[m]), m))
+    for m in forcing:
+        b2 = game.apply_move(board, m, attacker)
+        if _tss_after_attacker_move(b2, attacker, depth_left - 1, budget, m):
+            return True
+    return False
+
+
+def tss_winning_move(
+    board: np.ndarray,
+    player: int,
+    depth: int = TSS_DEPTH,
+    node_budget: int = TSS_NODE_BUDGET,
+    stats: dict | None = None,
+) -> int | None:
+    """Threat-space search at the root (v52): the first forcing move
+    (highest v1 prior first, ties lowest flat index) that starts a
+    forced win by consecutive forcing moves, or None. An immediate
+    winning move is returned first (it IS a forcing win). On node-
+    budget exhaustion returns None (fall through to the MCTS).
+    Deterministic (no RNG). ``stats``, when given, is filled with
+    ``{"nodes": <used>, "budget_exceeded": <bool>}``."""
+    wins = scoring._winning_moves(board, player)
+    if wins:
+        if stats is not None:
+            stats.update({"nodes": 0, "budget_exceeded": False})
+        return wins[0]
+    opp_wins = scoring._winning_moves(board, -player)
+    if len(opp_wins) >= 2:
+        if stats is not None:
+            stats.update({"nodes": 0, "budget_exceeded": False})
+        return None  # already lost
+    budget = _TSSBudget(node_budget)
+    exceeded = False
+    try:
+        forcing, _, _ = _forcing_moves_and_fours(board, player)
+        if len(opp_wins) == 1:
+            # Must block: only the block can start a forcing win.
+            forcing = [opp_wins[0]] if opp_wins[0] in forcing else []
+        if not forcing:
+            return None
+        priors = _priors(board, player, 0.0)
+        forcing.sort(key=lambda m: (-priors.get(m, 0.0), m))
+        for m in forcing:
+            b2 = game.apply_move(board, m, player)
+            if _tss_after_attacker_move(b2, player, depth - 1, budget, m):
+                return m
+    except _TSSBudgetExceeded:
+        exceeded = True
+        return None
+    finally:
+        if stats is not None:
+            stats.update({"nodes": budget.used, "budget_exceeded": exceeded})
+    return None
+
+
 class HeuristicMCTS:
     """PUCT search with v1 priors and a terminal-aware leaf value.
 
@@ -1036,6 +1689,20 @@ class HeuristicMCTS:
     2-ply rollout leaf for BOTH colours — the same function v16
     uses as White, with no colour gate. v18-as-White IS v16.
 
+    ``leaf_mode="rollout2ply_v53"`` is the ORIGINAL v53 spec
+    (batch 13, H3): a fresh-from-spec 2-ply rollout leaf
+    (:func:`_rollout2ply_search_leaf_value`) for both colours.
+    The differential test proved it coincides with v18/v27's
+    leaf everywhere sampled, so v53-as-specified was NOT A NEW
+    VERSION (iter-53 §§0–5); the mode stays as the regression
+    record of that finding.
+    ``leaf_mode="rollout3ply_v53"`` is the RE-SCOPED v53
+    (iter-53 §6): a 3-ply rollout leaf
+    (:func:`_rollout3ply_search_leaf_value`) for both colours —
+    the only unpriced rung of the depth ladder. After 3 rollout
+    plies the opponent is to move at the rollout end, so the
+    gradient is negated from the opponent's perspective.
+
     ``tie_break_q=True`` is v23 (batch 8, H3): when two or more
     root children share the maximum visit count (an exact tie at
     the top), break the tie by correctly-signed q (our-q =
@@ -1071,6 +1738,34 @@ class HeuristicMCTS:
     start is played immediately, and a defensive VCF prevention
     is played when the opponent holds a VCF start. False (the
     default) is v18 behaviour exactly.
+
+    ``backup_rule`` (v51, batch 13 H1) selects the backup rule:
+    ``"mean"`` (default) is the v6/v7 mean backup exactly;
+    ``"softmax-opp"`` switches opponent nodes (odd depth from the
+    root) to a SOFT-MIN backup — q is the softmax-weighted mean
+    of the opponent-perspective values of the node's visited
+    children (``-child.q``), weights ``exp(beta * value)`` with
+    ``beta = softmax_beta`` — while our nodes (even depth,
+    including the root) keep the mean (of the soft-min values
+    returned by their children). The soft-min weights the
+    opponent's worst reply heavily but keeps the other replies'
+    contribution, so it prices the opponent's best reply (undoing
+    iter-40 §1.1a's blunder dilution) without collapsing the
+    "how it loses" gradient the way v47's pure minimax did
+    (iter-47 §3.1 — q-collapse: ALL 74 visited children at −1.0
+    on g13). ``softmax_beta`` (default 2.0; v51 sets it
+    explicitly) is the temperature: at β=2 a 1.0 value gap gets
+    weight ratio e² ≈ 7.4. See
+    ``research/iterations/iter-51.md`` §1.2 for the pre-registered
+    rule and the worst-case analysis against the τ=0.05 tie-break
+    threshold.
+
+    ``tss_root`` (v52, batch 13 H2) enables threat-space search at
+    the root (:func:`tss_winning_move`): before the search, a
+    forcing win by consecutive forcing moves (fours and true open
+    threes) is played immediately; otherwise the engine is exactly
+    the base version. False (the default) leaves the base engine
+    unchanged. Offensive only — no defensive prevention check.
     """
 
     def __init__(
@@ -1084,13 +1779,19 @@ class HeuristicMCTS:
         tie_break_q: bool = False,
         tie_break_q_threshold: float = 0.0,
         vcf_root: bool = False,
+        backup_rule: str = "mean",
+        softmax_beta: float = 2.0,
+        tss_root: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
-            leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
+            leaf_mode != "rollout2_v1"
+            and leaf_mode != "rollout2_v1_both"
+            and leaf_mode != "rollout2ply_v53"
+            and leaf_mode != "rollout3ply_v53"
         ):
             raise ValueError(
                 f"unknown leaf_mode: {leaf_mode!r} "
-                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both']})"
+                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both', 'rollout2ply_v53', 'rollout3ply_v53']})"
             )
         if not 0.0 <= prior_floor < 1.0:
             raise ValueError(
@@ -1101,6 +1802,15 @@ class HeuristicMCTS:
                 f"unknown root_decision: {root_decision!r} "
                 f"(known: {list(_ROOT_DECISIONS)})"
             )
+        if backup_rule not in ("mean", "softmax-opp"):
+            raise ValueError(
+                f"unknown backup_rule: {backup_rule!r} "
+                "(known: 'mean', 'softmax-opp')"
+            )
+        if not (softmax_beta > 0.0):
+            raise ValueError(
+                f"softmax_beta must be positive, got {softmax_beta!r}"
+            )
         self.sims = sims
         self.c_puct = c_puct
         self.rng = rng
@@ -1110,6 +1820,9 @@ class HeuristicMCTS:
         self.tie_break_q = tie_break_q
         self.tie_break_q_threshold = tie_break_q_threshold
         self.vcf_root = vcf_root
+        self.backup_rule = backup_rule
+        self.softmax_beta = softmax_beta
+        self.tss_root = tss_root
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -1119,6 +1832,10 @@ class HeuristicMCTS:
             self._leaf_value = self._rollout_v1_leaf_value
         elif leaf_mode == "rollout2_v1_both":
             self._leaf_value = self._rollout_v1_both_leaf_value
+        elif leaf_mode == "rollout2ply_v53":
+            self._leaf_value = self._rollout2ply_v53_leaf_value
+        elif leaf_mode == "rollout3ply_v53":
+            self._leaf_value = self._rollout3ply_v53_leaf_value
         else:
             self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
         # Colour to move at the root of the current search (the
@@ -1153,6 +1870,28 @@ class HeuristicMCTS:
         dispatch changed (v16 gates on ``_root_player``, v18 does
         not). v18-as-White IS v16 exactly."""
         return _rollout_leaf_value(board, player)
+
+    def _rollout2ply_v53_leaf_value(
+        self, board: np.ndarray, player: int
+    ) -> float:
+        """v53 leaf value: the fresh-from-spec 2-ply rollout leaf
+        (:func:`_rollout2ply_search_leaf_value`) for BOTH colours.
+        See ``research/iterations/iter-53.md`` §1.1. The
+        differential test (``tests/test_regression_v53.py``) is
+        the verdict on whether this coincides with v18/v27's
+        ``_rollout_leaf_value``."""
+        return _rollout2ply_search_leaf_value(board, player)
+
+    def _rollout3ply_v53_leaf_value(
+        self, board: np.ndarray, player: int
+    ) -> float:
+        """v53 (re-scoped) leaf value: the 3-ply rollout leaf
+        (:func:`_rollout3ply_search_leaf_value`) for BOTH colours.
+        See ``research/iterations/iter-53.md`` §6.1. After 3
+        rollout plies the opponent is to move at the rollout end,
+        so the gradient is negated from the opponent's
+        perspective."""
+        return _rollout3ply_search_leaf_value(board, player)
 
     def _vcf_root_move(
         self, board: np.ndarray, player: int
@@ -1268,6 +2007,15 @@ class HeuristicMCTS:
             vcf_move = self._vcf_root_move(board, player)
             if vcf_move is not None:
                 return vcf_move
+        # Threat-space search at the root (v52): a forcing win by
+        # consecutive forcing moves (fours and true open threes)
+        # that the 100-sim search misses. Offensive only; the
+        # win/block scans above already ran, so an immediate win or
+        # a forced block always takes precedence over the TSS.
+        if self.tss_root:
+            tss_move = tss_winning_move(board, player)
+            if tss_move is not None:
+                return tss_move
         root = _Node(1.0)
         for _ in range(self.sims):
             self._run_one(root, board, player, None)
@@ -1604,7 +2352,11 @@ class HeuristicMCTS:
         """One simulation. Returns the value from ``player``'s
         perspective and updates every node on the path (including
         the newly expanded leaf). Mutates ``board`` in place but
-        restores it before returning."""
+        restores it before returning. Under
+        ``backup_rule="softmax-opp"`` (v51) a soft-min node returns
+        its updated soft-min q rather than the single-simulation
+        value, so its mean parent accumulates soft-min values
+        (see the descent branch below)."""
         # Terminal check: the move that led here just ended the game.
         if last_move is not None:
             if game.is_winning_move(board, last_move, -player):
@@ -1616,14 +2368,32 @@ class HeuristicMCTS:
                 return 0.0
         # Expansion: first visit — compute priors, evaluate the leaf.
         if node.children is None:
-            priors = _priors(board, player, self.prior_floor)
-            node.children = {m: _Node(p) for m, p in priors.items()}
-            if last_move is None:  # root: no leaf value
-                # Record the root player (the engine's colour for
-                # this move) — the v16 leaf branches on it. Set on
-                # every root call: the instance is reused across
-                # games in both colours.
+            if last_move is None:  # root: record the root player
+                # FIRST, before the children are created: the
+                # children's softmax flag (v51) is decided by
+                # whether this node's player is the root player,
+                # and the v16 leaf branches on it. Set on every
+                # root call: the instance is reused across games
+                # in both colours. (Behaviour-neutral for every
+                # other version: the assignment is the same, only
+                # earlier — nothing between here and the old site
+                # reads _root_player.)
                 self._root_player = player
+            priors = _priors(board, player, self.prior_floor)
+            # v51: children of a node whose player-to-move is the
+            # root player are OPPONENT nodes (odd depth) — soft-min
+            # backup under backup_rule="softmax-opp"; all other
+            # children are our nodes (mean backup). Default
+            # backup_rule="mean" leaves every flag False.
+            child_softmax = (
+                self.backup_rule == "softmax-opp"
+                and player == self._root_player
+            )
+            node.children = {
+                m: _Node(p, softmax=child_softmax)
+                for m, p in priors.items()
+            }
+            if last_move is None:  # root: no leaf value
                 node.visit_count += 1
                 return 0.0
             value = self._leaf_value(board, player)
@@ -1637,4 +2407,24 @@ class HeuristicMCTS:
         board[move // 15, move % 15] = 0
         node.visit_count += 1
         node.value_sum += value
+        if node.softmax:
+            # v51 soft-min backup: this node's q is the
+            # softmax-weighted mean of the opponent-perspective
+            # values of its VISITED children (-child.q), weights
+            # exp(beta * value), recomputed after every descent —
+            # every simulation that changes a child's q passes
+            # through here, so the cached value is always fresh.
+            # Unvisited children are excluded (their q is
+            # undefined, not a signal). The node's returned value
+            # is its soft-min q, so its (mean) parent accumulates
+            # soft-min values.
+            node.softmax_value = _softmax_mean(
+                [
+                    -c.q
+                    for c in node.children.values()
+                    if c.visit_count >= 1
+                ],
+                self.softmax_beta,
+            )
+            return node.softmax_value
         return value
