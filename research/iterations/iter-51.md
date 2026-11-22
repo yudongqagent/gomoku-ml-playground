@@ -489,6 +489,32 @@ and the minimax are indistinguishable on the tactical suite,
 because at 100 sims both degenerate to a single child's value on
 the positions that matter.
 
+### 3.2 Head-to-head legs — clause 1 FAILS (0.3150 vs v27)
+
+All aggregates below were recomputed from the raw per-game
+records and match the stored JSON values exactly. All legs use
+validation seeds 100/200, per-game seeding, 100 games.
+
+**Leg 1 — vs v27, normal rules (clause 1): 28W-65L-7D,
+win rate 0.3150, Wilson 95% CI [0.2322, 0.4115]**
+(`research/iterations/batch-v51-vs-v27.json`; the leg survived
+two runtime restarts / VM replacements — resumed from game 14,
+then from game 49 — and auto-resume + per-game seeding lost
+zero games; the resumed run's elapsed is 5337.1s). As Black
+19W-25L-6D (0.4400); as White 9W-40L-1D (0.1900) — a large
+White deficit, the same shape as v47's (Black 0.31 / White
+0.18). Uniqueness 95/100; de-dup 25W-63L-7D, 0.3000, CI
+[0.2171, 0.3985] — the de-dup cut agrees, so the failure is
+not a determinism artefact. Clause 1 fails decisively: the CI
+upper bound (0.4115) is far below 0.50. v51 beats v47's 0.245
+(+0.07 — the soft-min keeps a gradient on well-visited nodes
+where minimax kept none, §1.4) but loses to its own parent by
+a margin no other v27-family version except v47 has posted
+(v39 0.495, v40 0.525, v41 0.52 — all near-ties). All seven
+draws are 225-ply full-board games — the two engines grind to
+a full board when neither finds a win (which is also why the
+leg's wall time is dominated by a handful of very long games).
+
 ## 4. Verdict
 
 [To be filled.]
