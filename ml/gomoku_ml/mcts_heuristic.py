@@ -868,6 +868,66 @@ def _rollout_leaf_value(
     return _attack_gradient_v1(cur, p)
 
 
+# --- v53 2-ply rollout search leaf (batch 13, H3) --------------------------
+# Written FRESH from the pre-registered spec in
+# ``research/iterations/iter-53.md`` §1.1 — deliberately NOT an
+# alias of :func:`_rollout_leaf_value`, so the differential test
+# (``tests/test_regression_v53.py``) tests the SPEC against v27's
+# leaf rather than an alias against itself. The spec: at a leaf
+# with ``player`` to move, play exactly 2 rollout plies under the
+# teacher's own policy (:func:`_rollout_move` — win if possible,
+# block a single opponent winning move, open-four priority, else
+# the v1-total argmax) and evaluate the symmetric v1 gradient at
+# the resulting position. Terminal handling follows v16/v18's
+# conventions exactly: the leaf-start terminal (including the
+# -0.25 must-block, a fact about the real position) is exact;
+# terminals reached INSIDE the rollout return the exact terminal
+# value, sign-adjusted to ``player``'s perspective; at the
+# rollout's END only wins/losses are terminal — a must-block
+# there is gradient-evaluated (iter-16 §2.1: a rollout-end
+# must-block is a prediction under the rollout policy, not a
+# fact). No blend (v19's blend was rejected and is not part of
+# v27). The board is not mutated (the rollout plays on copies).
+#
+# Premise note (iter-53 §0): this spec, implemented faithfully,
+# IS v18/v27's leaf — ``_rollout_leaf_value`` already rolls out
+# exactly 2 plies (``_ROLLOUT_PLIES = 2``) under this same
+# policy. The batch-13 plan's "1-ply (one random move)" premise
+# conflated the ML label-depth naming (plies BEFORE the teacher
+# leaf: ``_rollout2_leaf_value`` is 2 plies + the v18 leaf = 4
+# plies effective) with the search leaf's own depth. The
+# differential test is the verdict on whether the spec's natural
+# implementation coincides with v27's leaf.
+def _rollout2ply_search_leaf_value(board: np.ndarray, player: int) -> float:
+    """v53 search leaf: v7's terminal-aware values for terminal
+    positions; for quiet positions, roll out exactly 2 plies under
+    the teacher's own rollout policy (:func:`_rollout_move`) and
+    evaluate the symmetric v1 gradient at the resulting position.
+    See ``research/iterations/iter-53.md`` §1.1 for the
+    pre-registered spec. Blend is NOT applied (v19 rejected, not
+    part of v27). The board is not mutated."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    # Ply 1: player to move.
+    m1, term1 = _rollout_move(board, player)
+    if term1 is not None:
+        return term1
+    b1 = game.apply_move(board, m1, player)
+    # Ply 2: opponent's reply.
+    m2, term2 = _rollout_move(b1, -player)
+    if term2 is not None:
+        return -term2
+    b2 = game.apply_move(b1, m2, -player)
+    # Rollout end: player to move again. Only wins/losses are
+    # terminal here; a must-block is gradient-evaluated.
+    if scoring._winning_moves(b2, player):
+        return 1.0
+    if len(scoring._winning_moves(b2, -player)) >= 2:
+        return -1.0
+    return _attack_gradient_v1(b2, player)
+
+
 def _rollout2_leaf_value(board: np.ndarray, player: int) -> float:
     """v37 2-ply label: v18's rollout-leaf value evaluated 2 plies
     ahead under the teacher's own rollout policy (ML batch 3 H2 —
@@ -1086,11 +1146,13 @@ class HeuristicMCTS:
         vcf_root: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
-            leaf_mode != "rollout2_v1" and leaf_mode != "rollout2_v1_both"
+            leaf_mode != "rollout2_v1"
+            and leaf_mode != "rollout2_v1_both"
+            and leaf_mode != "rollout2ply_v53"
         ):
             raise ValueError(
                 f"unknown leaf_mode: {leaf_mode!r} "
-                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both']})"
+                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both', 'rollout2ply_v53']})"
             )
         if not 0.0 <= prior_floor < 1.0:
             raise ValueError(
@@ -1119,6 +1181,8 @@ class HeuristicMCTS:
             self._leaf_value = self._rollout_v1_leaf_value
         elif leaf_mode == "rollout2_v1_both":
             self._leaf_value = self._rollout_v1_both_leaf_value
+        elif leaf_mode == "rollout2ply_v53":
+            self._leaf_value = self._rollout2ply_v53_leaf_value
         else:
             self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
         # Colour to move at the root of the current search (the
@@ -1153,6 +1217,17 @@ class HeuristicMCTS:
         dispatch changed (v16 gates on ``_root_player``, v18 does
         not). v18-as-White IS v16 exactly."""
         return _rollout_leaf_value(board, player)
+
+    def _rollout2ply_v53_leaf_value(
+        self, board: np.ndarray, player: int
+    ) -> float:
+        """v53 leaf value: the fresh-from-spec 2-ply rollout leaf
+        (:func:`_rollout2ply_search_leaf_value`) for BOTH colours.
+        See ``research/iterations/iter-53.md`` §1.1. The
+        differential test (``tests/test_regression_v53.py``) is
+        the verdict on whether this coincides with v18/v27's
+        ``_rollout_leaf_value``."""
+        return _rollout2ply_search_leaf_value(board, player)
 
     def _vcf_root_move(
         self, board: np.ndarray, player: int

@@ -517,6 +517,23 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h3/value-net.pt",
          "value_weight": 0.125},  # sweep winner (0.725 vs 0.600 @ 0.25, 0.475 @ 0.5)
+    # v53 (iteration 53, batch 13): H3 — v27 + a 2-ply rollout leaf
+    # implemented FRESH from the pre-registered spec in
+    # research/iterations/iter-53.md §1.1 (leaf_mode
+    # "rollout2ply_v53"; see gomoku_ml.mcts_heuristic
+    # _rollout2ply_search_leaf_value). Everything else is v27
+    # unchanged: 100 sims, c_puct 1.5, v1 priors, most-visited
+    # root, threshold τ=0.05 on the q-gap tie-break. PREMISE NOTE
+    # (iter-53 §0): v18/v27's leaf is ALREADY a 2-ply rollout leaf
+    # (_ROLLOUT_PLIES = 2), so the specified leaf is expected to
+    # coincide with v27's — the differential test
+    # (tests/test_regression_v53.py) is the verdict, and the
+    # battery is vacated if identity holds. Versions 45-52 are the
+    # batch-12 / ML-batch-5 / batch-13 parallel workstreams'.
+    53: {"name": "scoring-v53", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2ply_v53", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05},
 }
 
 # --- weights --------------------------------------------------------------
