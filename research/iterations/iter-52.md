@@ -475,7 +475,52 @@ never in losses). Proceed to the battery.
 
 ## 5. Battery
 
-TODO.
+All legs use per-game seeding with a uniqueness audit; aggregates
+and Wilson 95% CIs recomputed from raw records with
+`ml/scripts/recompute_match.py` (program convention: a draw counts
+as half a win). Drivers auto-resume — the vs-v27 leg survived two
+runtime restarts (resumed at game 24, then at game 91).
+
+### vs v27, 100 games, normal rules
+
+**v52 60W-38L-2D, win rate 0.6100, Wilson 95% CI [0.5120,
+0.6998]** — `research/iterations/batch-v52-vs-v27.json`
+(recomputed; matches the script summary exactly). **Clause 1
+PASSES on the pre-registered nominal rule** (CI lower bound
+0.5120 > 0.50) — but it is as narrow as a pass can be:
+**the de-dup cut FAILS by 0.0005** (95/100 unique games,
+56W-37L-2D, rate 0.6000, CI [0.4995, 0.6928]). Past clause-1
+calls in this program all stood on the de-dup cut; v52's does
+not. The pass rests on the nominal 100-game rule as written;
+a confirmatory re-run would be needed for confidence.
+
+Per-colour split is extreme: **A as Black 39W-11L-0D (0.78)**,
+**A as White 21W-27L-2D (0.44)**. v52 dominates as Black and
+loses as White — the TSS finds Black's forcing wins far more
+often than White's (Black moves first and builds threats
+earlier), while as White v52 is v27 with a rarely-firing hook.
+
+Defence audit (`classify_batch_losses.py`): all 38 losses via
+open four (38/38), **0 missed blocks** (all games), 0 clean
+missed preventions in 185 threatened turns in losses. Defence
+is solved; the losses are positional (v27 building unstoppable
+threats), not tactical blunders.
+
+### vs v0, 100 games, normal rules
+
+[To be filled when the leg finishes.]
+
+### swap vs v27, 100 games
+
+[To be filled when the leg finishes.]
+
+### Ladder (40 games/opponent)
+
+[To be filled when the ladder finishes.]
+
+### Tactical
+
+[To be filled when tactical finishes.]
 
 ## 6. Verdict
 
