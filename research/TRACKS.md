@@ -9,17 +9,28 @@ the heuristic. The work continues autonomously; he runs nothing.
 
 ## Track A — heuristic (hand-designed scoring + search)
 
-- **Bar reference: v27** (q-gap threshold tie-break on v18's rollout
-  leaf; Elo 636.4) — the strongest of the two versions that passed
-  all 4 clauses in batch 9 (2026-11-17). The bar is unchanged in
-  shape, re-anchored on v27: (1) h2h vs v27 ≥100 games, win rate >
-  0.50 with Wilson 95% CI lower bound > 0.50; (2) ladder Elo >
-  636.4; (3) tactical ≥ 20/20 + 29/29; (4) all test suites green.
-  Note clause 2 is now demanding: 636.4 is the estimate from a
-  19W-0L-1D heuristic leg, so beating it effectively requires a
-  20-0 leg. v27's own numbers vs v7: 0.7900 (CI [0.7002, 0.8583]),
-  vs v0 0.9650, swap vs v7 0.7750 (best swap in the program).
-  v7 (Elo 190.8) was the bar reference until batch 9.
+- **Bar reference: v52** (threat-space search at the root; ladder
+  Elo unbounded — saturated, interval [407.0, ∞)) — the strongest
+  version that passed all 4 clauses in batch 13 (2026-11-22). The
+  bar is unchanged in shape, re-anchored on v52: (1) h2h vs v52
+  ≥100 games, win rate > 0.50 with Wilson 95% CI lower bound >
+  0.50; (2) ladder Elo > v52's (see the leg-result rule below);
+  (3) tactical ≥ 20/20 + 29/29; (4) all test suites green.
+  **Clause 2 for the v52 reference (pre-registered):** v52's Elo
+  is unbounded (its heuristic leg is 40-0-0, the first version ever
+  to saturate the 40-game ladder), so clause 2 is judged by the
+  leg-result reading — a future version must strictly dominate
+  v52's legs (random 40-0, heuristic 40-0, mcts 31-9). In practice
+  that means matching the two perfect legs and beating 31-9 on the
+  mcts leg. (Or the ladder is re-based with a stronger anchor or
+  more games per leg — the saturation problem batch 10 flagged has
+  now arrived in full.) v52's own numbers vs v27: 0.6100 (CI
+  [0.5120, 0.6998]), vs v0 1.0000 (100-0, the second perfect
+  100-game score in the program), swap vs v27 0.6550, challenge vs
+  v18 0.6250 (CI [0.5271, 0.7136]). Caveat: v52's clause-1 pass
+  rests on the nominal rule (de-dup CI lower 0.4995, misses by
+  0.0005 — see iter-52 §9); the challenge match passes on BOTH
+  cuts. v27 (Elo 636.4) was the bar reference until batch 13.
 - **Also passed the bar (batch 9): v29** (VCF-at-root on v18) — vs
   v7 0.7150, ladder Elo 240.8, tactical 20/20 + 29/29. On master
   alongside v27, but NOT the bar reference: v27 dominates it on
@@ -29,27 +40,37 @@ the heuristic. The work continues autonomously; he runs nothing.
   v27's ~35ms) and weak vs v0 (0.665, White 0.60) — its defensive
   check picks preventions by prior noise (verified flaw, iter-29
   §3.4); a VCF-filtered search is the batch-10 direction.
-- **Strength champion: v18** (rollout leaf, both colours) — h2h vs v7
-  0.775, ladder Elo 636.4 [240.3, 1032.5], first version ever to beat
-  the ladder MCTS outright (14-6). It has NOT passed the full bar
-  (tactical 25/29 on the original suite, 26/29 on the batch-9
-  corrected suite — the (9,7) addition), so it is the strength
-  champion, not the bar champion. Lives on `research/batch-7`
-  (`970ecf3`), worktree `~/workspace/projects/gomoku-b7/`, and on
-  master via the batch-9 merge.
-- v27 does NOT displace v18 as strength champion: it beats v18 on
-  h2h vs v7 (0.7900 > 0.775) but TIES on ladder Elo (636.4 =
-  636.4, exact — same 19W-0L-1D heuristic leg), and the champion
-  rule needs a beat on BOTH. v27 is the bar reference (it passed
-  the bar; v18 never did) while v18 keeps the strength-champion
-  title on the tie. The daily cross-track match pairing is
-  therefore unchanged (v18 vs v8).
-- New heuristic versions are measured against v27 for the bar and
-  against v18 for strength. A new strength champion is declared by
-  DIRECT CHALLENGE: a version that passes the bar plays a 100-game
-  match against the current champion (v18); it takes the title if
-  it wins the match (win rate > 0.50 with Wilson 95% CI lower bound
-  > 0.50) AND its ladder Elo beats the champion's (636.4). A
+- **Also passed the bar (batch 9): v27** (q-gap threshold tie-break
+  on v18's rollout leaf; Elo 636.4) — vs v7 0.7900 (CI [0.7002,
+  0.8583]), vs v0 0.9650, swap vs v7 0.7750 (best swap in the
+  program until v52). Was the bar reference until batch 13; v52
+  dominates it on the ladder (saturated vs 636.4) and the
+  challenge (v52 beat v18, which v27 never faced).
+- **Strength champion: v52** (threat-space search at the root) —
+  h2h vs v27 0.6100, ladder Elo unbounded (saturated), vs v0
+  1.0000, swap vs v27 0.6550. It PASSED the full bar (batch 13)
+  and beat v18 in the 100-game direct challenge (0.6250, CI
+  [0.5271, 0.7136]; de-dup CI lower 0.5106 — passes on both cuts),
+  taking the title from v18. Lives on master (`33747e5`).
+- **Previous strength champion: v18** (rollout leaf, both colours)
+  — h2h vs v7 0.775, ladder Elo 636.4 [240.3, 1032.5], first
+  version ever to beat the ladder MCTS outright (14-6). Held the
+  title from batch 7 (2026-11-15) until batch 13 (2026-11-22),
+  when v52 beat it in the direct challenge. It never passed the
+  full bar (tactical 25/29 on the original suite, 26/29 on the
+  batch-9 corrected suite — the (9,7) addition). Lives on
+  `research/batch-7` (`970ecf3`), worktree
+  `~/workspace/projects/gomoku-b7/`, and on master via the
+  batch-9 merge.
+- The daily cross-track match pairing is now v52 vs v44 (swap
+  rules, main worktree).
+- New heuristic versions are measured against v52 for the bar and
+  against v52 for strength (it holds both titles). A new strength
+  champion is declared by DIRECT CHALLENGE: a version that passes
+  the bar plays a 100-game match against the current champion
+  (v52); it takes the title if it wins the match (win rate > 0.50
+  with Wilson 95% CI lower bound > 0.50) AND its ladder Elo beats
+  the champion's (by the leg-result reading — see above). A
   bar-passer already clears the Elo clause by passing, so the
   challenge match is the deciding test. (Rule changed 2026-11-17:
   the old rule compared h2h-vs-v7 rates, which no longer appear on
@@ -240,8 +261,29 @@ the heuristic. The work continues autonomously; he runs nothing.
   v37's level on every measure — v44's Elo gain came from its
   3-ply labels, not the lower α; the α lever is CLOSED for the
   2-ply net. Holdout does not predict played strength — now six
-  instances. Batch 13 is next: gradient-preserving backup,
-  threat-space search, 2-ply rollout leaf.
+  instances. Batch 13 complete 2026-11-22: 1 of 3 — **v52
+  (threat-space search at the root) PASSES all 4 clauses and is
+  the NEW heuristic bar reference AND strength champion** (takes
+  the title from v18, which held it since batch 7). v52 vs v27
+  0.61 (CI lower 0.5120; de-dup CI lower 0.4995, misses by 0.0005
+  — the pass rests on the pre-registered nominal rule, v44
+  precedent); ladder Elo unbounded — saturated, the first version
+  ever to saturate the 40-game ladder (heuristic leg 40-0-0);
+  vs v0 100-0 (second perfect 100-game score); swap vs v27 0.655;
+  challenge vs v18 0.625, passes on BOTH cuts. v51 (soft-min
+  backup) rejected 1/4 — child-level backup aggregation is now
+  CLOSED in both forms (v47 pure minimax, v51 soft-min). v53
+  (3-ply rollout leaf, re-scoped — the plan's "2-ply is untested"
+  premise was FALSE; v18/v27's leaf is already 2-ply) rejected
+  3/4 — beats v27 h2h 0.64 but Elo 511.5 < 636.4 (the clause-2
+  paradox: the two losses to v0 as Black in the cold 40-game
+  ladder leg cost ~125 Elo). The rollout-depth ladder is fully
+  priced (1 rejected, 2 = v18/v27, 3 beats v27 h2h but fails the
+  bar, 4 rejected twice). The ladder is saturated at the top —
+  terminally: clause 2 for the v52 reference is judged by the
+  leg-result reading (dominate 40-0/40-0/31-9). ML batch 6 is
+  next: targeted White-collapse fix, 3-ply retrain of the patch
+  data, parity-corrected labels.
 - **Dataset-dedup finding (ML batch 1):** the "10k dataset" is
   3,244 unique games, not 7,099 — and v8's "4,350" was 1,449
   unique. The B1 parallel generator seeds worker *w* with
