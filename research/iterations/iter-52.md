@@ -564,4 +564,34 @@ before it).
 
 ## 6. Verdict
 
-TODO.
+### Clause 1 — h2h vs v27 (100 games): PASS (nominal), borderline
+
+60W-38L-2D, win rate 0.6100, Wilson 95% CI [0.5120, 0.6998]
+— the lower bound clears 0.50 by 0.012. **But the de-dup cut
+fails by 0.0005** (95/100 unique, 56W-37L-2D, CI [0.4995,
+0.6928]). Past clause-1 calls in this program all stood on the
+de-dup cut; v52's does not. The pass rests on the pre-registered
+nominal 100-game rule as written. Per-colour: Black 39W-11L-0D
+(0.78), White 21W-27L-2D (0.44) — the TSS finds Black's forcing
+wins far more often than White's.
+
+### Clause 2 — ladder Elo > 636.4: [TBD — ladder running]
+
+### Clause 3 — tactical >= 20/20 + 29/29: PASS
+
+v52: old 20/20, hard 29/29 (v27 re-verified first at 20/20 +
+29/29).
+
+### Clause 4 — all test suites green: PASS
+
+ml pytest: 478 passed, 1 skipped, 58 xfailed, 0 failures
+(`research/iterations/pytest-full.log`). npm test: 55/55.
+tsc: clean.
+
+### Overall: [TBD — pending clause 2 and the swap leg]
+
+If clause 2 passes, v52 passes the bar (on the nominal clause-1
+rule) and earns a direct challenge vs v18 (100 games, CI lower
+> 0.50 and Elo above 636.4 for the strength champion title).
+The clause-1 de-dup caveat (0.4995) must travel with any pass
+claim.
