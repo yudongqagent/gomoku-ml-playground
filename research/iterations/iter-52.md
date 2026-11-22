@@ -546,7 +546,16 @@ coincide. v52 wins every unique game, both colours 50–0.
 
 ### swap vs v27, 100 games
 
-[To be filled when the leg finishes.]
+**v52 64W-33L-3D, win rate 0.6550, Wilson 95% CI [0.5577,
+0.7409]** — `research/iterations/batch-v52-vs-v27-swap.json`
+(recomputed; matches the script summary). 100/100 unique games
+(the swap placement variety eliminates duplicates). Per-colour:
+Black 38W-11L-3D (0.76), White 26W-22L-0D (0.54) — the swap rule
+narrows the Black/White gap vs the normal leg (0.78/0.44), and
+v52 wins as White under swap (0.54) where it lost as White
+under normal rules (0.44). The swap result corroborates the
+normal-rules verdict: v52 is genuinely stronger than v27, not
+an artefact of the first-move advantage.
 
 ### Ladder (40 games/opponent)
 
