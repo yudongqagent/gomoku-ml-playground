@@ -47,9 +47,20 @@ def load_shards(data_dir: str) -> tuple[np.ndarray, np.ndarray, int, np.ndarray]
     """Concatenate (planes, value) over all shards in ``data_dir``.
 
     Also returns the side to move per position (0 = Black, 1 =
-    White): Black plays ply 0 and the sides alternate, so the
-    within-game position index determines it exactly (the shards
-    store full games from the empty board).
+    White), read from plane 3 of the stored encoding — the
+    side-to-move plane (all 1.0 iff Black is to move, else all 0.0;
+    see ``gomoku_ml/encoding.py``). Plane 3 is exact for every
+    stored position regardless of which plies the shard kept.
+
+    Do NOT infer the side from the within-shard position index
+    (``arange(len(planes)) % 2``): that is correct only when the
+    shard stores EVERY ply of the game. Distill shards store only
+    QUIET positions (``generate_distill_data.py`` skips plies where
+    ``_terminal_leaf_value != 0.0``), so after the first skipped
+    ply the index-inferred side FLIPS, and every further skip flips
+    it again — attenuating any true by-side gap toward zero (ML
+    batch 5, iter-48 §0: up to ~60% attenuation; iter-37/iter-44
+    by-side numbers are unreliable for this reason).
     """
     planes_list, value_list, side_list = [], [], []
     paths = sorted(glob.glob(os.path.join(data_dir, "*.npz")))
@@ -58,7 +69,21 @@ def load_shards(data_dir: str) -> tuple[np.ndarray, np.ndarray, int, np.ndarray]
             planes = z["planes"]
             planes_list.append(planes)
             value_list.append(z["value"])
-            side_list.append(np.arange(len(planes), dtype=np.int8) % 2)
+            p3 = planes[:, 3]
+            # Plane 3 must be a uniform 0/1 plane per position; if a
+            # shard was encoded without it, fail loudly rather than
+            # silently falling back to the broken index inference.
+            if not np.all((p3 == 0.0) | (p3 == 1.0)):
+                raise ValueError(
+                    f"{path}: plane 3 is not 0/1 — cannot read side to move"
+                )
+            if not np.all(p3.min(axis=(1, 2)) == p3.max(axis=(1, 2))):
+                raise ValueError(
+                    f"{path}: plane 3 is not uniform per position — "
+                    "cannot read side to move"
+                )
+            # Plane 3 is all 1.0 iff Black is to move.
+            side_list.append((p3[:, 0, 0] < 0.5).astype(np.int8))
     if not planes_list:
         raise FileNotFoundError(f"no .npz shards found under {data_dir}")
     return (
