@@ -438,7 +438,10 @@ Iteration 1, leg 1 (vs v0, 10 games, seeds 1052/2052):
 1.0000]) — `research/iterations/fastloop-v52-vs-v0-i1.json`.
 Clean sweep, no losses to analyze. (v27 beats v0 0.9650, so
 this is the expected smoke-test outcome, not evidence of
-strength.)
+strength.) Uniqueness: only 6/10 unique games (de-dup 6W-0L-0D,
+CI [0.6097, 1.0]) — the known vs-v0 determinism collapse (v0 is
+fully deterministic and v52's opening is prior-dominated, so
+short games coincide); the verdict stands on the de-dup cut.
 
 Iteration 1, leg 2 (vs v27, 10 games, seeds 1053/2053):
 **v52 6W-3L-1D** (win rate 0.6500, Wilson 95% CI [0.3537,
