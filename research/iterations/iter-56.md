@@ -587,9 +587,54 @@ the caveat, not hidden).
 
 ## 2. Data generation (actuals)
 
-(to be filled in: labelling LABEL_JSONs, the 3-game replay
-check proving regeneration would reproduce v24's games, label
-distribution stats.)
+**No regeneration was needed** (see the task-premise correction in
+the header): v24's original games exist intact. The games files
+were copied md5-verified from `gomoku-ml1-h1` (v7
+`0e71ec51…`, v18 `b383a700…`, random `5a5eaee8…`) and
+re-labelled with `--label-mode rollout3sym` (chain:
+`ml/runs/ml6-h3/chain-label.sh`, 2026-11-22 15:20–16:22 UTC,
+~62 min total — no VM interruptions).
+
+**Replay check (proves regeneration would have reproduced the
+same games):** `generate_distill_data.py games --source v7
+--games 3 --sims 50 --seed 50000` replayed games 0–2 of
+`games-v7.json` with IDENTICAL move lists and winners (23/26/30
+plies). The engines are deterministic given seeds, so the
+ordered regeneration would have produced byte-identical files
+after ~7h of VM time. The copy is equivalent to regeneration,
+verified.
+
+| Source | Games | Plies | Quiet positions | ±1 labels | Gradient labels | Held-out games |
+|---|---|---|---|---|---|---|
+| v7 self-play (50 sims, seeds 50000+) | 488 | 25,277 | 21,595 (19,545 train / 2,050 holdout) | 586 (2.7%) | 21,009 | 48 |
+| v18 self-play (50 sims, seeds 60000+) | 229 | 11,511 | 9,932 (9,142 train / 790 holdout) | 501 (5.0%) | 9,431 | 22 |
+| Random playouts (seeds 70000+) | 100 | 11,009 | 5,700 (5,162 train / 538 holdout) | 585 (10.3%) | 5,115 | 10 |
+| **Total** | **817** | **47,797** | **37,227 (33,849 train / 3,378 holdout)** | **1,672 (4.5%)** | **35,555** | **80** |
+
+Game counts, ply totals and quiet-position counts match iter-24
+§2 EXACTLY (same games, same quiet definition). The ±1 fraction
+fell from v44's 7.9% (2,954) to 4.5% (1,672) — the §0.2
+halving: most rollout wins became gradient-range values
+(~+0.35). The drop is largest on random positions (28.5% →
+10.3%), where first-move-dependent wins dominate.
+
+**Label distribution (full set, pooled):** mean −0.1039 (vs
+3-ply's +0.1094, 2-ply's ≈ −0.06), mean|v| ≈ 0.19, fraction
+positive ≈ 0.24 (vs 3-ply's 0.734). Per split: v7 train mean
+−0.1136 / mean|v| 0.1729 / frac>0 0.2337; v18 train −0.1282 /
+0.1978 / 0.2276; random train −0.0269 / 0.2369 / 0.3512;
+holdouts within 0.005 of their train splits. The symmetric
+labels are pessimistic overall (§0.3's refuted mean prediction,
+confirmed on the full set) and closest in distribution to the
+2-ply labels.
+
+**Shard-equivalence check (`/tmp/check_shards_v56.py`):** every
+shard's position count matches v44's shards EXACTLY (37,227
+total, 0 bad per-shard counts across all 6 splits), and
+planes/policy/moves/winner are bit-identical on 20 sampled
+shards — the positions are v44's positions; ONLY the values
+differ (mean |diff| 0.3295 on the sampled shard). The
+v56-vs-v44 comparison isolates the label function, as designed.
 
 ## 3. Training (actuals)
 
