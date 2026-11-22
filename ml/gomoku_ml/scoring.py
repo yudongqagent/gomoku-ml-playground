@@ -517,22 +517,24 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h3/value-net.pt",
          "value_weight": 0.125},  # sweep winner (0.725 vs 0.600 @ 0.25, 0.475 @ 0.5)
-    # v53 (iteration 53, batch 13): H3 — v27 + a 2-ply rollout leaf
-    # implemented FRESH from the pre-registered spec in
-    # research/iterations/iter-53.md §1.1 (leaf_mode
-    # "rollout2ply_v53"; see gomoku_ml.mcts_heuristic
-    # _rollout2ply_search_leaf_value). Everything else is v27
-    # unchanged: 100 sims, c_puct 1.5, v1 priors, most-visited
-    # root, threshold τ=0.05 on the q-gap tie-break. PREMISE NOTE
-    # (iter-53 §0): v18/v27's leaf is ALREADY a 2-ply rollout leaf
-    # (_ROLLOUT_PLIES = 2), so the specified leaf is expected to
-    # coincide with v27's — the differential test
-    # (tests/test_regression_v53.py) is the verdict, and the
-    # battery is vacated if identity holds. Versions 45-52 are the
-    # batch-12 / ML-batch-5 / batch-13 parallel workstreams'.
+    # v53 (iteration 53, batch 13): H3 — v27 + a 3-ply rollout leaf
+    # (RE-SCOPED per research/iterations/iter-53.md §6; the
+    # original 2-ply spec is recorded in iter-53 §§0-5 — v18/v27's
+    # leaf is ALREADY a 2-ply rollout leaf, so the 2-ply spec was
+    # NOT A NEW VERSION). The 3-ply leaf
+    # (leaf_mode "rollout3ply_v53"; see gomoku_ml.mcts_heuristic
+    # _rollout3ply_search_leaf_value) rolls out exactly 3 plies
+    # under the teacher's own policy (_rollout_move) and evaluates
+    # the symmetric v1 gradient at the resulting position, negated
+    # from the opponent-to-move perspective (after an odd number
+    # of plies the opponent is to move at the rollout end).
+    # Everything else is v27 unchanged: 100 sims, c_puct 1.5, v1
+    # priors, most-visited root, threshold τ=0.05 on the q-gap
+    # tie-break. Versions 45-52 are the batch-12 / ML-batch-5 /
+    # batch-13 parallel workstreams'.
     53: {"name": "scoring-v53", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
-         "leaf_mode": "rollout2ply_v53", "tie_break_q": True,
+         "leaf_mode": "rollout3ply_v53", "tie_break_q": True,
          "tie_break_q_threshold": 0.05},
 }
 

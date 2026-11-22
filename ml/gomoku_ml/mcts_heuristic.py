@@ -928,6 +928,85 @@ def _rollout2ply_search_leaf_value(board: np.ndarray, player: int) -> float:
     return _attack_gradient_v1(b2, player)
 
 
+# --- v53 3-ply rollout search leaf (batch 13, H3, re-scoped) -----------------
+# The re-scoped v53 (``research/iterations/iter-53.md`` §6): v27 +
+# a 3-ply rollout leaf — the only unpriced rung of the heuristic
+# depth ladder (1 ply rejected by v16, 2 plies = v18/v27, 4 plies
+# rejected twice by v16/v40). Written fresh from the pre-registered
+# spec in iter-53 §6.1, reusing the SAME deterministic rollout
+# policy (:func:`_rollout_move`) as the 2-ply leaf, so depth is the
+# only change. The parity handling at the rollout end is a design
+# decision, not a detail: after an ODD number of rollout plies the
+# side to move is the opponent, so the rollout-end value is
+# computed from the opponent's perspective and negated to the leaf
+# player's perspective — for BOTH the terminal checks (an opponent
+# winning move is a loss, −1.0; our double threat is a win, +1.0)
+# and the gradient (``-_attack_gradient_v1(b3, -player)``, which
+# equals ``_attack_gradient_v1(b3, player)`` by the gradient's
+# antisymmetry under colour swap — the explicit negated form is
+# used so the parity handling is visible in the code). Terminal
+# handling otherwise follows v16/v18's conventions exactly: the
+# leaf-start terminal (including the −0.25 must-block, a fact
+# about the real position) is exact; terminals reached INSIDE the
+# rollout return the exact terminal value, sign-adjusted to
+# ``player``'s perspective (ply 1 and ply 3 are ``player``'s plies,
+# ply 2 the opponent's); at the rollout's END only wins/losses are
+# terminal — a must-block there is gradient-evaluated (iter-16
+# §2.1). No blend (v19 rejected, not part of v27). The board is
+# not mutated (the rollout plays on copies).
+def _rollout3ply_search_leaf_value(board: np.ndarray, player: int) -> float:
+    """v53 (re-scoped) search leaf: v7's terminal-aware values for
+    terminal positions; for quiet positions, roll out exactly 3
+    plies under the teacher's own rollout policy
+    (:func:`_rollout_move`) and evaluate the symmetric v1 gradient
+    at the resulting position, negated from the opponent-to-move
+    perspective. See ``research/iterations/iter-53.md`` §6.1 for
+    the pre-registered spec. Blend is NOT applied (v19 rejected,
+    not part of v27). The board is not mutated."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    # Ply 1: player to move.
+    m1, term1 = _rollout_move(board, player)
+    if term1 is not None:
+        return term1
+    b1 = game.apply_move(board, m1, player)
+    # Ply 2: opponent's reply.
+    m2, term2 = _rollout_move(b1, -player)
+    if term2 is not None:
+        return -term2
+    b2 = game.apply_move(b1, m2, -player)
+    # Ply 3: player to move again.
+    m3, term3 = _rollout_move(b2, player)
+    if term3 is not None:
+        return term3
+    b3 = game.apply_move(b2, m3, player)
+    # Rollout end: OPPONENT to move. Only wins/losses are
+    # terminal here; a must-block is gradient-evaluated. The
+    # terminal checks are the 2-ply leaf's checks with the sides
+    # swapped (the side to move is the opponent): an opponent
+    # winning move is a loss for player, our double threat a win.
+    # NOTE: the opponent-winning-move check below is DEAD CODE
+    # under the current rollout policy — ply 3 blocks a single
+    # opponent threat (and a double threat ends the rollout at
+    # ply 3), and our ply-3 stone cannot create an opponent
+    # winning move. It stays because it is in the pre-registered
+    # spec (iter-53 §6.1 step 5), mirrors the 2-ply leaf's
+    # rollout-end checks, and guards against future policy
+    # changes; tests/test_regression_v53.py asserts the
+    # unreachability property on every sampled rollout-end
+    # position.
+    if scoring._winning_moves(b3, -player):
+        return -1.0
+    if len(scoring._winning_moves(b3, player)) >= 2:
+        return 1.0
+    # Gradient from the side-to-move's (opponent's) perspective,
+    # negated to player's perspective. Equals
+    # _attack_gradient_v1(b3, player) by antisymmetry; the
+    # explicit negated form keeps the parity handling visible.
+    return -_attack_gradient_v1(b3, -player)
+
+
 def _rollout2_leaf_value(board: np.ndarray, player: int) -> float:
     """v37 2-ply label: v18's rollout-leaf value evaluated 2 plies
     ahead under the teacher's own rollout policy (ML batch 3 H2 —
@@ -1096,6 +1175,20 @@ class HeuristicMCTS:
     2-ply rollout leaf for BOTH colours — the same function v16
     uses as White, with no colour gate. v18-as-White IS v16.
 
+    ``leaf_mode="rollout2ply_v53"`` is the ORIGINAL v53 spec
+    (batch 13, H3): a fresh-from-spec 2-ply rollout leaf
+    (:func:`_rollout2ply_search_leaf_value`) for both colours.
+    The differential test proved it coincides with v18/v27's
+    leaf everywhere sampled, so v53-as-specified was NOT A NEW
+    VERSION (iter-53 §§0–5); the mode stays as the regression
+    record of that finding.
+    ``leaf_mode="rollout3ply_v53"`` is the RE-SCOPED v53
+    (iter-53 §6): a 3-ply rollout leaf
+    (:func:`_rollout3ply_search_leaf_value`) for both colours —
+    the only unpriced rung of the depth ladder. After 3 rollout
+    plies the opponent is to move at the rollout end, so the
+    gradient is negated from the opponent's perspective.
+
     ``tie_break_q=True`` is v23 (batch 8, H3): when two or more
     root children share the maximum visit count (an exact tie at
     the top), break the tie by correctly-signed q (our-q =
@@ -1149,10 +1242,11 @@ class HeuristicMCTS:
             leaf_mode != "rollout2_v1"
             and leaf_mode != "rollout2_v1_both"
             and leaf_mode != "rollout2ply_v53"
+            and leaf_mode != "rollout3ply_v53"
         ):
             raise ValueError(
                 f"unknown leaf_mode: {leaf_mode!r} "
-                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both', 'rollout2ply_v53']})"
+                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both', 'rollout2ply_v53', 'rollout3ply_v53']})"
             )
         if not 0.0 <= prior_floor < 1.0:
             raise ValueError(
@@ -1183,6 +1277,8 @@ class HeuristicMCTS:
             self._leaf_value = self._rollout_v1_both_leaf_value
         elif leaf_mode == "rollout2ply_v53":
             self._leaf_value = self._rollout2ply_v53_leaf_value
+        elif leaf_mode == "rollout3ply_v53":
+            self._leaf_value = self._rollout3ply_v53_leaf_value
         else:
             self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
         # Colour to move at the root of the current search (the
@@ -1228,6 +1324,17 @@ class HeuristicMCTS:
         the verdict on whether this coincides with v18/v27's
         ``_rollout_leaf_value``."""
         return _rollout2ply_search_leaf_value(board, player)
+
+    def _rollout3ply_v53_leaf_value(
+        self, board: np.ndarray, player: int
+    ) -> float:
+        """v53 (re-scoped) leaf value: the 3-ply rollout leaf
+        (:func:`_rollout3ply_search_leaf_value`) for BOTH colours.
+        See ``research/iterations/iter-53.md`` §6.1. After 3
+        rollout plies the opponent is to move at the rollout end,
+        so the gradient is negated from the opponent's
+        perspective."""
+        return _rollout3ply_search_leaf_value(board, player)
 
     def _vcf_root_move(
         self, board: np.ndarray, player: int
