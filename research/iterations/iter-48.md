@@ -944,3 +944,78 @@ research/iterations/ladder-v48.json` (log
   opponent, whose positions were NOT in the patch data
   (the patch used v0/v7/v8/v37 legs, not ladder-MCTS
   legs).
+
+## 10. Verdict — REJECTED (2/4 clauses)
+
+| Clause | Bar | v48 | Result |
+|--------|-----|-----|--------|
+| 1. h2h vs v44 | > 0.50, CI lower > 0.50 | 0.4400, CI [0.3467, 0.5377] (41W-53L-6D) | **FAIL** |
+| 2. Ladder Elo | > 98.1 | −34.9, interval [−141.4, 71.7] | **FAIL** |
+| 3. Tactical | 20/20 + 29/29 | 20/20 + 29/29 | **PASS** |
+| 4. Test suites | all green | pytest 458 passed / 1 skipped / 58 xfailed; npm 55/55; tsc clean | **PASS** |
+
+**v48 is REJECTED.** v44 stays the ML champion; the daily
+cross-track match stays v18 vs v44.
+
+### What v48 established
+
+1. The diagnosis was right. The White collapse is a
+   GENERAL White-side value-head defect (not
+   heuristic-specific): v44's net undervalues White's
+   wins and fails to see White is losing, on all four
+   opponents, worst vs ML opponents. The patch data
+   (all four legs' quiet positions, 2-ply labels) fixed
+   the holdout White gap (pooled −0.008) AND the played
+   White gap on the heuristic legs (White 0.52 vs v0,
+   0.27 vs v7 with White nominally better than Black,
+   0.33 under swap) and improved White vs v37 (0.25 vs
+   v44's 0.16).
+2. The fix was a redistribution, not an improvement.
+   Black-side strength fell by at least as much as
+   White-side strength rose on every leg. Overall rates
+   vs v44 (0.44), v0 (0.545 vs v44's 0.58), v7 (0.265
+   vs 0.45), v37 (0.32 vs 0.31 — level), swap v7 (0.31
+   vs 0.39) are all at or below v44's.
+3. Fifth instance of holdout not predicting played
+   strength (after v31/v38/v42/v43): the holdout White
+   gap closed and the net beat v37's on 6/7 holdouts,
+   yet the played version is weaker than v44.
+4. The fast loop found no patchable class: 15 losses,
+   all via open four, 5 genuine blunders, all
+   shared-horizon / shared-prior / blunder-dilution
+   (CLOSED) — no value-head failure in any blunder.
+5. Method: `eval_value_holdout.py`'s index-inferred
+   side-to-move is wrong on distill shards (attenuates
+   the true White gap by up to ~60%); iter-37/iter-44
+   by-side numbers are unreliable. Diagnosis must use
+   TRUE sides recorded at replay.
+
+### What the next batch should try
+
+- The White fix works but costs Black strength. The
+  open question is whether the cost is the 2-ply labels
+  (v37's recipe) or the data mix: retrain the SAME
+  patch data with 3-ply labels (v44's recipe) and see
+  whether White stays fixed while Black recovers. If
+  3-ply patch data keeps White fixed, the lever is the
+  data; if not, the lever is the label depth.
+- Alternatively, keep v44's net and patch White-side
+  play at the SEARCH level without touching a CLOSED
+  lever — e.g. a White-only value correction learned
+  from the diagnosis cells, applied as a leaf bias.
+  (Untested; the fast loop found no search-side class,
+  so this is speculative.)
+- The ladder MCTS opponent was NOT in the patch data,
+  and ladder White vs mcts was 0.15: any future patch
+  data should include ladder-MCTS legs.
+- Do NOT retry: another 2-ply retrain on this data mix
+  (v48 is that experiment, and it redistributes rather
+  than adds); history dropout (v42/v43 CLOSED);
+  blunder-dilution fixes (v46/v47 CLOSED).
+
+### Checkpoint
+
+`ml/runs/ml5-h1/value-net.pt` (gitignored), md5
+`a8c7a0bcfd749ac774ec9762c829d672`, 126,759 params,
+best epoch 14 (val 0.0841), bit-identical to best.pt.
+Registry: `scoring-v48`, value_weight (α) 0.5.
