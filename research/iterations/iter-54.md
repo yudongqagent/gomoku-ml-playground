@@ -376,9 +376,19 @@ v0 / v7 / ladder-MCTS at dev seeds 1001/2001, via
 `fast_loop_match.py`, sequential, each auto-resuming.
 Rate under contention is ~150 s/game wall-clock
 (load ~3.5 — the champion-change match and sibling
-batch-6 workers share the VM), so the three legs take
-~12 h. Legs are labelled as each completes; training
-starts when all three are labelled.
+batch-6 workers share the VM). Three VM replacements
+so far (17:42, 19:02, 21:02 UTC); each relaunch
+resumed cleanly from the partial JSON (game 64, game
+85, then leg (d) game 55) — zero games lost.
+
+| Leg | Result | White quiet (labelled) |
+|---|---|---|
+| (c) vs v0, dev seeds | 52W-43L-5D (complete) | **2,634** (6,609 plies; expected ~2,500) |
+| (d) vs v7, dev seeds | 27W-26L-2D at game 55 (in progress) | — |
+| (e) vs ladder MCTS, dev seeds | not started | — |
+
+Running patch total: (a)+(b)+(c) = 7,073 White
+positions; expected final total ~10,800.
 
 ### 6.3 Baseline test suites (before training)
 
