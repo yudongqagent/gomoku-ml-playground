@@ -533,6 +533,71 @@ carry no by-side split. **Caveat (standing):
 holdout does not predict played strength — the
 battery is the verdict.**
 
+### 7.4 Diag — the White-side gap is CLOSED and inverted (§3.5)
+
+`diag_white_collapse.py` on v44's four battery legs
+(17,354 quiet positions, TRUE sides), subjects v54
+(2-ply target), v44 (3-ply), v37 (2-ply). Log
+`ml/runs/ml6-h1/diag.log`, JSON
+`ml/runs/ml6-h1/diag-white-collapse.json`. Labelling
+19.8 min (killed once by a VM replacement at 23:03
+UTC; re-run clean).
+
+**Reproduction check:** the v44 subject's cells
+reproduce iter-48 §6.1 EXACTLY (v0 Black 0.7820 /
+White 0.7170, v7 0.7651 / 0.6993, v8 0.7805 / 0.6771,
+v37 0.7562 / 0.6805, overall 0.7344) — the
+generalized `--subject` script and the position set
+are verified against the published diagnosis.
+
+**v54 net vs its 2-ply target (TRUE sides, full planes):**
+
+| Cell | n | sign agreement | no-hist | Pearson r |
+|---|---|---|---|---|
+| v0: Black | 2,580 | 0.7256 | 0.7110 | 0.0751 |
+| v0: White | 2,536 | 0.7627 | 0.7652 | 0.2358 |
+| v7: Black | 2,095 | 0.7450 | 0.7440 | 0.0937 |
+| v7: White | 1,903 | 0.7980 | 0.7986 | 0.2145 |
+| v8: Black | 1,938 | 0.7585 | 0.7515 | 0.0784 |
+| v8: White | 1,815 | 0.7971 | 0.8046 | 0.0666 |
+| v37: Black | 2,357 | 0.7691 | 0.7627 | 0.0739 |
+| v37: White | 2,130 | 0.7777 | 0.7762 | 0.1798 |
+| heuristic-pooled: Black | 4,675 | 0.7344 | 0.7260 | 0.0853 |
+| heuristic-pooled: White | 4,439 | 0.7781 | 0.7798 | 0.2265 |
+| ml-pooled: Black | 4,295 | 0.7642 | 0.7576 | 0.0778 |
+| ml-pooled: White | 3,945 | 0.7868 | 0.7895 | 0.1152 |
+| overall | 17,354 | 0.7649 | 0.7620 | 0.1408 |
+
+The v54 net's White-side accuracy EXCEEDS its
+Black-side accuracy on EVERY opponent (v0 +0.037,
+v7 +0.053, v8 +0.039, v37 +0.009; heuristic-pooled
++0.044, ml-pooled +0.023) — on the exact position
+set where v44's net showed −0.065 / −0.066 /
+−0.103 / −0.076. **The §3.5 diagnostic PASSES
+decisively.** Two readings: (a) the v0/v7 cells are
+partly trained-on (90% of those legs' games are in
+the patch — v54's numbers there closely match
+v48's trained-on row, Black 0.7399 / White 0.7837);
+(b) the v8/v37 cells are FULLY unseen for v54 (no
+ML-opponent positions in the patch) and White still
+beats Black there — the fix generalizes beyond the
+patch distribution. The by-outcome cut reverses
+both halves of v48's defect on the heuristic legs:
+White-WIN 0.726/0.763 vs Black-WIN 0.650/0.688 (v0/v7),
+White-LOSE 0.867/0.849 vs Black-LOSE 0.820/0.812.
+The net is history-robust on these positions too
+(overall no-hist 0.7620 vs full 0.7649).
+
+**Leaf cost** (`ml/runs/ml6-h1/leaf-bench.txt`):
+`bench_value_leaf.py --checkpoint
+ml/runs/ml6-h1/value-net.pt --positions 20
+--leaf-samples 200 --sims 100`: per-move at 100 sims
+mean 2,646 ms / median 2,545 ms / p95 3,904 ms; net
+leaf evals per move mean 81.7 (24–99); per-leaf net
+eval median 1.80 ms. Faster than v48's bench (mean
+4,120 ms under load 7.45) — same architecture; the
+difference is contention.
+
 ### 6.3 Baseline test suites (before training)
 
 Full suite run on this branch (niced, under load ~3.5,
