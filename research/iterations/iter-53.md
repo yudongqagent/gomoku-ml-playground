@@ -1,7 +1,10 @@
 # Iteration 53 — v53: 2-ply rollout leaf on v18/v27 (batch 13, H3)
 
-**Status: PRE-REGISTRATION — §0 and §1 committed BEFORE any eval of
-v53.** This is the H3 workstream of batch 13 (H1 is v51,
+**Status: COMPLETE — v53 is NOT A NEW VERSION** (not a bar
+rejection — the specified leaf IS v27's leaf; the battery was
+vacated per the pre-registered rule). §0 and §1 were committed
+BEFORE any eval of v53; §§2–5 record the mechanism check and
+the verdict. This is the H3 workstream of batch 13 (H1 is v51,
 gradient-preserving backup; H2 is v52, threat-space search); work
 happens on branch `research/batch-13-h3` in the `gomoku-b13-h3`
 worktree, branched from `research/batch-13` @ `ca0a005` (which
@@ -258,4 +261,174 @@ check that the registered engine runs through the eval harness.
 It is run regardless of the differential outcome, before any
 game eval, and v27 is re-verified first on the corrected suite.
 
-*(§§2–5 to follow after the mechanism check.)*
+**Tactical as a wiring check:** v53's tactical run (20/20 +
+29/29 expected under identity) doubles as the end-to-end wiring
+check that the registered engine runs through the eval harness.
+It is run regardless of the differential outcome, before any
+game eval, and v27 is re-verified first on the corrected suite.
+
+## 2. The mechanism check (results)
+
+All three pre-registered checks pass. v53 is behaviourally
+identical to v27.
+
+### 2.1 (a) Leaf-value identity — 2,477/2,477 exact
+
+`tests/test_regression_v53.py::test_v53_leaf_value_identical_to_v27_leaf`:
+`_rollout2ply_search_leaf_value` (fresh from the §1.1 spec) vs
+`_rollout_leaf_value` (v27's leaf), exact float equality, on
+2,477 sampled positions:
+
+| Source | Positions |
+|---|---|
+| Every ply of the first 10 committed v27-vs-v7 battery games (`batch-v27-vs-v7.json`) | 779 |
+| All tactical-suite positions (old 20 + hard 29) | 49 |
+| Seeded random playouts (30 games, seed 53, every 2nd ply) | 1,649 |
+| **Total** | **2,477** |
+
+Value-class coverage of the sample (v27 leaf): 934 exact +1,
+88 exact −1, 187 must-block −0.25, 1,268 gradient values.
+2,079 Black-to-move, 398 White-to-move. **Mismatches: 0.**
+The spec's natural implementation coincides with v27's leaf on
+every sampled position, including terminal, must-block, and
+creator-rich positions — not just quiet ones.
+
+### 2.2 (b) Move-choice identity — 30/30 searches
+
+`test_v53_move_choice_identical_to_v27`: full 100-sim searches,
+v53 vs v27 engines at identical seeds (100–129), on 30
+positions — 10 old tactical, 10 hard tactical, 10 sampled
+midgames (≥10 stones; 21 Black-to-move, 9 White-to-move).
+**Same chosen move on all 30.** Same leaf + same search + same
+RNG consumption ⇒ same move; the chain is identical end to end.
+
+### 2.3 (c) Cost — ratio ~1.0x, ceiling 1.5x
+
+`test_v53_leaf_cost_within_ceiling` (200 quiet midgame
+positions, min-of-3 per position): v53 1.4264 s vs v27 1.4218 s
+total, **ratio 1.003**. A separate bench run with per-leaf
+stats: v53 mean 7.582 ms / median 7.098 ms / p90 9.556 ms vs
+v27 mean 8.397 ms / median 7.655 ms / p90 10.960 ms, ratio of
+means 0.903. Both runs are within VM noise of 1.0x — the
+specified leaf performs the same work as v27's, as §1.2
+predicted — and far below the pre-registered 1.5x ceiling.
+
+### 2.4 Tactical wiring check — identical moves on all 49
+
+v27 re-verified first on the corrected suite at `--seed 100`:
+**20/20 + 29/29** (`research/iterations/tactical-v27-b13.json`).
+v53 at `--seed 100`: **20/20 + 29/29**
+(`research/iterations/tactical-v53-b13.json`). v53 chooses v27's move on **all 49
+positions** — the registered engine runs through the eval
+harness and behaves as v27 throughout, including on
+prev-v1bl-g2 (the v40 visit-allocation failure) and
+prev-v1v0s-g13 (the v47 q-collapse position).
+
+## 3. The battery is vacated (per the pre-registered rule)
+
+§1.3's rule fires: (a), (b), and (c) all pass, so v53 is
+behaviourally identical to v27 and the battery is vacated. No
+100-game legs, no swap leg, and no ladder were run — they would
+re-measure v27 against itself:
+
+* vs v27, 100 games: both engines play the same move in every
+  position at the same seed, so the leg's outcome would be
+  decided by colour assignment and the per-game seeding, not by
+  any property of v53. A win rate of ~0.50 with a CI around it
+  would be a measurement of the harness's colour balance, not
+  of a version.
+* vs v0 and swap vs v27: the same — v53's numbers would be
+  v27's numbers (0.9650 vs v0; 0.7750 swap vs v7 is v27's, not
+  vs-v27), re-measured with different seeds.
+* Ladder: v53's Elo would be v27's 636.4 up to seed noise and
+  draw-count artefacts (batch 12's finding: a single draw swings
+  the top Elo by 123 points). A "pass" or "fail" on clause 2
+  would be draw-count luck.
+
+Running 300+ games (~3–4 hours of VM time at v27's pace) to
+confirm a proven identity would burn the batch's budget for
+numbers that mean nothing. The fast 10-game loop was likewise
+not run: there is no version to loop on, and no losing move of
+v53's could differ from v27's.
+
+## 4. Verdict: NOT A NEW VERSION
+
+v53 as specified is not a new version — it is v27 under a
+different name. This is **not a bar rejection**: the 4-clause
+bar evaluates a version against v27, and there is no version
+here to evaluate. Recording it as REJECTED would misstate the
+finding (a rejection says "this change was tried and lost";
+here there was no change). Per-clause status:
+
+1. **Head-to-head vs v27:** VACATED — v53 ≡ v27, so the leg
+   would measure colour balance, not strength.
+2. **Ladder Elo > 636.4:** VACATED — v53's Elo is v27's 636.4
+   up to seed noise and draw-count artefacts.
+3. **Tactical ≥ 20/20 + 29/29:** HOLDS TRIVIALLY — 20/20 +
+   29/29 at seed 100, identical moves to v27 on all 49
+   positions (§2.4).
+4. **All test suites green:** HOLDS — ml pytest 461 passed, 1
+   skipped, 58 xfailed, 0 failures (12m07s); npm test 55/55;
+   tsc clean. Includes the 4 new v53 differential tests, all
+   passing.
+
+**What changed:** nothing in behaviour. v53's leaf
+(`_rollout2ply_search_leaf_value`, `leaf_mode="rollout2ply_v53"`,
+`ENGINE_VERSIONS[53]`) is a fresh, independent implementation
+of the pre-registered 2-ply rollout spec that coincides with
+v27's leaf everywhere it was sampled (2,477 leaf positions,
+30 searches, 49 tactical positions). It is kept on this branch
+as the durable record of the finding — the differential tests
+pin the identity — and must NOT be merged to master as a new
+version.
+
+**Champions:** unchanged. v27 stays the bar reference (Elo
+636.4); v18 stays the strength champion. No direct-challenge
+match (only for bar-passers). No change to the daily
+cross-track pairing (v18 vs v44).
+
+## 5. What the coordinator should do with H3
+
+The H3 slot's premise — "v18's leaf is 1-ply; 2-ply is
+untested" — is refuted. The depth ladder on the heuristic
+track is now fully priced except one rung:
+
+| Rollout depth (search leaf) | Status |
+|---|---|
+| 1 ply | Rejected (v16: favours the block; the save's value needs our reply) |
+| 2 plies | **v18/v27 — the current best** |
+| 3 plies | **Untested as a search leaf** |
+| 4 plies | Rejected twice (v16: false −1.000 on 3/10 saves; v40: hallucinates a win on a losing safe move) |
+
+Options for the H3 slot, in the order this workstream would
+rank them:
+
+1. **Re-scope H3 to the 3-ply rollout leaf** (3 rollout plies +
+   gradient, ending with the opponent to move, gradient
+   negated). It is the only unpriced rung, and it is the true
+   "between 2 (works) and 4 (hallucinates)" candidate the plan
+   meant to test. Prior against it: the ML track's parity-shift
+   finding (odd-horizon labels systematically optimistic, 3-ply
+   mean +0.1094) and the 4-ply lesson that the weak argmax
+   policy drifts with depth — 3 plies may already drift. Needs
+   its own pre-registration (the parity handling at the rollout
+   end is a design decision, not a detail).
+2. **Close H3 and run batch 13 as two versions** (v51, v52).
+   The H3 hypothesis was empty; there is no obligation to fill
+   the slot.
+3. **Do NOT re-scope H3 to `_rollout2_leaf_value` as a search
+   leaf.** That is the 4-ply effective horizon, refuted twice
+   (§0.2). The ML "2-ply" naming is what caused this
+   workstream's premise failure; reusing it as a search leaf
+   would repeat the confusion with a known-bad depth.
+
+**Durable lesson (for the plan and future taskings):** the ML
+track's label-depth naming counts plies BEFORE the teacher
+leaf, so an "N-ply label" is an (N+2)-ply effective horizon
+(v37's "2-ply" = 4 plies; v44's "3-ply" = 5 plies). Any future
+tasking that ports a label-depth finding to the search leaf
+must state the depth in ONE counting — total rollout plies —
+and check it against `_ROLLOUT_PLIES` and the priced depth
+ladder above before the plan is written. The code read that
+catches this takes minutes; the battery it saves takes hours.
+
