@@ -424,7 +424,53 @@ none.)
 
 ## 2. Fast loop
 
-[To be filled.]
+### 2.1 Iteration 1 (seeds 1051/2051)
+
+- vs v27: **3W-7L-0D (0.3000, CI [0.1078, 0.6032])**,
+  713.2s (~71s/game — v51's search is NOT slower than v27's
+  per move; the game pace is the two-search cost, as for v27
+  vs v27).
+- vs v0: **5W-5L-0D (0.5000, CI [0.2366, 0.7634])**, 393.6s.
+  v51 TIES the baseline v0 that v27 beats 0.965 — the same
+  shape as v47's iteration 1 (5-5 vs v0).
+- Loss classification (`classify_batch_losses.py` on both
+  legs): all 12 losses via open four; **0 missed blocks** (all
+  games); **2 clean missed preventions** in 30 threatened turns
+  (6.7%) on the vs-v27 leg — well above the v27-family range
+  (0.4–1.3%), the tactical prevention failure (§1.4) showing
+  up in real games already at 10 games — and 0 in 32 threatened
+  turns on the vs-v0 leg, where the losses are distributed
+  drift (v51's prior-driven picks in sharp positions are often
+  forcing moves, which count as "preventing" to the classifier,
+  but weak attacks that build no lasting threat — the same
+  manifestation iter-47 §2.1 recorded for v47).
+- No implementation bug found (the §1.4 invariants hold; the
+  behaviour follows from the rule). No patchable weakness class
+  WITHIN the remit: the weakness IS the pre-registered rule
+  (child-level aggregation collapse → prior-driven play in
+  sharp positions, §1.4), and the rule is fixed — the fast loop
+  is defect shake-out only (§1). Iteration 1 is therefore
+  barren for patching purposes; a second iteration runs to
+  confirm the pattern per the two-consecutive-barren-iterations
+  stop rule.
+
+### 2.2 Iteration 2 (seeds 1052/2052)
+
+- vs v27: **3W-7L-0D (0.3000, CI [0.1078, 0.6032])**,
+  364.7s (~36s/game) — identical to iteration 1.
+- vs v0: **4W-6L-0D (0.4000, CI [0.1682, 0.6873])**, 266.2s.
+- Loss classification: all 13 losses via open four; 0 missed
+  blocks; 3 clean missed preventions in 38 threatened turns
+  (7.9%) on the vs-v27 leg and 0 in 33 on the vs-v0 leg. Same
+  pattern as iteration 1.
+- **Fast-loop totals: vs v27 6W-14L-0D (0.3000); vs v0
+  9W-11L-0D (0.4500).** Two consecutive iterations with no
+  patchable weakness class — the loop STOPS per the stop rule.
+  No fast-loop change was made (none is allowed: the rule is
+  pre-registered and fixed; no bug was found). Pooled
+  clean-missed-prevention rate vs v27: 5 in 68 threatened turns
+  (7.4%) — roughly 6x the v27-family range, the §1.4 mechanism
+  visible in games.
 
 ## 3. Battery
 
