@@ -419,3 +419,75 @@ counts as fast-loop iteration 1 vs v44, as in v44/v48).
 battery numbers measured before the fast loop completes
 are INTERMEDIATE, labelled as such; only the final battery
 counts for the bar.
+
+## 4. Data regeneration and labelling (actuals)
+
+**Data pipeline COMPLETE 2026-11-22 ~16:30 PST** (started
+15:09 PST, ~81 min, no interruptions; log
+`ml/runs/ml6-h2/data-pipeline.log`). Driver
+`ml/runs/ml6-h2-data-pipeline.sh` (gitignored run
+artifact); both §1.1 gates PASSED.
+
+### 4.1 Base reconstruction — GATE 1 PASSES (verbatim)
+
+`reconstruct_distill_games.py` over v37's shards
+(`gomoku-ml3-h2/ml/runs/ml3-h2/data/`):
+
+| Source | Games | Plies | vs iter-44 §2 |
+|---|---|---|---|
+| v7 | 488 | 25,277 | exact |
+| v18 | 229 | 11,511 | exact |
+| random | 100 | 11,009 | exact |
+| **Total** | **817** | **47,797** | exact |
+
+**Gate 1 (rollout2 reproduction): 0 mismatches / 37,227
+positions, max |Δ| 0.00e+00** (v7 0/21,595, v18 0/9,932,
+random 0/5,700 — bit-identical values). The reconstruction
+is VERBATIM: v55's base is v48's base exactly, not merely
+in kind. The tasking's "different base games" caveat does
+NOT apply — the v48 comparison is a clean labels-only A/B.
+No fresh games were played (the fallback was not needed).
+
+### 4.2 Patch conversion — GATE 2 PASSES (exact counts)
+
+`convert_battery_to_games.py` over v44's four battery legs
+(ply counts match iter-48 §7.1 exactly: 6,342 / 4,896 /
+4,599 / 5,429). **Gate 2 (quiet counts): 5,116 / 3,998 /
+3,753 / 4,487 — EXACT match with iter-48 §7.1.** The
+labelling reproduces the diagnosis positions.
+
+### 4.3 Labelling (rollout3 everywhere)
+
+`generate_distill_data.py label --label-mode rollout3`
+over all seven games files (game-level holdout every 10th
+game):
+
+| Source | Games | Plies | Quiet positions | ±1 labels | Held-out games |
+|---|---|---|---|---|---|
+| v7 (base) | 488 | 25,277 | 21,595 (19,545 train / 2,050 holdout) | 1,567 (7.3%) | 48 |
+| v18 (base) | 229 | 11,511 | 9,932 (9,142 train / 790 holdout) | 842 (8.5%) | 22 |
+| random (base) | 100 | 11,009 | 5,700 (5,162 train / 538 holdout) | 1,949 (34.2%) | 10 |
+| vs v0 (patch) | 100 | 6,342 | 5,116 (4,546 train / 570 holdout) | 346 (6.8%) | 10 |
+| vs v7 (patch) | 100 | 4,896 | 3,998 (3,677 train / 321 holdout) | 336 (8.4%) | 10 |
+| vs v8 (patch) | 100 | 4,599 | 3,753 (3,186 train / 567 holdout) | 359 (9.6%) | 10 |
+| vs v37 (patch) | 100 | 5,429 | 4,487 (4,194 train / 293 holdout) | 331 (7.4%) | 10 |
+| **Total** | **1,217** | **69,063** | **54,581 (49,452 train / 5,129 holdout)** | **5,730 (10.5%)** | **120** |
+
+Cross-checks: the base ±1 counts match iter-44 §2 exactly
+(1,567 / 842 / 1,949); the patch train/holdout splits
+match iter-48 §7.1 exactly (4,546/570, 3,677/321,
+3,186/567, 4,194/293); **total train 49,452 = v48's exact
+count**. The 3-ply labels are hotter than v48's 2-ply
+labels on the patch legs (±1: 6.8–9.6% vs 5.3–8.0%) — the
+5-ply horizon finds more forced wins, as in iter-44.
+**The parity shift is in the data:** train label means are
+positive on every source (v7 +0.0881, v18 +0.0586, random
++0.2798 — all three EXACTLY iter-44 §2's values; vs-v0
++0.0969, vs-v7 +0.0783, vs-v8 +0.0949, vs-v37 +0.0841);
+fraction positive 0.61–0.77. The net will learn a value
+function centred near +0.10, like v44's — the α sweep
+(§6) is where that shift gets absorbed.
+
+Memmap bundle `ml/runs/ml6-h2/data-mmap/`: 1,097 shards,
+49,452 samples, planes (49452, 8, 15, 15) — identical
+shard/sample counts to v48's bundle.
