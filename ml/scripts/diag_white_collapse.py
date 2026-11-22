@@ -24,6 +24,13 @@ Usage:
         --checkpoint-v44 ml/runs/ml4-h3/value-net.pt \
         --checkpoint-v37 ml/runs/ml3-h2/value-net.pt \
         --out ml/runs/ml5-h1/diag-white-collapse.json
+
+    (ML batch 6, v54): ``--subject NAME:CHECKPOINT:LABEL`` is a
+    general replacement for the two fixed checkpoint flags
+    (``LABEL`` is 2 or 3, the rollout-leaf label depth the net
+    was trained on); it may be repeated. The legacy
+    ``--checkpoint-v44`` / ``--checkpoint-v37`` flags are kept
+    and add subjects ``v44`` (3-ply) / ``v37`` (2-ply).
 """
 
 from __future__ import annotations
@@ -133,10 +140,34 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--leg", required=True, action="append",
                         help="opponent:path to a battery JSON (repeatable)")
-    parser.add_argument("--checkpoint-v44", required=True)
-    parser.add_argument("--checkpoint-v37", required=True)
+    parser.add_argument("--checkpoint-v44", default=None,
+                        help="legacy: adds subject v44 (3-ply target)")
+    parser.add_argument("--checkpoint-v37", default=None,
+                        help="legacy: adds subject v37 (2-ply target)")
+    parser.add_argument("--subject", action="append", default=[],
+                        help="NAME:CHECKPOINT:LABEL (LABEL 2 or 3); "
+                        "repeatable; general replacement for the "
+                        "--checkpoint-v44/--checkpoint-v37 flags")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
+
+    subjects_spec = []
+    if args.checkpoint_v44:
+        subjects_spec.append(("v44", args.checkpoint_v44, 3))
+    if args.checkpoint_v37:
+        subjects_spec.append(("v37", args.checkpoint_v37, 2))
+    for spec in args.subject:
+        try:
+            name, ckpt, label = spec.split(":", 2)
+            label_depth = int(label)
+        except ValueError:
+            parser.error(f"--subject {spec!r}: want NAME:CHECKPOINT:LABEL")
+        if label_depth not in (2, 3):
+            parser.error(f"--subject {spec!r}: LABEL must be 2 or 3")
+        subjects_spec.append((name, ckpt, label_depth))
+    if not subjects_spec:
+        parser.error("no subjects: pass --subject or a legacy "
+                     "--checkpoint-v44/--checkpoint-v37 flag")
 
     torch.set_num_threads(common.torch_threads(2))
     torch.set_num_interop_threads(1)
@@ -172,8 +203,8 @@ def main() -> int:
         "subjects": {},
     }
     subjects = [
-        ("v44", args.checkpoint_v44, label3, "3-ply"),
-        ("v37", args.checkpoint_v37, label2, "2-ply"),
+        (name, ckpt, label2 if depth == 2 else label3, f"{depth}-ply")
+        for name, ckpt, depth in subjects_spec
     ]
     for name, ckpt, targets, label_name in subjects:
         model, _payload = load_model_from_checkpoint(ckpt, device="cpu")
