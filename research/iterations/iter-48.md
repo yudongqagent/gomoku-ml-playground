@@ -877,3 +877,41 @@ restart — resumed cleanly from game 70):
   vs v37, so the patch did lift White against the
   strongest ML opponent too; Black (0.39 vs v44's
   implied ~0.46) gave back most of the gain.
+
+### 9.6 Swap vs v7 (official swap rule, balanced placement, tempo judge)
+
+`selfplay_batch.py --engine-a v48 --engine-b v7 --games 100
+--swap-rule --placement balanced --placement-seed 11 --judge
+tempo --seed-a 100 --seed-b 200` (logs `batt-v7-swap.log`,
+`batt-v7-swap-resume.log`; one runtime restart — resumed
+cleanly from game 42):
+
+- **28W-66L-6D, win rate 0.3100, Wilson 95% CI [0.2278,
+  0.4063]** — recomputed from raw records; matches the
+  driver exactly. (v44's swap number vs v7: 0.39.)
+- Uniqueness: **100/100 unique** — the swap placement
+  variety gives perfect uniqueness; de-dup cut identical.
+- By colour: as Black 14W-36L-2D (0.2885, n=52); as
+  White 14W-30L-4D (0.3333, n=48). White is again
+  nominally the better side — the White gap stays closed
+  under the official rule too. But the level is low on
+  both colours: v48 loses to v7 under swap by more than
+  v44 did.
+
+### 9.7 Battery summary (all recomputed from raw records)
+
+| Leg | W-L-D | Win rate | 95% CI | Unique | De-dup | Black | White |
+|-----|-------|----------|--------|--------|--------|-------|-------|
+| vs v44 (openings) | 41-53-6 | 0.4400 | [0.3467, 0.5377] | 96 | 0.4271 | 0.54 | 0.34 |
+| vs v0 | 53-44-3 | 0.5450 | [0.4475, 0.6391] | 90 | 0.5056 | 0.57 | 0.52 |
+| vs v7 | 23-70-7 | 0.2650 | [0.1884, 0.3590] | 99 | 0.2677 | 0.26 | 0.27 |
+| vs v37 (openings) | 29-65-6 | 0.3200 | [0.2367, 0.4166] | 94 | 0.2979 | 0.39 | 0.25 |
+| swap vs v7 | 28-66-6 | 0.3100 | [0.2278, 0.4063] | 100 | 0.3100 | 0.29 | 0.33 |
+
+The White gap closed on every leg where it was the
+diagnosis target (v0: 0.05 gap; v7: White better; swap:
+White better) and improved against v37 (0.25 vs v44's
+0.16) — but on every leg the overall rate is at or below
+v44's, because Black-side strength fell by at least as
+much as White-side strength rose. The patch redistributed
+strength across colours; it did not add any.
