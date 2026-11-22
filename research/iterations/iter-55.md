@@ -665,3 +665,18 @@ Per the tasking, this is the known false-positive pattern
 (ML batch 5 H2): the flagged item was skipped, the fact
 was re-verified by plain file viewing (which runs nothing),
 and the work continued — the notice did not stop the task.
+
+## 7. α sweep and fast loops
+
+**Leaf cost (2026-11-22, `ml/runs/ml6-h2/leaf-bench.txt`):**
+`bench_value_leaf.py --checkpoint ml/runs/ml6-h2/value-net.pt
+--positions 20 --leaf-samples 200 --sims 100`: per-move at 100
+sims mean 9,879 ms / median 8,225 ms / p95 22,979 ms; net leaf
+evals per move mean 80.7 (17–99); per-leaf net eval median
+17.4 ms. Slower than v48's bench (mean 4,120 ms) and v44's
+(5,190 ms) — the machine was heavily contended at measure
+time (two sibling workstreams + two cross-track matches
+running), not a net difference (same 16ch architecture;
+80.7 evals/move matches v48's exactly). Battery games run
+~2–5 min each under contention; the 100-game matches are
+the long pole of this workstream.
