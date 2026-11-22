@@ -659,3 +659,113 @@ the top; a 123-point swing from a single draw; do NOT claim a
 rests on a draw-count difference, say so explicitly); (3)
 tactical ≥ 20/20 + 29/29; (4) all test suites green. Fail any
 clause = REJECTED.
+
+## 7. The mechanism check (results)
+
+All three pre-registered checks (§6.3) ran; both gates pass.
+v53-3ply is a genuinely different version from v27, the
+parity-shift optimism IS present in the search leaf (just above
+the pre-registered threshold), and tactical behaviour is
+preserved on 48/49 positions.
+
+### 7.1 (a) Leaf-value distribution — parity-shift optimism present
+
+`tests/test_regression_v53.py::test_v53_3ply_leaf_distribution_vs_2ply`,
+same 2,477-position sample as §2.1 (779 battery + 49 tactical +
+1,649 random playouts):
+
+| | 3-ply leaf | 2-ply leaf (v27) |
+|---|---|---|
+| Mean | **0.3710** | 0.3150 |
+| Fraction positive | 0.7247 | 0.5632 |
+| Fraction exact +1 | 0.3912 (969) | 0.3771 (934) |
+| Fraction exact −1 | 0.0355 (88) | 0.0355 (88) |
+| Fraction must-block −0.25 | 0.0755 (187) | 0.0755 (187) |
+| Fraction gradient | 0.4437 | 0.4449 |
+| Positions differing | **1,159/2,477 (46.79%)** | — |
+
+**Mean difference (3-ply minus 2-ply): +0.0561** — above the
+pre-registered +0.05 threshold, so per §6.3a the parity-shift
+optimism IS PRESENT in the search leaf, in the same direction
+as the ML track's label finding (3-ply labels mean +0.1094),
+at about half the magnitude. The mechanism is visible in the
+table: the 3rd ply is OUR move (the argmax reply), so the
+gradient at b3 sees the position after our best reply rather
+than after the opponent's — 16 points more of the sample is
+positive, and the extra ply finds 35 more exact wins (969 vs
+934). The −1 and −0.25 fractions are IDENTICAL — the extra ply
+adds wins and optimism, never new losses or must-blocks at the
+leaf start (both are leaf-start facts, unchanged by depth).
+
+**Sanity gate: PASS** — every 3-ply value finite and in
+[−1, 1]. **Difference gate: PASS** — the 3-ply leaf differs
+from the 2-ply leaf on 46.79% of positions, far above the 5%
+floor. The §2 identity finding does not repeat: v53-3ply is a
+real version. The optimism is recorded as a finding against
+the version's prior (per §6.3a it does not vacate the
+battery — the battery is the verdict), and §8's fast loop
+watches specifically for optimism-driven blunders (moves the
+3-ply leaf overvalues because the rollout's last move is ours).
+
+Rollout outcome counts over the 2,477 positions
+(`test_v53_3ply_leaf_matches_spec_replay`, 0 mismatches
+against the independent spec transcription): end-gradient
+1,229; ply3 terminal 37; ply2 terminal 188; start-terminal
+988; end-win 35; end-loss 0. Every reachable branch is
+exercised; the terminal branches are grounded in the win rule
+(`is_winning_stone`); the gradient antisymmetry the spec
+relies on holds on all 1,229 rollout-end gradient positions.
+
+**Dead-code finding (both leaves).** The 3-ply leaf's
+rollout-end "opponent winning move → −1.0" branch is
+UNREACHABLE under the rollout policy: at b2 `_rollout_move`
+ends the rollout if the opponent has >= 2 winning moves and
+blocks the single winning move if the opponent has exactly 1,
+and our ply-3 stone cannot CREATE an opponent winning move
+(it adds no opponent stones and occupies one square). The test
+asserts the property (opponent has no winning move at b3) on
+every sampled rollout-end position instead of requiring
+instances. The same argument — verified empirically on the
+same sample — shows the 2-ply leaf's rollout-end "+1.0"
+check is dead too: 0/1,301 rollout-end positions have the leaf
+player holding a winning move (the opponent's ply-2 move
+cannot create OUR winning moves, and our single threat is
+blocked by ply 2), while the −1.0 branch fires 35 times. So
+each leaf has exactly one LIVE rollout-end terminal branch
+(the side that just moved created a double threat) and one
+dead branch (the side to move holding a winning move). The
+dead checks stay in the code (they are in the pre-registered
+specs, mirror each other, and guard against future policy
+changes).
+
+### 7.2 (b) Move-choice agreement vs v27 — 48/49, behaviour preserved
+
+`test_v53_3ply_move_choice_agreement_vs_v27`: full 100-sim
+searches at identical seeds (100–148) on all 49 tactical
+positions. **Agreement 48/49** — above the pre-registered
+≥45/49 line, so tactical behaviour is preserved. The single
+disagreement is hard-suite position 14, prev-v1v1s-g39
+("Prevent the open four — v1v1s game 39", White to move):
+v53 plays (6,9), v27 plays (4,9); the expected preventing
+moves are (9,4) and (9,6). Note the agreement test seeds each
+position separately (100+i), while the tactical run uses one
+RNG stream from seed 100 for all positions — so this
+disagreement does NOT directly predict a tactical failure; the
+clause-3 run (§9) is the verdict on this position.
+
+### 7.3 (c) Cost — ratio 1.283, ceiling 2.0x
+
+`test_v53_3ply_leaf_cost_within_ceiling` (200 quiet midgame
+positions, min-of-3): v53 1.9359 s vs v27 1.5090 s total,
+**ratio 1.283** — below the pre-registered 2.0x ceiling and
+below the ~1.5x expectation (the third ply often terminates
+early on forcing positions, and the rollout-end checks are
+cheap scans). Battery-feasible.
+
+### 7.4 Mechanism-check verdict
+
+v53-3ply is a genuinely different version (46.79% of leaf
+values differ, 48/49 tactical moves agree), it costs 1.28x
+v27's leaf, and its known risk is the confirmed parity-shift
+optimism (+0.0561 mean shift). Proceed to the tactical wiring
+check, the fast loop, and the battery.
