@@ -343,8 +343,118 @@ number: α alone cannot reproduce v44's Elo gain.
 
 ## 6. Ladder
 
-(TODO)
+`ladder-v50.json` (40 games/opponent, seed 100, mcts_sims=100,
+complete=true):
+
+| Opponent | W-L-D | Rate | 95% CI | Black | White |
+|---|---|---|---|---|---|
+| random | 40-0-0 | 1.0000 | [0.9124, 1.0000] | 20-0-0 | 20-0-0 |
+| heuristic | 18-21-1 | 0.4625 | [0.3182, 0.6134] | 15-5-0 | 3-16-1 |
+| mcts | 23-17-0 | 0.5750 | [0.4219, 0.7149] | 12-8-0 | 11-9-0 |
+
+**Ladder Elo: −26.1, interval [−132.4, 80.2]** (anchors
+random=−800, heuristic=0; the estimate comes from the
+heuristic leg, as usual — the mcts leg is reported but does
+not enter the Elo).
+
+The heuristic leg is the White collapse in its sharpest form:
+v50-as-Black 0.75 (15W-5L-0D) vs v50-as-White 0.175
+(3W-16L-1D) against the SAME frozen baseline heuristic. The
+mcts leg shows no such split (Black 0.60, White 0.55), so the
+collapse is opponent-dependent — it bites against heuristic
+opponents, not against searchers. (v48 / H1 is diagnosing
+exactly this in this batch.)
+
+Comparison: v44's ladder was random 40-0-0, heuristic
+24W-13L-3D (0.6375; Black 0.675, White 0.60), mcts 25W-15L-0D
+(0.625) → Elo 98.1 [−12.1, 208.2]. v50's Elo (−26.1) sits
+next to v37's (−34.9, 20-game legs), not v44's — and even the
+top of v50's interval (80.2) is below the 98.1 bar. The
+ladder survived the sixth runtime restart (killed mid-mcts
+leg; resumed from the mcts leg, random + heuristic marked
+"(resumed)").
 
 ## 7. Verdict per clause + the ablation finding
 
-(TODO)
+**v50 is REJECTED, 3/4 clauses passed.**
+
+| Clause | Bar | v50 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v44 (100 games) | > 0.50, CI lower > 0.50 | 0.6500, CI [0.5525, 0.7364] | **PASS** |
+| 2. Ladder Elo | > 98.1 | −26.1 [−132.4, 80.2] | **FAIL** |
+| 3. Tactical | 20/20 + 29/29 | 20/20 + 29/29 | **PASS** |
+| 4. Test suites | all green | pytest 459 passed / 1 skipped / 58 xfailed; npm 55/55; tsc clean | **PASS** |
+
+### The ablation finding
+
+v50 plays at **v37's level, not v44's** — on every measure:
+
+| Measure | v37 | v50 | v44 |
+|---|---|---|---|
+| vs v44 (100 games) | 0.69 | 0.65 | — |
+| Ladder Elo | −34.9 | −26.1 | 98.1 |
+| vs v0 | 0.585 | 0.475 | 0.580 |
+| vs v7 | 0.450 | 0.425 | 0.450 |
+| swap vs v7 | 0.440 | 0.425 | 0.390 |
+| vs ladder mcts (40 games) | — | 0.575 | 0.625 |
+| Mirror vs v37 | — | 0.51 | — |
+
+The mirror match is the cleanest single number: the same
+checkpoint at α=0.125 vs α=0.25 is 48W-46L-6D (0.51, CI
+[0.4135, 0.6058]) — statistically indistinguishable. Cooling α
+does NOT by itself change the 2-ply net's played strength,
+and against heuristic opponents it costs a little (vs v0
+0.475 vs v37's 0.585, vs v7 0.425 vs 0.450 — CIs overlap, so
+"costs a little" is the weak read; "does nothing" is the
+strong read, and the mirror supports the strong read).
+
+Per the pre-registered decision rule (§1.2), the verdict is
+the **labels branch: v44's Elo gain came from its 3-ply
+labels, not from the lower α.** The α lever is CLOSED for the
+2-ply net: α=0.125 vs α=0.25 is a null result, measured
+directly. What remains open is the label-depth lever — v49
+(H2, 4-ply labels) is testing whether it continues past
+3-ply, and the odd-horizon parity shift (3-ply labels
+systematically optimistic, mean +0.1094) is the thing to
+watch there.
+
+### What the next batch should try
+
+1. **The White collapse vs heuristic opponents is now the
+   top ML-track problem, sharpened by v50.** v50-as-White:
+   0.175 vs the ladder heuristic, 0.30 vs v0, 0.31 vs v7 —
+   but 0.44 in the mirror and 0.55 vs the ladder mcts. The
+   collapse is opponent-dependent, not a general White
+   weakness: the 2-ply net's White play specifically fails
+   against heuristic (non-searching) opponents. v48's
+   diagnosis (H1, this batch) is the input; the next batch
+   should test a targeted fix (e.g. White-side training
+   positions weighted toward heuristic-opponent games, or a
+   White-specific α / value correction) rather than another
+   global lever.
+2. **Do not retry α tuning on the 2-ply net** — the mirror
+   shows it is a null lever at this scale. If α is revisited,
+   it should be on a 3-ply (or deeper) net, where the
+   interaction with label depth is untested.
+3. **Label depth remains the live lever** (1-ply 0.515/Elo
+   52.5, 2-ply 0.75/−34.9, 3-ply 0.67/98.1 — depth helps
+   once, then parity dominates). v49's 4-ply result decides
+   whether it continues; if 4-ply also stalls, the next
+   lever is the label *quality* (teacher strength / parity
+   correction), not more depth.
+
+### Durability notes
+
+- Six runtime restarts across this version's battery (at 38
+  games in the vs-v44 leg, 73 in vs-v7, 5 in swap, 21 and 70
+  in the mirror, mid-mcts-leg in the ladder). Every resume
+  was clean — zero games lost, zero seed changes. The
+  auto-resume + per-game-seeding machinery is proven under
+  fire.
+- The coordinator-flagged execution-risk security notice
+  (H2's session) never recurred in this session.
+- No new checkpoint: v50 reuses v37's checkpoint
+  (`ml/runs/ml3-h2/value-net.pt`, md5
+  `2fde492aae6d44cbe945e15bd5f1f959`); the only code change
+  is the registry entry (`value_weight: 0.125`) plus two
+  targeted tests.
