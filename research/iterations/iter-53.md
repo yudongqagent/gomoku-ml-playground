@@ -1,6 +1,9 @@
 # Iteration 53 — v53: 3-ply rollout leaf on v18/v27 (batch 13, H3)
 
-**Status: IN PROGRESS — re-scoped to the 3-ply rollout leaf.**
+**Status: COMPLETE — v53 (3-ply rollout leaf) REJECTED 3/4.**
+Beats v27 head-to-head 0.6400 (CI [0.5424, 0.7273]) and passes
+tactical and the suites, but ladder Elo 511.5 < v27's 636.4
+(clause 2 fails on the point estimate). See §§9–10.
 v53 was originally specified as a 2-ply rollout leaf; §§0–5
 record that work and its finding (COMPLETE: the specified 2-ply
 leaf IS v27's leaf — NOT A NEW VERSION, battery vacated per the
@@ -848,3 +851,236 @@ no v53-specific defect; defence solved; proceed to the
 battery. (The 8-1-1 fast-loop score is a small-sample signal
 only — n=10, CI [0.54, 0.96]; the 100-game battery is the
 verdict.)
+
+## 9. Full battery
+
+Seeds per §6.4: battery 100/200, ladder seed 100 (40
+games/opponent), swap placement-seed 11 with the tempo judge,
+tactical seed 100. All legs run from the repo root with
+`ml/scripts/...` paths so `--out research/iterations/...`
+lands in the canonical location. Every aggregate below was
+recomputed from the raw per-game records (A win =
+`winner_is_a` True; draws = `winner == 'draw'`; Wilson 95%
+CIs) and matches the stored script summaries exactly. The
+chain survived FIVE runtime restarts (VM replacements) across
+the battery; per-game seeding + auto-resume lost nothing —
+every leg resumed from its partial `--out` file and the
+completed legs were detected and skipped on relaunch. All
+three batch-13 workstreams ran concurrently on the ~1.5-CPU
+VM, so wall times are ~3–4x the uncontended pace.
+
+### 9.1 vs v27, normal rules (the clause-1 leg)
+
+**60W-32L-8D, win rate 0.6400, 95% CI [0.5424, 0.7273]**
+in 2661.3s of final-segment wall time (the leg spanned three
+restarts). Colour splits: as Black 37W-10L-3D (0.7700, CI
+[0.6367, 0.8648]); as White 23W-22L-5D (0.5100, CI [0.3758,
+0.6428]). The edge is Black-driven: v53-as-Black beats
+v27-as-White decisively, while v53-as-White is dead even
+against v27-as-Black. All 8 draws were 225-ply maximal draws
+(games 4, 6, 13, 32, 67, 71, 79, 95). Uniqueness: 89/100
+distinct games; de-dup cut 52W-29L-8D, 0.6292, CI [0.5255,
+0.7223] — the clause-1 call stands on the de-dup cut too.
+Artefact: `research/iterations/batch-v53-vs-v27.json`.
+
+Loss classification (`classify_losses.py`, artefact
+`research/iterations/losses-v53-vs-v27.json`): **32 losses,
+32 via open four, 0 missed blocks, 1 clean missed prevention
+in 161 threatened turns** — defence stays solved. The single
+missed prevention: game 91 (v53 as White, 21 plies), at ply
+17 v53 played (4,8) while Black held 1 open-four creator and
+a safe alternative existed. One instance in 161 threatened
+turns (0.6%) is not a defect class — v27's own rate is not
+zero either, and no patch was made (the design is frozen;
+§6.1). Losses by colour: 22 as White, 10 as Black —
+consistent with the colour split.
+
+### 9.2 vs v0, normal rules
+
+**98W-2L-0D, win rate 0.9800, 95% CI [0.9300, 0.9945]**
+in 2408.6s. Colour splits: as Black 48W-2L-0D (0.9600, CI
+[0.8654, 0.9890]); as White 50W-0L-0D (1.0000, CI [0.9286,
+1.0000]). Uniqueness: 31/100 distinct games — the known
+vs-v0 determinism collapse, worse here than v45's 40/100;
+de-dup cut 30W-1L-0D, 0.9677, CI [0.8381, 0.9943].
+Artefact: `research/iterations/batch-v53-vs-v0.json`.
+
+Loss classification (artefact
+`research/iterations/losses-v53-vs-v0.json`): **2 losses,
+2 via open four, 0 missed blocks, 0 clean missed preventions
+in 12 threatened turns** — defence solved. The two losses
+are ONE distinct line: battery games 0 and 94 are the
+identical 44-ply sequence (v53 as Black). v53's 0.9800 vs
+v0 is better than v27's 0.9650 over the same 100 games —
+but see §9.4: the ladder's 40-game leg is a cold sample
+that happened to contain both losses, and the ladder Elo
+is computed from that leg alone.
+
+### 9.3 Swap vs v27 (secondary metric)
+
+**58W-38L-4D, win rate 0.6000, 95% CI [0.5020, 0.6906]**
+in 3623.0s. Colour splits: as Black 32W-18L-2D (0.6346, CI
+[0.4987, 0.7520]); as White 26W-20L-2D (0.5625, CI [0.4227,
+0.6930]). All 4 draws were 225-ply maximal (games 17, 20,
+56, 83). Uniqueness: 98/100 distinct; de-dup cut 57W-37L-4D,
+0.6020, CI [0.5030, 0.6933]. Artefact:
+`research/iterations/batch-v53-vs-v27-swap.json`.
+
+Loss classification (artefact
+`research/iterations/losses-v53-vs-v27-swap.json`): **38
+losses, 38 via open four, 0 missed blocks, 0 clean missed
+preventions in 201 threatened turns** — defence solved.
+
+Reading: v53's edge holds under the official swap rule,
+though smaller than under normal rules (0.60 vs 0.64) and
+with the CI lower bound only just above 0.50 (0.5020).
+Under swap the colour split is more balanced (Black 0.63,
+White 0.56) than under normal rules (Black 0.77, White
+0.51) — the tempo judge's colour choice neutralises part
+of the Black advantage that carries the normal-rules edge.
+The swap leg is a secondary metric, not a clause; it is
+recorded here for comparability with v27's 0.7750 swap
+result vs v7 (a different opponent — not directly
+comparable).
+
+### 9.4 Ladder (clause 2)
+
+40 games/opponent, seed 100, mcts_sims 100. Artefact:
+`research/iterations/ladder-v53.json` (complete: true).
+Tactical inside the ladder run: 20/20 (re-confirmed).
+
+- vs random: **40W-0L-0D** (1.0000, CI [0.9124, 1.0000];
+  as Black 20W-0L-0D, as White 20W-0L-0D).
+- vs heuristic (v0): **38W-2L-0D** (0.9500, CI [0.8350,
+  0.9862]; as Black 18W-2L-0D, as White 20W-0L-0D).
+- vs mcts: **35W-5L-0D** (0.8750, CI [0.7389, 0.9454];
+  as Black 18W-2L-0D, as White 17W-3L-0D) — v53 beats the
+  ladder MCTS outright, where v27's leg was 13W-7L-0D
+  (0.6500) over 20 games.
+
+**Ladder Elo: 511.5, interval [281.6, 741.4].**
+
+Why 511.5 and not above 636.4: the Elo estimate is driven
+entirely by the heuristic leg (the random leg is 40-0, no
+finite estimate; the mcts leg does not enter the anchored
+estimate). v27's 636.4 comes from a 19W-0L-1D (0.975)
+heuristic leg over 20 games (`ladder-v27.json`); v53's
+511.5 comes from a 38W-2L-0D (0.95) leg over 40 games.
+The two losses to v0 as Black in the ladder leg — where
+v27 drew once and lost never — cost ~125 Elo. This is the
+batch-12 draw-count sensitivity in reverse (v45's 759.1
+came from 39-0-1 vs v27's 38-0-2): at the top of the
+ladder, a single game's outcome swings the point estimate
+by ~60–125 points. The intervals overlap heavily (v53
+[281.6, 741.4] vs v27 [240.3, 1032.5]) — the Elo gap is
+not statistically established — but the pre-registered
+rule is the point estimate, and it decides the clause
+(the same rule that passed v44 at 98.1 with an interval
+including 0, and failed v37 at −34.9). No confirmatory
+re-run was made: re-running the ladder at another seed to
+hunt for a pass would be p-hacking. The coordinator may
+re-run for information, but the pre-registered verdict
+stands on this run.
+
+The paradox to record honestly: v53 beats v27 head-to-head
+0.64 with a CI clear of 0.50, beats the ladder MCTS 35-5,
+and beats v0 0.98 over 100 games (better than v27's
+0.9650) — yet posts a lower ladder Elo, because the Elo
+anchor is a single 40-game leg against the weakest
+opponent, and that leg happened to contain both of v53's
+v0 losses (both as Black, both via open four, no defensive
+miss). The ladder Elo at the top is a noisy single-leg
+statistic; this is the third verdict in the program to
+turn on it (v37, v44, v53).
+
+Interpretation (labelled as such, not verified): the
+3-ply leaf's parity-shift optimism (§7: mean +0.0561,
+fraction positive 0.72 vs 0.56) biases move choice toward
+attacking lines. Against v27 that pays — especially as
+Black (0.77), where the extra ply finds attacking
+continuations the 2-ply leaf undervalues. Against v0 as
+Black it costs tempo in positions v27's more conservative
+leaf draws: v0's crude greedy play punishes over-optimism
+that a stronger opponent's play does not. The v0 losses
+are open-four races lost, not defensive blunders — the
+optimism shows up as lost races, not missed blocks.
+
+### 9.5 Tactical (clause 3) and suites (clause 4)
+
+Tactical, seed 100 (see §7 for the full record): v27
+re-verified 20/20 + 29/29 first (byte-identical to the
+first worker's artifact), then v53 **20/20 + 29/29**.
+Artefacts: `research/iterations/tactical-v27-b13.json`,
+`tactical-v53-b13.json`. The ladder run re-confirmed 20/20
+on the old suite.
+
+Test suites (run 2026-11-22, alongside the battery):
+ml pytest **465 passed, 1 skipped, 58 xfailed, 0 failures**
+in 38m57s (4 more passed than the first worker's 461 =
+the 4 new 3-ply tests); npm test **55/55**; **tsc clean**.
+`npm ci` exit 0. The v8 checkpoint was copied into the
+worktree before pytest, per the brief.
+
+## 10. Verdict: REJECTED 3/4
+
+| Clause | Bar | v53 | Result |
+|---|---|---|---|
+| 1. h2h vs v27 (≥100 games) | win rate > 0.50, Wilson 95% CI lower > 0.50 | 60W-32L-8D, 0.6400, CI [0.5424, 0.7273]; de-dup 0.6292, CI [0.5255, 0.7223] | **PASS** |
+| 2. Ladder Elo | > 636.4 (v27) | 511.5, interval [281.6, 741.4] | **FAIL** |
+| 3. Tactical | ≥ 20/20 + 29/29 | 20/20 + 29/29 (seed 100) | **PASS** |
+| 4. Test suites | all green | pytest 465/1/58, npm 55/55, tsc clean | **PASS** |
+
+**v53 is REJECTED.** It passes clauses 1, 3, and 4 and
+fails clause 2 on the ladder-Elo point estimate. No
+challenge match vs v18 was run (the champion rule
+requires all 4 clauses to pass first).
+
+What v53 establishes:
+
+1. **The 3-ply rollout leaf is a real improvement over
+   the 2-ply leaf against an equal opponent.** 0.6400 vs
+   v27 with a CI clear of 0.50, standing on the de-dup
+   cut (0.6292, CI lower 0.5255), and 0.6000 under swap
+   rules. The depth ladder's only unpriced rung is now
+   priced: 1 ply REJECTED (v16), 2 plies = v18/v27,
+   **3 plies beats v27 head-to-head but does not pass
+   the bar**, 4 plies REJECTED twice (v16, v40). The
+   3-ply depth lever is CLOSED as a bar-passer in this
+   form — the parity-shift optimism that wins games
+   against v27 costs games against the weak anchor.
+2. **The parity shift is real in the search leaf and it
+   cuts both ways.** §7 measured +0.0561 mean optimism
+   (fraction positive 0.72 vs 0.56). Against v27 the
+   optimism pays (Black 0.77); against v0 as Black it
+   loses two open-four races v27 draws. The ML track's
+   parity finding (odd horizons systematically
+   optimistic) generalises to the search leaf, with the
+   same sign and about half the magnitude — and the same
+   consequence: the extra ply's information is worth
+   less than the optimism it introduces, once the
+   opponent is weak enough to punish it.
+3. **The ladder Elo at the top is a 2-game statistic.**
+   v53's clause-2 failure turns on two losses in a
+   40-game leg against the weakest opponent — the same
+   leg in which v53's 100-game record is 98-2. Any
+   future version whose h2h and ladder disagree this
+   way should be read with the leg composition
+   alongside, as the batch-12 finding requires.
+4. **Defence stays solved throughout.** 72 battery
+   losses across the three legs (32 + 2 + 38), 72 via
+   open four, 0 missed blocks, 1 clean missed
+   prevention in 374 threatened turns. The 3-ply leaf
+   introduces no defensive regression.
+
+What is NOT established: whether v53 is stronger than
+v18 (no challenge match — not earned), whether the
+h2h edge over v27 would survive a second battery at
+other seeds (no confirmatory re-run — the pre-registered
+battery is the verdict), and whether a de-biased 3-ply
+leaf (parity correction on the rollout-end gradient)
+would pass the bar — that is a different version, not
+this one, and the parity-correction direction is
+untested. The dead-code finding (§7: each leaf has
+exactly one live rollout-end terminal branch) and the
+shared rollout-policy hallucination (§8.3) remain open
+observations for future work.
