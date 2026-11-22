@@ -997,3 +997,29 @@ resumes were clean.
   head-to-head (0.475). The ML-track cycle is now: v37 >
   v44 (0.69), v44 > v49 (0.525), v49 ≈ v37 (0.495).
   No single ranking of the three distilled nets is honest.
+
+### 6.6 Swap vs v7 (secondary) — COMPLETE 2026-11-22 ~02:30 UTC
+
+`selfplay_batch.py --engine-a v49 --engine-b v7 --games 100
+--swap-rule --placement balanced --placement-seed 11 --judge
+tempo --seed-a 100 --seed-b 200` (log
+`ml/runs/ml5-h2/batt-swap.log`; JSON
+`research/iterations/batch-v49-vs-v7-swap.json`). One VM
+replacement interrupted the leg (at 7 games); the resume was
+clean.
+
+- **45W-48L-7D, win rate 0.4850, Wilson 95% CI [0.3894,
+  0.5817]** — v49 holds v7 essentially even under the official
+  swap rule too, the best ML swap number yet (v44 0.39, v37
+  0.44, v42 0.35, v43 0.385). Uniqueness: **100/100** —
+  every game distinct.
+- Colour splits: v49 as Black 22W-26L-4D (0.4615, n=52), as
+  White 23W-22L-3D (0.5104, n=48) — White BETTER than Black
+  under swap, the only leg where that happens. Black won 44,
+  White won 49: the swap rule more than equalised the colours
+  (vs 49–44 in the normal-rules leg), as designed.
+- The chooser took Black in 88/100 games — the tempo judge
+  overwhelmingly favours Black on the balanced placements,
+  identical to v44's swap leg. That is a property of the
+  shared swap machinery (both engines use the same judge when
+  choosing), not of v49.
