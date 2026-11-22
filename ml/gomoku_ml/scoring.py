@@ -576,6 +576,22 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout3ply_v53", "tie_break_q": True,
          "tie_break_q_threshold": 0.05},
+    # v55 (iteration 55, ML batch 6): H2 — v8's PUCT MCTS with the
+    # value net distilled from v18's rollout leaf evaluated 3 plies
+    # ahead (_rollout3_leaf_value, v44's recipe) on v48's data mix:
+    # v37's 37,227 quiet positions (reconstructed verbatim from
+    # v37's shards — see research/iterations/iter-55.md §0–§1.1)
+    # PLUS the 17,354 quiet positions from v44's four battery legs
+    # (v48's patch cells, re-labelled 3-ply). Tests whether v48's
+    # cost was the label depth or the data mix. Search, priors,
+    # sims, threat check, terminal cases: v8/v44 unchanged, so the
+    # battery is a clean A/B of the label depth on the patch mix.
+    # Version 54 is the parallel ML batch 6 H1 workstream's (v54),
+    # 56 is H3's (v56).
+    55: {"name": "scoring-v55", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml6-h2/value-net.pt",
+         "value_weight": 0.25},  # placeholder until the §1.4 sweep sets it
 }
 
 # --- weights --------------------------------------------------------------
