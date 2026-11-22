@@ -543,6 +543,24 @@ search near-deterministic too, so the same White loss replays
 game after game. The White collapse vs the greedy baseline is
 v51's worst single result: even v47-as-White beat v0 0.86.
 
+**Leg 3 — vs v27, swap rules (secondary): 37W-57L-6D,
+win rate 0.4000, CI [0.3094, 0.4980]**
+(`research/iterations/batch-v51-vs-v27-swap.json`; resumed
+twice, from games 37 and 89, after two runtime restarts;
+resumed run 996.6s). Better than the normal-rules leg
+(0.3150 → 0.4000) — swap removes the colour edge v51-as-White
+suffered — but still decisively below 0.50: the CI upper bound
+is 0.4980. Uniqueness is clean here: 100/100 unique (the
+balanced placements give variety the mirror match lacked), so
+the de-dup cut is identical to the raw count. As Black
+24W-25L-3D (0.4904); as White 13W-32L-3D (0.3021) — the White
+gap persists under swap (muted vs normal rules: White 0.19 →
+0.30), consistent with the fast-loop finding that v51's
+prevention failures are concentrated in White's defence. The
+swap leg's five 225-ply draws (and the normal leg's seven) are
+all full-board grinds; they inflate wall time but not the win
+rate.
+
 ## 4. Verdict
 
 [To be filled.]
