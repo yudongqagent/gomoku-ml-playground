@@ -474,7 +474,20 @@ none.)
 
 ## 3. Battery
 
-[To be filled.]
+### 3.1 Tactical — clause 3 FAILS (21/29 hard)
+
+v27 re-verified first on the corrected suite: 20/20 + 29/29
+(`research/iterations/tactical-v27-reverify.json`). v51:
+**20/20 old, 21/29 hard** (`research/iterations/tactical-v51.json`,
+seed 100). All 8 failures are PREVENTION positions — the EXACT
+same 8 as v47 (iter-47 §3.1): prev-v1v0s-g13, prev-v2v0-g0,
+prev-v2v0-g2, prev-v2v1s-g12, prev-v1v0s-g26, prev-v1v0s-g48,
+prev-v1v1s-g79, prev-v1bl-g2. All setup / winning / VCF positions
+pass. The §1.4 prediction (tactical fails on the prevention
+positions much as v47's did) is confirmed exactly — the soft-min
+and the minimax are indistinguishable on the tactical suite,
+because at 100 sims both degenerate to a single child's value on
+the positions that matter.
 
 ## 4. Verdict
 
