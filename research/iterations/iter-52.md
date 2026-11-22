@@ -555,7 +555,11 @@ narrows the Black/White gap vs the normal leg (0.78/0.44), and
 v52 wins as White under swap (0.54) where it lost as White
 under normal rules (0.44). The swap result corroborates the
 normal-rules verdict: v52 is genuinely stronger than v27, not
-an artefact of the first-move advantage.
+an artefact of the first-move advantage. Defence audit: all 33
+losses via open four, 0 missed blocks, 1 clean missed
+prevention in 174 threatened turns in losses (0.6%) — the only
+missed prevention in v52's entire battery (71 losses: 38 vs
+v27 + 33 swap + 0 vs v0, all via open four, 0 missed blocks).
 
 ### Ladder (40 games/opponent)
 
@@ -581,6 +585,24 @@ anchor-leg score 1.0 exceeds v27's 0.975) but the Elo number
 itself is uninformative — the ladder cannot distinguish HOW
 far above 636.4 v52 sits, only that it saturates. The ladder's
 own tactical probe: 20/20 (old suite).
+
+### Challenge vs v18 (strength champion), 100 games, normal rules
+
+**v52 61W-36L-3D, win rate 0.6250, Wilson 95% CI [0.5271,
+0.7136]** — `research/iterations/challenge-v52-vs-v18.json`
+(recomputed; matches the script summary). De-dup: 94/100
+unique, 56W-35L-3D, rate 0.6117, CI [0.5106, 0.7040] — the
+challenge passes on BOTH cuts (unlike clause 1, whose de-dup
+cut fails by 0.0005). Per-colour: Black 38W-11L-1D (0.77),
+White 23W-25L-2D (0.48). Defence audit: all 36 losses via open
+four, 0 missed blocks, 0 missed preventions.
+
+Champion rule v2 requires the direct challenge (CI lower >
+0.50) AND Elo above 636.4. Both hold: CI lower 0.5271 > 0.50
+(0.5106 on the de-dup cut) and the ladder Elo is unbounded
+(saturated). **v52 takes the strength champion title from
+v18** — subject to the parent's adjudication of the borderline
+clause-1 pass that qualified it for the challenge (see §6).
 
 ### Tactical
 
@@ -626,10 +648,39 @@ ml pytest: 478 passed, 1 skipped, 58 xfailed, 0 failures
 (`research/iterations/pytest-full.log`). npm test: 55/55.
 tsc: clean.
 
-### Overall: [TBD — pending clause 2 and the swap leg]
+### Overall: v52 PASSES all 4 clauses (borderline on two counts)
 
-If clause 2 passes, v52 passes the bar (on the nominal clause-1
-rule) and earns a direct challenge vs v18 (100 games, CI lower
-> 0.50 and Elo above 636.4 for the strength champion title).
-The clause-1 de-dup caveat (0.4995) must travel with any pass
-claim.
+On the pre-registered rules as written, v52 passes every
+clause — the fourth version ever to do so (after v7, v27, v29
+on the heuristic track; v44 on the ML track). But the pass is
+borderline on TWO independent counts, and both must travel with
+any pass claim:
+
+1. **Clause 1's de-dup cut fails by 0.0005** (CI [0.4995,
+   0.6928] on 95 unique games). The nominal 100-game rule
+   passes (0.5120), but no past clause-1 call has failed the
+   de-dup cut. A confirmatory 100-game re-run at fresh seeds
+   would settle whether v52 genuinely beats v27.
+2. **Clause 2 rests on a draw-count difference** (ladder
+   heuristic leg 40–0–0 vs v27's 38–0–2). The Elo is unbounded
+   (saturated ladder) but the interval lower bound (407.0) is
+   below 636.4.
+
+The corroborating evidence is strong: the swap leg (0.6550, CI
+[0.5577, 0.7409], 100/100 unique) confirms v52 beats v27 under
+the official rule; Check B (5/5 verified differs) confirms the
+mechanism finds real forcing wins in real games; and the direct
+challenge vs v18 passes on BOTH cuts (nominal CI lower 0.5271,
+de-dup 0.5106). The challenge result is the strongest single
+piece of evidence for v52: it beats the strength champion by a
+margin that survives de-duplication.
+
+**Champion status: v52 takes the strength champion title from
+v18** (direct challenge 61–36–3, CI lower 0.5271 > 0.50, Elo
+unbounded > 636.4), and becomes the new bar reference
+(replacing v27) — subject to the parent's adjudication of the
+clause-1 de-dup caveat. If the parent applies the de-dup
+standard to clause 1, v52 is REJECTED and v18 keeps the title;
+the challenge result stands as evidence either way. The daily
+cross-track match should switch to v52 vs v44 if the title is
+confirmed.
