@@ -1,15 +1,25 @@
-# Iteration 53 — v53: 2-ply rollout leaf on v18/v27 (batch 13, H3)
+# Iteration 53 — v53: 3-ply rollout leaf on v18/v27 (batch 13, H3)
 
-**Status: COMPLETE — v53 is NOT A NEW VERSION** (not a bar
-rejection — the specified leaf IS v27's leaf; the battery was
-vacated per the pre-registered rule). §0 and §1 were committed
-BEFORE any eval of v53; §§2–5 record the mechanism check and
-the verdict. This is the H3 workstream of batch 13 (H1 is v51,
-gradient-preserving backup; H2 is v52, threat-space search); work
-happens on branch `research/batch-13-h3` in the `gomoku-b13-h3`
-worktree, branched from `research/batch-13` @ `ca0a005` (which
-includes the batch-13 plan). Comparison target is v27 (the
-batch-13 bar reference: ladder Elo 636.4, on master).
+**Status: IN PROGRESS — re-scoped to the 3-ply rollout leaf.**
+v53 was originally specified as a 2-ply rollout leaf; §§0–5
+record that work and its finding (COMPLETE: the specified 2-ply
+leaf IS v27's leaf — NOT A NEW VERSION, battery vacated per the
+pre-registered §1.3 rule). Per §5 option 1 the coordinator
+re-scoped H3 to the only unpriced rung of the depth ladder: the
+3-ply rollout leaf (3 rollout plies + gradient, ending with the
+opponent to move, gradient negated). §6 pre-registers the
+3-ply spec, the parity handling, the cost budget, and the
+mechanism check BEFORE any eval of the 3-ply leaf; §§7+
+record the mechanism check, the fast loop, the battery, and
+the verdict. §§0–5 stay as written — the 2-ply identity
+finding is part of this version's history, and the 2-ply
+differential tests stay as regression tests pinning it. This is
+the H3 workstream of batch 13 (H1 is v51, gradient-preserving
+backup; H2 is v52, threat-space search); work happens on branch
+`research/batch-13-h3` in the `gomoku-b13-h3` worktree,
+branched from `research/batch-13` @ `ca0a005` (which includes
+the batch-13 plan). Comparison target is v27 (the batch-13 bar
+reference: ladder Elo 636.4, on master).
 
 **§0 records a premise failure found by code-reading BEFORE any
 eval: v18/v27's leaf is ALREADY a 2-ply rollout leaf.** The
@@ -432,3 +442,220 @@ and check it against `_ROLLOUT_PLIES` and the priced depth
 ladder above before the plan is written. The code read that
 catches this takes minutes; the battery it saves takes hours.
 
+
+## 6. Re-scope: v53 is the 3-ply rollout leaf (pre-registration)
+
+**Committed BEFORE any eval of the 3-ply leaf.** §6 was
+written and committed before the 3-ply implementation existed,
+so the spec, the parity handling, the cost budget, and the
+mechanism check's pass/fail criteria are fixed before any
+number from the 3-ply leaf is seen.
+
+### 6.0 Why 3 plies
+
+The depth ladder on the heuristic track (§0.2, §5) is fully
+priced except one rung, in TOTAL ROLLOUT PLIES (the only
+counting used in this section — the ML track's label-depth
+naming counts plies BEFORE the teacher leaf, so an "N-ply
+label" is an (N+2)-ply effective horizon; v37's "2-ply" = 4
+plies, v44's "3-ply" = 5 plies — neither is this leaf):
+
+| Rollout depth (search leaf) | Status |
+|---|---|
+| 1 ply | Rejected (v16: favours the block; the save's value needs our reply) |
+| 2 plies | **v18/v27 — the current best** |
+| 3 plies | **Untested as a search leaf — this version** |
+| 4 plies | Rejected twice (v16: false −1.000 on 3/10 saves; v40: hallucinates a win on a losing safe move) |
+
+v53 (re-scoped) = v27 + a 3-ply rollout leaf: the true
+"between 2 (works) and 4 (hallucinates)" candidate the plan
+meant to test. **Prior against it, recorded honestly:** the ML
+track's parity-shift finding (ML batch 5: odd-horizon labels
+are systematically optimistic — 3-ply labels mean +0.1094 vs
+2-ply ~−0.06) and the 4-ply lesson that the weak argmax policy
+drifts with depth — 3 plies may already drift. The mechanism
+check (§6.3a) tests directly whether the parity-shift optimism
+appears in the search leaf.
+
+**Not built:** `_rollout2_leaf_value` as a search leaf — that
+is the refuted 4-ply effective horizon (§0.3 reading 2, §5
+option 3).
+
+### 6.1 The leaf, exactly (pre-registered)
+
+At a leaf, with `player` to move on `board`:
+
+1. **Terminal check at the leaf start** (v7's convention, as in
+   `_rollout_leaf_value` and §1.1 step 1): if
+   `_terminal_leaf_value(board, player)` is non-zero (a
+   win/loss, or a must-block at −0.25), return it. The
+   must-block at the START is a fact about the real position
+   and keeps its exact −0.25.
+2. **Rollout ply 1** (`player` to move): `m1, term1 =
+   _rollout_move(board, player)`. If `term1` is not None, the
+   game ends on this ply: return `term1` (from `player`'s
+   perspective).
+3. **Rollout ply 2** (the opponent to move): `m2, term2 =
+   _rollout_move(board+m1, -player)`. If `term2` is not None,
+   return `−term2` (`term2` is from the opponent's perspective;
+   negated to `player`'s).
+4. **Rollout ply 3** (`player` to move again): `m3, term3 =
+   _rollout_move(board+m1+m2, player)`. If `term3` is not None,
+   return `term3` (from `player`'s perspective — ply 3 is
+   `player`'s ply). This is `_rollout_leaf_value`'s in-rollout
+   sign convention extended by one ply: `term` if the ply index
+   is even (0, 2), `−term` if odd (1).
+5. **Rollout end** (the OPPONENT to move on `board+m1+m2+m3`):
+   only wins/losses are terminal — if the opponent (side to
+   move) has a winning move, return −1.0; if `player` has >= 2
+   winning moves, return +1.0. A must-block here (`player`
+   holds exactly one winning move, which the opponent to move
+   must block) is NOT an exact −0.25: it is gradient-evaluated
+   (iter-16 §2.1: a rollout-end must-block is a prediction
+   under the rollout policy, not a fact — the same convention
+   as the 2-ply leaf's rollout end). Otherwise return the
+   symmetric v1 gradient at the resulting position, computed
+   from the side-to-move's (opponent's) perspective and
+   NEGATED to `player`'s perspective:
+   `−_attack_gradient_v1(b3, −player)`. The board is not
+   mutated (the rollout plays on copies).
+
+**Parity handling at the rollout end (the design decision,
+stated explicitly, not a detail):** after an ODD number of
+rollout plies the side to move at the rollout end is the
+opponent, so the rollout-end value must be computed from the
+opponent's perspective and negated to the leaf player's
+perspective — for BOTH the terminal checks and the gradient.
+This is the mirror image of the 2-ply leaf, where the rollout
+end has the leaf player to move and no negation is needed. For
+the gradient the negation is transparent by construction:
+`_attack_gradient_v1` is antisymmetric under colour swap, so
+`−_attack_gradient_v1(b3, −player)` EQUALS
+`_attack_gradient_v1(b3, player)`; the implementation uses the
+explicit negated form so the parity handling is visible in the
+code, and a test asserts the two forms agree on the sampled
+positions. For the terminal checks the negation is NOT
+transparent — it flips which side's winning move is +1 — so
+the checks in step 5 are written out in full (opponent winning
+move → −1.0; our double threat → +1.0) and tested with
+positions that exercise each branch.
+
+**Rollout policy** (held fixed — the depth is the variable, the
+policy is not): `_rollout_move` exactly as it stands — win if
+possible; block a single opponent winning move (forced); an own
+open-four creation (own v1 attack >= OPEN_FOUR) wins the argmax;
+else the argmax over empty cells of the player's v1 total score
+(own v1 attack + opponent's v1 attack at the square), ties by
+lowest flat index, deterministic. This is the teacher's own
+policy — the same policy the ML label-depth finding used — and
+reusing it isolates depth as the only change.
+
+**What is NOT changed:** no blend (v19's blend was rejected and
+is not part of v27); no VCF check at the leaf or root (v35
+CLOSED VCF-prevention for the v27 family); no tie-break, prior,
+sims, or root-rule change (all CLOSED); `baseline.py` stays
+FROZEN. Everything else is v27 unchanged: 100 sims, c_puct 1.5,
+v1 priors over all candidates, win/block scans before search,
+most-visited root child, threshold τ=0.05 on the q gap.
+
+### 6.2 Cost budget (pre-registered)
+
+The 3-ply leaf does 3 rollout plies instead of 2 (each ply a
+`_winning_moves` scan pair plus a possible `attack_v1_both`
+call) plus the rollout-end terminal checks, so the expected
+cost ratio vs v27's 2-ply leaf is **~1.5x**. **Pre-registered
+ceiling: mean leaf cost ≤ 2.0x v27's on the bench** (200 quiet
+midgame positions — the same bench as §1.2/§2.3 — each leaf
+timed individually, min-of-3 per position to cut VM noise).
+The ceiling sits above the expected 1.5x with headroom for VM
+noise, and at the v40 precedent's level (4-ply ~2x/leaf was
+battery-feasible, though the version was rejected on strength).
+The cost is measured FIRST on the bench, before any eval: if
+the ratio exceeds 2.0x, the implementation is re-examined
+before any eval.
+
+### 6.3 Mechanism check (pre-registered — criteria stated BEFORE running)
+
+Same >= 2000-position sample as §1.3 (every ply of the first
+10 committed v27-vs-v7 battery games, all 49 tactical-suite
+positions, seeded random playouts to reach the count — seed 53,
+both colours to move, terminal/must-block/creator-rich
+positions included, not just quiet ones).
+
+* **(a) Leaf-value distribution vs the 2-ply leaf.** Report for
+  EACH leaf (3-ply and 2-ply, same positions): mean, fraction
+  positive, fraction exact +1, fraction exact −1, fraction
+  must-block −0.25, fraction gradient. The parity-shift
+  question: does the ML track's odd-horizon optimism appear in
+  the search leaf? **Pre-registered interpretation:** if
+  mean(3-ply) − mean(2-ply) > +0.05 (half the ML track's
+  +0.1094 shift, same direction), the optimism is PRESENT in
+  the search leaf — recorded as a finding against the
+  version's prior, NOT a battery-vacating condition (the
+  battery is the verdict). If the difference is ≤ +0.05, the
+  parity shift does not carry over to the search leaf at this
+  depth.
+  * **Sanity gate (BLOCKS eval):** every 3-ply leaf value
+    finite and in [−1, 1]. Any NaN, inf, or out-of-range value
+    is an implementation bug — fix before any eval.
+  * **Difference gate (BLOCKS eval):** the 3-ply leaf must
+    DIFFER from the 2-ply leaf on > 5% of sampled positions. A
+    3-ply rollout cannot coincide with a 2-ply rollout on
+    forcing positions (the 3rd ply can win) or on quiet
+    positions (the gradient is evaluated at a different board).
+    Agreement everywhere would mean the implementation is not
+    actually rolling out 3 plies — re-examine before any eval.
+    (This is the anti-repeat of the §2 identity finding:
+    v53-3ply must be a genuinely different version.)
+* **(b) Move-choice agreement vs v27 on the tactical suite
+  positions.** Full 100-sim searches, v53 (3-ply) vs v27 at
+  identical seeds (100–148), on all 49 tactical positions (old
+  20 + hard 29). Report the agreement count. **Pre-registered
+  interpretation:** ≥45/49 = tactical behaviour preserved (the
+  leaf change does not disturb forcing positions — a good sign
+  for clause 3); <45/49 = tactical behaviour changed — clause
+  3 at risk, watch the suite run. This is characterisation,
+  not a gate — the clause-3 tactical run is the verdict on
+  tactical behaviour.
+* **(c) Cost** per §6.2 (ceiling 2.0x, expected ~1.5x).
+
+**Tactical as a wiring check:** as in §1.3 — v27 re-verified
+first on the corrected suite at `--seed 100`, then v53 (3-ply)
+at `--seed 100`, before any game eval. The v53 tactical run
+doubles as clause 3.
+
+### 6.4 Eval seeds and the bar (pre-registered)
+
+* Battery h2h vs v27: v53=100 / v27=200; vs v0: v53=100 /
+  v0=200. Swap vs v27: 100 games, balanced placement,
+  placement_seed 11, tempo judge, seeds 100/200.
+* Ladder: seed 100, 40 games/opponent, mcts_sims=100
+  (`ml/scripts/eval_version.py --version 53 --ladder-games 40
+  --out research/iterations/ladder-v53.json` — the auto-resume
+  driver; every ladder JSON is a committed artifact).
+* Tactical: `eval_tactical_full.py --version 53 --suite both
+  --seed 100`. v27's tactical is re-verified first on the
+  corrected suite.
+* Challenge match (ONLY if v53 passes all 4 clauses): 100
+  games vs v18, seeds 100/200, normal rules.
+* Fast-loop dev seeds: 1053/2053 (vs v0), 1054/2054 (vs v27)
+  — distinct from the battery's 100/200 and from batch-11/12
+  loop seeds.
+* All match drivers auto-resume from partial `--out` files —
+  if a run is killed, relaunch the SAME command. Per-game
+  seeding (`seed + game_index`) with a uniqueness audit on
+  every leg; report distinct-game counts and de-dup rates for
+  every leg. Recompute every aggregate from the raw per-game
+  records (A win = winner_is_a is True; draws = winner ==
+  'draw') and recompute the Wilson 95% CIs; report the
+  recomputed numbers, not just the script summaries.
+
+**The bar (reference v27, Elo 636.4):** (1) h2h vs v27 ≥100
+games, win rate > 0.50 with Wilson 95% CI lower bound > 0.50;
+(2) ladder Elo > 636.4 — read with the leg composition
+alongside (batch 12 finding: Elo is draw-count sensitive at
+the top; a 123-point swing from a single draw; do NOT claim a
+"highest Elo ever" from a single draw; if a clause-2 pass
+rests on a draw-count difference, say so explicitly); (3)
+tactical ≥ 20/20 + 29/29; (4) all test suites green. Fail any
+clause = REJECTED.
