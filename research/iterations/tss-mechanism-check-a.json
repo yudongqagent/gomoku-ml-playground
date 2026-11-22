@@ -1,0 +1,163 @@
+{
+  "positions": 7,
+  "tss_correct": 7,
+  "criterion": "tss_correct >= 6",
+  "check_a_pass": true,
+  "mcts_miss_constructed": 0,
+  "mcts_miss_criterion": ">= 1 on T1-T4",
+  "results": [
+    {
+      "id": "tss-double-three-black",
+      "to_move": "black",
+      "expected": [
+        [
+          6,
+          6
+        ]
+      ],
+      "tss_move": [
+        6,
+        6
+      ],
+      "tss_correct": true,
+      "v27_move": [
+        6,
+        6
+      ],
+      "v27_correct": true,
+      "mcts_miss": false
+    },
+    {
+      "id": "tss-double-three-white",
+      "to_move": "white",
+      "expected": [
+        [
+          6,
+          6
+        ]
+      ],
+      "tss_move": [
+        6,
+        6
+      ],
+      "tss_correct": true,
+      "v27_move": [
+        6,
+        6
+      ],
+      "v27_correct": true,
+      "mcts_miss": false
+    },
+    {
+      "id": "tss-three-sequence-black",
+      "to_move": "black",
+      "expected": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          8,
+          9
+        ],
+        [
+          8,
+          7
+        ]
+      ],
+      "tss_move": [
+        8,
+        7
+      ],
+      "tss_correct": true,
+      "v27_move": [
+        8,
+        7
+      ],
+      "v27_correct": true,
+      "mcts_miss": false
+    },
+    {
+      "id": "tss-three-sequence-white",
+      "to_move": "white",
+      "expected": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          8,
+          9
+        ],
+        [
+          8,
+          7
+        ]
+      ],
+      "tss_move": [
+        8,
+        7
+      ],
+      "tss_correct": true,
+      "v27_move": [
+        8,
+        7
+      ],
+      "v27_correct": true,
+      "mcts_miss": false
+    },
+    {
+      "id": "tss-counter-four-refutation",
+      "to_move": "black",
+      "expected": [],
+      "tss_move": null,
+      "tss_correct": true,
+      "v27_move": [
+        10,
+        11
+      ],
+      "v27_correct": false,
+      "mcts_miss": true
+    },
+    {
+      "id": "vcf-1",
+      "to_move": "black",
+      "expected": "vcf",
+      "tss_move": [
+        8,
+        3
+      ],
+      "tss_correct": true,
+      "v27_move": [
+        8,
+        3
+      ],
+      "v27_correct": true,
+      "mcts_miss": false
+    },
+    {
+      "id": "vcf-two-four-sequence",
+      "to_move": "black",
+      "expected": "vcf",
+      "tss_move": [
+        9,
+        6
+      ],
+      "tss_correct": true,
+      "v27_move": [
+        9,
+        6
+      ],
+      "v27_correct": true,
+      "mcts_miss": false
+    }
+  ]
+}

@@ -542,6 +542,21 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
          "tie_break_q_threshold": 0.05, "backup_rule": "softmax-opp",
          "softmax_beta": 2.0},
+    # v52 (iteration 52, batch 13): H2 — v27 (v18's 2-ply rollout
+    # leaf both colours + the q-gap threshold tie-break τ=0.05) PLUS
+    # threat-space search at the root (gomoku_ml.mcts_heuristic
+    # tss_winning_move): before the MCTS, a forcing win by
+    # consecutive forcing moves (four-creators + true-open-three-
+    # creators, max 4 attacker moves, deterministic node budget)
+    # is played immediately; otherwise the engine is exactly v27.
+    # Offensive only — no defensive prevention check (VCF-
+    # prevention for the v27 family is CLOSED). See
+    # research/iterations/iter-52.md §1 for the pre-registered
+    # design (move set, depth, budget, mechanism check).
+    52: {"name": "scoring-v52", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05, "tss_root": True},
     # v53 (iteration 53, batch 13): H3 — v27 + a 3-ply rollout leaf
     # (RE-SCOPED per research/iterations/iter-53.md §6; the
     # original 2-ply spec is recorded in iter-53 §§0-5 — v18/v27's
@@ -1187,6 +1202,7 @@ class ScoringPlayer:
                         "root_decision", "visits"
                     ),
                     vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
+                    tss_root=ENGINE_VERSIONS[version].get("tss_root", False),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(

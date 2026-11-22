@@ -1165,6 +1165,480 @@ def _rollout3_leaf_value(board: np.ndarray, player: int) -> float:
     return -_rollout_leaf_value(b3, -player)
 
 
+# --- v52 threat-space search (batch 13, H2) -------------------------------
+# Threat-space search (Allis's TSS): search ONLY forcing moves to a
+# deeper horizon than the 100-sim MCTS, and play the winning forcing
+# sequence if one exists. A genuinely new mechanism, distinct from
+# v29's VCF-at-root (which searches only fours — a VCF sequence is a
+# TSS sequence in which every attacker move is a four-creator) and
+# from the MCTS (which searches all moves). By restricting the move
+# set to forcing moves, TSS searches much deeper than the MCTS and
+# finds deep forcing wins the MCTS can't see. Pre-registered design:
+# research/iterations/iter-52.md §1.
+#
+# ATTACKER MOVE SET (forcing moves only), enumerated by
+# :func:`_forcing_sets` — two kernel calls, one per class, because
+# each kernel is blind to the other's patterns (v0's contiguous-run
+# scoring is blind to broken fours; v1's window-based open_ends
+# misses some true open threes):
+# * four-creating moves — v1 prefilter (>= 20000) + a local exact
+#   test, verified 0-mismatch against
+#   :func:`gomoku_ml.evaluate.four_creating_moves` in test_tss.py;
+# * true-open-three-creating moves — v0 attack >= 1000, minus
+#   four-creators, verified against a brute-force run-scan oracle
+#   in test_tss.py. Gap-three creators are
+#   EXCLUDED (pre-registered): a gap three is killed by occupying
+#   the gap, so it rarely forces; including them would multiply the
+#   branching for near-zero win rate.
+# Double threats are NOT a separate move class: a move creating >= 2
+# threats is in the union (each threat is a four or an open three);
+# the search detects them by counting threats after the move.
+#
+# DEFENDER REPLIES (exact — every reply must lose for the attacker
+# to win):
+# * after a four (exactly 1 winning square): the block is the ONLY
+#   reply (anything else loses at once);
+# * after open three(s): replies are the squares blocking ALL of the
+#   attacker's open threes (recomputed from the resulting board —
+#   the batch-11 non-monotonicity lesson: full re-check after every
+#   move) UNION the defender's four-creating moves (counter-threats:
+#   a counter-four forces the attacker to block instead of
+#   converting). If the reply set is empty, the attacker wins
+#   (double threat, no defence). Defender open-three creators are
+#   NOT replies: they do not stop the attacker converting the
+#   standing threat next move (open three -> open four -> win), so
+#   they cannot refute a line.
+# * after a defender counter-four: the attacker's reply is the forced
+#   block (>= 2 defender winning moves refutes the line).
+# An immediate winning move IS a forcing win and is checked first
+# (standing fact: it is a VCF start but not necessarily a
+# four-creator — the fast test checks winning moves first).
+#
+# DEPTH: TSS_DEPTH attacker forcing moves (pre-registered). Forced
+# blocks after defender counter-fours do not consume depth (they are
+# replies, not forcing moves) — so the NODE BUDGET is the termination
+# guarantee for counter-four loops (each iteration adds 2 stones, but
+# the budget caps the total work deterministically). On budget
+# exhaustion the search aborts and returns None (fall through to the
+# MCTS) — never a partial answer.
+#
+# LIMITATION (pre-registered): every attacker move in a sequence must
+# be forcing, except forced blocks after defender counter-fours.
+# Sequences needing a quiet defensive interlude are out of scope —
+# that is what the MCTS is for. TSS is OFFENSIVE only: there is no
+# defensive prevention check (VCF-prevention for the v27 family is
+# CLOSED — v29/v33/v35/v45); if the opponent holds a forcing win,
+# the MCTS handles it as v27 does.
+
+_TSS_DIRECTIONS = ((0, 1), (1, 0), (1, 1), (1, -1))
+
+# Max attacker forcing moves in a TSS sequence (pre-registered,
+# iter-52 §1). VCF uses depth 3 (after the first move); TSS at 4
+# attacker moves with open-three threats reaches ~7-8 plies,
+# genuinely beyond the MCTS + 2-ply-rollout horizon (~4-6 plies).
+TSS_DEPTH = 4
+
+# Max TSS nodes per root call (pre-registered, iter-52 §1.4 — set
+# from the cost bench: the creator-rich p99 node count is 2763, so
+# 3000 binds only on ~1% of positions (the extreme tail, max 12916
+# nodes) and caps the worst-case move time at ~6s uncontended
+# (~10s contended) instead of the observed 53s max. The plan's
+# p99-time-under-1s criterion is NOT met (p99 time is ~5s
+# uncontended — the per-node cost is ~2ms, dominated by kernel
+# calls): a budget low enough for p99 < 1s (~500 nodes) would abort
+# a quarter of all searches and gut the mechanism, so the budget
+# bounds the tail instead of the median. Deterministic (a node
+# count, not a wall clock), so resumed runs reproduce exactly.
+TSS_NODE_BUDGET = 3000
+
+
+class _TSSBudgetExceeded(Exception):
+    """Internal: the TSS node budget is exhausted — abort the search."""
+
+
+class _TSSBudget:
+    """Deterministic node budget for one TSS root call."""
+
+    __slots__ = ("limit", "used")
+
+    def __init__(self, limit: int) -> None:
+        self.limit = limit
+        self.used = 0
+
+    def tick(self) -> None:
+        self.used += 1
+        if self.used > self.limit:
+            raise _TSSBudgetExceeded
+
+
+def _winning_moves_through(
+    board: np.ndarray, player: int, move: int
+) -> list[int]:
+    """Winning moves for ``player`` on the 4 lines through ``move``
+    (within distance 4 — a winning move completing a five that
+    includes ``move`` is one of the five's cells). The local version
+    of :func:`gomoku_ml.scoring._winning_moves`: TSS uses it wherever
+    the winning moves must involve the just-played stone (no
+    pre-existing winning move — every caller establishes that), which
+    is ~3x cheaper than the full near-empty scan (and skips the
+    ``_near_empty`` call entirely). Verified against the full scan in
+    ``ml/tests/test_tss.py``."""
+    out: list[int] = []
+    y, x = move // game.SIZE, move % game.SIZE
+    for dy, dx in _TSS_DIRECTIONS:
+        for k in range(-4, 5):
+            yy, xx = y + k * dy, x + k * dx
+            if (
+                0 <= yy < game.SIZE
+                and 0 <= xx < game.SIZE
+                and board[yy, xx] == game.EMPTY
+            ):
+                m = yy * game.SIZE + xx
+                if game.is_winning_move(board, m, player):
+                    out.append(m)
+    return out
+
+
+def _forcing_sets(
+    board: np.ndarray, player: int
+) -> tuple[set[int], list[int], np.ndarray]:
+    """The TSS forcing-move enumeration: ``(fours, threes, a1)`` —
+    the four-creator set, the true-open-three-creator list, and the
+    flat v1 attack array (for move ordering in :func:`_tss_win`).
+    Two kernel calls, one per class — each kernel is blind to the
+    other's patterns, so neither alone suffices:
+
+    * fours via the V1 kernel: a four-creator scores v1 attack >=
+      20000 in the direction of the four (a window with 4 friendly
+      stones scores FOUR or OPEN_FOUR — see
+      :func:`gomoku_ml.scoring._score_from_counts`), INCLUDING
+      broken-four creators (XX_XX), which the v0 kernel's
+      contiguous-run scoring is BLIND to (a broken-four creator's
+      v0 score is ~100-200 — the run is split by the gap). The
+      prefilter can only ADD non-creators (e.g. double-open-three
+      creators score 58000) — it cannot drop a creator — so the
+      local exact test (:func:`_winning_moves_through` — the
+      winning moves after the move must involve it) makes the set
+      exact.
+    * threes via the V0 kernel: a move's v0 attack score is >= 1000
+      iff it creates a four, a true open three, or a win (the (3,2)
+      weight is 1000; no combination of sub-1000 per-direction
+      values reaches 1000 — the largest is 100; see
+      :data:`gomoku_ml.baseline._WEIGHTS`). Minus the four-creators
+      (exact set above), the >= 1000 cells are exactly the
+      open-three creators. The v0 kernel — NOT v1 — is the right
+      instrument here: v1's window-based ``open_ends`` counts the
+      cells just OUTSIDE the 5-window, so v1 scores a genuine open
+      three as a mere THREE (400) when the cells two out from the
+      run are occupied (found: an open-three creator with v1 attack
+      405, v0 1021).
+
+    Precondition: ``player`` holds NO winning move on ``board``
+    (every TSS caller checks first — a winning move is returned
+    before any enumeration). Without it the local test would miss
+    pre-existing winning moves.
+    """
+    black1, white1 = kernel_v1.attack_v1_both(board)
+    a1 = black1 if player == game.BLACK else white1
+    empty = board == game.EMPTY
+    fours: set[int] = set()
+    for m in np.flatnonzero(empty & (a1 >= scoring.FOUR)):
+        m = int(m)
+        b2 = game.apply_move(board, m, player)
+        if _winning_moves_through(b2, player, m):
+            fours.add(m)
+    a0 = kernel_numpy.attack_all(board, player)
+    threes = [
+        int(m)
+        for m in np.flatnonzero(empty & (a0 >= _GRADIENT_STRONG))
+        if int(m) not in fours
+    ]
+    return fours, threes, a1.reshape(-1)
+
+
+def _four_creating_moves_fast(board: np.ndarray, player: int) -> list[int]:
+    """Moves by which ``player`` CREATES a four (after the move they
+    have a winning move, and they had none before). A v1 kernel
+    prefilter (>= 20000 — catches broken fours, which v0 is blind
+    to) plus a local exact test per candidate (see
+    :func:`_forcing_sets`). Verified 0-mismatch against
+    :func:`gomoku_ml.evaluate.four_creating_moves` in
+    ``ml/tests/test_tss.py``.
+
+    Contract note vs :func:`gomoku_ml.evaluate.four_creating_moves`:
+    that function returns every near move when ``player`` ALREADY
+    holds a winning move (its test is "a winning move exists after
+    the move", which a pre-existing four satisfies for any move).
+    This function returns only genuine creators. TSS never
+    enumerates in the pre-existing case — every caller checks for a
+    winning move first — so the two agree everywhere TSS looks."""
+    fours, _threes, _a1 = _forcing_sets(board, player)
+    return sorted(fours)
+
+
+def open_three_creating_moves(board: np.ndarray, player: int) -> list[int]:
+    """Moves creating a TRUE open three (_XXX_, contiguous, both ends
+    empty) for ``player``. The v0 kernel's >= 1000 cells minus the
+    four-creators (see :func:`_forcing_sets`). Verified against a
+    brute-force run-scan oracle in ``ml/tests/test_tss.py``.
+
+    The v0 kernel — NOT v1 — is the right instrument here, and the
+    oracle test caught why: v1's window-based ``open_ends`` counts
+    the cells just OUTSIDE the 5-window, so v1 scores a genuine open
+    three as a mere THREE (400) when the cells two out from the run
+    are occupied (found: an open-three creator with v1 attack 405,
+    v0 1021). v1 is blind to such threes (a pre-existing v1 property
+    — its priors undervalue those moves); v0's run-based scoring sees
+    the run directly."""
+    _fours, threes, _a1 = _forcing_sets(board, player)
+    return sorted(threes)
+
+
+def _all_open_threes(board: np.ndarray, player: int) -> list[frozenset[int]]:
+    """Every true open three ``player`` holds on ``board``, each as
+    the frozenset of its two open-end squares. A maximal contiguous
+    run of exactly 3 friendly stones with both flanking cells
+    on-board and empty. Each run is found once (from its start
+    cell)."""
+    threes: list[frozenset[int]] = []
+    for y, x in zip(*((board == player).nonzero())):
+        y, x = int(y), int(x)
+        for dy, dx in _TSS_DIRECTIONS:
+            py, px = y - dy, x - dx
+            if (
+                0 <= py < game.SIZE
+                and 0 <= px < game.SIZE
+                and board[py, px] == player
+            ):
+                continue  # not the run start
+            length = 1
+            ey, ex = y + dy, x + dx
+            while (
+                0 <= ey < game.SIZE
+                and 0 <= ex < game.SIZE
+                and board[ey, ex] == player
+            ):
+                length += 1
+                ey += dy
+                ex += dx
+            if length != 3:
+                continue
+            # (ey, ex) is the cell just past the run's far end;
+            # (py, px) the cell just before its start. Both must be
+            # on-board and empty for the three to be open.
+            if not (0 <= py < game.SIZE and 0 <= px < game.SIZE):
+                continue
+            if not (0 <= ey < game.SIZE and 0 <= ex < game.SIZE):
+                continue
+            if board[py, px] != game.EMPTY or board[ey, ex] != game.EMPTY:
+                continue
+            threes.append(
+                frozenset({game.xy_to_move(px, py), game.xy_to_move(ex, ey)})
+            )
+    return threes
+
+
+def _forcing_moves_and_fours(
+    board: np.ndarray, player: int
+) -> tuple[list[int], set[int], np.ndarray]:
+    """The TSS attacker move set (four-creators ∪ true-open-three-
+    creators, sorted by flat index) plus the four-creator set and
+    the flat v1 attack array (both for move ordering in
+    :func:`_tss_win`). See :func:`_forcing_sets` for the
+    enumeration. Gap-three creators are excluded by design (see the
+    v52 comment block above)."""
+    fours, threes, a1 = _forcing_sets(board, player)
+    return sorted(fours | set(threes)), fours, a1
+
+
+def tss_forcing_moves(board: np.ndarray, player: int) -> list[int]:
+    """The TSS attacker move set: four-creators ∪ true-open-three-
+    creators (sorted by flat index; callers order by prior/score)."""
+    moves, _, _ = _forcing_moves_and_fours(board, player)
+    return moves
+
+
+def _tss_after_attacker_move(
+    board: np.ndarray,
+    attacker: int,
+    depth_left: int,
+    budget: _TSSBudget,
+    last_move: int,
+) -> bool:
+    """Defender to move on ``board``; the attacker has just played
+    ``last_move`` (a forcing move, or a forced block after a defender
+    counter-four) and holds a threat. True if the attacker forces a
+    win against ALL defender replies. ``depth_left`` counts further
+    attacker forcing moves (the move just played already consumed
+    one).
+
+    No defender-winning-move check at entry: it is provably
+    impossible (the attacker's move cannot create a defender winning
+    move, and every caller establishes the defender has none —
+    :func:`_tss_win` checks at entry, and the counter-four sub-case
+    below blocks the single defender win it creates). The threats
+    check is LOCAL to ``last_move`` (the attacker's winning moves
+    must involve it — none pre-existed)."""
+    budget.tick()
+    threats = _winning_moves_through(board, attacker, last_move)
+    if len(threats) >= 2:
+        return True  # open four: unblockable
+    if len(threats) == 1:
+        # The block is the defender's ONLY reply.
+        b3 = game.apply_move(board, threats[0], -attacker)
+        over, _winner = game.game_over(b3)
+        if over:
+            return False  # the block won for the defender (or a draw)
+        return _tss_win(b3, attacker, depth_left, budget, threats[0])
+    # No immediate winning move: the attacker's threat is one or more
+    # open threes (recomputed from the board — the attacker may hold
+    # a standing three from an earlier move in the sequence, e.g.
+    # after a counter-four exchange).
+    threes = _all_open_threes(board, attacker)
+    if not threes:
+        return False  # no standing threat: the forcing sequence ended
+    # Defender replies: squares blocking ALL open threes, plus
+    # counter-fours (defender four-creators — a counter-four forces
+    # the attacker to block instead of converting). Recomputed on
+    # the resulting board (batch-11 lesson: full re-check).
+    block_all = threes[0].intersection(*threes[1:])
+    replies = block_all | set(_four_creating_moves_fast(board, -attacker))
+    if not replies:
+        return True  # double threat, no defence
+    for r in sorted(replies):
+        b3 = game.apply_move(board, r, -attacker)
+        over, _winner = game.game_over(b3)
+        if over:
+            return False  # the reply won for the defender (or a draw)
+        # The defender's winning moves on b3 must involve the reply
+        # (none pre-existed on the board before it) — local check.
+        dthreats = _winning_moves_through(b3, -attacker, r)
+        if len(dthreats) >= 2:
+            return False  # counter open four: the line is refuted
+        if len(dthreats) == 1:
+            # Counter-four: the attacker MUST block.
+            b4 = game.apply_move(b3, dthreats[0], attacker)
+            over, winner = game.game_over(b4)
+            if over:
+                if winner == attacker:
+                    continue  # the block itself won — this reply loses
+                return False  # draw (board full): no forced win
+            # The standing threat persists (or the block created a
+            # new one): the defender is still to move under attack.
+            if not _tss_after_attacker_move(
+                b4, attacker, depth_left, budget, dthreats[0]
+            ):
+                return False
+        else:
+            # Plain block: the attacker's next move must be forcing.
+            if not _tss_win(b3, attacker, depth_left, budget, r):
+                return False
+    return True
+
+
+def _tss_win(
+    board: np.ndarray,
+    attacker: int,
+    depth_left: int,
+    budget: _TSSBudget,
+    last_defender_move: int,
+) -> bool:
+    """Attacker to move; the defender has just played
+    ``last_defender_move``. True if the attacker forces a win via
+    forcing moves only, within ``depth_left`` more attacker forcing
+    moves.
+
+    The attacker's entry check is the FULL scan (a safety net — it
+    is provably redundant, since the defender's stone cannot create
+    an attacker winning move and none pre-existed, but it converts
+    any proof error into a correct True rather than a missed win).
+    The defender's entry check is LOCAL to ``last_defender_move``
+    (the defender's winning moves must involve it — none pre-existed
+    on the board before it)."""
+    budget.tick()
+    if scoring._winning_moves(board, attacker):
+        return True
+    opp_wins = _winning_moves_through(board, -attacker, last_defender_move)
+    if len(opp_wins) >= 2:
+        return False  # already lost: two unblockable wins
+    if len(opp_wins) == 1:
+        # The attacker MUST block (the defender's forced block may
+        # itself have counter-attacked — a real case); the block must
+        # itself be forcing for the sequence to continue (a quiet
+        # block breaks the forcing chain — pre-registered limitation).
+        block = opp_wins[0]
+        forcing, _, _ = _forcing_moves_and_fours(board, attacker)
+        if block not in forcing:
+            return False
+        b2 = game.apply_move(board, block, attacker)
+        return _tss_after_attacker_move(
+            b2, attacker, depth_left - 1, budget, block
+        )
+    if depth_left <= 0:
+        return False
+    forcing, fours, a1 = _forcing_moves_and_fours(board, attacker)
+    if not forcing:
+        return False
+    # Try four-creators first (most forcing), then by v1 attack score
+    # desc (ties: lowest flat index — deterministic). Order affects
+    # only speed here (the root's selection rule is the prior order
+    # in :func:`tss_winning_move`).
+    forcing.sort(key=lambda m: (0 if m in fours else 1, -int(a1[m]), m))
+    for m in forcing:
+        b2 = game.apply_move(board, m, attacker)
+        if _tss_after_attacker_move(b2, attacker, depth_left - 1, budget, m):
+            return True
+    return False
+
+
+def tss_winning_move(
+    board: np.ndarray,
+    player: int,
+    depth: int = TSS_DEPTH,
+    node_budget: int = TSS_NODE_BUDGET,
+    stats: dict | None = None,
+) -> int | None:
+    """Threat-space search at the root (v52): the first forcing move
+    (highest v1 prior first, ties lowest flat index) that starts a
+    forced win by consecutive forcing moves, or None. An immediate
+    winning move is returned first (it IS a forcing win). On node-
+    budget exhaustion returns None (fall through to the MCTS).
+    Deterministic (no RNG). ``stats``, when given, is filled with
+    ``{"nodes": <used>, "budget_exceeded": <bool>}``."""
+    wins = scoring._winning_moves(board, player)
+    if wins:
+        if stats is not None:
+            stats.update({"nodes": 0, "budget_exceeded": False})
+        return wins[0]
+    opp_wins = scoring._winning_moves(board, -player)
+    if len(opp_wins) >= 2:
+        if stats is not None:
+            stats.update({"nodes": 0, "budget_exceeded": False})
+        return None  # already lost
+    budget = _TSSBudget(node_budget)
+    exceeded = False
+    try:
+        forcing, _, _ = _forcing_moves_and_fours(board, player)
+        if len(opp_wins) == 1:
+            # Must block: only the block can start a forcing win.
+            forcing = [opp_wins[0]] if opp_wins[0] in forcing else []
+        if not forcing:
+            return None
+        priors = _priors(board, player, 0.0)
+        forcing.sort(key=lambda m: (-priors.get(m, 0.0), m))
+        for m in forcing:
+            b2 = game.apply_move(board, m, player)
+            if _tss_after_attacker_move(b2, player, depth - 1, budget, m):
+                return m
+    except _TSSBudgetExceeded:
+        exceeded = True
+        return None
+    finally:
+        if stats is not None:
+            stats.update({"nodes": budget.used, "budget_exceeded": exceeded})
+    return None
+
+
 class HeuristicMCTS:
     """PUCT search with v1 priors and a terminal-aware leaf value.
 
@@ -1285,6 +1759,13 @@ class HeuristicMCTS:
     ``research/iterations/iter-51.md`` §1.2 for the pre-registered
     rule and the worst-case analysis against the τ=0.05 tie-break
     threshold.
+
+    ``tss_root`` (v52, batch 13 H2) enables threat-space search at
+    the root (:func:`tss_winning_move`): before the search, a
+    forcing win by consecutive forcing moves (fours and true open
+    threes) is played immediately; otherwise the engine is exactly
+    the base version. False (the default) leaves the base engine
+    unchanged. Offensive only — no defensive prevention check.
     """
 
     def __init__(
@@ -1300,6 +1781,7 @@ class HeuristicMCTS:
         vcf_root: bool = False,
         backup_rule: str = "mean",
         softmax_beta: float = 2.0,
+        tss_root: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
             leaf_mode != "rollout2_v1"
@@ -1340,6 +1822,7 @@ class HeuristicMCTS:
         self.vcf_root = vcf_root
         self.backup_rule = backup_rule
         self.softmax_beta = softmax_beta
+        self.tss_root = tss_root
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -1524,6 +2007,15 @@ class HeuristicMCTS:
             vcf_move = self._vcf_root_move(board, player)
             if vcf_move is not None:
                 return vcf_move
+        # Threat-space search at the root (v52): a forcing win by
+        # consecutive forcing moves (fours and true open threes)
+        # that the 100-sim search misses. Offensive only; the
+        # win/block scans above already ran, so an immediate win or
+        # a forced block always takes precedence over the TSS.
+        if self.tss_root:
+            tss_move = tss_winning_move(board, player)
+            if tss_move is not None:
+                return tss_move
         root = _Node(1.0)
         for _ in range(self.sims):
             self._run_one(root, board, player, None)

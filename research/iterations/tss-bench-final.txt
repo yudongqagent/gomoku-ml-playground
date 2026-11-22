@@ -1,0 +1,10 @@
+generated 100 quiet positions (seed 777)
+generated 100 creator-rich positions (seed 777)
+--- quiet (v7 self-play) (n=100, budget=100000) ---
+fired=11 (11%) budget_exceeded=0
+time: median=2.7ms p90=2087.7ms p99=6245.1ms max=6699.0ms mean=550.1ms
+nodes: median=0 p90=740 p99=2273 max=2273 mean=196
+--- creator-rich (v27 midgame) (n=100, budget=100000) ---
+fired=5 (5%) budget_exceeded=0
+time: median=85.6ms p90=4228.8ms p99=14769.3ms max=45214.0ms mean=1673.1ms
+nodes: median=20 p90=1394 p99=2763 max=12916 mean=464
