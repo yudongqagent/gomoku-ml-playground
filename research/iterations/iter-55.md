@@ -794,3 +794,14 @@ ML track's lever is the net, not the search. No patchable
 weakness class remains. The vs-v0 0.300 (10 games) is
 noted for the battery leg to adjudicate, not a fast-loop
 finding to chase.
+
+## 8. Full validation battery (actuals)
+
+### 8.0 Clause 3 — tactical (2026-11-22)
+
+`eval_tactical_full.py --version 55 --suite both --seed 100`
+(raw `ml/runs/ml6-h2/tactical.log`, 58 s):
+**old suite 20/20, hard suite 29/29 — clause 3 PASSES.**
+v55 takes every win, blocks every four, finds every
+prevention and setup on the corrected suite, including
+the v1bl-g2 prevention that broke v40.
