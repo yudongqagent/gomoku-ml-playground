@@ -339,15 +339,111 @@ the bar.
 
 ## 2. Implementation
 
-TODO — filled in after the pre-registration commit.
+`ml/gomoku_ml/mcts_heuristic.py` — the TSS block sits between
+`_rollout3_leaf_value` and `class HeuristicMCTS`:
+
+* `_winning_moves_through(board, player, move)` — winning moves on
+  the 4 lines through the just-played stone (local check; the
+  winning moves must involve that stone whenever none pre-existed).
+* `_forcing_sets(board, player)` — the enumeration: `(fours,
+  threes, a1)`. Four-creators via the v1 kernel (>= 20000,
+  catches broken fours) + a local exact test; open-three creators
+  via the v0 kernel (>= 1000, minus fours). Two kernel calls, one
+  per class — each kernel is blind to the other's patterns.
+* `_four_creating_moves_fast`, `open_three_creating_moves`,
+  `_all_open_threes`, `_forcing_moves_and_fours`,
+  `tss_forcing_moves` — the public enumeration surface.
+* `_tss_after_attacker_move(board, attacker, depth_left, budget,
+  last_move)` / `_tss_win(board, attacker, depth_left, budget,
+  last_defender_move)` — the mutually recursive search. The
+  threats check is local to the last attacker move; the defender's
+  entry check is local to the last defender move; the attacker's
+  entry check stays the FULL scan (a safety net — provably
+  redundant, but it converts any proof error into a correct True
+  rather than a missed win).
+* `tss_winning_move(board, player, depth=4, node_budget=3000,
+  stats=None)` — the root entry point. Immediate win first; then
+  forcing moves in prior order; first forced win returned.
+* `HeuristicMCTS.__init__` gains `tss_root: bool = False`; the
+  hook in `choose_move` runs AFTER the `vcf_root` block (i.e.
+  after the win/block scans), so an immediate win or forced block
+  always takes precedence. When TSS returns None the engine is
+  exactly v27 (verified by
+  `test_v52_falls_through_to_v27_when_tss_silent`).
+
+`ml/gomoku_ml/scoring.py` — `ENGINE_VERSIONS[52]` = v27 +
+`"tss_root": True`; `ScoringPlayer.__init__` passes `tss_root`
+through to `HeuristicMCTS`.
+
+Tests: `ml/tests/test_tss.py`, 21 tests, all passing — oracle
+equivalences (four-creators vs `evaluate.four_creating_moves`,
+open-three creators vs a brute-force run-scan oracle, local vs
+full winning-move check), all mechanism positions, suite VCF
+positions, quiet-position None, immediate-win-first, depth
+accounting, node-budget abort, v52 registration, v52 plays the
+TSS win on T1, v52 == v27 fall-through on 5 TSS-silent positions.
 
 ## 3. Mechanism check
 
-TODO.
+### Check A — constructed positions: PASSES, 7/7
+
+`ml/scripts/check_tss_mechanism.py` →
+`research/iterations/tss-mechanism-check-a.json` (criterion:
+TSS correct on >= 6/7):
+
+| position | TSS | correct | v27 (seed 100) | v27 correct |
+|---|---|---|---|---|
+| T1 tss-double-three-black | (6,6) | yes | (6,6) | yes |
+| T2 tss-double-three-white | (6,6) | yes | (6,6) | yes |
+| T3 tss-three-sequence-black | (8,7) | yes | (8,7) | yes |
+| T4 tss-three-sequence-white | (8,7) | yes | (8,7) | yes |
+| T7 tss-counter-four-refutation | None | yes | (10,11) | n/a |
+| T5 vcf-1 (control) | (8,3) | yes (VCF start) | (8,3) | yes |
+| T6 vcf-two-four-sequence (control) | (9,6) | yes (VCF start) | (9,6) | yes |
+
+The mechanism is CORRECT: TSS finds the double-three win, the
+two-move open-three sequence (in both colours), both VCF controls
+(it subsumes the offensive VCF check), and correctly returns None
+on the counter-four refutation (White's counter-four (10,11)
+refutes Black's double threat).
+
+**But the MCTS-miss sub-criterion FAILS: 0/4 on T1–T4.** v27 plays
+the correct forcing move on ALL FOUR constructed positions. The
+constructed positions are too shallow/simple for the MCTS to miss
+— v27's MCTS + 2-ply rollout already sees a double three and a
+two-move open-three sequence. So Check A proves TSS is correct
+but does NOT demonstrate a case where TSS finds something the
+MCTS misses. (On T7, v27 plays (10,11) — the correct defensive
+block of White's counter-four; the script marks it
+v27_correct=False only because T7's expected set is empty by
+definition. That is the right defensive play, not a miss.)
+
+The value of TSS, if any, must live in DEEPER sequences (beyond
+the MCTS + 2-ply-rollout horizon) or in positions where the
+MCTS's visit allocation dilutes the forcing line — exactly what
+Check B (mined real-game positions) arbitrates.
+
+### Check B — mined positions
+
+[To be filled when the mining run finishes. Note: the first
+mining attempt was interrupted by a runtime restart at game 9/50
+(387 turns, 48 fires, 21 differs) and restarted from scratch —
+the mining script has no resume logic. The partial numbers are
+consistent with the final run's early games.]
 
 ## 4. Fast loop
 
-TODO.
+Iteration 1, leg 1 (vs v0, 10 games, seeds 1052/2052):
+**v52 10W-0L-0D** (win rate 1.0000, Wilson 95% CI [0.7225,
+1.0000]) — `research/iterations/fastloop-v52-vs-v0-i1.json`.
+Clean sweep, no losses to analyze. (v27 beats v0 0.9650, so
+this is the expected smoke-test outcome, not evidence of
+strength.)
+
+Iteration 1, leg 2 (vs v27, 10 games, seeds 1053/2053):
+[To be filled when the resumed run finishes — the first attempt
+was interrupted by a runtime restart at 6/10 games (3W-2L-1D)
+and resumed from the partial file.]
 
 ## 5. Battery
 
