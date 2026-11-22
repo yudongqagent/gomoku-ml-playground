@@ -550,7 +550,28 @@ coincide. v52 wins every unique game, both colours 50–0.
 
 ### Ladder (40 games/opponent)
 
-[To be filled when the ladder finishes.]
+**v52 saturates the 40-game ladder — the first version ever to
+do so.** `research/iterations/ladder-v52.json` (seed 100,
+mcts_sims=100):
+
+| opponent | result | win rate | CI |
+|---|---|---|---|
+| random (anchor −800) | 40W-0L-0D | 1.0000 | [0.9124, 1.0] |
+| heuristic/v0 (anchor 0) | 40W-0L-0D | 1.0000 | [0.9124, 1.0] |
+| mcts (100 sims) | 31W-9L-0D | 0.7750 | [0.625, 0.8768] |
+
+**Ladder Elo: unbounded (estimate None, interval [407.0,
+∞)).** v52 beats the ladder MCTS outright (31–9, elo_diff
++214.8; Black 18W-2L, White 13W-7L) and sweeps the anchor leg
+40–0–0, vs v27's 38–0–2 (Elo 636.4). **Clause 2 PASSES** on
+the point estimate (unbounded > 636.4) — **but it rests on a
+draw-count difference (2 fewer draws than v27: 40–0–0 vs
+38–0–2), stated explicitly per the task**, and the interval
+lower bound (407.0) is BELOW 636.4. The pass is real (v52's
+anchor-leg score 1.0 exceeds v27's 0.975) but the Elo number
+itself is uninformative — the ladder cannot distinguish HOW
+far above 636.4 v52 sits, only that it saturates. The ladder's
+own tactical probe: 20/20 (old suite).
 
 ### Tactical
 
@@ -575,7 +596,15 @@ nominal 100-game rule as written. Per-colour: Black 39W-11L-0D
 (0.78), White 21W-27L-2D (0.44) — the TSS finds Black's forcing
 wins far more often than White's.
 
-### Clause 2 — ladder Elo > 636.4: [TBD — ladder running]
+### Clause 2 — ladder Elo > 636.4: PASS (via saturation)
+
+v52 saturates the 40-game ladder (heuristic leg 40W-0L-0D, vs
+v27's 38-0-2): the Elo point estimate is unbounded (interval
+[407.0, ∞)), hence > 636.4. **Explicit caveat: the pass rests
+on a draw-count difference (2 fewer draws than v27)**, and the
+interval lower bound (407.0) is below 636.4. v52 is the first
+version ever to saturate the 40-game ladder. It also beats the
+ladder MCTS outright (31W-9L-0D, elo_diff +214.8).
 
 ### Clause 3 — tactical >= 20/20 + 29/29: PASS
 
