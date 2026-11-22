@@ -915,3 +915,32 @@ White better) and improved against v37 (0.25 vs v44's
 v44's, because Black-side strength fell by at least as
 much as White-side strength rose. The patch redistributed
 strength across colours; it did not add any.
+
+### 9.8 Ladder — CLAUSE 2 FAILS
+
+`eval_version.py --version 48 --ladder-games 40 --out
+research/iterations/ladder-v48.json` (log
+`ml/runs/ml5-h1/ladder-v48.log`, 1,842 s, no resume):
+
+- vs random: 40W-0L-0D (1.0000, CI [0.9124, 1.0000])
+- vs heuristic (v0): 17W-21L-2D (0.4500, CI [0.3071,
+  0.6017]); as Black 10W-8L-2D (0.55), as White 7W-13L-0D
+  (0.35)
+- vs mcts: 13W-26L-1D (0.3375, CI [0.2110, 0.4924]); as
+  Black 10W-9L-1D (0.525), as White 3W-17L-0D (0.15)
+- **Ladder Elo: −34.9, interval [−141.4, 71.7]**
+  (anchors: random −800, heuristic 0). Clause 2 needs
+  Elo > 98.1 (v44's bar): **FAIL** — the point estimate
+  is 133 points below the bar, and even the interval's
+  upper end (71.7) is below it.
+- Two notes. (a) The estimate is numerically identical
+  to v37's (−34.9): both posted a 0.45 heuristic leg,
+  and the Elo is computed from that leg alone. (b) The
+  ladder's White side is still weak — 0.35 vs heuristic
+  (battery: 0.52 over 100 games) and 0.15 vs mcts — but
+  these are 20-game colour splits, so the battery's
+  50-game splits are the better read; the ladder says
+  the White fix does not extend to the ladder MCTS
+  opponent, whose positions were NOT in the patch data
+  (the patch used v0/v7/v8/v37 legs, not ladder-MCTS
+  legs).
