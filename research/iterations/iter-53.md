@@ -769,3 +769,82 @@ values differ, 48/49 tactical moves agree), it costs 1.28x
 v27's leaf, and its known risk is the confirmed parity-shift
 optimism (+0.0561 mean shift). Proceed to the tactical wiring
 check, the fast loop, and the battery.
+
+## 8. Fast loop
+
+Pre-registered dev seeds (§6.4): 1053/2053 vs v0, 1054/2054 vs
+v27 — distinct from the battery's 100/200. v53's design is
+frozen (§6.1: the rollout policy is held fixed, depth is the
+only variable) — the fast loop is defect shake-out, not
+redesign; no refinement is made unless a genuine v53-specific
+defect is found. All three batch-13 workstreams ran
+concurrently on the ~1.5-CPU VM, so wall times are ~2x the
+uncontended pace.
+
+### 8.1 vs v0 (seeds 1053/2053)
+
+**10W-0L-0D** (1.0000, CI [0.7225, 1.0000]) in 213.5s.
+Uniqueness: 8/10 distinct games (the known vs-v0 determinism
+collapse); de-dup cut 8W-0L-0D. No losses to read. Artefact:
+`research/iterations/fast-v53-vs-v0.json`.
+
+### 8.2 vs v27 (seeds 1054/2054)
+
+**8W-1L-1D** (0.8500, CI [0.5411, 0.9646]) in 1294.3s.
+Colour splits: as Black 4W-1L-0D (0.8000); as White 4W-0L-1D
+(0.9000). Uniqueness: 10/10 distinct games. Games: g0 W (37
+plies), g1 W (78), g2 W (43), g3 draw (225 plies — the
+maximal-length draw, ~10 min of the leg), g4 W (45), g5 W
+(76), g6 L (Black, 56), g7 W (28), g8 W (29), g9 W (40).
+Artefact: `research/iterations/fast-v53-vs-v27.json`.
+
+Loss classification (`classify_losses.py`, artefact
+`research/iterations/losses-fast-v53-vs-v27.json`): **1 loss,
+via open four, 0 missed blocks, 0 clean missed preventions in
+5 threatened turns** — defence stays solved.
+
+### 8.3 The one loss (g6): a SHARED v27/v53 defect, no patch
+
+`find_losing_moves.py` (VCF solver, depth 4): the losing move
+is ply 50, Black (4,6); the ONLY saving move is (9,5)
+(1 saving move among 100 checked); the position was not
+already lost before ply 50.
+
+What happens after (4,6): White plays (9,5) — creating the
+row-9 open three (9,5),(9,6),(9,7) alongside the diagonal
+threat (6,6),(7,5),(8,4) — then (9,3), which is a DOUBLE
+threat: the diagonal five at (10,2) and the horizontal five
+at (9,4) (row 9: (9,3),(9,4),(9,5),(9,6),(9,7)). Black blocks
+(9,4) at ply 54 — correctly, one of White's two winning moves
+— and White completes the diagonal at (10,2). The loss is via
+open four, exactly as classified; the ply-54 "missed block"
+reading is wrong (White held TWO winning moves there, so the
+game was lost anyway).
+
+Why both engines miss the save — traced, not guessed: after
+Black (4,6), BOTH leaves return −1.0000 from White's
+perspective, i.e. a hallucinated BLACK WIN, although the VCF
+solver says White forces a win from that position. The rollout
+trace: ply 1 White plays the argmax (5,5) — missing the
+forcing (9,5) — and ply 2 Black plays (4,7), leaving Black
+with TWO winning moves ((4,3) and (4,8)). The weak argmax
+policy drifts: rollout-White fails to find the forcing win
+while rollout-Black finds a double threat. This is the 4-ply
+hallucination's failure mode (v40) already present at 2-ply
+depth in this position — and it is SHARED: v27, run on the
+ply-50 position at its own per-game seed (2060), ALSO chooses
+(4,6); the 2-ply and 3-ply leaves agree on the hallucinated
++1.0. The 3-ply leaf does rate the save (9,5) more pessimistically
+for Black than the 2-ply leaf (−0.0521 vs +0.1026), but the
++1.0 hallucination on (4,6) dominates the move choice in BOTH
+engines, so the difference is not decision-relevant here.
+
+**No patch.** The defect is in the shared rollout policy,
+which §6.1 holds fixed (depth is the variable, the policy is
+not), and it costs v53 nothing against the bar reference —
+v27 makes the identical mistake. Patching the policy would be
+a different version, not this one. The fast loop's verdict:
+no v53-specific defect; defence solved; proceed to the
+battery. (The 8-1-1 fast-loop score is a small-sample signal
+only — n=10, CI [0.54, 0.96]; the 100-game battery is the
+verdict.)

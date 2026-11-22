@@ -1,0 +1,26 @@
+[
+  {
+    "batch": "fast-v53-vs-v27.json",
+    "engine_a": "scoring-v53",
+    "engine_b": "scoring-v27",
+    "games": 10,
+    "losses": 1,
+    "via_open_four": 1,
+    "missed_blocks": 0,
+    "missed_block_games": 0,
+    "clean_missed_preventions": 0,
+    "missed_prevention_games": 0,
+    "threatened_turns": 5,
+    "details": [
+      {
+        "plies": 56,
+        "loser_colour": "black",
+        "via_open_four": true,
+        "missed_blocks": [],
+        "missed_preventions": [],
+        "threatened_turns": 5,
+        "game": 6
+      }
+    ]
+  }
+]
