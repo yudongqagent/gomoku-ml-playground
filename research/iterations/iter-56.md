@@ -853,6 +853,35 @@ no arm is restarted.
 
 (to be filled in: fast loops.)
 
+### 5.2 Fast loops (α = 0.25, seeds 1001/2001)
+
+| Opponent | W–L–D | Win rate | Black | White | Mean plies |
+|---|---|---|---|---|---|
+| v0 (ladder MCTS) | 5–3–2 | 0.60 | 3–1–1 | 2–2–1 | 78.5 |
+| v44 (champion) | 4–4–2 | 0.50 | 1–4–0 | 3–0–2 | 81.5 |
+
+10 games each — noise dominates (±0.3 CI), so these are a
+smoke test, not a verdict: v56 plays coherent Gomoku, beats
+the ladder MCTS, and holds even with v44 on this tiny sample
+(the sweep's 0.4625 at α=0.25 is the better read). No
+systematic SEARCH flaw appeared (no blowout, no repeated
+tactical blunder pattern), so no fast-loop patch is made —
+and there is none to make for the pattern that DID appear.
+
+**The colour split vs v44 is the pattern to watch in the
+battery: as Black v56 went 1–4–0 (mean 47.4 plies); as White
+3–0–2 (mean 115.6 plies).** v56-as-White is unbeaten and its
+games drag long; v56-as-Black loses quickly. That is exactly
+what the §0 mechanism predicts for a loss-averse net (wins
+halved to ~0.35, losses kept at ~1.0): as White, the
+defensive style holds and punishes v44's optimistic
+overextension; as Black, it cannot convert the first-move
+edge because it will not attack. n=10 cannot carry this
+claim — the 100-game battery leg vs v44 (§6) will test the
+split at n=100. If it holds, it is a property of the LABELS,
+not a patchable search bug: fixing it means a new version
+(a different correction), not a fast-loop patch.
+
 ### 5.1 α sweep results
 
 40 games per arm vs v44, seeds 1001/2001 (same seeds all arms
