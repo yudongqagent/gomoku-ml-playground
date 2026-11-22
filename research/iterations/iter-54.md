@@ -340,3 +340,42 @@ on the final v54 (§4). Any battery numbers measured
 before the fast loop completes are INTERMEDIATE,
 labelled as such; only the final battery counts for
 the bar.
+
+## 6. Data build (in progress)
+
+### 6.1 Patch legs (a)/(b) — labelled, yields EXACT
+
+`battery_to_games.py` on the committed battery JSONs
+reproduces ml5-h1's `games-vs-v0.json` /
+`games-vs-v7.json` EXACTLY (semantic equality; the
+byte diff is JSON spacing only). Labelling
+(`--label-mode rollout2 --side white`, holdout every
+10th game; log lines in the LABEL_JSON outputs):
+
+| Leg | Games | Plies | White quiet | ±1 labels | Held-out games |
+|---|---|---|---|---|---|
+| (a) vs v0 | 100 | 6,342 | **2,536** | 132 (5.2%) | 10 |
+| (b) vs v7 | 100 | 4,896 | **1,903** | 138 (7.3%) | 10 |
+| **Total** | **200** | **11,238** | **4,439** | **270 (6.1%)** | **20** |
+
+Both yields match the §2 pre-registered expectations
+EXACTLY (2,536 / 1,903 — iter-48 §6.1's diagnosis
+counts on the same games). Cross-verification: the
+White-only shards are an EXACT subset of v48's
+both-sides shards for the same legs (same games,
+same 2-ply labels): 4,439 positions, max |value
+diff| 0.0, planes identical — the `--side` filter is
+verified end-to-end on real data, not just on the
+unit-test toy game.
+
+### 6.2 Patch legs (c)–(e) — generating
+
+Chain `ml/runs/ml6-h1/chain-patch-games.sh` (launched
+2026-11-22 ~07:11 PST): fresh 100-game legs v44 vs
+v0 / v7 / ladder-MCTS at dev seeds 1001/2001, via
+`fast_loop_match.py`, sequential, each auto-resuming.
+Rate under contention is ~150 s/game wall-clock
+(load ~3.5 — the champion-change match and sibling
+batch-6 workers share the VM), so the three legs take
+~12 h. Legs are labelled as each completes; training
+starts when all three are labelled.
