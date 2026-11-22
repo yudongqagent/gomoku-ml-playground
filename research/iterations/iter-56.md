@@ -638,11 +638,191 @@ v56-vs-v44 comparison isolates the label function, as designed.
 
 ## 3. Training (actuals)
 
-(to be filled in.)
+**Bundle:** 737 shards, 33,849 samples → `ml/runs/ml6-h3/
+data-mmap/` (memmap path, as pre-registered). **Training:**
+15 epochs on the bundle, 2026-11-22 16:28–17:06 UTC (~38 min),
+no interruptions, no resume needed. Config `ml6-h3.yaml`
+(v44's recipe exactly).
+
+| Epoch | Train loss | Val loss | Epoch | Train loss | Val loss |
+|---|---|---|---|---|---|
+| 1 | 0.0812 | 0.0926 | 9 | 0.0644 | 0.0719 |
+| 2 | 0.0797 | 0.0924 | 10 | 0.0612 | 0.0706 |
+| 3 | 0.0790 | 0.0954 | 11 | 0.0596 | 0.0698 |
+| 4 | 0.0785 | 0.0929 | 12 | 0.0580 | 0.0691 |
+| 5 | 0.0766 | 0.0944 | 13 | 0.0568 | 0.0678 |
+| 6 | 0.0736 | 0.0827 | 14 | 0.0557 | 0.0677 |
+| 7 | 0.0695 | 0.0785 | 15 | 0.0555 | **0.0674** |
+| 8 | 0.0668 | 0.0748 | | | |
+
+Val loss falls monotonically from epoch 6; the best is the
+FINAL epoch (15, val_loss 0.06737 — still improving at the
+end, so 15 epochs did not overfit). Final train loss 0.0555.
+**Checkpoint selection (pre-registered rule):**
+best-by-val-loss = epoch 15. `ml/runs/ml6-h3/value-net.pt`
+(md5 `78e3e71f6098cb2fe3269d178b6cff64`) was written by
+train.py's `--out`; its WEIGHTS are bit-identical to
+`best.pt` and `final.pt` (max abs diff 0.0 across all 48
+tensors; all epoch 15, step 7545) — the md5s differ only in
+payload metadata (`--out` adds `config`/`history` keys). The
+pre-registered rule is satisfied: the shipped checkpoint IS
+the best-by-val-loss net.
 
 ## 4. Holdout diagnostics (actuals)
 
-(to be filled in.)
+Game-level holdout (every 10th game, never trained on — the SAME
+80 games / 3,378 positions v24, v37 and v44 held out), targets =
+symmetric labels unless noted. v56 net =
+`ml/runs/ml6-h3/value-net.pt`; v44 net =
+`ml/runs/ml4-h3/value-net.pt`; v37 net =
+`ml/runs/ml3-h2/value-net.pt`; v8 net =
+`ml/runs/b3-h2/value-net.pt`. Raw outputs in
+`ml/runs/ml6-h3/holdout.log`; Pearson r via
+`/tmp/holdout_r_v56.py`. Sanity check: this run reproduces
+v37's published 2-ply numbers EXACTLY on its own holdout (v7
+0.7395, v18 0.8436, random 0.6623 — full planes; no-history
+0.5163/0.5846/0.6604; MSEs 0.0781/0.0819/0.2675) — the eval
+setup is sound. By-side numbers use the FIXED side-to-move
+inference (coordinator commit `038232c` — plane 3, not index
+parity); these are the first trustworthy by-side numbers on
+this protocol (iter-37/iter-44's are unreliable for this
+reason).
+
+### (a) v56 net on its own symmetric holdout (in-distribution)
+
+| Holdout | n pos | v56 sign (full) | v56 sign (no-hist) | v56 MSE | v56 mean\|v\| | v44 sign (full) | v37 sign (full) | v8 sign (full) |
+|---|---|---|---|---|---|---|---|---|
+| v7 | 2,050 | 0.7392 | 0.3748 | 0.0485 | 0.1306 | 0.3137 | 0.7185 | 0.5428 |
+| v18 | 790 | 0.7239 | 0.3700 | 0.0700 | 0.1396 | 0.3378 | 0.7319 | 0.5054 |
+| random | 538 | 0.5889 | 0.5843 | 0.1593 | 0.0924 | 0.4042 | 0.5173 | 0.5312 |
+| **pooled** | **3,378** | **0.7138** | **0.4037** | — | — | **0.3327** | **0.6929** | **0.5319** |
+
+**Verdict: the distillation learned the corrected label
+function — the §1.5 stop condition (chance-level holdout) does
+NOT trigger.** Pooled in-distribution sign agreement 0.7138 vs
+0.50 chance. It is slightly LOWER than v44's 0.7442 on 3-ply
+labels and v37's 0.7519 on 2-ply labels — the symmetric
+function is harder to learn (the halved wins compress the
+signal the net must fit), as expected. Per-source, v56 is
+about even with v44 on v7 (0.7392 vs 0.7460) and v18 (0.7239
+vs 0.7163) but much worse on random (0.5889 vs 0.7786) — the
+inversion of v44's pattern (random was v44's BEST source):
+random positions carry the most halved wins (28.5% → 10.3%
+±1), and the net underfits that noisier target. No decision
+hinges on it.
+
+**The v56 net is HISTORY-DEPENDENT — catastrophically so on
+engine positions.** The no-history view drops 0.310 pooled
+(0.7138 → 0.4037): v7 0.7392 → 0.3748, v18 0.7239 → 0.3700
+— BELOW chance on both engine sources — while random is
+robust (0.5889 → 0.5843). This is WORSE than v37's collapse
+(0.195 pooled, to 0.5163/0.5846 — still above chance) and the
+reverse of v44's robustness (0.007 drop). Mechanism
+(hypothesis): the tempo-neutral label removes the tempo
+information from the target, so the net routes its value
+judgment through the history planes (last move, boards 2/4
+plies back) to reconstruct the game context the current board
+alone no longer determines — the optimizer grabbed the
+history shortcut harder because the symmetrised target needs
+it more. Or it is luck of the optimisation (different target,
+different init). Either way it is a measured fact, and it
+re-opens the §4 warning sign that v44 had closed: at
+inference the net ALWAYS has history planes (real games), so
+the collapse costs nothing directly — but it means the net's
+value function is not a function of the current position
+alone, and any deployment that ever lacks history (or any
+opponent that plays off-distribution openings) leans on a
+brittle feature. The battery is the arbiter (v37 played the
+best despite its collapse; holdout does not predict played
+strength — six instances).
+
+**By side to move** (v56 net, symmetric holdout; FIXED
+inference):
+
+| Holdout | Black (full) | White (full) | Black (no-hist) | White (no-hist) |
+|---|---|---|---|---|
+| v7 | 0.7001 (628/897) | 0.7767 (727/936) | 0.3289 (295/897) | 0.4188 (392/936) |
+| v18 | 0.6878 (249/362) | 0.7578 (291/384) | 0.2403 (87/362) | 0.4922 (189/384) |
+| random | 0.5070 (109/215) | 0.6697 (146/218) | 0.3953 (85/215) | 0.7706 (168/218) |
+| **pooled** | **0.6689 (986/1474)** | **0.7568 (1164/1538)** | **0.3168 (467/1474)** | **0.4870 (749/1538)** |
+
+**No White collapse — White is BETTER by 0.088 pooled**
+(0.7568 vs 0.6689), on all three sources. The symmetric
+labels did not introduce a White-side holdout defect (contrast
+v25/v31's B1-data White collapses); the split resembles v37's
+White-better split (0.7775 vs 0.7269). The no-history view
+collapses for BOTH sides (Black 0.317, White 0.487 — White
+less so, a curiosity, not a decision input).
+
+### (b) v44's net on the symmetric labels (cross-label)
+
+Sign agreement 0.3137 / 0.3378 / 0.4042 (pooled 0.3327) —
+BELOW chance on engine positions, exactly as §1.6 predicted:
+v44's net outputs values centred near +0.10 (its optimistic
+3-ply target) while the symmetric targets centre near −0.10,
+so the signs systematically disagree. **Pearson r (the
+pre-registered primary measure): v7 0.0617, v18 0.0437,
+random 0.0213, pooled 0.0819** — nearly ZERO. The 3-ply-
+trained net captures almost NONE of the symmetric function in
+correlation terms (contrast iter-44 §4(b), where v37's net
+captured the 3-ply function at r 0.3285). The symmetrisation
+changed the target MORE than the depth change did: the mirror
+term is not recoverable from the 3-ply function alone.
+
+### (c) Reverse transfer: v56 net on v44's 3-ply labels
+
+Sign agreement 0.4009 / 0.3967 / 0.5366 — below chance on
+engine positions, the parity shift again (v56's net centres
+near −0.10, the 3-ply targets near +0.10). **Pearson r: v7
+0.3128, v18 0.2743, random −0.0196, pooled 0.2675** — vs
+v44's own pooled r of 0.3149 on its own labels. Decent reverse
+transfer (85% of v44's own correlation): the symmetric net
+DOES encode most of the 3-ply function (shift aside), while
+the 3-ply net encodes almost none of the symmetric function
+(r 0.082) — the transfer is asymmetric, as expected, since the
+symmetric function is derived FROM the 3-ply function plus the
+mirror term. Curiosity: the no-history view scores 0.68 pooled
+on 3-ply labels (vs 0.42 full) — the no-history outputs are
+positive-shifted (mean|v| 0.2979 vs 0.1306 on v7), accidentally
+aligning with the 3-ply targets' +0.10 centre. Diagnostic
+only.
+
+### (d) v37's net on the symmetric labels
+
+Sign agreement 0.7185 / 0.7319 / 0.5173 (pooled 0.6929) —
+nearly v56's own 0.7138, as §1.6 predicted (the symmetric
+labels are close to the 2-ply function in DISTRIBUTION).
+**But Pearson r is only 0.1342 pooled** (v7 0.1804, v18
+0.2325, random 0.0271). The sign agreement is inflated by the
+shared pessimism (both nets predict negative most of the time,
+and the targets are negative most of the time) — the
+magnitudes do NOT track. Distribution similarity ≠ function
+similarity: the symmetric function is genuinely different
+from the 2-ply function (its own net reaches r 0.4312), and
+v37's net does not capture it beyond the shared centre.
+
+### (e) v8's net on the symmetric holdout
+
+Sign agreement 0.5428 / 0.5054 / 0.5312 (pooled 0.5319),
+Pearson r pooled 0.0792 — at/below chance, as on v24's/v37's/
+v44's labels. v8's net encodes a genuinely different value
+function, as expected from its different target (weak-self-
+play game outcomes).
+
+**A note on the Pearson r values:** v56's own pooled r of
+0.4312 (v7 0.5342, v18 0.5211, random −0.0146) EXCEEDS
+v44's own 0.3149 and v37's own 0.3979 — the symmetric
+function is learned with better correlation than either
+predecessor's function was (the halved wins reduce the ±1
+spike mass that drags r down: 4.5% ±1 vs v44's 7.9%). r is
+used here ONLY for cross-label comparison (where it is
+shift-invariant); the in-distribution fit measure is sign
+agreement, as in v24/v37/v44. Random-holdout r is ≈ 0 for
+every distilled net (v56 −0.0146, v44 0.0213, v37 0.0271) —
+random positions are mostly terminal/noisy; v8's 0.1679 there
+is a curiosity (B1-trained nets track random positions
+better). No decision hinges on any of this: the battery is
+the verdict.
 
 ## 5. α sweep and fast loops
 
