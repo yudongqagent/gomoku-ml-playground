@@ -463,6 +463,76 @@ verified: ResNet 16ch/2 blocks, 126,759 params, 48
 tensors — identical counts to v24's, v37's, v44's,
 and v8's checkpoints.
 
+### 7.3 Holdout diagnostics (actuals)
+
+Game-level holdouts (never trained on), targets =
+2-ply labels, via the FIXED `eval_value_holdout.py`
+(plane-3 sides — §0). v54 net =
+`ml/runs/ml6-h1/value-net.pt`; v37 net =
+`ml/runs/ml3-h2/value-net.pt` (same targets, same
+positions — direct comparison). Per-holdout logs
+`ml/runs/ml6-h1/holdout-*.log`.
+
+| Holdout | n pos | v54 sign (full) | v54 sign (no-hist) | v37 sign (full) | v37 sign (no-hist) |
+|---|---|---|---|---|---|
+| v7 (base) | 2,050 | 0.7574 | 0.7605 | 0.7395 | 0.5163 |
+| v18 (base) | 790 | 0.8423 | 0.8423 | 0.8436 | 0.5846 |
+| random (base) | 538 | 0.6435 | 0.5422 | 0.6623 | 0.6604 |
+| vs-v0 (new) | 296 | 0.5805 | 0.5730 | 0.6479 | 0.6891 |
+| vs-v7 (new) | 147 | 0.6759 | 0.7379 | 0.7034 | 0.6690 |
+| vs-v0-dev (new) | 171 | 0.8246 | 0.8304 | 0.6667 | 0.6140 |
+| vs-v7-dev (new) | 172 | 0.8246 | 0.8421 | 0.7895 | 0.5906 |
+| vs-mcts-dev (new) | 140 | 0.6786 | 0.6571 | 0.6857 | 0.7357 |
+| **base pooled** | **3,378** | **0.7591** | — | **0.7519** | — |
+| **new pooled** | **926** | **0.7047** | — | **0.6935** | — |
+
+v54 beats v37's net on base pooled (+0.007) and new
+pooled (+0.011) — small edges, in the same direction
+as v48's (v48 beat v37 on 6/7 holdouts). Per-leg the
+new holdouts are MIXED and noisy (10 games each,
+game-clustered): v54 wins big on the dev legs
+(vs-v0-dev 0.825 vs 0.667, vs-v7-dev 0.825 vs 0.790)
+but LOSES on the validation-seed legs (vs-v0 0.581
+vs 0.648, vs-v7 0.676 vs 0.703) and ties on
+mcts-dev (0.679 vs 0.686). No clean per-leg read —
+the pooled numbers are the read, and they are
+near-level. (The validation-leg losses are
+surprising — v54 trained on those legs' other 90
+games — but at n=145–267 from 10 games each, the
+cells are dominated by which games were held out;
+v48 §7.3 recorded the same opposite swings.)
+
+**The v54 net is HISTORY-ROBUST on engine
+positions** (v7 no-hist 0.7605 vs full 0.7574, v18
+no-hist = full 0.8423; patch holdouts no-hist ≈
+full) — the v37 collapse (0.7395 → 0.5163) is gone,
+like v44's and v48's nets. The exception is random
+positions (no-hist 0.5422 vs full 0.6435) — the net
+leans on history for random-playout positions, the
+least game-like source; engine positions are what
+the leaf sees in real games.
+
+**By TRUE side on the base holdouts** (fixed
+`eval_value_holdout.py`, 2-ply labels):
+
+| Split | v54 Black | v54 White | White − Black | v37 Black | v37 White |
+|---|---|---|---|---|---|
+| v7 | 0.7137 | 0.8021 | +0.088 | 0.7127 | 0.7670 |
+| v18 | 0.8785 | 0.8052 | −0.073 | 0.8785 | 0.8078 |
+| random | 0.5243 | 0.7632 | +0.239 | 0.5543 | 0.7707 |
+| **base pooled** | **0.7226** | **0.7964** | **+0.074** | **0.7269** | **0.7775** |
+
+On the base holdouts v54's White is BETTER than
+Black (+0.074) — the White gap is closed and
+inverted, as it is for v37's net (+0.051). (The
+defect v48 diagnosed lives on the battery-leg
+positions, not the base holdouts — the diag script
+below is the sharper instrument.) The patch
+holdouts are White-only by construction, so they
+carry no by-side split. **Caveat (standing):
+holdout does not predict played strength — the
+battery is the verdict.**
+
 ### 6.3 Baseline test suites (before training)
 
 Full suite run on this branch (niced, under load ~3.5,
