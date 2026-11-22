@@ -20,6 +20,14 @@ occur in 50 games, the check is INCONCLUSIVE (not failed) — the
 mechanism may simply be rare in v27-vs-v27 play — and the fast loop
 is the arbiter of the in-game fire rate.
 
+The mining phase is deterministic (per-game seeds, TSS consumes no
+RNG), so it checkpoints after every game (``--checkpoint``, default
+``<out>.checkpoint.json``) and resumes from the last completed game
+on restart — the resumed run reproduces the uninterrupted run
+exactly. Added after the second mining attempt was killed by a
+runtime restart at game 26/50; the procedure (50 games, seeds
+777/1777, verification of the first 5 differs) is unchanged.
+
 Usage:
     PYTHONPATH=ml python ml/scripts/mine_tss_positions.py
         --out research/iterations/tss-mechanism-check-b.json
@@ -79,15 +87,45 @@ def main() -> int:
     ap.add_argument("--games", type=int, default=50)
     ap.add_argument("--seed-a", type=int, default=777)
     ap.add_argument("--seed-b", type=int, default=1777)
+    ap.add_argument("--checkpoint", default=None)
     args = ap.parse_args()
 
     from gomoku_ml import game, mcts_heuristic, scoring
 
+    out_path = args.out
+    if not os.path.isabs(out_path):
+        out_path = os.path.join(REPO_ROOT, out_path)
+    ckpt_path = args.checkpoint or (out_path + ".checkpoint.json")
+    if not os.path.isabs(ckpt_path):
+        ckpt_path = os.path.join(REPO_ROOT, ckpt_path)
+
+    # Resume from the checkpoint if it matches this run's parameters.
     turns = 0
     fires = 0
     confirms = 0
     differs = []
-    for gi in range(args.games):
+    start_gi = 0
+    if os.path.exists(ckpt_path):
+        try:
+            with open(ckpt_path, encoding="utf-8") as f:
+                ckpt = json.load(f)
+            if (
+                ckpt.get("games") == args.games
+                and ckpt.get("seed_a") == args.seed_a
+                and ckpt.get("seed_b") == args.seed_b
+            ):
+                turns = ckpt["turns"]
+                fires = ckpt["fires"]
+                confirms = ckpt["confirms"]
+                differs = ckpt["differs"]
+                start_gi = ckpt["games_done"]
+                print(f"resuming from checkpoint: {start_gi}/"
+                      f"{args.games} games done", file=sys.stderr)
+        except (OSError, ValueError, KeyError):
+            print("checkpoint unreadable — starting from scratch",
+                  file=sys.stderr)
+
+    for gi in range(start_gi, args.games):
         pa = scoring.get_player(27, seed=args.seed_a + gi)
         pb = scoring.get_player(27, seed=args.seed_b + gi)
         board = game.empty_board()
@@ -123,6 +161,19 @@ def main() -> int:
             player = -player
         print(f"game {gi + 1}/{args.games}: turns={turns} fires={fires} "
               f"differs={len(differs)}", file=sys.stderr)
+        # Checkpoint after every game (the mining is deterministic,
+        # so a resume reproduces the uninterrupted run exactly).
+        with open(ckpt_path, "w", encoding="utf-8") as f:
+            json.dump({
+                "games": args.games,
+                "seed_a": args.seed_a,
+                "seed_b": args.seed_b,
+                "games_done": gi + 1,
+                "turns": turns,
+                "fires": fires,
+                "confirms": confirms,
+                "differs": differs,
+            }, f)
 
     verified = []
     for d in differs[:MAX_VERIFY]:
@@ -168,9 +219,6 @@ def main() -> int:
         {k: v for k, v in summary.items() if k != "all_differs"},
         indent=2,
     ))
-    out_path = args.out
-    if not os.path.isabs(out_path):
-        out_path = os.path.join(REPO_ROOT, out_path)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
     return 0
