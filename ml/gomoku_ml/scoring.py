@@ -517,6 +517,31 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h3/value-net.pt",
          "value_weight": 0.125},  # sweep winner (0.725 vs 0.600 @ 0.25, 0.475 @ 0.5)
+    # v51 (iteration 51, batch 13): H1 — v27 + a SOFT-MIN BACKUP
+    # at opponent nodes (see gomoku_ml.mcts_heuristic.HeuristicMCTS
+    # ``backup_rule`` and research/iterations/iter-51.md). The
+    # ONLY change from v27: at opponent nodes (odd depth from the
+    # root) q is the softmax-weighted mean of the
+    # opponent-perspective values of the node's visited children
+    # (-child.q), weights exp(beta * value) with beta = 2.0,
+    # instead of the mean; our nodes keep the mean (of the
+    # soft-min values returned by their children). The soft-min
+    # weights the opponent's worst reply heavily but keeps the
+    # other replies' contribution: it prices the opponent's best
+    # reply (undoing iter-40 §1.1a's blunder dilution) without
+    # collapsing the "how it loses" gradient the way v47's pure
+    # minimax did (q-collapse: ALL 74 visited children at -1.0 on
+    # g13, tactical 21/29). NOT pure minimax (v47, CLOSED) and
+    # NOT pure min in any form (v46, CLOSED). Leaf (v18's rollout
+    # leaf, both colours), priors, sims (100), c_puct (1.5),
+    # win/block scans, most-visited root and the τ=0.05 q-gap
+    # tie-break are v27 unchanged. Versions 45-47 are the
+    # parallel batch-12 workstreams', 48-50 ML batch 5's.
+    51: {"name": "scoring-v51", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05, "backup_rule": "softmax-opp",
+         "softmax_beta": 2.0},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1147,6 +1172,12 @@ class ScoringPlayer:
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(
                         "tie_break_q_threshold", 0.0
+                    ),
+                    backup_rule=ENGINE_VERSIONS[version].get(
+                        "backup_rule", "mean"
+                    ),
+                    softmax_beta=ENGINE_VERSIONS[version].get(
+                        "softmax_beta", 2.0
                     ),
                 )
 
