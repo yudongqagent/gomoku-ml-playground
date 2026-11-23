@@ -282,7 +282,60 @@ kernel re-sync unless v57 passes the bar.
 
 ## 2. Cost bench
 
-*(to be filled after the §1.4 bench runs)*
+`ml/scripts/bench_tss_sweep.py` →
+`research/iterations/tss-sweep-bench.json` (seed 777, 100 quiet +
+100 creator-rich positions — the same positions as iter-52's bench;
+the (4, 3000) cell reproduces iter-52 §1.4's node counts EXACTLY:
+quiet median 0 / p90 740 / p99 2273 / mean 196; creator-rich median
+20 / p90 1394 / p99 2763 / mean 365 — so the bench positions are the
+same and the cells are directly comparable). Times measured under
+CPU contention with the other batch-14 workers (and, for the first
+segment, my own pytest run), so they are inflated ~2x over
+uncontended; node counts are contention-independent and are what
+the budget rests on. The first bench attempt was SIGTERM'd by a VM
+replacement after ~30 min (2 cells done); the resume reproduced the
+run exactly (per-cell resume from the JSON).
+
+| cell | quiet fired / exc | rich fired / exc | rich time mean (×v52) | rich nodes mean / p90 |
+|---|---|---|---|---|
+| (4, 3000) = v52 | 11 / 0 (0%) | 5 / 1 (1%) | 1533ms (1.0x) | 365 / 1394 |
+| (4, 6000) | 11 / 0 (0%) | 5 / 1 (1%) | 1387ms (0.9x) | 395 / 1394 |
+| (5, 3000) | 10 / 10 (10%) | 6 / 19 (19%) | 2484ms (1.6x) | 813 / 3001 |
+| (5, 6000) | 11 / 4 (4%) | 7 / 8 (8%) | 3792ms (2.5x) | 1139 / 4246 |
+| (6, 3000) | 9 / 24 (24%) | 6 / 28 (28%) | 3625ms (2.4x) | 1047 / 3001 |
+| (6, 6000) | 10 / 14 (14%) | 9 / 22 (22%) | 6248ms (4.1x) | 1823 / 6001 |
+
+Full per-cell distributions (median/p90/p99/max time and nodes)
+are in the JSON. Headline findings:
+
+1. **The budget binds first — decisively.** At depth 5 the 3000-
+   node budget binds on 10% (quiet) / 19% (creator-rich) of
+   positions, vs 0%/1% at depth 4; at depth 6 it binds on 24%/
+   28%. At depth 5/3000 and depth 6/3000 the creator-rich node
+   p90 IS the budget (3001) — the budget, not the search, is the
+   binding constraint. Even at 6000 nodes, depth 6 aborts 14%/
+   22% of searches.
+2. **The budget-only cell (4, 6000) is a near-no-op on the bench:**
+   identical fires (11/5) and identical aborts (0/1) to v52. The
+   single creator-rich position that exceeds at 3000 needs 12916
+   nodes unconstrained (iter-52 §1.4), so it exceeds at 6000 too
+   (max 6001). The only difference is nodes mean 365→395 (the
+   aborted search runs longer before dying). If the sweep falls
+   back to (4, 6000), expect v57 ≈ v52 in games.
+3. **Depth 5 trades losses against gains already on the bench:**
+   quiet fires DROP 11→10 at (5, 3000) — a loss (a win the
+   control finds that the deeper search aborts away) — while
+   creator-rich fires rise 5→6/7 — possible gains. The mining
+   (§3) arbitrates the net.
+4. **Depth 6 looks dominated:** fires drop on quiet at both
+   budgets (11→9/10) while aborts explode; the only bright spot
+   is creator-rich fires 9 at (6, 6000) — but at 4.1x the mean
+   cost.
+5. **Cost gate (§1.6, ≤3x v52's creator-rich mean):** (5, 6000)
+   at 2.5x PASSES; (6, 3000) at 2.4x passes; **(6, 6000) at 4.1x
+   FAILS** the gate — it cannot be the sweep winner even if it
+   leads on net verified gains (the gate falls through to the
+   next eligible cell).
 
 ## 3. Mechanism check
 
