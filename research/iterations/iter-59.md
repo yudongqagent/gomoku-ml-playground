@@ -537,7 +537,7 @@ the battery's 100/200.)
 |---|---|---|---|---|---|
 | v59 vs v52 (100, normal) | 54W-45L-1D | 0.5450 | [0.4475, 0.6391] | 94 | 0.5266 (49W-44L-1D) |
 | v59 vs v0 (100, normal) | 100W-0L-0D | 1.0000 | [0.9630, 1.0000] | 22 | 1.0000 (22W-0L-0D) |
-| v59 vs v52 (100, swap) | TBD | TBD | TBD | TBD | TBD |
+| v59 vs v52 (100, swap) | 52W-46L-2D | 0.5300 | [0.4329, 0.6249] | 99 | 0.5354 (52W-45L-2D) |
 
 All legs recomputed from raw records with
 `ml/scripts/recompute_match.py` (a draw counts as half a
@@ -547,7 +547,10 @@ colour/seed noise (A as Black 36-14, A as White 18-31-1;
 the Black edge is the first-move advantage, not an engine
 difference). The vs-v0 leg reproduces v52's leg
 game-for-game: 100-0 with exactly 22 unique games (50-0 as
-Black, 50-0 as White) — the identity check.
+Black, 50-0 as White) — the identity check. The swap leg is
+also a tie (CI includes 0.50), with 99/100 distinct games;
+under swap the Black edge disappears (A as Black 29-21-2, A
+as White 23-25-0), as in v52's swap matches.
 
 ### 5.2 Ladder (40 games/leg, seed 100)
 
