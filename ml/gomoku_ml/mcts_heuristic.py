@@ -1165,6 +1165,58 @@ def _rollout3_leaf_value(board: np.ndarray, player: int) -> float:
     return -_rollout_leaf_value(b3, -player)
 
 
+def _rollout3sym_leaf_value(board: np.ndarray, player: int) -> float:
+    """v56 parity-corrected 3-ply label: the colour-swap-symmetrised
+    3-ply value (ML batch 6 H3 — see
+    ``research/iterations/iter-56.md`` §1.1).
+
+    The 3-ply label (:func:`_rollout3_leaf_value`) is systematically
+    optimistic — mean +0.1094 on the full training set, fraction
+    positive 0.734, vs the 2-ply label's -0.0560 / 0.234 — because
+    its odd horizon evaluates the leaf after OUR greedy move (the
+    parity shift, iter-44 §0; the 4-ply reversal in iter-49 §0
+    proves the shift is a function of horizon parity, not depth).
+    The symmetric label cancels the shift PER POSITION:
+
+    ``L3sym(B, p) = (L3(B, p) - L3(-B, p)) / 2``
+
+    where ``-B`` is the board with colours swapped (BLACK<->WHITE,
+    EMPTY unchanged — board negation) and the side to move ``p`` is
+    KEPT. The colour-swapped board with ``p`` still to move is the
+    mirror image of the position ``(B, -p)`` (same board, opponent
+    to move), so ``L3(-B, p) = L3(B, -p)`` by the mirror symmetry
+    of the game and the labeller (checked in
+    ``test_rollout3sym_label.py``): the swapped label carries the
+    SAME shift, now favouring the opponent, so the average cancels
+    it to first order at each position, leaving the tempo-neutral
+    value ``(V(B, p) - V(B, -p)) / 2``.
+
+    The degenerate reading — swapping BOTH the board colours AND
+    the side to move — is identically zero (``L3(-B, -p)`` equals
+    ``L3(B, p)`` exactly by mirror symmetry) and is NOT what is
+    implemented here; the side to move is kept.
+
+    Terminals: a forced win robust to who moves first is preserved
+    exactly (``L3(B, -p) = -1`` when the opponent cannot disrupt
+    it, so ``L3sym = (+1 - (-1)) / 2 = +1``); a forced win that
+    DEPENDS on moving first is halved (``L3(B, -p)`` is then a
+    gradient value, so ``L3sym ~= +0.5``) — the ranking is
+    preserved (a halved win still tops the gradient scale), but
+    the win signal is compressed. See iter-56 §1.1 for the full
+    derivation and the known limitations.
+
+    The label is in [-1, 1] from the side-to-move perspective,
+    exactly like v24's, v37's and v44's. Effective horizon: 5
+    plies, exactly like v44's — the ONLY change from v44 is the
+    symmetrisation. The board is not mutated (``-board`` creates
+    a new array, and the rollout plays on copies). Cost: 2x the
+    3-ply label."""
+    return (
+        _rollout3_leaf_value(board, player)
+        - _rollout3_leaf_value(-board, player)
+    ) / 2.0
+
+
 # --- v52 threat-space search (batch 13, H2) -------------------------------
 # Threat-space search (Allis's TSS): search ONLY forcing moves to a
 # deeper horizon than the 100-sim MCTS, and play the winning forcing
