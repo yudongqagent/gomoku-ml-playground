@@ -766,6 +766,24 @@ nothing lost).
 `eval_tactical_full.py --version 54 --suite both --seed 100`:
 **old 20/20, hard 29/29.** Clause 3 PASSES.
 
+### 9.2 vs v44 (clause 1) — FAIL
+
+`batch-v54-vs-v44.json` (100 games, validation seeds
+100/200, openings `research/openings-ml4.json`):
+**35W-58L-7D, win rate 0.385, Wilson 95% CI [0.2956,
+0.4829]** — the CI's upper bound is below 0.50.
+Clause 1 FAILS decisively. Colour split: as Black
+22W-25L-3D (0.470, CI [0.3388, 0.6055]); as White
+13W-33L-4D (0.300, CI [0.1910, 0.4375]). The played
+White gap vs v44 PERSISTS (White 0.30 vs Black 0.47,
+gap 0.17) despite the closed accuracy gap in §7.4 —
+the diagnostic fix did not transfer to played
+strength against the ML champion. 100/100 unique
+games; de-dup cut identical (0.385). For reference:
+v48 scored 0.44 vs v44, v54 scores 0.385 — worse
+than the redistribution precedent it was designed
+to beat.
+
 ### 6.3 Baseline test suites (before training)
 
 Full suite run on this branch (niced, under load ~3.5,
