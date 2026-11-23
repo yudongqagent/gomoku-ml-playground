@@ -1090,4 +1090,122 @@ other way.
 
 ## 7. Verdict
 
-(to be filled in.)
+**v56 is REJECTED — 3 of 4 clauses pass; clause 1 fails.** v44
+remains the ML champion; v37 remains the strongest ML version
+by head-to-head.
+
+| Clause | Bar | v56 | Result |
+|---|---|---|---|
+| 1. h2h vs v44 (100 games, openings) | win rate > 0.50, Wilson 95% CI lower > 0.50 | 46W-42L-12D, 0.52, CI [0.4232, 0.6154]; de-dup identical (100/100 unique) | **FAIL** |
+| 2. Ladder Elo | > 98.1 | 137.0, interval [22.9, 251.1] | **PASS** (point estimate; caveat §6.3) |
+| 3. Tactical | 20/20 + 29/29 | 20/20 + 29/29 (seed 100) | **PASS** |
+| 4. Test suites | ml pytest + npm test + tsc green | pytest 509 passed / 1 skipped / 58 xfailed, 0 failures; npm 55/55; tsc clean | **PASS** |
+
+**Checkpoint (gitignored):**
+`ml/runs/ml6-h3/value-net.pt`, md5
+`78e3e71f6098cb2fe3269d178b6cff64` (best-by-val-loss, epoch
+15, val loss 0.0674; weights bit-identical to `best.pt` and
+`final.pt`).
+
+### 7.1 The mechanism finding: the parity shift was NOT the (only) cost
+
+The pre-registered decision rule (§1) was: if the correction
+recovers v37-level played strength while keeping v44's Elo,
+the parity shift was the cost; if it plays at v44's level,
+the shift was not the binding constraint. **v56 plays at
+v44's level** — 0.52 vs v44 (CI straddling 0.50), Elo 137 vs
+98 (intervals overlapping heavily), vs v0 0.565 vs 0.58, vs
+v7 0.475 vs 0.45 — **and still well below v37** (0.42 vs
+v37; v37 beats v44 0.69–0.31 and v56 by a similar margin).
+The parity shift was real and measured (§0: 3-ply mean
++0.0999, fraction positive 0.734), and the correction
+removed 70% of the gradient gap — but correcting it bought
+no played strength. The shift was not the binding
+constraint on v44.
+
+Why not: the symmetric correction does not centre the
+labels, it re-biases them. The pre-registered prediction
+"mean ≈ 0, fraction positive ≈ 0.5" was REFUTED (§0: sym
+mean −0.1292 on the sample, −0.1039 on the full set;
+fraction positive 0.242). The terminal asymmetry (§0) is
+the mechanism: rollout wins almost always depend on moving
+first, so symmetrisation halves them (L3==+1 preserved
+0.000, mean |lsym| 0.351), while rollout losses are robust
+to the swap (L3==−1 preserved 0.833, mean |lsym| 0.932).
+The net's value scale is therefore asymmetric — wins worth
+~0.35, losses costing ~1.0 — and the engine plays
+loss-averse, defensive Gomoku. That trades v44's optimistic
+overextension for pessimistic passivity, and the two roughly
+cancel in played strength.
+
+The loss-aversion hypothesis's SPECIFIC prediction was
+refuted along the way: it predicted Black-weak play (cannot
+convert the first-move edge because it will not attack),
+and the fast loop seemed to confirm it (Black 1–4–0 vs v44).
+The 100-game battery shows the opposite — Black is v56's
+stronger colour in every leg (0.55–0.63). What the battery
+actually shows is a **White-side weakness** (§6.2): White
+0.45 / 0.50 / 0.35 / 0.29 vs v44 / v0 / v7 / v37, a
+0.13–0.26 gap over Black, worsening against stronger
+opponents, confirmed independently on the ladder (mcts-leg
+White 3–16–1). The holdout said the opposite (White BETTER,
+0.757 vs 0.669) — the seventh instance of holdout not
+predicting played strength. One partial mitigation: v56's
+White 0.29 vs v37 beats v44's 0.16, so the correction did
+not repeat v44's White collapse — it just did not fix
+White either. White-side weakness is now the top ML-track
+problem, shared across v44 and v56 (and v37's White is the
+thing that makes it strongest: v37 beats v44 as White).
+
+Two more findings for the record. **(1) Label-distribution
+similarity does not transfer to played strength either:**
+the symmetric labels are 2-ply-like in distribution (v37's
+net scores 0.6929 sign on them, nearly v56's own 0.7138),
+yet the net trained on them plays at v44's level, not
+v37's. **(2) The correction INCREASED history dependence:**
+no-history holdout collapses catastrophically on engine
+positions (v7 0.739→0.375, v18 0.724→0.370 — below chance,
+worse than v37's 0.195 drop), while v44's 3-ply net was
+robust (0.007 drop). Whatever the symmetric labels encode,
+the net reads it largely through the history planes.
+
+### 7.2 What is closed, what is open
+
+**CLOSED:** the symmetric-label correction in this form
+(L3sym as defined in §1.1) as a bar-passer. It neither
+recovers v37-level strength nor beats v44. The label-depth
+lever was already closed; this closes the parity-correction
+branch of the label-quality lever in its symmetric form.
+
+**OPEN (for future batches, not this one):** a correction
+that preserves win magnitude — e.g. an asymmetric
+symmetrisation that rescales the halved wins, or a
+centring that is fitted per-position rather than global —
+is untested, and the §0 terminal asymmetry suggests the
+win-halving is where the strength went. The White-side
+weakness is the bigger prize: every ML version since v37
+has been White-weak against strong opponents, and H1's
+v54 (White-side training positions weighted toward
+heuristic-opponent games) is the batch-6 attempt at it.
+
+### 7.3 Flags for the coordinator
+
+1. **The tasking's data premise was false** (header, §2):
+   the distill games and shards were never cleaned; v56
+   trained on v24's ORIGINAL games re-labelled, so the
+   v56-vs-v44 comparison is on identical positions. H2
+   independently corroborated this (coordinator note
+   2026-11-23: verbatim reconstruction from v37's shards,
+   0/37,227 mismatches). The coordinator's search that
+   missed the per-worker worktrees should be corrected
+   for future taskings.
+2. **H2's thread pin is likely a no-op:** H2 relaunched
+   their sweep with `OMP_NUM_THREADS=1 TORCH_THREADS=1`,
+   but `ValueMCTS.__init__` hard-codes
+   `torch.set_num_threads(2)`, which overrides env vars.
+   The wrapper approach (`run_1thread.py`, §5.0) is what
+   actually works — 1.4–5x measured, ~8x in practice.
+   H2's sweep may be running at 2 threads despite the env
+   vars; worth a check before their numbers are trusted
+   for timing (not for correctness — the engines are the
+   same up to float noise).
