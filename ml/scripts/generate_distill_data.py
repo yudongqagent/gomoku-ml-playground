@@ -28,6 +28,10 @@ replaying games):
   (``_rollout3sym_leaf_value`` — the colour-swap-symmetrised
   3-ply value, which cancels the odd-horizon parity shift per
   position; see ``research/iterations/iter-56.md`` §1.1).
+  ``--side {black,white}`` (ML batch 6 H1, v54) keeps only
+  positions with that side to move — the side is known exactly at
+  label time, so the filter is exact (see
+  ``research/iterations/iter-54.md`` §2).
 
 Sampling: ALL quiet positions of every game (positions per game
 ~35-45; game generation is the expensive step, labeling is ~6ms
@@ -190,6 +194,14 @@ def cmd_label(args) -> int:
             total_pos += 1
             if mcts_heuristic._terminal_leaf_value(board, p) != 0.0:
                 continue
+            # --side filter (v54): keep only positions with the
+            # requested side to move. The side is known exactly
+            # here (ply parity of the game record), so no plane
+            # decoding or index inference is involved.
+            if args.side == "white" and p != game.WHITE:
+                continue
+            if args.side == "black" and p != game.BLACK:
+                continue
             label = label_fn(board, p)
             history = boards[:t]  # boards before each earlier move
             last_move = moves[t - 1] if t > 0 else None
@@ -227,7 +239,7 @@ def cmd_label(args) -> int:
     print("LABEL_JSON " + json.dumps({
         "games_file": args.games, "out_dir": args.out_dir,
         "holdout_dir": args.holdout_dir,
-        "label_mode": args.label_mode,
+        "label_mode": args.label_mode, "side": args.side,
         "total_positions": total_pos, "quiet_positions": total_quiet,
         "held_out_games": held_out,
         "label_hist": label_hist,
@@ -262,6 +274,10 @@ def main() -> int:
                     "rollout2: v37's _rollout2_leaf_value labels; "
                     "rollout3: v44's _rollout3_leaf_value labels; "
                     "rollout3sym: v56's _rollout3sym_leaf_value labels")
+    pl.add_argument("--side", choices=["both", "black", "white"],
+                    default="both",
+                    help="keep only positions with this side to move "
+                    "(v54 White-only patch); default both")
     pl.set_defaults(func=cmd_label)
     args = parser.parse_args()
     return args.func(args)
