@@ -598,6 +598,46 @@ eval median 1.80 ms. Faster than v48's bench (mean
 4,120 ms under load 7.45) — same architecture; the
 difference is contention.
 
+## 8. α sweep and fast loops
+
+### 8.1 α sweep (2026-11-22 ~23:30 – 2026-11-23 ~02:37 UTC)
+
+`sweep_alpha.py --version 54 --alphas 0.125 0.25 0.5 --games 40
+--opponent v44 --seed-a 1001 --seed-b 2001` (dev seeds, no
+openings). One VM replacement killed the run during game 21
+of the α=0.25 leg; the driver resumed from game 21
+(7W-13L-1D) with per-game seeding — nothing lost. Log:
+`ml/runs/ml6-h1/sweep-alpha.log`; per-alpha JSONs in
+`research/iterations/alpha-v54-<α>-vs-v44.json`.
+
+| α | W-L-D | win rate | 95% CI | as Black | as White | unique |
+|---|-------|----------|--------|----------|----------|--------|
+| 0.125 | 14-24-2 | 0.3750 | [0.2422, 0.5297] | 10-10-0 (0.500) | 4-14-2 (0.250) | 40/40 |
+| 0.25 | 13-24-3 | 0.3625 | [0.2317, 0.5174] | 8-12-0 (0.400) | 5-12-3 (0.325) | 40/40 |
+| **0.5** | **17-22-1** | **0.4375** | [0.2960, 0.5899] | 11-9-0 (0.550) | 6-13-1 (0.325) | 40/40 |
+
+Win rate is U-shaped in α (0.375 / 0.3625 / 0.4375) —
+the same shape v48's sweep showed (0.375 / 0.250 /
+0.450), NOT the monotone-decreasing shape v44's sweep
+showed. **Selection (§2 rule, best win rate): α=0.5.**
+Registry updated (`scoring.py`,
+`value_weight: 0.5`). The no-signal rule does not apply
+(arms differ by up to 4 wins). The 40-game CIs overlap
+heavily, so the α ranking is a point-estimate call, not
+a proven ordering — and ALL THREE arms sit below 0.50
+against v44, so the sweep's honest message is that v54
+loses to v44 on dev seeds at every α, like v48. The
+100-game clause-1 leg (validation seeds, openings) is
+the real verdict.
+
+Colour note: White is still the weak side vs v44 at
+every α (0.250 / 0.325 / 0.325 vs Black 0.500 / 0.400 /
+0.550) — the diag's closed White accuracy gap (§7.4)
+has NOT (yet) shown up as played White strength against
+v44. These are 20-game colour splits (SE ≈ 0.11), so
+the battery's 50-game splits are the real read; but the
+direction is a warning, not a confirmation.
+
 ### 6.3 Baseline test suites (before training)
 
 Full suite run on this branch (niced, under load ~3.5,

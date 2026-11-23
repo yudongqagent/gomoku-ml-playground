@@ -588,12 +588,13 @@ ENGINE_VERSIONS: dict[int, dict] = {
     # the White gap but cost Black at least as much; v54 adds
     # zero Black-side patch positions. Search, priors, sims,
     # threat check, terminal cases: v8 unchanged.
-    # value_weight is the α-sweep winner (placeholder 0.25 =
-    # v37's winner until the sweep runs; see iter-54.md §2).
+    # value_weight is the α-sweep winner (0.5: 17W-22L-1D vs v44
+    # over 40 games, best of {0.125, 0.25, 0.5} at 0.375 / 0.3625
+    # / 0.4375; see iter-54.md §8.1).
     54: {"name": "scoring-v54", "defence_weight": 1.0, "threat_check": False,
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml6-h1/value-net.pt",
-         "value_weight": 0.25},
+         "value_weight": 0.5},
 }
 
 # --- weights --------------------------------------------------------------
