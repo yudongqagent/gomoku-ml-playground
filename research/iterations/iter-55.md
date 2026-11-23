@@ -828,3 +828,27 @@ v48's 0.44 to 0.515 is real (the label-depth reading of
 the §1.6 mechanism rule), but v55 does not beat the
 champion. The ladder and secondaries below complete the
 mechanism picture.
+
+### 8.2 Secondary — vs v0, 100 games
+
+`selfplay_batch.py --engine-a v55 --engine-b v0 --games 100
+--seed-a 100 --seed-b 200` (raw
+`ml/runs/ml6-h2/batt-v0.log`; 3,392 s; one VM restart
+killed the run at game 16 — resumed cleanly).
+**45W-51L-4D, win rate 0.4700, 95% CI [0.3751, 0.5671].**
+As Black 30W-17L-3D (0.6300), as White 15W-34L-1D
+(0.3100) — **a 0.32 White gap**. 97/100 unique games;
+de-dup rate 0.4845, CI [0.3876, 0.5827]. v55 LOSES to
+the weakest opponent, below v48's 0.545 and v44's 0.58
+on the same leg.
+
+The §1.6 White-gap check FIRES: the gap (0.32) is more
+than double the 0.15 threshold. The 3-ply labels
+reintroduced the White defect against the blundering
+heuristic opponent — the exact defect v48's patch was
+designed to fix (v48's fast-loop White vs v0 was 0.800).
+The defect is matchup-specific: it does not show vs v44
+(White 0.4600, gap 0.11) or on holdout (pooled true-side
+gap −0.026, §6). Against v0's off-distribution play,
+v55-as-White drifts into lost positions early (the fast
+loop found 6-of-7 v0 losses already lost by ply 12–38).
