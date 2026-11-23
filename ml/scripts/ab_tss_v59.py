@@ -35,6 +35,8 @@ import os
 import sys
 import time
 
+import numpy as np
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__))))
 
 from bench_tss import (  # noqa: E402
@@ -61,10 +63,13 @@ def _load(out: str | None) -> dict:
     return {}
 
 
-def _ab_positions(positions, label, node_budget, start=0, state=None):
+def _ab_positions(positions, label, node_budget, start=0, state=None,
+                  on_checkpoint=None):
     """A/B ``positions[start:]``; ``state`` (when given) is the
     running result dict to extend (resume). Returns the result
-    dict. ``state['done']`` counts completed positions."""
+    dict. ``state['done']`` counts completed positions.
+    ``on_checkpoint`` is called every CHUNK positions (it must NOT
+    live in ``state`` — the state is JSON-serialised)."""
     from gomoku_ml.mcts_heuristic import tss_winning_move
 
     if state is None:
@@ -107,20 +112,34 @@ def _ab_positions(positions, label, node_budget, start=0, state=None):
         if (i + 1) % CHUNK == 0:
             print(f"  {label}: {i + 1}/{len(positions)} "
                   f"({len(state['mismatches'])} mismatches)", flush=True)
-            if state.get("_save"):
-                state["_save"]()
+            if on_checkpoint is not None:
+                on_checkpoint()
     print(f"{label}: n={len(positions)} fired={state['fired']} "
           f"budget_exceeded={state['budget_exceeded']} "
           f"mismatches={len(state['mismatches'])}")
-    state.pop("_save", None)
     return state
 
 
-def _mine_positions(n, seed_a=777, seed_b=1777):
+def _mine_positions(n, seed_a=777, seed_b=1777, checkpoint=None):
+    """Play v27-vs-v27 games, collecting ``n`` positions (one per
+    ply). ``checkpoint`` (a path) saves completed games as
+    ``{"games": g, "positions": [[player, flat_board], ...]}``
+    after each game, so a resume replays only the interrupted
+    game (deterministic seeds make the replay identical)."""
     from gomoku_ml import game, scoring
 
     positions = []
     g = 0
+    if checkpoint and os.path.exists(checkpoint):
+        with open(checkpoint) as f:
+            ck = json.load(f)
+        g = ck["games"]
+        positions = [
+            (np.array(flat, dtype=np.int8).reshape(15, 15), player)
+            for player, flat in ck["positions"]
+        ]
+        print(f"loaded {len(positions)} mined positions "
+              f"from {g} games ({checkpoint})", file=sys.stderr)
     while len(positions) < n:
         pa = scoring.get_player(27, seed=seed_a + g)
         pb = scoring.get_player(27, seed=seed_b + g)
@@ -135,10 +154,21 @@ def _mine_positions(n, seed_a=777, seed_b=1777):
             board = game.apply_move(board, chooser(board, player), player)
             player = -player
         g += 1
+        if checkpoint:
+            _save(
+                {
+                    "games": g,
+                    "positions": [
+                        [int(player), board.reshape(-1).tolist()]
+                        for board, player in positions
+                    ],
+                },
+                checkpoint,
+            )
     return positions
 
 
-def _replay(n_games, start=0, state=None):
+def _replay(n_games, start=0, state=None, on_checkpoint=None):
     from gomoku_ml import game, scoring
 
     if state is None:
@@ -172,11 +202,10 @@ def _replay(n_games, start=0, state=None):
         state["done"] = g + 1
         print(f"  replay: game {g + 1}/{n_games} done "
               f"({len(state['mismatches'])} mismatches)", flush=True)
-        if state.get("_save"):
-            state["_save"]()
+        if on_checkpoint is not None:
+            on_checkpoint()
     print(f"replay: games={n_games} turns={state['turns']} "
           f"mismatches={len(state['mismatches'])}")
-    state.pop("_save", None)
     return state
 
 
@@ -217,12 +246,12 @@ def main() -> int:
         print(f"generated {len(positions)} {label} positions",
               file=sys.stderr)
         state = dict(prev)
-        state["_save"] = save
         results[key] = state  # assign BEFORE running: checkpoints
         # save the live (mutated) state, not a stale copy
         _ab_positions(
             positions, label, args.node_budget,
             start=prev.get("done", 0), state=state,
+            on_checkpoint=save,
         )
         save()
 
@@ -232,14 +261,18 @@ def main() -> int:
         print(f"mined: already done "
               f"({len(prev.get('mismatches', []))} mismatches)")
     else:
-        mined = _mine_positions(args.mined)
+        pos_ckpt = None
+        if args.out:
+            pos_ckpt = args.out.replace(
+                ".json", "-mined-positions.json")
+        mined = _mine_positions(args.mined, checkpoint=pos_ckpt)
         print(f"mined {len(mined)} real-game positions", file=sys.stderr)
         state = dict(prev)
-        state["_save"] = save
         results["mined"] = state  # assign BEFORE running (see above)
         _ab_positions(
             mined, "mined", args.node_budget,
             start=prev.get("done", 0), state=state,
+            on_checkpoint=save,
         )
         save()
 
@@ -251,10 +284,10 @@ def main() -> int:
                   f"({len(prev.get('mismatches', []))} mismatches)")
         else:
             state = dict(prev)
-            state["_save"] = save
             results["replay"] = state  # assign BEFORE running
             _replay(
-                args.replay, start=prev.get("done", 0), state=state
+                args.replay, start=prev.get("done", 0), state=state,
+                on_checkpoint=save,
             )
             save()
 
