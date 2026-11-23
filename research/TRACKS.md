@@ -281,9 +281,30 @@ the heuristic. The work continues autonomously; he runs nothing.
   priced (1 rejected, 2 = v18/v27, 3 beats v27 h2h but fails the
   bar, 4 rejected twice). The ladder is saturated at the top —
   terminally: clause 2 for the v52 reference is judged by the
-  leg-result reading (dominate 40-0/40-0/31-9). ML batch 6 is
-  next: targeted White-collapse fix, 3-ply retrain of the patch
-  data, parity-corrected labels.
+  leg-result reading (dominate 40-0/40-0/31-9). ML batch 6
+  complete 2026-11-23: 0/3; v44 stays the ML champion. v54's
+  White-only patch is a v0-specialist (White 0.71 vs v0, but
+  0.29 vs v7, 0.25 vs the ladder MCTS, 0.21 vs v37) — the White
+  fix works vs the weakest opponents only and makes White worse
+  vs every stronger opponent; its Elo 168.4 is the highest
+  ML-track Elo ever, yet its h2h vs v44 is the worst (0.385).
+  v55's 3-ply retrain of the v48 patch data is a partial recovery
+  (net-vs-net strength recovered, but the White fix did not
+  survive odd-parity 3-ply labelling). v56's symmetric parity
+  correction removed 70% of the gradient gap but did not centre
+  the labels (sym mean −0.1292) — optimism traded for pessimism;
+  the symmetric-label correction is CLOSED. Holdout does not
+  predict played strength — now eight instances. **The ladder
+  Elo and played strength now openly diverge:** v54 has the best
+  Elo (168.4) and the worst h2h (0.385); both v54 and v56 pass
+  Elo while losing the MCTS leg outright (16-23-1, 14-25-1) —
+  the Elo is computed from the heuristic anchor leg only and is
+  blind to the MCTS leg. ML batch 7 should pre-register whether
+  the MCTS leg enters clause 2. Tooling: eval_value_holdout.py's
+  side-to-move inference is fixed (37.9% of positions were
+  mislabelled on distill shards). Batch 14 is next: TSS
+  depth/budget sweep, v52's swap/colour interaction, TSS
+  speed.
 - **Dataset-dedup finding (ML batch 1):** the "10k dataset" is
   3,244 unique games, not 7,099 — and v8's "4,350" was 1,449
   unique. The B1 parallel generator seeds worker *w* with
