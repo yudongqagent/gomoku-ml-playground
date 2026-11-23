@@ -1184,4 +1184,25 @@ Proceed to the battery.
 
 ## 15. Battery (re-scope)
 
+### Tactical (run before the battery legs — clause-3 verdict first)
+
+v52 re-verified first on the corrected suite:
+**old 20/20, hard 29/29**
+(`research/iterations/tactical-v52-reverify.txt`).
+v58 at `--seed 100`: **old 20/20, hard 29/29**
+(`research/iterations/tactical-v58.txt`). **Clause 3 PASSES.**
+The term does not break any tactical position (terminals are
+exact, as in v52; the tie-break interaction v40 warned about
+does not materialise here).
+
+### vs v52, 100 games, normal rules
+
+(in progress)
+
+### vs v0, 100 games, normal rules
+
+### swap vs v52, 100 games
+
+### Ladder (40 games/opponent)
+
 ## 16. Verdict (re-scope)
