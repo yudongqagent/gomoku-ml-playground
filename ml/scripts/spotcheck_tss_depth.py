@@ -48,6 +48,10 @@ def main() -> int:
     ap.add_argument("--n", type=int, default=20)
     ap.add_argument("--depth", type=int, default=6)
     ap.add_argument("--budget", type=int, default=10000)
+    ap.add_argument("--indices", default=None,
+                    help="comma-separated indices into the qualifying "
+                    "list to check (instead of the first --n); used "
+                    "for the M3 budget follow-up on aborted positions")
     ap.add_argument("--checkpoint", default=None)
     args = ap.parse_args()
 
@@ -65,7 +69,11 @@ def main() -> int:
 
     with open(in_path, encoding="utf-8") as f:
         mining = json.load(f)
-    qualifying = mining["qualifying"][: args.n]
+    if args.indices is not None:
+        idx = [int(x) for x in args.indices.split(",") if x != ""]
+        qualifying = [mining["qualifying"][i] for i in idx]
+    else:
+        qualifying = mining["qualifying"][: args.n]
 
     results = []
     start_i = 0
@@ -76,6 +84,7 @@ def main() -> int:
             if (
                 ckpt.get("input") == in_path
                 and ckpt.get("n") == args.n
+                and ckpt.get("indices") == args.indices
                 and ckpt.get("depth") == args.depth
                 and ckpt.get("budget") == args.budget
             ):
@@ -115,6 +124,7 @@ def main() -> int:
             json.dump({
                 "input": in_path,
                 "n": args.n,
+                "indices": args.indices,
                 "depth": args.depth,
                 "budget": args.budget,
                 "done": i + 1,
@@ -129,6 +139,7 @@ def main() -> int:
         "input": in_path,
         "rule": mining.get("rule"),
         "n": len(results),
+        "indices": args.indices,
         "depth": args.depth,
         "budget": args.budget,
         "found": found,

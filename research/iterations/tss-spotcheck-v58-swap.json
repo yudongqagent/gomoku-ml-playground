@@ -1,0 +1,174 @@
+{
+  "input": "/home/hatch/workspace/projects/gomoku-b14-h2/research/iterations/tss-mine-v58-swap.json",
+  "rule": "swap",
+  "n": 20,
+  "depth": 6,
+  "budget": 10000,
+  "found": 0,
+  "none_completed": 16,
+  "none_budget_exceeded": 4,
+  "find_rate": 0.0,
+  "find_rate_completed": 0.0,
+  "results": [
+    {
+      "game": 0,
+      "ply": 4,
+      "found": false,
+      "move": null,
+      "nodes": 2,
+      "budget_exceeded": false
+    },
+    {
+      "game": 0,
+      "ply": 10,
+      "found": false,
+      "move": null,
+      "nodes": 519,
+      "budget_exceeded": false
+    },
+    {
+      "game": 0,
+      "ply": 14,
+      "found": false,
+      "move": null,
+      "nodes": 2571,
+      "budget_exceeded": false
+    },
+    {
+      "game": 0,
+      "ply": 16,
+      "found": false,
+      "move": null,
+      "nodes": 9672,
+      "budget_exceeded": false
+    },
+    {
+      "game": 0,
+      "ply": 18,
+      "found": false,
+      "move": null,
+      "nodes": 10001,
+      "budget_exceeded": true
+    },
+    {
+      "game": 0,
+      "ply": 20,
+      "found": false,
+      "move": null,
+      "nodes": 1257,
+      "budget_exceeded": false
+    },
+    {
+      "game": 0,
+      "ply": 22,
+      "found": false,
+      "move": null,
+      "nodes": 233,
+      "budget_exceeded": false
+    },
+    {
+      "game": 0,
+      "ply": 24,
+      "found": false,
+      "move": null,
+      "nodes": 10001,
+      "budget_exceeded": true
+    },
+    {
+      "game": 0,
+      "ply": 26,
+      "found": false,
+      "move": null,
+      "nodes": 1876,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 8,
+      "found": false,
+      "move": null,
+      "nodes": 2548,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 10,
+      "found": false,
+      "move": null,
+      "nodes": 26,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 12,
+      "found": false,
+      "move": null,
+      "nodes": 654,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 16,
+      "found": false,
+      "move": null,
+      "nodes": 2548,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 18,
+      "found": false,
+      "move": null,
+      "nodes": 10001,
+      "budget_exceeded": true
+    },
+    {
+      "game": 1,
+      "ply": 20,
+      "found": false,
+      "move": null,
+      "nodes": 10001,
+      "budget_exceeded": true
+    },
+    {
+      "game": 1,
+      "ply": 22,
+      "found": false,
+      "move": null,
+      "nodes": 7164,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 28,
+      "found": false,
+      "move": null,
+      "nodes": 6071,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 30,
+      "found": false,
+      "move": null,
+      "nodes": 6,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 34,
+      "found": false,
+      "move": null,
+      "nodes": 5463,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 36,
+      "found": false,
+      "move": null,
+      "nodes": 914,
+      "budget_exceeded": false
+    }
+  ]
+}
