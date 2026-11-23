@@ -695,3 +695,339 @@ implementation — or to record NO PATCHABLE MECHANISM and stop)
 ## 5. Battery
 
 ## 6. Verdict
+
+---
+
+# RE-SCOPE — v58: threat-potential term in the leaf evaluation (new worker, 2026-11-23)
+
+The diagnosis above (§§0–6) found no patchable mechanism for
+v52's swap/colour interaction and stopped per its tasking. The
+coordinator re-scoped H2 to the ONE speculative direction the
+diagnosis leaves open (§10 / §6 item 3): a threat-potential term
+in the leaf evaluation. Everything below is the re-scope's work,
+clearly separated from the diagnosis. The diagnosis (§§0–6),
+its measurement scripts, and its JSON artifacts are unchanged.
+
+**Status: PRE-REGISTERED — design fixed below (§11) BEFORE any
+eval of the re-scoped v58. The cost bench (§11.4) ran BEFORE
+this pre-registration was committed (the iter-52 §1.4 precedent:
+the bench informs the budget; it is a cost measurement, not a
+strength eval). The mechanism check (§13) runs only after this
+section is committed.**
+
+## 11. Re-scope design and pre-registration
+
+### 11.1 The term (ONE definition)
+
+**Definition.** At the rollout-end position — the position where
+v52's leaf evaluates `_attack_gradient_v1`, after exactly 2
+rollout plies under `_rollout_move` — let `F(p)` be the EXACT
+number of forcing moves (the TSS move set: four-creators ∪
+true-open-three-creators) held by player `p`, enumerated by the
+TSS machinery: four-creators via the v1 kernel prefilter (>=
+20000) + a local exact test (`_winning_moves_through`), open-
+three creators via the v0 kernel (>= 1000) minus four-creators.
+The term is:
+
+```
+T = 0.05 * tanh((F(ours) - F(theirs)) / 1.0)
+```
+
+where "ours"/"theirs" are from the side-to-move's perspective at
+the rollout end. The leaf value is:
+
+```
+value = clamp(_attack_gradient_v1 + T, -0.2, +0.2)
+```
+
+**Why this definition (justification).**
+* *The rollout end, not the leaf start:* forcing potential that
+  survives the opponent's best reply (the rollout's ply 2) is
+  what matters — a forcing move the opponent kills on the reply
+  is not potential. The gradient is evaluated at the rollout end
+  for the same reason (iter-16: the leaf horizon extends past the
+  forcing exchange); the term follows the same logic.
+* *Forcing moves (both classes, counted equally):* both classes
+  are TSS forcing moves, and TSS fires on either — reaching a
+  firing position is the diagnosis's mechanism (M2b: TSS firing
+  is necessary for v52-White to win, 47/47), so the count of
+  forcing moves is the direct measure of proximity to a firing
+  position. Four-creators and open-three creators are NOT
+  weighted differently: a win through open threes is as much a
+  win as one through fours (the TSS itself treats them as one
+  move class, ordering four-creators first only for speed).
+* *Weight 0.05, scale 1.0:* a one-forcing-move advantage shifts
+  the leaf by 0.05·tanh(1) ≈ 0.038 — about 40% of the gradient's
+  typical midgame magnitude (~0.10) — a meaningful nudge that
+  cannot dominate the gradient. The tanh saturates at a
+  difference of 2 (0.0482, 96% of the cap): holding 2+ more
+  forcing moves than the opponent is already "clearly ahead in
+  threat potential". The weight is half the gradient's cap and a
+  quarter of the must-block (0.25).
+* *Cap (the iter-7 invariant):* the SUM is clamped to ±0.2, so
+  quiet leaves never outweigh the smallest exact terminal value
+  (the must-block 0.25). The term's own bound is ±0.05.
+* *Sign:* positive when we hold more forcing moves than the
+  opponent, negative when fewer; antisymmetric under colour swap,
+  like the gradient.
+* *Where it does NOT apply:* terminals are exact (leaf-start
+  terminals, and terminals reached inside the rollout, return
+  exact values — the term never touches them). On a rollout-end
+  must-block (the opponent holds exactly 1 winning move) the term
+  is SKIPPED and the gradient alone is returned: the opponent's
+  forcing count is degenerate when the opponent already holds a
+  winning move (the local four-creator test would count cells
+  near the pre-existing winning square as creators — the
+  `_four_creating_moves_fast` contract note), and the must-block
+  dominates the position anyway.
+* *Both colours:* the term applies at every leaf, for whichever
+  side is to move. It is NOT a White patch (see §11.2). The
+  mechanism check measures White's firing rate only because that
+  is the diagnosis's quantity.
+
+**What is NEW vs the gradient (the honest account).** The
+gradient's strong tier (v1 attack >= 4000) already counts
+four-creators and v1-visible open-three creators, so the term
+partly re-weights moves the gradient already sees — forcing
+moves count ~2.4x generic strong moves (once in the breadth,
+once in the term). The term's GENUINELY NEW signal is the
+v1-blind open-three creators: moves v1 scores below 4000 (in the
+constructed case, 6 — below even the developing threshold) that
+create a true open three. Those moves are invisible to the
+gradient AND to the priors (both use v1 scores); the term is the
+only signal valuing them. The bench (§11.4) measures how often
+the term is nonzero; the mechanism check (§11.3) measures
+whether it changes behaviour.
+
+### 11.2 Distinction from CLOSED levers (explicit)
+
+* **The leaf-blind direction (v40) is closed, but v40 was about
+  the leaf MIS-RANKING on specific prevention instances** — and
+  the finding was that the leaf ranks the unsafe move worst
+  already; the mis-ranking lives in backed-up root q / visit
+  allocation (a search problem). This is a different mechanism:
+  a NEW POSITIVE term for threat creation. The leaf's ranking of
+  preventions is untouched (terminals and the must-block are
+  exact, as in v52); nothing here re-opens v40's mis-ranking
+  question.
+* **The prior/book levers (v13, v16) are about the PRIOR, not
+  the leaf value.** v58's priors are v52's exactly (sharp v1
+  priors, no floor, no temperature). No opening book, no
+  White-search change.
+* **The White gap as a single-flaw framing (v41, v46, v58
+  diagnosis) is closed.** This term is not a White patch: it
+  applies to both colours, and the White firing rate is a
+  measurement choice (the diagnosis's quantity), not a
+  White-specific mechanism.
+* **Rollout-depth changes (v53) are closed.** The rollout stays
+  exactly 2 plies under the same policy; only the rollout-end
+  evaluation gains the term.
+* **The blend (v19, v21) is closed.** No blending of terminal
+  values with the gradient; terminals stay exact.
+
+### 11.3 Mechanism check (pre-registered)
+
+The tasking's stop rule: if the mechanism check shows the term
+does not change forcing-position reach rates, say so and stop —
+do not force a version. The DECISIVE quantity is the reach rate
+(Check B); Check A is diagnostic (does the term change move
+choice at all?).
+
+**Check A — move-choice on mined miss positions.**
+Mine: replay v52-White's 27 normal-rules losses from the
+committed `batch-v52-vs-v27.json`. At each White turn, enumerate
+White's forcing moves (`tss_forcing_moves`); record turns where
+White has >= 1 forcing move, v52's recorded move is NOT a
+forcing move, White holds no winning move, and Black holds no
+winning move (else the win/block scans force the move). Collect
+the FIRST 20 such turns (positions stored as stone lists).
+Sanity: TSS must be silent on all 20 (v52 fired 0 times in
+these losses — M2b — and v58's TSS is identical, so any forcing
+move v58 plays comes from the MCTS + term, not the hook).
+Check: run v58 (seed 100) on each position; count how often v58
+plays a forcing move.
+Decision: PASS if >= 6/20 (30%); FAIL if <= 2/20 (10%); WEAK
+3–5/20. (v52 plays a forcing move on 0/20 by construction.)
+Script: `ml/scripts/collect_forcing_miss_positions.py` (mining)
++ `ml/scripts/check_threat_term_mechanism.py` (Check A).
+
+**Check B — firing rate in test games (DECISIVE).**
+40 games v58 vs v27, normal rules, alternating colours, dev
+seeds 1060/2060 (fresh — distinct from the battery's 100/200,
+the fast loop's 1001/2001, and Check B's own mining seeds).
+Mine White's TSS rates with the diagnosis's
+`replay_tss_battery.py --white-only` (per-game fires too, via
+`--per-game --only-a-colour white`): White fire rate per turn,
+firing-game rate (fraction of v58-White games with >= 1 fire),
+fires on White turns in v58-White losses.
+Baseline (M2, v52-White vs v27, normal rules): fire rate
+0.1011 (118/1167 turns), firing-game rate 42% (21/50), fires
+in losses 0 (0/488 turns).
+Decision: PASS if the White fire rate is >= 0.15 (a 1.5x rise)
+with z > 2 vs the M2 baseline (pooled two-proportion z-test),
+OR >= 5 fires on White turns in v58-White losses (fires in
+losses are unconfounded by win-more: v52-White fired 0 times
+in its losses); FAIL if the fire rate is <= 0.12 AND 0 fires in
+losses; WEAK otherwise.
+**Proceed to the battery ONLY if Check B PASSES.** If Check B
+FAILS or is WEAK, STOP — report the numbers for the next batch
+and do not build a battery on an undemonstrated mechanism. (A
+WEAK Check B is not rescued by Check A: move-choice change
+without a reach-rate change means the forcing moves the term
+plays do not lead to firing positions.)
+Check B's leg also yields a 40-game v58-vs-v27 win rate as a
+SECONDARY (not a strength verdict — the battery is vs v52).
+
+### 11.4 Cost budget (pre-registered from the bench)
+
+The bench (`ml/scripts/bench_threat_leaf.py`, run BEFORE this
+pre-registration was committed — the iter-52 §1.4 precedent;
+results in `research/iterations/threat-leaf-bench-v58.json`,
+403 positions from the first 10 v52-vs-v27 battery games, plus
+10 full 100-sim searches):
+
+| quantity | v52 leaf | v58 leaf |
+|---|---|---|
+| mean per-call time | 11.97 ms | 14.49 ms |
+| median per-call time | 6.40 ms | 7.42 ms |
+| p90 per-call time | 56.12 ms | 57.86 ms |
+| max per-call time | 69.64 ms | 94.70 ms |
+| **mean cost ratio** | — | **1.211x** |
+
+**Pre-registered ceiling: mean leaf-time ratio <= 1.5x**
+(measured 1.211x — PASSES with headroom; v53's ceiling was
+2.0x). The ratio is contention-independent in the sense that
+both leaves are timed in the same process on the same
+positions; the absolute times are inflated by CPU contention
+with the parallel batch-14 workers. The term's added cost is
+two v0 `attack_all` calls (one per colour) plus local exact
+tests, reusing the gradient's single `attack_v1_both` call.
+Battery affordability: v52's battery leg took ~50 min; the
+leaf is ~21% slower but TSS dominates creator-rich move time,
+so v58's legs are expected at ~55–60 min. If a leg exceeds 90
+min the overrun is reported (no hard stop — the cost ceiling
+is on the leaf, not the leg).
+
+Bench characterisation (pre-registration measurements, NOT the
+mechanism check — they motivate the test gates in §12, and
+Check A/B are the independent arbiter): the v58 leaf differs
+from the v52 leaf on 58.1% of sampled positions (234/403, mean
+|diff| 0.0400 where differing — matching the design: a
+one-forcing-move difference shifts the leaf by ~0.038); the
+term is nonzero on 82.1% of quiet rollout ends (234/285); the
+forcing-difference histogram at quiet rollout ends is
+negative-skewed (the rollout's last mover — the opponent's
+reply — holds more forcing moves; the term measures this
+honestly, as the gradient does for breadth). Move choice on 8
+TSS-silent midgame positions (100 sims, seed 100): agree 7,
+differ 1 — the term changes move choice sometimes (12.5%),
+where the choice is close.
+
+### 11.5 What does NOT change
+
+v52 exactly, except the leaf: 100 sims, c_puct 1.5, sharp v1
+priors, the 2-ply rollout (same policy), the τ=0.05 tie-break,
+most-visited root, TSS at the root (depth 4, budget 3000).
+No q-based root decision (CLOSED). No sims change. No prior
+change. No defensive VCF/TSS check (CLOSED). No White opening
+book / White search / White prior change (CLOSED).
+`baseline.py` stays FROZEN. No kernel re-sync unless v58 passes
+the bar.
+
+### 11.6 Eval seeds (pre-registered)
+
+* Mechanism Check B: v58 vs v27, 40 games, seeds 1060/2060.
+* Fast loop: vs v0 and vs v52, 10 games each, seeds 1001/2001
+  (per the tasking).
+* Battery h2h vs v52: v58=100 / v52=200; vs v0: v58=100 / v0=200.
+* Ladder: seed 100, 40 games/opponent, mcts_sims=100
+  (`ml/scripts/eval_version.py --version 58 --ladder-games 40
+  --out research/iterations/ladder-v58.json`).
+* Swap: 100 games vs v52, balanced placement, placement_seed 11,
+  tempo judge, seeds 100/200.
+* Tactical: `eval_tactical_full.py --version 58 --suite both
+  --seed 100`. v52's tactical is re-verified first on the
+  corrected suite (expect 20/20 + 29/29).
+* Challenge match (ONLY if v58 passes all 4 clauses): per §1.6's
+  pre-registered position, clause 1 IS vs v52 (the champion), so
+  a bar-passer has already beaten the champion h2h; the title
+  question is decided by the clause-1 match plus the ladder
+  leg-result reading, and no separate challenge match is run.
+* Harness commands follow iter-52 §1.5 exactly. All match
+  drivers AUTO-RESUME from partial `--out` files — if a run is
+  killed, relaunch the SAME command. Per-game seeding with a
+  uniqueness audit on every leg.
+
+### 11.7 The bar (4 clauses, ALL required; re-anchored on v52)
+
+As §1.7: (1) h2h vs v52 ≥100 games, win rate > 0.50 with Wilson
+95% CI lower bound > 0.50; (2) ladder Elo beats v52's — judged
+by the LEG-RESULT reading: strictly dominate v52's legs (random
+40-0, heuristic 40-0, mcts 31-9), i.e. match the two perfect
+legs and beat 31-9 on the mcts leg; (3) tactical ≥ 20/20 +
+29/29; (4) all test suites green. Fail any clause = REJECTED.
+Do NOT claim a "highest Elo ever" from a single draw. Do NOT
+re-run at another seed to shop for a pass — no seed-shopping,
+in either direction (v44 precedent).
+
+## 12. Implementation (re-scope)
+
+`ml/gomoku_ml/mcts_heuristic.py` — the v58 block sits between
+`tss_winning_move` and `class HeuristicMCTS`:
+* `_THREAT_TERM_WEIGHT = 0.05`, `_THREAT_TERM_SCALE = 1.0`
+  (pre-registered, §11.1).
+* `_forcing_counts_both(board, black1, white1)` — exact
+  forcing-move counts `(black, white)` from precomputed v1
+  arrays (shared with the gradient) + one v0 `attack_all` per
+  colour + local exact tests. Precondition: neither side holds
+  a winning move (the caller establishes it).
+* `_threat_potential_term(f_ours, f_theirs)` — the pure term
+  function, `W * tanh((F(ours) - F(theirs)) / S)`.
+* `_gradient_plus_threat(board, player)` — gradient + term from
+  one `attack_v1_both` call, sum clamped to ±0.2.
+* `_rollout_threat_leaf_value(board, player)` — the full leaf,
+  written FRESH from the §11 spec (the v53 precedent: the
+  differential test tests the spec against v52's leaf, not an
+  alias against itself). Terminal handling identical to
+  `_rollout_leaf_value`; the must-block at the rollout end
+  returns the gradient alone (term skipped).
+* `HeuristicMCTS` gains `leaf_mode="rollout2_threat_v58"`
+  (validation, dispatch, `_rollout_threat_v58_leaf_value`,
+  docstring entry).
+
+`ml/gomoku_ml/scoring.py` — `ENGINE_VERSIONS[58]` = v52 +
+`"leaf_mode": "rollout2_threat_v58"` (TSS root hook, tie-break,
+sims unchanged).
+
+Tests: `ml/tests/test_threat_term_v58.py`, 15 tests, all
+passing — oracle equivalences (forcing counts vs
+`_forcing_sets` and vs the brute-force oracles, 0 mismatches),
+the v1-blind open-three case (v1 attack 6, v0 1030 — counted
+by the term, invisible to the gradient's strong tier), the
+broken-four creator case (v0-blind, counted via the v1
+prefilter + exact test), term values/antisymmetry/bound, leaf
+terminal identity (leaf-start + rollout terminals), the
+quiet-path decomposition (v58 == clamp(v52 + term)), the
+must-block skip, the ±0.2 clamp, colour-swap symmetry, the
+difference gate (> 20%; bench 58.1%), the cost ceiling (1.5x;
+bench 1.211x), registration, and TSS-hook precedence (v58
+plays the TSS move on T1).
+One test correction during development: the first antisymmetry
+test asserted `leaf(B, BLACK) == -leaf(-B, WHITE)`, which is
+the WRONG invariant for a rollout leaf (the rollout path
+depends on who moves first) — the code was correct and the
+test was fixed to the colour-swap symmetry
+`leaf(B, BLACK) == leaf(-B, WHITE)`, which holds exactly.
+
+Bench: `ml/scripts/bench_threat_leaf.py` →
+`research/iterations/threat-leaf-bench-v58.json` (see §11.4).
+
+## 13. Mechanism check (re-scope)
+
+(to be filled in when Check A/B run — AFTER §11 is committed)
+
+## 14. Fast loop (re-scope)
+
+## 15. Battery (re-scope)
+
+## 16. Verdict (re-scope)

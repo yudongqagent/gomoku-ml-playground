@@ -1639,6 +1639,208 @@ def tss_winning_move(
     return None
 
 
+# --- v58 threat-potential leaf term (batch 14, H2, re-scoped) -------------
+# The diagnosis (research/iterations/iter-58.md §§2-3) found v52-White
+# wins ONLY by reaching a forcing position (47/47 wins involve a White
+# TSS fire) but reaches one in only 42% of normal-rules games — and
+# that TSS detection is complete for White at depth 4 (0 finds in 55
+# completed depth-6 searches), so no detection patch exists. The
+# re-scoped v58 (iter-58.md §11) steers the MCTS TOWARD forcing
+# positions instead of waiting for them: a term in the leaf
+# evaluation valuing threat potential (future forcing positions).
+#
+# The term counts FORCING MOVES — the TSS move set (four-creators
+# ∪ true-open-three-creators, enumerated exactly by
+# :func:`_forcing_sets`' machinery: the v1 kernel + a local exact
+# test for fours, the v0 kernel >= 1000 minus fours for open-three
+# creators — each kernel enumerates one class, batch 13's kernel-
+# blindness lesson) — held by each side at the rollout-end position,
+# and adds ``W * tanh((F(ours) - F(theirs)) / S)`` to the v1
+# gradient, with the sum clamped to +/-0.2 (the iter-7 cap: a static
+# heuristic must never outweigh the smallest exact terminal value,
+# the must-block 0.25). W = 0.05, S = 1.0 (pre-registered, iter-58
+# §11): a one-forcing-move advantage shifts the leaf by ~0.038 —
+# about 40% of the gradient's typical midgame magnitude — a
+# meaningful nudge that cannot dominate the gradient, and the tanh
+# saturates at a difference of 2 (holding 2+ more forcing moves
+# than the opponent is already "clearly ahead in threat potential").
+#
+# The term is evaluated at the ROLLOUT END (the same position as
+# the gradient), not the leaf start: forcing potential that
+# survives the opponent's best reply (the rollout's ply 2) is what
+# matters — a forcing move the opponent kills on the reply is not
+# potential. It applies ONLY on the quiet rollout-end path:
+# terminals reached inside the rollout return exact values, and on
+# a rollout-end must-block (the opponent holds exactly 1 winning
+# move) the term is SKIPPED and the gradient alone is returned —
+# the opponent's forcing count is degenerate when the opponent
+# already holds a winning move (the local four-creator test would
+# count cells near the pre-existing winning square as creators;
+# see :func:`_four_creating_moves_fast`'s contract note), and the
+# must-block dominates the position anyway.
+#
+# Distinction from CLOSED levers (pre-registered, iter-58 §11):
+# * v40's leaf-blind direction is closed, but v40 was about the leaf
+#   MIS-RANKING on specific prevention instances (it ranks the
+#   unsafe move worst already) — this adds a NEW POSITIVE term for
+#   threat creation, a different mechanism (the leaf's ranking of
+#   preventions is untouched: terminals and the must-block are
+#   exact, as in v52).
+# * The prior/book levers (v13, v16) are about the PRIOR, not the
+#   leaf value — the priors are v52's exactly.
+# * The White gap as a single-flaw framing (v41, v46, v58
+#   diagnosis) is closed — this term is NOT a White patch: it
+#   applies to BOTH colours (the leaf is colour-symmetric), and
+#   the mechanism check measures White's firing rate only because
+#   that is the diagnosis's quantity.
+#
+# Cost: the term adds two v0 ``attack_all`` calls (one per colour)
+# plus local exact tests for the v1 >= 20000 candidates, reusing
+# the gradient's single ``attack_v1_both`` call (the v1 arrays are
+# passed into :func:`_forcing_counts_both`). The per-leaf budget
+# is pre-registered from the bench in iter-58 §11.4.
+
+# Threat-potential term weight and scale (pre-registered, iter-58
+# §11.1): W = 0.05 (half the gradient's cap, a quarter of the
+# must-block), S = 1.0 (one forcing-move difference is one scale
+# unit — the term saturates at a difference of 2).
+_THREAT_TERM_WEIGHT = 0.05
+_THREAT_TERM_SCALE = 1.0
+
+
+def _forcing_counts_both(
+    board: np.ndarray, black1: np.ndarray, white1: np.ndarray
+) -> tuple[int, int]:
+    """Exact forcing-move counts ``(black, white)`` on ``board``:
+    the number of four-creators ∪ true-open-three-creators for
+    each side — the TSS move set (see :func:`_forcing_sets`).
+
+    The v1 attack arrays (``black1``, ``white1`` — from one
+    ``attack_v1_both`` call, shared with the gradient) prefilter
+    the four-creators (>= 20000, catches broken fours, which the
+    v0 kernel is blind to); each candidate is exact-tested
+    locally (:func:`_winning_moves_through`). The open-three
+    creators come from the v0 kernel (>= 1000, minus fours — v1
+    is blind to some open threes). The two counts share the v1
+    call but need one v0 ``attack_all`` call per colour.
+
+    Precondition: NEITHER side holds a winning move on ``board``
+    (the only caller, :func:`_gradient_plus_threat`, is reached
+    only after the rollout-end terminal checks, and the
+    must-block case skips the term — see
+    :func:`_rollout_threat_leaf_value`). Without it the local
+    four-creator test would count cells near a pre-existing
+    winning square as creators. Verified against
+    :func:`_forcing_sets` (differential) and the brute-force
+    oracles in ``ml/tests/test_threat_term_v58.py``."""
+    empty = board == game.EMPTY
+    counts = []
+    for player, a1 in ((game.BLACK, black1), (game.WHITE, white1)):
+        fours: set[int] = set()
+        for m in np.flatnonzero(empty & (a1 >= scoring.FOUR)):
+            m = int(m)
+            b2 = game.apply_move(board, m, player)
+            if _winning_moves_through(b2, player, m):
+                fours.add(m)
+        a0 = kernel_numpy.attack_all(board, player)
+        threes = [
+            int(m)
+            for m in np.flatnonzero(empty & (a0 >= _GRADIENT_STRONG))
+            if int(m) not in fours
+        ]
+        counts.append(len(fours) + len(threes))
+    return counts[0], counts[1]
+
+
+def _threat_potential_term(f_ours: int, f_theirs: int) -> float:
+    """The threat-potential term: ``W * tanh((F(ours) - F(theirs)) /
+    S)`` where ``F`` is the exact forcing-move count for a side.
+    Positive when we hold more forcing moves than the opponent,
+    negative when fewer; bounded by +/-W (+/-0.05); antisymmetric
+    under colour swap, like the gradient. See the v58 comment
+    block above for the pre-registered weight and scale."""
+    return _THREAT_TERM_WEIGHT * math.tanh(
+        (f_ours - f_theirs) / _THREAT_TERM_SCALE
+    )
+
+
+def _gradient_plus_threat(board: np.ndarray, player: int) -> float:
+    """Rollout-end value for the v58 leaf: v14's symmetric v1
+    gradient (scale 7.5, cap +/-0.2) PLUS the threat-potential
+    term, the sum clamped to +/-0.2 (the iter-7 cap invariant:
+    quiet leaves never outweigh the must-block 0.25). One
+    ``attack_v1_both`` call serves both the gradient breadth and
+    the four-creator prefilter; the forcing counts add two v0
+    ``attack_all`` calls (one per colour) plus local exact tests.
+
+    Precondition: neither side holds a winning move on ``board``
+    (see :func:`_forcing_counts_both`) — the caller,
+    :func:`_rollout_threat_leaf_value`, establishes it via the
+    rollout-end terminal checks and skips this function on a
+    must-block."""
+    black1, white1 = kernel_v1.attack_v1_both(board)
+    mask = board == game.EMPTY
+    if player == game.BLACK:
+        ours1, theirs1 = black1, white1
+    else:
+        ours1, theirs1 = white1, black1
+    diff = _breadth_v1(ours1, mask) - _breadth_v1(theirs1, mask)
+    grad = _GRADIENT_CAP * math.tanh(diff / _GRADIENT_V1_SCALE)
+    f_black, f_white = _forcing_counts_both(board, black1, white1)
+    if player == game.BLACK:
+        f_ours, f_theirs = f_black, f_white
+    else:
+        f_ours, f_theirs = f_white, f_black
+    term = _threat_potential_term(f_ours, f_theirs)
+    return max(-_GRADIENT_CAP, min(_GRADIENT_CAP, grad + term))
+
+
+def _rollout_threat_leaf_value(board: np.ndarray, player: int) -> float:
+    """v58 search leaf: v18/v27's 2-ply rollout leaf
+    (:func:`_rollout_leaf_value`) with the threat-potential term
+    added to the rollout-end gradient. Terminal handling follows
+    v16/v18's conventions exactly: the leaf-start terminal
+    (including the -0.25 must-block, a fact about the real
+    position) is exact; terminals reached INSIDE the rollout
+    return the exact terminal value, sign-adjusted to ``player``'s
+    perspective; at the rollout's END only wins/losses are
+    terminal — a must-block there is gradient-evaluated WITHOUT
+    the term (the opponent's forcing count is degenerate when the
+    opponent already holds a winning move). No blend (v19
+    rejected, not part of v27). The board is not mutated (the
+    rollout plays on copies). Written fresh from the pre-
+    registered spec in ``research/iterations/iter-58.md`` §11 —
+    deliberately NOT a wrapper around :func:`_rollout_leaf_value`,
+    so the differential test (``tests/test_threat_term_v58.py``)
+    tests the SPEC against v52's leaf rather than an alias
+    against itself (the v53 precedent)."""
+    value = _terminal_leaf_value(board, player)
+    if value != 0.0:
+        return value
+    cur = board.copy()
+    p = player
+    for i in range(_ROLLOUT_PLIES):
+        move, term = _rollout_move(cur, p)
+        if term is not None:
+            return term if i % 2 == 0 else -term
+        cur = game.apply_move(cur, move, p)
+        p = -p
+    # 2 plies: p == player again. Only a win/loss ends the rollout
+    # game; a must-block here is gradient-evaluated (see above).
+    if scoring._winning_moves(cur, p):
+        return 1.0
+    opp_wins = scoring._winning_moves(cur, -p)
+    if len(opp_wins) >= 2:
+        return -1.0
+    if len(opp_wins) == 1:
+        # Must-block at the rollout end: the gradient alone, no
+        # term — the opponent's forcing count is degenerate when
+        # the opponent already holds a winning move (see
+        # _forcing_counts_both's precondition).
+        return _attack_gradient_v1(cur, p)
+    return _gradient_plus_threat(cur, p)
+
+
 class HeuristicMCTS:
     """PUCT search with v1 priors and a terminal-aware leaf value.
 
@@ -1702,6 +1904,17 @@ class HeuristicMCTS:
     the only unpriced rung of the depth ladder. After 3 rollout
     plies the opponent is to move at the rollout end, so the
     gradient is negated from the opponent's perspective.
+
+    ``leaf_mode="rollout2_threat_v58"`` is the RE-SCOPED v58
+    (iter-58 §11): v18/v27's 2-ply rollout leaf with a
+    threat-potential term added to the rollout-end gradient
+    (:func:`_rollout_threat_leaf_value`) for both colours — the
+    exact forcing-move count difference (four-creators ∪
+    true-open-three-creators, both kernels) enters as
+    ``0.05 * tanh(diff)``, the sum clamped to +/-0.2. Terminals
+    are exact, as in v52; on a rollout-end must-block the term
+    is skipped (the opponent's forcing count is degenerate
+    there) and the gradient alone is returned.
 
     ``tie_break_q=True`` is v23 (batch 8, H3): when two or more
     root children share the maximum visit count (an exact tie at
@@ -1788,10 +2001,11 @@ class HeuristicMCTS:
             and leaf_mode != "rollout2_v1_both"
             and leaf_mode != "rollout2ply_v53"
             and leaf_mode != "rollout3ply_v53"
+            and leaf_mode != "rollout2_threat_v58"
         ):
             raise ValueError(
                 f"unknown leaf_mode: {leaf_mode!r} "
-                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both', 'rollout2ply_v53', 'rollout3ply_v53']})"
+                f"(known: {sorted(_LEAF_FUNCTIONS) + ['rollout2_v1', 'rollout2_v1_both', 'rollout2ply_v53', 'rollout3ply_v53', 'rollout2_threat_v58']})"
             )
         if not 0.0 <= prior_floor < 1.0:
             raise ValueError(
@@ -1836,6 +2050,8 @@ class HeuristicMCTS:
             self._leaf_value = self._rollout2ply_v53_leaf_value
         elif leaf_mode == "rollout3ply_v53":
             self._leaf_value = self._rollout3ply_v53_leaf_value
+        elif leaf_mode == "rollout2_threat_v58":
+            self._leaf_value = self._rollout_threat_v58_leaf_value
         else:
             self._leaf_value = _LEAF_FUNCTIONS[leaf_mode]
         # Colour to move at the root of the current search (the
@@ -1892,6 +2108,15 @@ class HeuristicMCTS:
         so the gradient is negated from the opponent's
         perspective."""
         return _rollout3ply_search_leaf_value(board, player)
+
+    def _rollout_threat_v58_leaf_value(
+        self, board: np.ndarray, player: int
+    ) -> float:
+        """v58 (re-scoped) leaf value: the 2-ply rollout leaf with
+        the threat-potential term added to the rollout-end
+        gradient (:func:`_rollout_threat_leaf_value`) for BOTH
+        colours. See ``research/iterations/iter-58.md`` §11."""
+        return _rollout_threat_leaf_value(board, player)
 
     def _vcf_root_move(
         self, board: np.ndarray, player: int
