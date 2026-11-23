@@ -556,12 +556,16 @@ as White 23-25-0), as in v52's swap matches.
 
 | leg | result | v52's leg |
 |---|---|---|
-| random | TBD | 40-0 |
-| heuristic | TBD | 40-0 |
-| mcts (100 sims) | TBD | 31-9 |
+| random | 40W-0L-0D (CI [0.9124, 1.0000]; 20-0 as Black, 20-0 as White) | 40-0 |
+| heuristic | 40W-0L-0D (CI [0.9124, 1.0000]; 20-0 as Black, 20-0 as White) | 40-0 |
+| mcts (100 sims) | 31W-9L-0D (rate 0.7750, CI [0.6250, 0.8768]; 18-2 as Black, 13-7 as White) | 31-9 |
 
-Expected: identical to v52's legs (the version is
-move-choice identical).
+Ladder Elo: estimate None (saturated), interval **[407.0,
+∞)** — identical to v52's. The legs reproduce v52's
+exactly (40-0, 40-0, 31-9): v59 matches the bar reference,
+it does not dominate it. (Per the pre-registered leg-result
+reading, clause 2 requires STRICTLY dominating v52's legs —
+matching 31-9 on the mcts leg is not a pass. See §6.)
 
 ### 5.3 Tactical
 
