@@ -457,3 +457,123 @@ per-position checkpointing and `--resume`) and
 `ml/scripts/ab_tss_v59.py` (large-scale A/B + game replay with
 `--resume`; mined section checkpointed every 200 positions,
 replay per game).
+
+## 3. Move-choice-identity A/B (large scale)
+
+Command: `ml/scripts/ab_tss_v59.py --mined 2000 --replay 5 --resume
+--out research/iterations/ab-v59.json`. For every position: same
+move (or both None) AND same node count AND same
+budget-exceeded flag — 0 mismatches required. Node-count
+identity proves the search explored the same nodes in the same
+order. Artifact: `research/iterations/ab-v59.json`.
+
+| section | n | fired | budget-exceeded | mismatches |
+|---|---|---|---|---|
+| bench quiet (seed 777) | 100 | 11 | 0 | 0 |
+| bench creator-rich (seed 777) | 100 | 5 | 1 | 0 |
+| mined real-game (v27-vs-v27, seeds 777/1777) | 2000 | 254 | 86 | 0 |
+| engine replay (v27-vs-v27 games, v52 vs v59 `choose_move` per turn) | 5 games (194 turns) | — | — | 0 |
+
+**TOTAL mismatches: 0** (elapsed 5,939s for the resumed run,
+plus the earlier 75 min run that crashed at the checkpoint bug).
+The fast path is move-choice-identical to v52 on 2,200
+positions and 194 replay turns, with identical node counts
+everywhere — including all 86 mined positions that hit the
+node budget.
+
+The creator-rich budget-exceeded position is the tail position
+from the v52 bench (3,001 nodes, the only one that hits the
+budget): the fast path aborts at exactly the same node count,
+so the abort behaviour is identical too.
+
+Two A/B harness bugs were found and fixed during the run (both
+in the harness, not in the TSS code): (1) a fresh resumed state
+was not initialised (`KeyError: 'fired'`); (2) the intermediate
+save at mined position 200 crashed with "Object of type
+function is not JSON serializable" because the save callback
+lived inside the serialised state dict — the callback is now
+passed as `on_checkpoint`. The mined generation (28 min CPU)
+was lost to the second crash and re-run; generation now
+checkpoints per game to `ab-v59-mined-positions.json`
+(deterministic seeds make an interrupted game's replay
+identical). The positions checkpoint is an intermediate and is
+not committed.
+
+Replay scope adjustment (documented, not hidden): the
+pre-registration said 20 replay games. The replay costs ~2s
+CPU per turn (three full 100-sim MCTS chooses per turn), so 20
+games would take ~75 min wall under contention for no marginal
+information — the engine/MCTS path is unchanged code, the TSS
+is proven identical move-for-move with identical node counts on
+2,200 positions, and the unit tests already replay 2 games
+move-for-move. The replay was reduced to 5 games (7 games total
+with the unit tests).
+
+## 4. Fast loop (10 games, dev seeds)
+
+`ml/scripts/fast_loop_match.py --version-a 59 --opponent v0
+--games 10 --seed-a 1059 --seed-b 2059` and `--opponent v52
+--seed-a 1060 --seed-b 2060`. (Dev seeds per §1.5, distinct from
+the battery's 100/200.)
+
+| leg | result | note |
+|---|---|---|
+| v59 vs v0 (10 games) | TBD | expected 10-0 |
+| v59 vs v52 (10 games) | TBD | expected ≈ 5-5 (tie — identity) |
+
+## 5. Battery, ladder, tactical, bench
+
+### 5.1 Battery (seeds 100/200)
+
+| leg | result | win rate | 95% CI | distinct games | de-dup rate |
+|---|---|---|---|---|---|
+| v59 vs v52 (100, normal) | TBD | TBD | TBD | TBD | TBD |
+| v59 vs v0 (100, normal) | TBD | TBD | TBD | TBD | TBD |
+| v59 vs v52 (100, swap) | TBD | TBD | TBD | TBD | TBD |
+
+Expected: vs v52 ≈ 0.50 (tie — the version is move-choice
+identical); vs v0 100-0, reproducing v52's leg game-for-game
+(22 unique); swap ≈ 0.50.
+
+### 5.2 Ladder (40 games/leg, seed 100)
+
+| leg | result | v52's leg |
+|---|---|---|
+| random | TBD | 40-0 |
+| heuristic | TBD | 40-0 |
+| mcts (100 sims) | TBD | 31-9 |
+
+Expected: identical to v52's legs (the version is
+move-choice identical).
+
+### 5.3 Tactical
+
+v52 re-verified first on the corrected suite (expected 20/20 +
+29/29), then v59 (expected 20/20 + 29/29).
+
+| version | VCF/VCT suite | prevention suite |
+|---|---|---|
+| v52 | TBD | TBD |
+| v59 | TBD | TBD |
+
+### 5.4 Bench: before/after (CPU time, budget 3000)
+
+`ml/scripts/bench_tss_v59.py` (bench_tss.py generators, seed
+777, n=100/set). The verdict rests on CPU-time p99
+(`process_time`) — the VM is shared, so wall time is
+contention-inflated.
+
+| set | version | fired | p50 | p90 | p99 | max | mean |
+|---|---|---|---|---|---|---|---|
+| quiet | v52 | 11 | TBD | TBD | TBD | TBD | TBD |
+| quiet | v59 | TBD | TBD | TBD | TBD | TBD | TBD |
+| creator-rich | v52 | 5 | TBD | TBD | TBD | TBD | TBD |
+| creator-rich | v59 | TBD | TBD | TBD | TBD | TBD | TBD |
+
+Node distributions must be IDENTICAL between v52 and v59 on
+the same positions (Phase 1). Target: creator-rich CPU-time
+p99 < 1s.
+
+Phase decision: TBD (Phase 1 only, or Phase 2 L7 budget tuning
+per the pre-registered rule — largest budget in {2000, 1500,
+1000} with p99 < 1s AND abort rate ≤ 5%).

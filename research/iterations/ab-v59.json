@@ -1,0 +1,35 @@
+{
+ "node_budget": 3000,
+ "bench_quiet": {
+  "label": "bench quiet",
+  "n": 100,
+  "fired": 11,
+  "budget_exceeded": 0,
+  "mismatches": [],
+  "done": 100
+ },
+ "elapsed_s": 5939.244651794434,
+ "bench_rich": {
+  "label": "bench creator-rich",
+  "n": 100,
+  "fired": 5,
+  "budget_exceeded": 1,
+  "mismatches": [],
+  "done": 100
+ },
+ "mined": {
+  "label": "mined",
+  "n": 2000,
+  "fired": 254,
+  "budget_exceeded": 86,
+  "mismatches": [],
+  "done": 2000
+ },
+ "replay": {
+  "games": 5,
+  "turns": 194,
+  "mismatches": [],
+  "done": 5
+ },
+ "total_mismatches": 0
+}
