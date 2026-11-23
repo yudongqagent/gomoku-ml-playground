@@ -903,3 +903,103 @@ supposed to neutralise the first-move edge, v55 still
 loses two-thirds of its games to v7 — the swap judge
 gives v55 Black more often (52/100), and v55-as-White
 (0.28) is again the weak side.
+
+### 8.6 Clause 2 — ladder, 40 games/opponent
+
+`eval_version.py --version 55 --ladder-games 40 --out
+research/iterations/ladder-v55.json` (raw
+`ml/runs/ml6-h2/batt-ladder.log`; no interruption).
+- vs random: **40W-0L-0D (1.0000)**, Black 20-0, White 20-0.
+- vs heuristic: **17W-21L-2D (0.4500)**, CI [0.3071,
+  0.6017]; Black 10W-8L-2D (0.55), White 7W-13L-0D (0.35).
+- vs mcts: **28W-12L-0D (0.7000)**, CI [0.5457, 0.8193];
+  Black 17W-3L-0D (0.85), White 11W-9L-0D (0.55).
+- **Ladder Elo: −34.9, interval [−141.4, 71.7]**
+  (anchors random −800, heuristic 0).
+
+**Clause 2 FAILS:** −34.9 < 98.1 (v44's bar). The Elo is
+set by the heuristic leg alone (the anchor), and v55's
+heuristic leg is IDENTICAL to v48's (17W-21L-2D) — hence
+the identical Elo and interval. v55 beats the ladder
+MCTS 28–12 (0.70), better than v44's 25–15 (0.625) and
+far better than v48's 13–26–1 (0.3375), but the Elo does
+not see the MCTS leg. The White gap persists on the
+ladder too (heuristic White 0.35, MCTS White 0.55 vs
+Black 0.85).
+
+## 9. Verdict and mechanism
+
+**v55 is REJECTED, 3/4 clauses:**
+
+| Clause | Bar | v55 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v44 | > 0.50, CI lower > 0.50 | 0.5150, CI [0.4183, 0.6106] | FAIL |
+| 2. Ladder Elo | > 98.1 | −34.9 [−141.4, 71.7] | FAIL |
+| 3. Tactical | 20/20 + 29/29 | 20/20 + 29/29 | PASS |
+| 4. Test suites | all green | pytest 500/1/58, npm 55/55, tsc clean | PASS |
+
+### 9.0 Mechanism: PARTIAL RECOVERY (neither pure reading)
+
+Per the §1.6 decision rule, v55 is neither "at v44's
+level" nor "at v48's level" — it is both, on different
+matchups:
+
+| Leg | v55 | v44 | v48 |
+|---|---|---|---|
+| vs v44 | 0.515 | — | 0.44 |
+| ladder Elo | −34.9 | 98.1 | −34.9 |
+| vs v0 | 0.470 | 0.58 | 0.545 |
+| vs v7 | 0.445 | 0.45 | 0.265 |
+| vs v37 | 0.460 | 0.31 | 0.32 |
+| swap vs v7 | 0.360 | 0.39 | 0.31 |
+| ladder MCTS | 0.70 | 0.625 | 0.3375 |
+
+The 3-ply labels DID recover net-vs-net strength: vs v44
+(0.515 vs v48's 0.44), vs v37 (0.46 vs v48's 0.32 and
+v44's 0.31), and the ladder MCTS leg (0.70 — the best
+of the three). On those legs the label-depth reading
+holds: v48's cost was the label depth.
+
+But the 3-ply labels reintroduced the White defect
+against heuristic/blundering opponents, and that is what
+the Elo measures (the heuristic anchor leg). v55's White:
+0.31 vs v0 (v48 0.52, v44 0.59), 0.33 vs v7 (v48 0.27,
+v44 0.40 — v55 is better than v48 here, but 0.23 below
+its own Black), 0.35 on the heuristic ladder leg. The
+patch's White fix — which HELD at 2-ply (v48 White 0.52
+vs v0) — did not survive the label-depth change on the
+SAME data mix: same positions, only the labels differ.
+The likely mechanism is the odd-parity label shift
+(§4.3: 3-ply train label means positive on every source,
++0.06 to +0.28): the net systematically overvalues
+positions, and as White — defending against Black's
+initiative in off-distribution positions created by a
+blundering opponent — the over-optimism is fatal. The
+defect does NOT show vs net opponents (White 0.46 vs
+v44, 0.40 vs v37) or on holdout (pooled true-side gap
+−0.026, §6): it is specific to White against weak,
+off-distribution play.
+
+So the §1 question — label depth or data mix? — has a
+split answer. The label depth was the cost of v48's
+net-vs-net weakness, and the 3-ply retrain recovered it.
+But the data mix (the patch) does not protect White
+under 3-ply labels: the patch's White benefit is
+label-depth-dependent, not data-intrinsic. A future
+version that wants both needs the 3-ply labels' strength
+AND a White fix that survives odd-parity labelling —
+the patch alone is not that fix.
+
+### 9.1 Clause 4 — test suites (2026-11-23)
+
+On the final tree, main-repo venv:
+- ml pytest: **500 passed, 1 skipped, 58 xfailed,
+  0 failed** in 1,055 s (raw
+  `ml/runs/ml6-h2/pytest-final.log`).
+- npm test: **55 passed (55)**, 4 test files.
+- tsc --noEmit: clean, exit 0.
+
+**Clause 4 PASSES.** v44 stays the ML champion; v37
+remains the strongest ML version by head-to-head. No
+merge to master (bar not passed); no champion change;
+the daily cross-track pairing is unaffected.
