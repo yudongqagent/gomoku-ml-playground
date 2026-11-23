@@ -826,6 +826,160 @@ is within noise of v44's 0.16 — the White collapse
 vs ML opponents persists. 94/100 unique games;
 de-dup 0.3032.
 
+### 9.6 Swap vs v7 — secondary metric
+
+`batch-v54-vs-v7-swap.json` (100 games, swap rule,
+balanced placement, tempo judge, placement_seed 11):
+**32W-63L-5D, win rate 0.345, Wilson 95% CI
+[0.2591, 0.4423]**. Colour split (judge-assigned):
+as Black 20W-29L-3D (0.4135, CI [0.2901, 0.5487]);
+as White 12W-34L-2D (0.2708, CI [0.1657, 0.4100]).
+Worse than v44's swap vs v7 (Black 0.4231, White
+0.3542) in both colours, White by more. 100/100
+unique games; de-dup identical.
+
+### 9.7 Ladder (clause 2) — PASS on the point estimate
+
+`ladder-v54.json` (40 games/opponent, seed 100):
+- vs random: 40W-0L-0D (1.000)
+- vs heuristic: 27W-9L-4D (0.7250, CI [0.5716,
+  0.8389]); as Black 13W-5L-2D (0.700), as White
+  14W-4L-2D (0.750) — White the strong side
+- vs mcts: 16W-23L-1D (0.4125, CI [0.2742, 0.5661]);
+  as Black 11W-8L-1D (0.575), as White 5W-15L-0D
+  (0.250) — White still collapses vs MCTS
+
+**Ladder Elo: estimate 168.4, interval [50.1,
+286.7]** (anchors random −800, heuristic 0). The
+point estimate exceeds v44's 98.1, so clause 2
+PASSES per the pre-registered point-estimate rule —
+the same rule v44's own pass rested on (its
+interval [−12.1, 208.2] included 0). Caveats, stated
+plainly: (1) the interval [50.1, 286.7] INCLUDES
+98.1, so the pass is not statistically decisive;
+(2) the Elo estimate is computed from the heuristic
+leg only — v54's heuristic leg improved (0.725 vs
+v44's 0.6375) while its MCTS leg COLLAPSED (0.4125
+vs v44's 0.625, the first ML version ever to lose
+the MCTS leg outright after v44 won it 25–15).
+The ladder's secondary mechanism check (White ≥
+0.40 in both legs) is mixed: heuristic White 0.75
+✓, MCTS White 0.25 ✗. The ladder driver stores no
+game records, so no uniqueness audit is possible
+for ladder legs (same as all prior versions).
+
+## 10. Verdict — REJECTED (3/4)
+
+| Clause | Bar | v54 | Verdict |
+|--------|-----|-----|---------|
+| 1. h2h vs v44 | > 0.50, CI lower > 0.50 | 0.385, CI [0.2956, 0.4829] | **FAIL** |
+| 2. Ladder Elo | > 98.1 | 168.4 [50.1, 286.7] | PASS (point est.) |
+| 3. Tactical | 20/20 + 29/29 | 20/20 + 29/29 | PASS |
+| 4. Test suites | all green | pytest 504 passed / 1 skipped / 58 xfailed; npm 55/55; tsc clean | PASS |
+
+### 10.1 Clause 4 — PASS
+
+Final suites on the branch (2026-11-23 ~10:38–10:47
+UTC, after the battery): pytest 504 passed, 1
+skipped, 58 xfailed, 0 failed (484 s; the two
+`test_longrun.py` subprocess timeouts from the §6.3
+baseline were contention flakes and pass here);
+npm 55/55 (4 test files); tsc clean. Clause 4
+PASSES.
+
+v54 is REJECTED: clause 1 fails decisively (the CI's
+upper bound is below 0.50). It joins v48 as a
+White-patch version that fails the bar — but by a
+different mechanism, and the difference matters.
+
+### 10.2 Mechanism finding
+
+The pre-registered mechanism check asked: does the
+played White gap vs heuristic opponents close
+WITHOUT Black-side strength falling? The answer is
+opponent-dependent, and the split is sharp:
+
+| Opponent | v54 White | v44 White | v54 Black | v44 Black |
+|----------|-----------|-----------|-----------|-----------|
+| v0 | **0.71** | 0.59 | **0.62** | 0.57 |
+| v7 | 0.29 | 0.40 | 0.47 | 0.50 |
+| v44 | 0.30 | — | 0.47 | — |
+| v37 | 0.21 | 0.16 | 0.42 | 0.46 |
+| ladder heuristic | 0.75 | 0.60 | 0.70 | 0.675 |
+| ladder mcts | 0.25 | 0.55 | 0.575 | 0.70 |
+
+The White-side patch fixed White against the
+WEAKEST opponents only (v0: 0.71, ladder heuristic:
+0.75 — White now the strong side in both), and made
+White WORSE against every stronger opponent (v7:
+0.29 vs v44's 0.40; ladder MCTS: 0.25 vs 0.55).
+Black fell slightly against the stronger opponents
+too (v7 0.47 vs 0.50; MCTS 0.575 vs 0.70) while
+improving against the weak ones. Net: v54 is a
+v0-specialist — stronger than v44 against weak
+heuristic play, weaker against everything stronger.
+The patch data (10,621 White positions from
+v44-vs-heuristic games, ~24% of training data)
+shifted the net toward heuristic-opponent White
+positions at the cost of general strength; the
+diagnostic (§7.4) closed the White accuracy gap on
+the diag's positions but did not transfer to played
+strength against stronger opponents. This is the
+SEVENTH instance of holdout/diag not predicting
+played strength (after v31, v38, v42, v43, v48,
+v49) — and the sharpest: every diagnostic signal
+was positive (holdout up on both pools, White
+accuracy gap reversed on all four opponents) while
+played strength fell against v44, v7, and v37.
+
+Why the transfer fails is the open question for the
+next iteration. Two candidate explanations: (a)
+distribution — the patch positions are v44's White
+positions against heuristic play, which differ in
+character from the White positions v54 faces
+against stronger opponents (the v7/MCTS White
+positions are ones where Black has already
+established pressure); (b) α — the sweep winner
+0.5 (vs v44's 0.125) weights the value head four
+times heavier, so a narrower-distribution value
+head dominates the search more. The sweep chose
+0.5 on dev seeds vs v44 (0.4375 vs 0.375/0.3625),
+but at 100 games on validation seeds it scored
+0.385 — the 40-game sweep ranking did not hold at
+100 games, the same winner's-regression pattern
+ML batch 5 warned about (0.55 → 0.475). A
+follow-up worth one experiment: v54's net at
+α=0.125 (v44's α) — if the net is sound and the α
+is the problem, that recovers v44-level play; if
+not, the patch data itself is the problem. That
+experiment is NOT part of v54 (pre-registration
+fixed the sweep rule); it is a candidate for the
+next batch.
+
+### 10.3 What v54 settles
+
+- White-only patching (no Black patch positions)
+  does NOT reproduce v48's redistribution — but it
+  does not improve either. The failure mode is
+  different: opponent-strength-dependent transfer,
+  not Black-side collapse.
+- The White collapse is not fixable by adding
+  White-side positions from heuristic-opponent
+  games alone. The positions that matter are the
+  ones against stronger opponents, where White is
+  under pressure — and those are exactly the
+  positions the patch did not contain (v44's White
+  games vs v7/MCTS were a minority of the patch,
+  and the 2-ply labels on them come from a teacher
+  that shares the same horizon).
+- The α sweep at 40 games does not rank reliably
+  at 100 games (second instance after ML batch 5).
+- The ladder Elo (heuristic-leg only) can pass
+  while the MCTS leg collapses — the Elo is not a
+  sufficient summary of ladder strength. Future
+  versions should report the MCTS leg alongside
+  the Elo.
+
 ### 6.3 Baseline test suites (before training)
 
 Full suite run on this branch (niced, under load ~3.5,
