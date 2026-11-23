@@ -426,7 +426,63 @@ confounded, and the patch decision follows the CAUSAL evidence.
 
 ### 2.3 M2b — attribution (per-game fires for v52-White games)
 
-(to be filled in when M2b completes)
+**COMPLETE.** Artifacts: `tss-replay-v58-normal-pergame.json`,
+`tss-replay-v58-swap-pergame.json` (v52-White games only, White
+turns, per-game fire counts + outcome). No interruption; both legs
+exit 0. Aggregate fires match M2 exactly (118/1167 normal,
+158/996 swap). 0 violations.
+
+| leg / outcome | games | White TSS fires | fires/game | games with ≥1 fire | fire rate |
+|---|---|---|---|---|---|
+| normal WIN | 21 | 118 | 5.62 | 21 (100%) | 0.2593 (118/455) |
+| normal LOSS | 27 | 0 | 0.00 | 0 (0%) | 0.0000 (0/488) |
+| normal DRAW | 2 | 0 | 0.00 | 0 (0%) | 0.0000 (0/224) |
+| swap WIN | 26 | 148 | 5.69 | 26 (100%) | 0.2874 (148/515) |
+| swap LOSS | 22 | 10 | 0.45 | 2 (9%) | 0.0208 (10/481) |
+
+**The finding is stark: TSS firing is (near-)NECESSARY for
+v52-White to win.** All 47 v52-White wins across both legs
+involved at least one White TSS fire (100%); v52-White fired in
+only 2 of 49 losses (both under swap, 3 and 7 fires — positions
+where White held a forcing win but still lost, i.e. the forcing
+win did not convert, or the fire came too late). Fires per win are
+nearly identical under both rules (5.62 normal, 5.69 swap) — the
+extra swap wins are NOT "more fires per win", they are MORE GAMES
+in which White reaches a firing position (26/48 = 54% of swap
+games vs 21/50 = 42% of normal games).
+
+**Attribution verdict: (b) is causally supported.** The extra swap
+wins are 100% TSS-involved, and the swap White improvement runs
+through White reaching forcing-win positions more often (54% vs
+42% of games). The M2 fire-rate "confirm" (1.57×, z = 3.95) is
+therefore not merely win-more: the fire rate rises because White
+reaches forcing positions in more games, and reaching one is what
+wins White's games. The remaining causal caveat is the
+confirm/differ split WITHIN v52's won games (would the MCTS have
+found those wins anyway?): M1's self-play split says under swap a
+higher fraction of White's fires are differs (46% vs 35% normal),
+i.e. under swap White's forcing wins are more often ones the MCTS
+would miss — consistent with TSS adding real value for White under
+swap. A direct per-fire confirm/differ check in v52's won games
+would need the firing positions recorded (not saved by this
+replay); it is NOT run, because the patch decision turns on M3,
+not on this split.
+
+**What M2b does NOT show:** a patchable mechanism. M2b shows White
+wins by reaching forcing positions, and reaches them more often
+under swap — an OPPORTUNITY difference driven by the opening
+(balanced 3-stone start + choice vs Black's first-move advantage
+from the empty board). Under normal rules White's opportunity
+deficit is structural (Black moves first; Black builds threats
+earlier — M1: Black's fire rate 15.0% vs White's 8.2%). No engine
+change creates forcing opportunities that do not exist. The ONLY
+patchable form of (b) is a DETECTION gap — White HAS forcing wins
+under normal rules that production TSS (depth 4) misses. That is
+exactly what M3 tests.
+
+### 2.4 M3 — depth-6 spot-check (detection vs opportunity)
+
+(to be filled in when M3 completes)
 
 ## 3. Patch design
 
