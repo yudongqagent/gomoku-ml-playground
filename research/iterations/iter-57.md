@@ -339,7 +339,26 @@ are in the JSON. Headline findings:
 
 ## 3. Mechanism check
 
-*(to be filled after Check M runs)*
+**Cross-worker note (received mid-run from H2/v58, 2026-11-23):**
+H2's diagnosis independently found (1) depth-6 TSS aborts far
+more than depth-4: 17.5% abort rate in mining positions, 55% in
+losing positions at 10k nodes, and 5 positions still aborting
+even at 50k nodes — i.e. the node budget must scale with depth,
+and a depth-6 config at budget 3000 aborts too often to be
+meaningful; (2) H2's M3 tested White turns only and found ZERO
+additional White forcing wins at depth 6 (0/55 completed
+searches). Both findings are consistent with this sweep's own
+bench (§2: depth 6 aborts 24–28% at budget 3000) and are
+interpretation context only — they do not change the
+pre-registered grid or selection rule (the grid already pairs
+depth 6 with budget 6000, and the selection rule's net + cost
+gate already penalise abort-heavy cells). When §3 is written up,
+the gains will be broken down by colour (each mined gain records
+`to_move`): if depth-5/6 gains concentrate on Black turns, that
+aligns with H2's M3 and the depth benefit, if any, comes through
+a different population than White-turn detection.
+
+*(results to be filled after Check M runs)*
 
 ## 4. Fast loop
 
