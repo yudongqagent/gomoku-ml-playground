@@ -55,11 +55,18 @@ def bench(
     positions: list,
     node_budget: int,
     fast: bool,
+    prev_records: list | None = None,
+    on_record=None,
 ) -> dict:
+    """Bench ``positions``; ``prev_records`` (from a resumed run)
+    supplies the records for the first ``len(prev_records)``
+    positions, which are skipped. ``on_record`` is called after
+    each new position (for incremental checkpointing)."""
     from gomoku_ml.mcts_heuristic import tss_winning_move
 
-    records: list[dict] = []
-    for board, player in positions:
+    records: list[dict] = list(prev_records or [])
+    for idx in range(len(records), len(positions)):
+        board, player = positions[idx]
         stats: dict = {}
         t0_wall = time.perf_counter()
         t0_cpu = time.process_time()
@@ -77,6 +84,8 @@ def bench(
                 "budget_exceeded": stats["budget_exceeded"],
             }
         )
+        if on_record is not None:
+            on_record(records)
     walls = sorted(r["wall_ms"] for r in records)
     cpus = sorted(r["cpu_ms"] for r in records)
     nodes = sorted(r["nodes"] for r in records)
@@ -127,6 +136,15 @@ def bench(
     }
 
 
+def _save_doc(doc: dict, out: str | None) -> None:
+    if not out:
+        return
+    tmp = out + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(doc, f, indent=1)
+    os.replace(tmp, out)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", type=int, default=777)
@@ -134,6 +152,9 @@ def main() -> int:
     ap.add_argument("--node-budget", type=int, default=3000)
     ap.add_argument("--fast", action="store_true")
     ap.add_argument("--out", type=str, default=None)
+    ap.add_argument("--resume", action="store_true",
+                    help="resume from the --out JSON (skips positions "
+                    "already recorded; generation is deterministic)")
     args = ap.parse_args()
 
     try:
@@ -142,31 +163,52 @@ def main() -> int:
         load = None
     print(f"load average at start: {load}", file=sys.stderr)
 
+    doc: dict = {
+        "seed": args.seed,
+        "n": args.n,
+        "node_budget": args.node_budget,
+        "fast": args.fast,
+        "load_avg_start": load,
+    }
+    prev: dict = {}
+    if args.resume and args.out and os.path.exists(args.out):
+        with open(args.out, encoding="utf-8") as f:
+            prev = json.load(f)
+        doc.update({k: prev.get(k, doc[k]) for k in doc})
+
     quiet = generate_quiet_positions(args.seed, args.n)
     print(f"generated {len(quiet)} quiet positions (seed {args.seed})",
           file=sys.stderr)
-    q = bench("quiet (v7 self-play)", quiet, args.node_budget, args.fast)
+    q_prev = (prev.get("quiet") or {}).get("records", [])
+    # Live summary dict so checkpoints carry the running records.
+    doc["quiet"] = {"records": list(q_prev)}
+    q = bench(
+        "quiet (v7 self-play)", quiet, args.node_budget, args.fast,
+        prev_records=q_prev,
+        on_record=lambda recs: (
+            doc["quiet"].__setitem__("records", list(recs)),
+            _save_doc(doc, args.out),
+        ),
+    )
+    doc["quiet"] = q
+    _save_doc(doc, args.out)
 
     rich = generate_creator_rich_positions(args.seed, args.n)
     print(f"generated {len(rich)} creator-rich positions (seed {args.seed})",
           file=sys.stderr)
-    r = bench("creator-rich (v27 midgame)", rich, args.node_budget, args.fast)
-
+    r_prev = (prev.get("creator_rich") or {}).get("records", [])
+    doc["creator_rich"] = {"records": list(r_prev)}
+    r = bench(
+        "creator-rich (v27 midgame)", rich, args.node_budget, args.fast,
+        prev_records=r_prev,
+        on_record=lambda recs: (
+            doc["creator_rich"].__setitem__("records", list(recs)),
+            _save_doc(doc, args.out),
+        ),
+    )
+    doc["creator_rich"] = r
+    _save_doc(doc, args.out)
     if args.out:
-        with open(args.out, "w", encoding="utf-8") as f:
-            json.dump(
-                {
-                    "seed": args.seed,
-                    "n": args.n,
-                    "node_budget": args.node_budget,
-                    "fast": args.fast,
-                    "load_avg_start": load,
-                    "quiet": q,
-                    "creator_rich": r,
-                },
-                f,
-                indent=1,
-            )
         print(f"wrote {args.out}", file=sys.stderr)
     return 0
 

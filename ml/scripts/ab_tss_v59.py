@@ -41,14 +41,42 @@ from bench_tss import (  # noqa: E402
     generate_quiet_positions,
 )
 
+CHUNK = 200  # checkpoint the mined section every CHUNK positions
 
-def _ab_positions(positions, label, node_budget):
+
+def _save(results: dict, out: str | None) -> None:
+    if not out:
+        return
+    tmp = out + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=1)
+    os.replace(tmp, out)
+
+
+def _load(out: str | None) -> dict:
+    if out and os.path.exists(out):
+        with open(out, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def _ab_positions(positions, label, node_budget, start=0, state=None):
+    """A/B ``positions[start:]``; ``state`` (when given) is the
+    running result dict to extend (resume). Returns the result
+    dict. ``state['done']`` counts completed positions."""
     from gomoku_ml.mcts_heuristic import tss_winning_move
 
-    mismatches = []
-    fired = 0
-    exceeded = 0
-    for i, (board, player) in enumerate(positions):
+    if state is None:
+        state = {
+            "label": label,
+            "n": len(positions),
+            "fired": 0,
+            "budget_exceeded": 0,
+            "mismatches": [],
+            "done": 0,
+        }
+    for i in range(start, len(positions)):
+        board, player = positions[i]
         s_slow: dict = {}
         s_fast: dict = {}
         slow = tss_winning_move(board, player, node_budget=node_budget,
@@ -56,15 +84,15 @@ def _ab_positions(positions, label, node_budget):
         fast = tss_winning_move(board, player, node_budget=node_budget,
                                 stats=s_fast, fast=True)
         if slow is not None:
-            fired += 1
+            state["fired"] += 1
         if s_slow["budget_exceeded"]:
-            exceeded += 1
+            state["budget_exceeded"] += 1
         if (
             fast != slow
             or s_fast["nodes"] != s_slow["nodes"]
             or s_fast["budget_exceeded"] != s_slow["budget_exceeded"]
         ):
-            mismatches.append(
+            state["mismatches"].append(
                 {
                     "index": i,
                     "slow_move": slow,
@@ -75,18 +103,17 @@ def _ab_positions(positions, label, node_budget):
                     "fast_exceeded": s_fast["budget_exceeded"],
                 }
             )
-        if (i + 1) % 200 == 0:
+        state["done"] = i + 1
+        if (i + 1) % CHUNK == 0:
             print(f"  {label}: {i + 1}/{len(positions)} "
-                  f"({len(mismatches)} mismatches)", flush=True)
-    print(f"{label}: n={len(positions)} fired={fired} "
-          f"budget_exceeded={exceeded} mismatches={len(mismatches)}")
-    return {
-        "label": label,
-        "n": len(positions),
-        "fired": fired,
-        "budget_exceeded": exceeded,
-        "mismatches": mismatches,
-    }
+                  f"({len(state['mismatches'])} mismatches)", flush=True)
+            if state.get("_save"):
+                state["_save"]()
+    print(f"{label}: n={len(positions)} fired={state['fired']} "
+          f"budget_exceeded={state['budget_exceeded']} "
+          f"mismatches={len(state['mismatches'])}")
+    state.pop("_save", None)
+    return state
 
 
 def _mine_positions(n, seed_a=777, seed_b=1777):
@@ -111,12 +138,13 @@ def _mine_positions(n, seed_a=777, seed_b=1777):
     return positions
 
 
-def _replay(n_games):
+def _replay(n_games, start=0, state=None):
     from gomoku_ml import game, scoring
 
-    mismatches = []
-    turns = 0
-    for g in range(n_games):
+    if state is None:
+        state = {"games": n_games, "turns": 0, "mismatches": [],
+                 "done": 0}
+    for g in range(start, n_games):
         pa = scoring.get_player(27, seed=777 + g)
         pb = scoring.get_player(27, seed=1777 + g)
         p52 = scoring.get_player(52, seed=100)
@@ -129,19 +157,24 @@ def _replay(n_games):
                 break
             m52 = p52.choose_move(board, player)
             m59 = p59.choose_move(board, player)
-            turns += 1
+            state["turns"] += 1
             if m59 != m52:
-                mismatches.append(
-                    {"game": g, "turn": turns, "v52": m52, "v59": m59}
+                state["mismatches"].append(
+                    {"game": g, "turn": state["turns"],
+                     "v52": m52, "v59": m59}
                 )
             chooser = pa.choose_move if player == game.BLACK else pb.choose_move
             board = game.apply_move(board, chooser(board, player), player)
             player = -player
+        state["done"] = g + 1
         print(f"  replay: game {g + 1}/{n_games} done "
-              f"({len(mismatches)} mismatches)", flush=True)
-    print(f"replay: games={n_games} turns={turns} "
-          f"mismatches={len(mismatches)}")
-    return {"games": n_games, "turns": turns, "mismatches": mismatches}
+              f"({len(state['mismatches'])} mismatches)", flush=True)
+        if state.get("_save"):
+            state["_save"]()
+    print(f"replay: games={n_games} turns={state['turns']} "
+          f"mismatches={len(state['mismatches'])}")
+    state.pop("_save", None)
+    return state
 
 
 def main() -> int:
@@ -150,44 +183,90 @@ def main() -> int:
     ap.add_argument("--node-budget", type=int, default=3000)
     ap.add_argument("--out", type=str, default=None)
     ap.add_argument("--replay", type=int, default=0)
+    ap.add_argument("--resume", action="store_true",
+                    help="resume from the --out JSON (skips completed "
+                    "sections/chunks; position generation is "
+                    "deterministic, so chunk boundaries are stable)")
     args = ap.parse_args()
 
     t0 = time.time()
     results: dict = {"node_budget": args.node_budget}
+    if args.resume:
+        results = _load(args.out) or results
+        results.setdefault("node_budget", args.node_budget)
 
-    quiet = generate_quiet_positions(777, 100)
-    print(f"generated {len(quiet)} quiet positions", file=sys.stderr)
-    results["bench_quiet"] = _ab_positions(
-        quiet, "bench quiet", args.node_budget
-    )
-    rich = generate_creator_rich_positions(777, 100)
-    print(f"generated {len(rich)} creator-rich positions", file=sys.stderr)
-    results["bench_rich"] = _ab_positions(
-        rich, "bench creator-rich", args.node_budget
-    )
+    def save():
+        results["elapsed_s"] = time.time() - t0
+        _save(results, args.out)
 
-    mined = _mine_positions(args.mined)
-    print(f"mined {len(mined)} real-game positions", file=sys.stderr)
-    results["mined"] = _ab_positions(mined, "mined", args.node_budget)
+    # Bench sections (100 positions each — checkpointed per section).
+    for key, gen, label in (
+        ("bench_quiet", generate_quiet_positions, "bench quiet"),
+        ("bench_rich", generate_creator_rich_positions,
+         "bench creator-rich"),
+    ):
+        prev = results.get(key) or {}
+        if prev.get("done", 0) >= 100:
+            print(f"{label}: already done "
+                  f"({len(prev.get('mismatches', []))} mismatches)")
+            continue
+        positions = gen(777, 100)
+        print(f"generated {len(positions)} {label} positions",
+              file=sys.stderr)
+        state = dict(prev)
+        state["_save"] = save
+        results[key] = state  # assign BEFORE running: checkpoints
+        # save the live (mutated) state, not a stale copy
+        _ab_positions(
+            positions, label, args.node_budget,
+            start=prev.get("done", 0), state=state,
+        )
+        save()
 
+    # Mined section (checkpointed every CHUNK positions).
+    prev = results.get("mined") or {}
+    if prev.get("done", 0) >= args.mined:
+        print(f"mined: already done "
+              f"({len(prev.get('mismatches', []))} mismatches)")
+    else:
+        mined = _mine_positions(args.mined)
+        print(f"mined {len(mined)} real-game positions", file=sys.stderr)
+        state = dict(prev)
+        state["_save"] = save
+        results["mined"] = state  # assign BEFORE running (see above)
+        _ab_positions(
+            mined, "mined", args.node_budget,
+            start=prev.get("done", 0), state=state,
+        )
+        save()
+
+    # Replay section (checkpointed per game).
     if args.replay:
-        results["replay"] = _replay(args.replay)
+        prev = results.get("replay") or {}
+        if prev.get("done", 0) >= args.replay:
+            print(f"replay: already done "
+                  f"({len(prev.get('mismatches', []))} mismatches)")
+        else:
+            state = dict(prev)
+            state["_save"] = save
+            results["replay"] = state  # assign BEFORE running
+            _replay(
+                args.replay, start=prev.get("done", 0), state=state
+            )
+            save()
 
     total_mm = sum(
         len(results[k]["mismatches"])
         for k in ("bench_quiet", "bench_rich", "mined")
+        if k in results
     )
-    if args.replay:
+    if args.replay and "replay" in results:
         total_mm += len(results["replay"]["mismatches"])
     results["total_mismatches"] = total_mm
     results["elapsed_s"] = time.time() - t0
     print(f"TOTAL mismatches: {total_mm} "
           f"(elapsed {results['elapsed_s']:.0f}s)")
-
-    if args.out:
-        with open(args.out, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=1)
-        print(f"wrote {args.out}", file=sys.stderr)
+    _save(results, args.out)
     return 0 if total_mm == 0 else 1
 
 
