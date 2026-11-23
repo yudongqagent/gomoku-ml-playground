@@ -1148,6 +1148,40 @@ wins there, so the edge should be smaller.
 
 ## 14. Fast loop (re-scope)
 
+Iteration 1, leg 1 (vs v0, 10 games, seeds 1001/2001):
+**v58 10W-0L-0D** (win rate 1.0000, Wilson 95% CI [0.7225,
+1.0000]) — `research/iterations/fastloop-v58-vs-v0-i1.json`
+(231s). Clean sweep, no losses to analyze. (v52 beats v0
+1.0000 over 100 games, so this is the expected smoke-test
+outcome, not evidence of strength.)
+
+Iteration 1, leg 2 (vs v52, 10 games, seeds 1001/2001):
+**v58 7W-2L-1D** (win rate 0.7500, Wilson 95% CI [0.4422,
+0.9191]) — `research/iterations/fastloop-v58-vs-v52-i1.json`
+(1983s; v58-vs-v52 games are the slowest in the program —
+both engines run TSS at every root — and game 3 ran to a
+225-ply full-board draw). 10/10 unique games, de-dup win rate
+0.75. The CI includes 0.50 — 10 games prove nothing; the
+battery is the verdict. Per-colour: v58 as Black 3W-2L-0D,
+as White 4W-0L-1D.
+
+Loss workup (`classify_batch_losses.py` + TSS replay of the
+loss games): all 2 losses via open four (2/2), **0 missed
+blocks**, 0 clean missed preventions in 13 threatened turns.
+Defence is solved. TSS fired on **0 v58 turns in both losses**
+(game 2: 0/29 turns; game 6: 0/25), while v52 fired 4x (first
+ply 51) and 8x (first ply 31) respectively and converted — the
+same pattern as v52's own fast loop (TSS fired 0x in all 3
+losses): the losses are positional (v52-as-White reaching
+forcing positions v58-as-Black did not), with no v58-specific
+losing move to patch. Consistent with Check B's flat Black
+result (0.80 vs 0.78): the term's Black-side reach effect is
+small.
+
+**Fast-loop verdict: NO PATCH.** The mechanism behaves as
+designed (no false positives, no v58-specific blunder class).
+Proceed to the battery.
+
 ## 15. Battery (re-scope)
 
 ## 16. Verdict (re-scope)
