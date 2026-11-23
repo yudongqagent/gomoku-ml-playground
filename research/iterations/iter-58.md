@@ -482,7 +482,70 @@ exactly what M3 tests.
 
 ### 2.4 M3 — depth-6 spot-check (detection vs opportunity)
 
-(to be filled in when M3 completes)
+**COMPLETE.** `ml/scripts/spotcheck_tss_depth.py`: depth-6 TSS,
+node budget 10000, on the first 20 qualifying White turns per leg
+from M1 (production TSS returned None, forcing set non-empty, no
+forced block, search completed). Artifacts:
+`tss-spotcheck-v58-normal.json`, `tss-spotcheck-v58-swap.json`.
+No interruption; both legs exit 0.
+
+| leg | n | found | none (completed) | none (budget-exceeded) | find rate | nodes median / max |
+|---|---|---|---|---|---|---|
+| normal | 20 | 0 | 17 | 3 | 0.000 | 817 / 10001 |
+| swap | 20 | 0 | 16 | 4 | 0.000 | 2548 / 10001 |
+
+**Per the pre-registered decision rule (§1.4): 0/20 = NO GAP.**
+Depth-6 TSS finds ZERO additional White forcing wins beyond what
+depth-4 finds, in 33 completed searches across both legs. TSS
+detection is complete for White at depth 4: White's normal-rules
+deficit is a pure OPPORTUNITY gap (White genuinely has fewer
+forcing wins because Black moves first), not a detection gap.
+
+Caveats, stated plainly:
+* 7/40 searches aborted on the 10000-node budget (3 normal, 4
+  swap) and are inconclusive for those positions — a win COULD
+  hide behind an abort (the winning move late in prior order,
+  budget consumed by earlier subtrees). A budget follow-up
+  (below) re-runs all 7 aborted positions at budget 50000.
+* The sample is the FIRST 20 qualifying turns (games 0–2, plies
+  7–31 normal / 4–36 swap) — early-game concentrated, no late-game
+  positions. Late-game White turns with forcing moves but no
+  depth-4 win are rare (by the late game someone usually holds a
+  forcing win or the game is decided), but the sample does not
+  cover them.
+* The qualifying population is v27-vs-v27 mining games, not v52's
+  own lost games. M3b (below) tests the decision-relevant
+  population directly.
+
+**M3 budget follow-up (POST-HOC robustness check, COMPLETE).** The
+7 aborted positions re-run at depth 6, budget 50000
+(`tss-spotcheck-v58-{normal,swap}-budget50k.json`): **0/7 finds**.
+5/7 resolved to completed no-wins (nodes 10k–47k); 2 normal-leg
+positions (game 2, plies 21 and 27) still abort even at 50000
+nodes — extremely bushy "prove no win" searches, still
+inconclusive. M3's final tally: 0 finds in 38 completed depth-6
+searches (17+1 normal, 16+4 swap), 2 inconclusive.
+
+**M3b — depth-6 spot-check on v52-White's lost games (POST-HOC
+robustness check, the decision-relevant population, COMPLETE).**
+`ml/scripts/collect_loss_turns.py` replayed v52-White's 29
+non-wins (27 losses + 2 draws) from `batch-v52-vs-v27.json`: all
+712 White turns had production TSS = None (confirming M2b's 0
+fires in losses), 30 qualifying turns collected (plies 5–67,
+games 1/5/9/11). Depth-6 (budget 10000) on the first 20
+(`tss-spotcheck-v58-losses.json`): **0/20 finds** (9 completed,
+11 aborted — a 55% abort rate, far higher than M3-mining's 17.5%:
+losing positions have bushier search trees, Black holding strong
+counter-replies). The 11 aborted positions are re-run at budget
+50000 (`tss-spotcheck-v58-losses-budget50k.json`) — result below.
+
+### 2.5 Diagnosis synthesis
+
+(to be filled in when the M3b budget follow-up completes)
+
+### 2.5 Diagnosis synthesis
+
+(to be filled in when the follow-ups complete)
 
 ## 3. Patch design
 

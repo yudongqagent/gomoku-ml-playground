@@ -1,0 +1,39 @@
+{
+  "input": "/home/hatch/workspace/projects/gomoku-b14-h2/research/iterations/tss-mine-v58-normal.json",
+  "rule": "normal",
+  "n": 3,
+  "indices": "0,4,6",
+  "depth": 6,
+  "budget": 50000,
+  "found": 0,
+  "none_completed": 1,
+  "none_budget_exceeded": 2,
+  "find_rate": 0.0,
+  "find_rate_completed": 0.0,
+  "results": [
+    {
+      "game": 0,
+      "ply": 11,
+      "found": false,
+      "move": null,
+      "nodes": 46346,
+      "budget_exceeded": false
+    },
+    {
+      "game": 2,
+      "ply": 21,
+      "found": false,
+      "move": null,
+      "nodes": 50001,
+      "budget_exceeded": true
+    },
+    {
+      "game": 2,
+      "ply": 27,
+      "found": false,
+      "move": null,
+      "nodes": 50001,
+      "budget_exceeded": true
+    }
+  ]
+}
