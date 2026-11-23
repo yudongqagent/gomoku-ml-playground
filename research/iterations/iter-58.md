@@ -539,9 +539,147 @@ losing positions have bushier search trees, Black holding strong
 counter-replies). The 11 aborted positions are re-run at budget
 50000 (`tss-spotcheck-v58-losses-budget50k.json`) — result below.
 
+**M3b budget follow-up (POST-HOC robustness check, COMPLETE).**
+The 11 aborted M3b positions re-run at depth 6, budget 50000
+(`tss-spotcheck-v58-losses-budget50k.json`): **0/11 finds** (8
+resolved to completed no-wins, nodes 10k–47k; 3 still abort even
+at 50000 nodes).
+
+**FINAL depth-6 tally: 55 completed searches, 0 finds; 5 still
+inconclusive** (2 M3-mining + 3 M3b positions abort even at 50000
+nodes — extremely bushy "prove no win" searches). 95% CI upper
+bound on the find rate: 5.5% (rule of three). Depth-6 TSS finds
+nothing White is missing at depth 4, in two independent
+populations (v27 self-play mining turns and v52's own lost
+games).
+
 ### 2.5 Diagnosis synthesis
 
-(to be filled in when the M3b budget follow-up completes)
+**The question:** why does v52 win as White under swap (0.54 vs
+v27) but lose as White under normal rules (0.44 vs v27, 0.48 vs
+v18)?
+
+**The answer, in one paragraph:** it is an OPPORTUNITY gap plus a
+Black handicap, not a v52 defect. Under swap, the balanced 3-stone
+opening gives White a fairer race, so White reaches forcing-win
+positions more often (54% of games vs 42% under normal rules) —
+and reaching one is what wins White's games (TSS firing is
+necessary for v52-White to win: 47/47 wins involve a fire).
+Simultaneously the swap rule takes forcing wins AWAY from Black
+(Black's fire rate falls 15.0% → 9.6%, significantly), because the
+balanced placement denies Black its chosen opening — and that
+handicap bites v27 (whose edge is opening/MCTS play) but not v52
+(whose edge is TSS). So v52-White improves under swap because it
+faces a weaker v27-Black AND gets more forcing opportunities,
+while v27-White does not improve because it faces v52-Black,
+which the swap rule does not weaken. There is no patchable
+mechanism in v52: TSS detection is complete for White at depth 4
+(0 finds in 55 completed depth-6 searches), and no engine change
+creates forcing opportunities that do not exist under normal
+rules.
+
+**Mechanism-by-mechanism verdict:**
+
+| mechanism | verdict | evidence |
+|---|---|---|
+| (a) Selection (swap choice) | REFUTED | Chosen-White subset is 5/48 games; forced-White alone is 0.535 (n=43) vs normal 0.44. Arithmetic, not inference. The judge's White picks lose (4/12). |
+| (b) TSS-mediated (White gets more forcing opportunities under swap) | SUPPORTED as the explanation, but a pure OPPORTUNITY gap — NOT patchable | M1 White differ rate 1.47× (z=1.87, just below threshold); M2 v52-White fire rate 1.57× (z=3.95); M2b: TSS firing necessary for v52-White wins (47/47), firing games 54% swap vs 42% normal. M3+M3b: NO detection gap (0/55 depth-6 finds). |
+| (c) Black-opening handicap | SUPPORTED as a contributor | M1: Black's fire rate 0.64× (z=−4.20) and differ rate 0.54× (z=−3.63) under swap, both significant. Explains why v27-White (vs v52-Black) is flat while v52-White (vs v27-Black) improves. Harness property, not patchable in v52. |
+| (d) Budget asymmetry | REFUTED | Flips between rules (normal W 5.55% > B 4.14%; swap B 6.85% > W 5.20%). No stable White disadvantage. |
+| (d) Opening-specific TSS | WEAK | White differs spread across 19/24 openings (max 7 in one). No single opening drives the effect. |
+
+**Side findings (for the program record):**
+* The TSS node budget binds on ~5% of turns in real games
+  (M1: 4.1–6.9% by leg/colour), not the ~1% of iter-52's bench —
+  the bench positions were quieter than real-game positions.
+  H3's speed work (v59) should use the real-game rate.
+* Depth-6 TSS aborts far more often than depth-4 (17.5% of
+  mining turns, 55% of losing-position turns at a 10k budget; 5
+  positions still abort at 50k). Any depth increase (H1's v57
+  sweep) must scale the budget or aborts will eat the gains —
+  and a win late in prior order can hide behind an abort.
+* v52-White's losses are TSS-silent: 0 fires in 27 normal-rules
+  losses (0/488 turns) and 0 in 2 draws. When White loses, it is
+  not because TSS missed a win — it is because no forcing win
+  existed at any turn (at depth 4 or 6).
+
+## 3. Patch design
+
+**NO PATCHABLE MECHANISM — WORK STOPS HERE (batch 13 H3
+precedent).**
+
+The diagnosis found the mechanism (an opportunity gap + a Black
+handicap), and neither half is patchable in v52:
+* The opportunity gap is structural: under normal rules Black
+  moves first and builds threats earlier, so White genuinely has
+  fewer forcing wins. No engine change creates forcing wins that
+  do not exist. The White search/prior/book levers that might
+  steer White toward forcing positions are CLOSED (v15, v41, v46).
+* The Black handicap is a harness property (the balanced placement
+  denies Black its chosen opening) and an opponent property (it
+  bites v27, not v52). Nothing in v52's code causes it or can
+  exploit it further — v52 already converts every forcing win it
+  reaches.
+* The only patchable form of (b) — a detection gap — is refuted:
+  depth-6 TSS finds 0 additional White wins in 55 completed
+  searches across two populations. TSS detection is complete for
+  White at depth 4.
+
+No v58 engine is built. No registry entry, no VERSIONS.md row, no
+fast loop, no battery, no ladder, no challenge match. The
+diagnosis in §2 is the deliverable. The measurement scripts
+(`mine_tss_swap.py`, `replay_tss_battery.py`,
+`spotcheck_tss_depth.py`, `collect_loss_turns.py`,
+`analyse_tss_mine_v58.py`) and all JSON artifacts are committed on
+this branch for the coordinator to merge as research artifacts;
+no engine code changed (`ml/gomoku_ml/` untouched).
+
+## 4. Fast loop
+
+N/A — no version built (see §3).
+
+## 5. Battery
+
+N/A — no version built (see §3).
+
+## 6. Verdict
+
+**v58: NO PATCHABLE MECHANISM FOUND — diagnosis delivered, no
+version built, work stopped per the tasking.**
+
+The swap/colour interaction is understood (see §2.5) and the
+White gap is now triply confirmed non-patchable in its current
+framings (v41 forensics, v46 population statistics, v58
+opportunity/detection decomposition). The heuristic bar reference
+and strength champion remain v52; the daily cross-track pairing
+(v52 vs v44) is unchanged.
+
+**For the next batch:**
+1. Do NOT retry White-side patches on this framing. The
+   opportunity gap is structural and the detection gap is closed
+   (0/55). Any future White work needs a genuinely new mechanism,
+   not a re-framing of the gap.
+2. H1's depth/budget sweep (v57) should note M3's result: depth-6
+   finds nothing White misses at depth 4 — but M3 tested WHITE
+   turns only. If depth helps globally, it is through a different
+   population (Black's wins, or positions without forcing moves),
+   and the budget must scale with depth (55% abort rate in losing
+   positions at 10k nodes; 5 positions abort even at 50k).
+3. The one speculative direction M2b suggests: v52-White wins
+   ONLY by reaching a forcing position (47/47 wins), and reaches
+   one in only 42% of normal-rules games. A lever that steers
+   White's early/midgame toward forcing positions — e.g. a
+   threat-potential term in the leaf evaluation rewarding
+   progress toward forcing structures, distinct from the CLOSED
+   prior/book levers — is the only untested angle on White. It is
+   an idea, not a recommendation: it would need its own
+   pre-registered mechanism check (does the term actually raise
+   White's firing-game rate?) before any battery.
+4. The TSS budget's real-game bind rate (~5%, not ~1%) belongs in
+   H3's (v59) speed analysis, and the 5 ultra-bushy positions
+   (still aborting at 50k nodes) are a TSS robustness note for
+   any future depth work.
+
 
 ### 2.5 Diagnosis synthesis
 
