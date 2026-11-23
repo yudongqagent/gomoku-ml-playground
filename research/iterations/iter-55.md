@@ -805,3 +805,26 @@ finding to chase.
 v55 takes every win, blocks every four, finds every
 prevention and setup on the corrected suite, including
 the v1bl-g2 prevention that broke v40.
+
+### 8.1 Clause 1 — vs v44, 100 games (2026-11-22/23)
+
+`selfplay_batch.py --engine-a v55 --engine-b v44 --games 100
+--openings research/openings-ml4.json --seed-a 100 --seed-b 200`
+(raw `ml/runs/ml6-h2/batt-v44.log`; 6,188 s of play plus a
+VM restart that killed the run at game 21 — resumed cleanly
+with per-game seeding). **50W-47L-3D, win rate 0.5150, 95%
+CI [0.4183, 0.6106].** As Black 28W-21L-1D (0.5700), as
+White 22W-26L-2D (0.4600) — a 0.11 White gap, below the
+§1.6 0.15 threshold but real on validation seeds (the
+sweep's White 0.600 at α=0.25 did not survive the
+seed/opening change). 100/100 unique games; the de-dup
+rate and CI are identical to nominal (0.515, [0.4183,
+0.6106]). Three 225-ply marathon draws.
+
+**Clause 1 FAILS:** the point estimate clears 0.50 but
+the Wilson 95% CI lower bound (0.4183) does not. v55
+plays at v44's level, not above it — the recovery from
+v48's 0.44 to 0.515 is real (the label-depth reading of
+the §1.6 mechanism rule), but v55 does not beat the
+champion. The ladder and secondaries below complete the
+mechanism picture.
