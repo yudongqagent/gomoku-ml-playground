@@ -57,7 +57,16 @@ to produce byte-identical files), and it is flagged here and in
 the final report so the coordinator can correct the record.
 (H2's premise may be equally stale: v48's patch data also
 exists at `gomoku-ml5-h1/ml/runs/ml5-h1/` — `data-base`,
-`data-new`, `data-train`, `games-vs-*.json`.)
+`data-new`, `data-train`, `games-vs-*.json`.) Corroborated
+independently 2026-11-23 by the coordinator: H2 reconstructed
+the base games VERBATIM from v37's shards at
+`gomoku-ml3-h2/ml/runs/ml3-h2/data/` (same counts as above)
+with `ml/scripts/reconstruct_distill_games.py` on
+`research/ml-batch-6-h2`, and its verification gate —
+re-labelling with rollout2 and requiring 0 mismatches against
+the stored values — passed 0/37,227. The coordinator's
+data-source correction therefore changes nothing for v56: this
+version already trained on the verbatim original positions.
 
 ## 0. Ports and verification measurements (after the §1 lock)
 
@@ -851,18 +860,16 @@ were played at 2 threads, games 7–39 at 1 thread; the engines are
 the same up to the float noise above, so no game is discarded and
 no arm is restarted.
 
-(to be filled in: fast loops.)
-
 ### 5.2 Fast loops (α = 0.25, seeds 1001/2001)
 
 | Opponent | W–L–D | Win rate | Black | White | Mean plies |
 |---|---|---|---|---|---|
-| v0 (ladder MCTS) | 5–3–2 | 0.60 | 3–1–1 | 2–2–1 | 78.5 |
+| v0 (1-ply heuristic) | 5–3–2 | 0.60 | 3–1–1 | 2–2–1 | 78.5 |
 | v44 (champion) | 4–4–2 | 0.50 | 1–4–0 | 3–0–2 | 81.5 |
 
 10 games each — noise dominates (±0.3 CI), so these are a
 smoke test, not a verdict: v56 plays coherent Gomoku, beats
-the ladder MCTS, and holds even with v44 on this tiny sample
+the 1-ply heuristic, and holds even with v44 on this tiny sample
 (the sweep's 0.4625 at α=0.25 is the better read). No
 systematic SEARCH flaw appeared (no blowout, no repeated
 tactical blunder pattern), so no fast-loop patch is made —
@@ -933,7 +940,153 @@ will show whether that reads as passive play in the games.
 
 ## 6. Validation battery
 
-(to be filled in.)
+Run in the pre-registered order (§1.8): tactical → vs v44 →
+ladder → vs v0 → vs v7 → vs v37 → swap vs v7, via
+`ml/runs/ml6-h3/chain-battery.sh` with the 1-thread pin (§5.0)
+throughout. Validation seeds 100/200; ladder seed 100, 40
+games/opponent, mcts_sims=100; the vs-v44 and vs-v37 legs use
+`research/openings-ml4.json`; swap uses balanced placement,
+placement_seed 11, tempo judge. The battery survived several
+VM replacements (logs `battery.nohup` through
+`battery6.nohup`); every driver auto-resumed or skipped
+completed outputs, verified each time (tactical guard via the
+JSON check, selfplay_batch "already complete",
+`eval_version` leg resume with rng_state) — zero games lost.
+Artifacts committed per leg (tactical `18b9bb8`, v44
+`70619f2`, ladder `edaefcf`, v0 `60db39f`, v7 `707e0de`, v37
+`fa0d7b8`, swap `7016c5d`).
+
+**Opponent identities (verified from code 2026-11-23 — read
+this before comparing legs):** battery `v0` is
+`baseline.HeuristicPlayer` — the 1-ply heuristic (the ladder's
+"heuristic" opponent, anchor 0), NOT the ladder MCTS. There is
+no v0 entry in the scoring registry;
+`selfplay_batch.resolve_engine` maps "v0" to the baseline
+player. Ladder `mcts` is `baseline.HeuristicMCTSPlayer`
+(sims=100) — a different, stronger opponent with NO
+battery-leg equivalent. Ladder `heuristic` is the same frozen
+baseline player, not registry v7. Ladder Elo uses ONLY the
+anchored opponents (random −800, heuristic 0); the mcts leg
+does not enter the estimate (`evaluate.ladder_elo`:
+"Unanchored opponents (mcts, checkpoint) do not enter the
+estimate") — which matters for the clause-2 caveat below.
+
+### 6.1 Tactical — CLAUSE 3 PASSES
+
+**20/20 (old suite) + 29/29 (hard suite)**, seed 100.
+Artifact `research/iterations/tactical-v56.json`; the ladder
+JSON independently embeds the old-suite 20/20. The symmetric
+labels cost nothing tactically: the net plays the forcing
+moves and the blocks exactly as v44's did.
+
+### 6.2 Battery legs (100 games each)
+
+Win rate = (W + D/2)/n; CI = Wilson 95%. De-dup cut: drop
+duplicate full move sequences, keep the first occurrence
+(program convention).
+
+| Leg | W–L–D | Rate | Wilson 95% CI | Unique | De-dup rate | De-dup CI | Black | White | Mean plies |
+|---|---|---|---|---|---|---|---|---|---|
+| vs v44 (openings) | 46–42–12 | 0.52 | [0.4232, 0.6154] | 100/100 | 0.5200 | [0.4232, 0.6154] | 0.59 | 0.45 | 72.3 |
+| vs v0 | 53–40–7 | 0.565 | [0.4672, 0.658] | 88/100 | 0.5170 | [0.4141, 0.6185] | 0.63 | 0.50 | 59.9 |
+| vs v7 | 43–48–9 | 0.475 | [0.3799, 0.572] | 95/100 | 0.4684 | [0.3713, 0.5680] | 0.60 | 0.35 | 63.8 |
+| vs v37 (openings) | 32–48–20 | 0.42 | [0.328, 0.5179] | 97/100 | 0.4227 | [0.3292, 0.5221] | 0.55 | 0.29 | 88.4 |
+| swap vs v7 | 43–48–9 | 0.475 | [0.3799, 0.572] | 99/100 | 0.4798 | [0.3840, 0.5771] | 0.519 (n=52) | 0.427 (n=48) | 62.9 |
+
+**vs v44 — CLAUSE 1 FAILS.** Win rate 0.52 > 0.50, but the
+Wilson lower bound is 0.4232 < 0.50; the bar needs ≈0.60 at
+n=100. The de-dup cut is identical (100/100 unique), so the
+clause fails on both cuts. Progression was never near the
+bar: 0.548 at 21 games, 0.5253 at 79, 0.5361 at 97. The
+sweep's read (0.4625 at the best α) was, if anything,
+pessimistic — the battery says v56 is roughly v44's equal,
+not its better.
+
+**The fast-loop colour-split prediction is REFUTED.** §5.2
+predicted, from n=10, that v56 would be Black-weak (1–4–0)
+and White-strong (3–0–2) against v44 — the loss-aversion
+signature. The 100-game leg shows the OPPOSITE split: Black
+0.59 (26W-17L-7D), White 0.45 (20W-25L-5D). The fast-loop
+split was noise, and the loss-aversion hypothesis's specific
+prediction (Black-weak play) is refuted by the battery:
+v56-as-Black is 0.55–0.63 in every leg, consistently its
+stronger colour.
+
+**vs v0:** nominal 0.565 overstates the leg — the de-dup cut
+is 0.5170 (42W-39L-7D on 88 unique games): 11 of the 12
+dropped duplicates were v56 wins, the deterministic-ish
+heuristic repeating losing lines. On the nominal rate v56 sits
+in the same band as v44 (0.58) and v37 (0.585); on the de-dup
+rate it is slightly below both. The 88/100 uniqueness is the
+lowest of any v56 leg and is an opponent property (v0's
+greedy determinism), not a v56 property — the other legs are
+95–100/100.
+
+**vs v7:** 0.475 nominal, 0.4684 de-dup — the same band as
+v44 (0.45) and v37 (0.45). The colour split is the story:
+Black 0.60 (28W-18L-4D), White 0.35 (15W-30L-5D).
+
+**vs v37:** 0.42 nominal, 0.4227 de-dup — v56 does better
+than v44 did against v37 (0.31), but v37 still beats v56
+clearly (CI upper 0.5179 barely touches 0.50). Colour split
+Black 0.55 (22W-17L-11D), White 0.29 (10W-31L-9D) — the
+widest gap of any leg, and the longest games (mean 88.4
+plies both colours).
+
+**Swap vs v7:** 0.475 nominal, 0.4798 de-dup (the single
+duplicate was a loss). Better than v44's swap 0.39. Colour
+split 52 Black / 48 White games (swap placement decides
+colour, not alternation): Black 0.519, White 0.427.
+
+**The White-side weakness is the battery's clearest
+pattern.** v56-as-White: 0.45 / 0.50 / 0.35 / 0.29 vs v44 /
+v0 / v7 / v37, against Black 0.59 / 0.63 / 0.60 / 0.55 — a
+0.13–0.26 gap, wider than the normal first-move edge
+(~0.07–0.10), and worsening against stronger opponents. The
+ladder confirms it independently (§6.3): mcts-leg White
+3–16–1 (0.175) vs Black 11–9–0 (0.55); heuristic-leg White
+10–10 (0.50) vs Black 17–2–1 (0.875). The holdout said the
+opposite — White BETTER than Black (0.757 vs 0.669, §4) —
+the seventh instance of holdout not predicting played
+strength (v31, v38, v42, v43, v48, v49, v56). One
+mitigation: v56's White 0.29 vs v37 is better than v44's
+0.16 vs v37 — the correction did not fix White, but it did
+not repeat v44's White collapse either.
+
+### 6.3 Ladder — CLAUSE 2 PASSES (with a caveat)
+
+**Ladder Elo 137.0, interval [22.9, 251.1] — PASSES clause 2**
+(137.0 > 98.1, point-estimate rule). 40 games/opponent, seed
+100, mcts_sims=100.
+
+| Opponent | W–L–D | Rate | CI | Black | White |
+|---|---|---|---|---|---|
+| random | 40–0–0 | 1.000 | [0.9124, 1.0] | 20–0–0 | 20–0–0 |
+| heuristic | 27–12–1 | 0.6875 | [0.5329, 0.8093] | 17–2–1 | 10–10–0 |
+| mcts (unanchored) | 14–25–1 | 0.3625 | [0.2317, 0.5174] | 11–9–0 | 3–16–1 |
+
+v44's ladder for comparison: random 40–0, heuristic
+24W-13L-3D (0.6375, Elo 98.1 [−12.1, 208.2]), mcts 25W-15L-0D
+(0.625).
+
+**Caveat — the Elo pass and the mcts leg disagree.** The Elo
+comes from the heuristic leg alone (the random leg is
+saturated at 40–0 for both versions, the mcts leg is
+unanchored and does not enter the estimate): v56's heuristic
+leg is 27.5 win-equivalents vs v44's 25.5 — a 2-game gap,
+well within noise, and the intervals overlap heavily
+([22.9, 251.1] vs [−12.1, 208.2]). Meanwhile the unanchored
+mcts leg shows a REAL deficit: v56 0.3625 vs v44 0.625, a
+~10.5-game gap, ~2.4 sigma. v44 was the first ML version
+ever to beat the ladder MCTS outright; v56 loses to it
+clearly, driven by White (3–16–1). So the clause-2 pass is
+real under the pre-registered rule (point estimate, the same
+rule v44's own pass used — and v44's interval included 0),
+but it is a thin pass: it rests on the weakest anchored leg
+while the strongest ladder opponent says v56 is worse than
+v44. The honest summary is that v56's ladder strength is
+indistinguishable from v44's, with the mcts leg pointing the
+other way.
 
 ## 7. Verdict
 
