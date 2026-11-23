@@ -1191,7 +1191,11 @@ class ScoringPlayer:
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.
-                from .mcts_heuristic import HeuristicMCTS
+                from .mcts_heuristic import (
+                    TSS_DEPTH,
+                    TSS_NODE_BUDGET,
+                    HeuristicMCTS,
+                )
 
                 self._mcts = HeuristicMCTS(
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
@@ -1203,6 +1207,12 @@ class ScoringPlayer:
                     ),
                     vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
                     tss_root=ENGINE_VERSIONS[version].get("tss_root", False),
+                    tss_depth=ENGINE_VERSIONS[version].get(
+                        "tss_depth", TSS_DEPTH
+                    ),
+                    tss_node_budget=ENGINE_VERSIONS[version].get(
+                        "tss_node_budget", TSS_NODE_BUDGET
+                    ),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(
