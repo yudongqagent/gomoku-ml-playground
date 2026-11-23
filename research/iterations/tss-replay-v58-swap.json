@@ -1,0 +1,60 @@
+{
+  "input": "/home/hatch/workspace/projects/gomoku-b14-h2/research/iterations/batch-v52-vs-v27-swap.json",
+  "engine_a": "scoring-v52",
+  "engine_b": "scoring-v27",
+  "swap_rule": true,
+  "scope": "white-only",
+  "games": 100,
+  "by_engine_colour": {
+    "A": {
+      "black": {
+        "turns": 0,
+        "fires": 0,
+        "confirms": 0,
+        "differs": 0,
+        "budget_exceeded": 0,
+        "nodes": 0,
+        "fire_rate": 0.0,
+        "differ_rate": 0.0,
+        "mean_nodes": 0.0
+      },
+      "white": {
+        "turns": 996,
+        "fires": 158,
+        "confirms": 158,
+        "differs": 0,
+        "budget_exceeded": 59,
+        "nodes": 350490,
+        "fire_rate": 0.15863453815261044,
+        "differ_rate": 0.0,
+        "mean_nodes": 351.8975903614458
+      }
+    },
+    "B": {
+      "black": {
+        "turns": 0,
+        "fires": 0,
+        "confirms": 0,
+        "differs": 0,
+        "budget_exceeded": 0,
+        "nodes": 0,
+        "fire_rate": 0.0,
+        "differ_rate": 0.0,
+        "mean_nodes": 0.0
+      },
+      "white": {
+        "turns": 1211,
+        "fires": 72,
+        "confirms": 42,
+        "differs": 30,
+        "budget_exceeded": 63,
+        "nodes": 447349,
+        "fire_rate": 0.05945499587118084,
+        "differ_rate": 0.02477291494632535,
+        "mean_nodes": 369.40462427745666
+      }
+    }
+  },
+  "consistency_violations": [],
+  "n_violations": 0
+}

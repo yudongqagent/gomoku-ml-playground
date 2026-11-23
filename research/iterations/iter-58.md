@@ -365,7 +365,68 @@ control, and M1 already measured Black's rates under both rules
 UNCHANGED. The probe also validated the replay: 0 consistency
 violations in 3 games (v52's recorded moves match TSS fires).
 
-(to be filled in when M2 completes)
+**M2 results (COMPLETE).** Artifacts:
+`tss-replay-v58-normal.json`, `tss-replay-v58-swap.json` (White
+turns only, all 100 games per leg). The run survived one VM
+replacement (SIGTERM at swap 80/100); per-game checkpointing
+resumed exactly. Consistency check: **0 violations in both legs**
+— v52's recorded moves match TSS fires everywhere, so the replay
+is valid.
+
+| leg / engine-White | turns | fires | fire rate | differs | differ rate | confirms | budget-exc. |
+|---|---|---|---|---|---|---|---|
+| normal A-white (v52) | 1167 | 118 | 0.1011 | 0 | 0.0000 | 118 | 45 (3.86%) |
+| swap A-white (v52) | 996 | 158 | 0.1586 | 0 | 0.0000 | 158 | 59 (5.92%) |
+| normal B-white (v27) | 928 | 75 | 0.0808 | 29 | 0.0312 | 46 | 51 (5.50%) |
+| swap B-white (v27) | 1211 | 72 | 0.0595 | 30 | 0.0248 | 42 | 63 (5.20%) |
+
+(A-white differs are 0 by construction — v52 plays the TSS move
+when it fires.)
+
+**Decision quantities (§1.4): the two M2 quantities SPLIT.**
+
+* v52's White fire rate: normal 0.1011 → swap 0.1586, **ratio
+  1.57, z = +3.95** — clears BOTH confirm thresholds (≥1.5, z>2).
+  On the letter of the pre-registered rule, M2 CONFIRMS (b).
+* v27's White differ rate: normal 0.0312 → swap 0.0248, **ratio
+  0.79, z = −0.89** — no rise. (v27-White's fire rate also FELL:
+  ratio 0.74, z = −1.90.)
+
+**Why the split does not settle (b).** The two quantities measure
+opportunities against DIFFERENT opponents: v52-White faces weak
+v27-Black, while v27-White faces strong v52-Black (whose TSS does
+not depend on the opening, so it is not weakened by swap). More
+importantly, the fire rate is confounded by win-more: it rises
+when v52-White wins more and plays shorter games, even with NO new
+opportunities. Decomposition of the 1.57× fire-rate rise: win rate
+0.44 → 0.54 (1.23×) · shorter v52-White games (23.3 → 20.8 White
+turns/game, 1.12×) · fires per win 5.62 → 6.08 (1.08×) ≈ 1.49×
+(≈ the observed 1.57×; residual is fires in lost/drawn games).
+Fires per win — the closest thing to "opportunities per won game"
+in the aggregate data — rises only 1.08×. The fire-rate "confirm"
+is therefore largely an EFFECT of winning more, not evidence of
+new forcing opportunities. The differ rate (opportunities the
+MCTS misses) is the cleaner causal quantity, and it does not rise
+in the battery (M2 B-white 0.79×) and rises only suggestively in
+self-play (M1 1.47×, z = 1.87, below threshold).
+
+**M2b — attribution follow-up (POST-HOC, motivated by M2's split
+result; not pre-registered).** The aggregate data cannot say
+whether v52-White's EXTRA swap wins (+5: 26 vs 21) were TSS-driven.
+M2b replays the v52-White games only (50 normal + 48 swap),
+White turns, recording PER-GAME fire counts alongside the outcome
+(`--per-game --only-a-colour white`). Decision logic: if the extra
+swap wins disproportionately involve White TSS fires, (b) is
+causally supported and M3 runs; if the extra wins are
+disproportionately fire-free (won by outplaying a weakened
+v27-Black without TSS), (b) is causally refuted and the fire-rate
+"confirm" is win-more. M2b does not change the pre-registered
+decision rule — it tests whether the rule's fire-rate quantity was
+confounded, and the patch decision follows the CAUSAL evidence.
+
+### 2.3 M2b — attribution (per-game fires for v52-White games)
+
+(to be filled in when M2b completes)
 
 ## 3. Patch design
 
