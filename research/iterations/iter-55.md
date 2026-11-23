@@ -869,3 +869,19 @@ White (0.33) is in the same collapse territory as vs v0
 (0.31). The White defect is consistent across both
 heuristic legs and is the dominant feature of v55's
 profile against non-net opponents.
+
+### 8.4 Secondary — vs v37, 100 games (openings)
+
+`selfplay_batch.py --engine-a v55 --engine-b v37 --games 100
+--openings research/openings-ml4.json --seed-a 100 --seed-b 200`
+(raw `ml/runs/ml6-h2/batt-v37.log`; 5,743 s of play plus
+a VM restart that killed the run at game 22 — resumed
+cleanly). **42W-50L-8D, win rate 0.4600, 95% CI
+[0.3656, 0.5574].** As Black 23W-21L-6D (0.5200), as
+White 19W-29L-2D (0.4000) — a 0.12 White gap, below the
+§1.6 threshold. 100/100 unique games; de-dup = nominal.
+v55 is much closer to v37 than either predecessor (v44
+0.31, v48 0.32 on the same leg) — the 3-ply labels plus
+the patch data closed most of the gap to the strongest
+ML version — but v37 still wins the matchup, so v37
+remains the strongest ML version by head-to-head.
