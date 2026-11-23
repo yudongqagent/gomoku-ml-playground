@@ -565,15 +565,71 @@ contention-inflated.
 
 | set | version | fired | p50 | p90 | p99 | max | mean |
 |---|---|---|---|---|---|---|---|
-| quiet | v52 | 11 | TBD | TBD | TBD | TBD | TBD |
-| quiet | v59 | TBD | TBD | TBD | TBD | TBD | TBD |
-| creator-rich | v52 | 5 | TBD | TBD | TBD | TBD | TBD |
-| creator-rich | v59 | TBD | TBD | TBD | TBD | TBD | TBD |
+| quiet | v52 | 11 | 4.1 | 1072.3 | 2967.4 | 2967.7 | 273.3 |
+| quiet | v59 | 11 | 1.0 | 291.4 | 1078.3 | 1154.4 | 80.7 |
+| creator-rich | v52 | 5 | 44.2 | 1935.2 | 6015.9 | 6353.4 | 574.0 |
+| creator-rich | v59 | 5 | 15.9 | 549.4 | 1779.9 | 2274.3 | 191.8 |
 
-Node distributions must be IDENTICAL between v52 and v59 on
-the same positions (Phase 1). Target: creator-rich CPU-time
-p99 < 1s.
+(CPU time, ms, budget 3000. Wall time, contended: quiet v52
+p99 6364ms / v59 p99 2371ms; creator-rich v52 p99 12695ms /
+v59 p99 3693ms. Node distributions IDENTICAL between v52 and
+v59 on the same positions: quiet median 0 / p90 740 / p99 2273
+/ max 2273 / mean 196; creator-rich median 20 / p90 1394 /
+p99 2763 / max 3001 / mean 365.)
 
-Phase decision: TBD (Phase 1 only, or Phase 2 L7 budget tuning
-per the pre-registered rule — largest budget in {2000, 1500,
-1000} with p99 < 1s AND abort rate ≤ 5%).
+**Phase 1 verdict: MISSES the target.** Creator-rich CPU p99
+1780ms vs the < 1000ms target — a 3.38x speedup over v52's
+6016ms, but not enough. The p99 is set by the two largest
+searches (2763 and 3001 nodes): the fast path is ~0.65–0.76
+ms/node, so a 3000-node search still costs ~2.3s. The
+per-node speedup (2.75–3.4x) is below the projected ~4x —
+the window scans and scalar scores cost more in the real
+search than in the isolated micro-benchmarks, and the
+non-enumeration costs (recursion, board copies) don't scale.
+
+Phase decision: **Phase 2 (L7) triggered** per the
+pre-registered rule — sweep budgets {2000, 1500, 1000}, pick
+the LARGEST budget whose p99 < 1s AND abort rate ≤ 5%; if
+none satisfies both, keep 3000 and report honestly.
+
+### 5.5 Phase 2 (L7) — node-budget sweep
+
+`ml/scripts/bench_tss_sweep_v59.py` (positions generated once,
+seed 777, n=100/set; fast path). Pre-registered rule: LARGEST
+budget with creator-rich CPU p99 < 1s AND abort rate ≤ 5%.
+
+| budget | set | CPU p99 (ms) | abort rate | fired |
+|---|---|---|---|---|
+| 3000 | quiet | 1078.3 | 0% | 11 |
+| 3000 | creator-rich | 1779.9 | 1% | 5 |
+| 2000 | quiet | 859.1 | 4% | 11 |
+| 2000 | creator-rich | 1365.0 | 5% | 5 |
+| 1500 | quiet | 713.5 | 4% | 11 |
+| 1500 | creator-rich | 1013.3 | 9% | 4 |
+| 1000 | quiet | 462.1 | 4% | 11 |
+| 1000 | creator-rich | 709.0 | 14% | 4 |
+
+**Rule outcome: NO budget satisfies both.** Budget 2000
+misses p99 (1365ms); 1500 misses p99 by 13ms (1013ms) AND
+misses the abort rate (9%); 1000 passes p99 (709ms) but
+aborts 14% of creator-rich searches. Per the pre-registered
+rule, **v59 keeps the production budget 3000** — Phase 2 is
+NOT adopted, and no battery arbitration is needed.
+
+Two findings from the sweep: (1) the p99 and the abort rate
+are in tension — the positions that set the p99 are exactly
+the ones that abort, so no budget in {2000, 1500, 1000}
+threads the needle; (2) cutting the budget LOSES wins:
+creator-rich `fired` drops from 5 to 4 at 1500 and 1000 — a
+forcing win the 3000-node search finds is aborted before
+conversion at the lower budgets. That is the strength cost
+a budget cut would pay, and it is why the abort-rate
+criterion exists.
+
+**Final speed verdict: v59 is 3.38x faster than v52 on the
+creator-rich CPU p99 (6016ms → 1780ms) and 3.0x on the mean
+(574ms → 192ms), at identical strength — but the p99 < 1s
+target is NOT met.** The remaining gap is the per-node cost
+(~0.65–0.76 ms/node on the largest searches): a 3000-node
+search still costs ~2.3s. Closing it needs a further
+per-node optimisation (see §7), not a budget cut.
