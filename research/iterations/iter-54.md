@@ -784,6 +784,22 @@ v48 scored 0.44 vs v44, v54 scores 0.385 — worse
 than the redistribution precedent it was designed
 to beat.
 
+### 9.3 vs v0 — White fix WORKS here
+
+`batch-v54-vs-v0.json` (100 games, validation seeds
+100/200): **62W-29L-9D, win rate 0.665, Wilson 95%
+CI [0.5679, 0.7499]**. Colour split: as Black
+28W-16L-6D (0.620, CI [0.4815, 0.7414]); as White
+34W-13L-3D (0.710, CI [0.5729, 0.8171]). **White is
+the STRONG side vs v0** — the White collapse vs v0
+is REVERSED (v44's own White vs v0 was 0.59; v54's
+White is 0.71), with Black intact and improved
+(0.62 vs v44's 0.57). The mechanism check PASSES
+vs v0: White 0.71 ≥ 0.50 ✓, Black 0.62 ≥ 0.52 ✓.
+93/100 unique games; de-dup win rate 0.6505 (CI
+[0.5494, 0.7397]) — the result is not a
+duplication artefact.
+
 ### 6.3 Baseline test suites (before training)
 
 Full suite run on this branch (niced, under load ~3.5,
