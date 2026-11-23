@@ -638,6 +638,120 @@ v44. These are 20-game colour splits (SE ≈ 0.11), so
 the battery's 50-game splits are the real read; but the
 direction is a warning, not a confirmation.
 
+### 8.2 Fast loop iteration 1 (α=0.5, seeds 1001/2001)
+
+- vs v44: the α=0.5 sweep leg itself (40 games, same dev
+  seeds) — **17W-22L-1D (0.4375)**. As Black 11-9-0, as
+  White 6-13-1. All 40 games unique.
+- vs v0: **8W-1L-1D (0.85)**, CI [0.5411, 0.9646]
+  (`research/iterations/fast-v54-vs-v0-iter1.json`).
+  Colour split: as Black 4W-1L-0D (0.800), as White
+  4W-0L-1D (0.900) — White is now the STRONG side vs
+  v0, the reverse of the original collapse (v42 White
+  0.28, v43 White 0.21, v49 White 0.22 vs v0) and
+  stronger than v48's fast-loop White (0.80) with
+  Black intact (0.80 vs v48's 0.30). Ten games is a
+  small sample, but the direction matches the §7.4
+  diag finding. All 10 games unique.
+- Loss classification (both matches): **23 losses, 23
+  via open four, 0 missed blocks, 0 clean missed
+  preventions in 102 threatened turns in losses.**
+  Defence as measured is clean — the losses are
+  positional drift into unstoppable open fours, not
+  blundered blocks. Same pattern as v37/v44/v48.
+- Losing moves (`find_losing_moves.py`, VCF solver
+  depth 4; raw `ml/runs/ml6-h1/losing-moves.txt`,
+  33.8 min): **17 of 23 losses were already lost**
+  at the first VCF moment. **SIX genuine blunders:**
+  vs v44 game 4 (Black, 88 plies), ply 82 — (12,13),
+  5 saves; vs v44 game 14 (Black, 120 plies), ply
+  112 — (1,7), 8 saves; vs v44 game 20 (Black, 54
+  plies), ply 48 — (11,5), 4 saves; vs v44 game 21
+  (White, 37 plies), ply 29 — (11,1), 1 save; vs v44
+  game 25 (White, 49 plies), ply 41 — (10,13), 1
+  save; vs v44 game 27 (White, 49 plies), ply 41 —
+  (7,3), 1 save. The vs-v0 loss (game 4, Black, 18
+  plies) was already lost. Three blunders as Black,
+  three as White — colour-balanced, unlike v48's
+  (4 of 5 as Black).
+
+**Workup — vs-v44 game 4, ply 82 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml6-h1/diag-v44-g4-ply82.txt`)
+shows a FLAT root: the actual (12,13) has the WORST
+our-q (−0.302) among the top 10 yet ties for most
+visits (4) with three other children, and the RNG
+tie-break picks it; the saves have better q (−0.071
+to −0.116) with 2–4 visits. The 1-ply leaf is
+essentially tied across actual and saves (v22 −0.178
+to −0.193). The q was RIGHT and the visit tie
+overruled it — v40's blunder-dilution /
+visit-allocation class (CLOSED) on a shared-horizon
+position. NOT a value-head failure.
+
+**Workup — vs-v44 game 14, ply 112 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml6-h1/diag-v44-g14-ply112.txt`)
+shows q-COLLAPSE: eight children tie at 6 visits,
+five of them (including the actual and four saves)
+at EXACTLY our-q −0.113 — the backed-up q has
+degenerated to a single value, so the most-visited
+decision is an RNG pick among eight. The 1-ply leaf
+slightly favours some saves ((6,3) v22 −0.035 vs
+actual −0.075) but does not separate them. Shared
+horizon + q-collapse/visit-allocation (CLOSED).
+
+**Workup — vs-v44 game 20, ply 48 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml6-h1/diag-v44-g20-ply48.txt`)
+shows the search GENUINELY preferring the loser:
+the actual (11,5) has the most visits (6) and the
+best our-q (+0.010); the saves sit at −0.080 to
+−0.096. The 1-ply leaf is tied-ish (v22 −0.178
+actual vs −0.168…−0.183 saves; v20 favours the
+actual). Shared-horizon class — the VCF is beyond
+both the search horizon and the leaf's
+discrimination. NOT a value-head failure (the net
+and the exact leaf agree the position is level).
+
+**Workup — vs-v44 game 21, ply 29 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml6-h1/diag-v44-g21-ply29.txt`)
+shows an EXACT tie: actual (11,1) and save (7,5)
+at 10 visits each, our-q −0.104 vs −0.105, prior
+0.1151 vs 0.1153, 1-ply leaf v22 +0.197 vs +0.196.
+Nothing in the position distinguishes the two moves
+at this horizon; the RNG tie-break picked the loser.
+Shared horizon + visit tie. NOT a value-head
+failure.
+
+**Workup — vs-v44 game 25, ply 41 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml6-h1/diag-v44-g25-ply41.txt`)
+shows the actual (10,13) and save (10,9) tied at 10
+visits each (our-q −0.110 vs −0.111, prior 0.1259
+vs 0.1260), with the 1-ply leaf FAVOURING the actual
+(v22 +0.131 vs +0.087). The exact leaf ranks the
+loser first — the VCF is beyond the 1-ply leaf.
+Shared-horizon class. NOT a value-head failure (the
+net agrees with the exact leaf).
+
+**Workup — vs-v44 game 27, ply 41 (VERIFIED):**
+`diag_root.py` (raw `ml/runs/ml6-h1/diag-v44-g27-ply41.txt`)
+shows the actual (7,3) with the most visits (12)
+vs the save's 11, the best our-q (−0.078 vs −0.091),
+and the 1-ply leaf favouring the actual too (v22
+−0.149 vs −0.178). Search + leaf genuinely prefer
+the loser; the VCF is beyond the horizon.
+Shared-horizon class.
+
+**Fast-loop STOP after iteration 1:** no patchable
+weakness class for v54 within H1's design space. The
+six blunders are three shared-horizon, one
+visit-allocation, one q-collapse, one exact tie —
+all in shared search code, none a value-head failure.
+Notably, all three White blunders are exact/near
+ties where nothing distinguishes the moves — the
+White-side value head is not mis-ranking; the
+horizon is the binding constraint. No
+loss-motivated retrain is authorised. The battery
+is the verdict.
+
 ### 6.3 Baseline test suites (before training)
 
 Full suite run on this branch (niced, under load ~3.5,
