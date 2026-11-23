@@ -752,6 +752,20 @@ horizon is the binding constraint. No
 loss-motivated retrain is authorised. The battery
 is the verdict.
 
+## 9. Validation battery (seeds 100/200)
+
+Battery JSONs: `research/iterations/batch-v54-vs-*.json`
+and `ladder-v54.json`. One VM replacement (~03:02
+UTC 2026-11-23) killed the first battery run after
+tactical + 10/100 vs-v44 games; the chain was
+relaunched and auto-resumed (per-game seeding,
+nothing lost).
+
+### 9.1 Tactical (clause 3) — PASS
+
+`eval_tactical_full.py --version 54 --suite both --seed 100`:
+**old 20/20, hard 29/29.** Clause 3 PASSES.
+
 ### 6.3 Baseline test suites (before training)
 
 Full suite run on this branch (niced, under load ~3.5,
