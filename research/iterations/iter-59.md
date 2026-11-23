@@ -481,6 +481,14 @@ positions and 194 replay turns, with identical node counts
 everywhere — including all 86 mined positions that hit the
 node budget.
 
+Note on the budget-bind rate: 86/2000 mined real-game
+positions hit the budget (4.3%), vs 1/100 on the
+creator-rich bench set and 0/100 on the quiet set. The bench
+figure understates how often the budget binds in real games
+— H2's v58 diagnosis (batch 14) independently puts the
+real-game bind rate at ~5%. Use ~5%, not the bench ~1%,
+when reasoning about budget tuning (see §5.5).
+
 The creator-rich budget-exceeded position is the tail position
 from the v52 bench (3,001 nodes, the only one that hits the
 budget): the fast path aborts at exactly the same node count,
@@ -527,13 +535,19 @@ the battery's 100/200.)
 
 | leg | result | win rate | 95% CI | distinct games | de-dup rate |
 |---|---|---|---|---|---|
-| v59 vs v52 (100, normal) | TBD | TBD | TBD | TBD | TBD |
-| v59 vs v0 (100, normal) | TBD | TBD | TBD | TBD | TBD |
+| v59 vs v52 (100, normal) | 54W-45L-1D | 0.5450 | [0.4475, 0.6391] | 94 | 0.5266 (49W-44L-1D) |
+| v59 vs v0 (100, normal) | 100W-0L-0D | 1.0000 | [0.9630, 1.0000] | 22 | 1.0000 (22W-0L-0D) |
 | v59 vs v52 (100, swap) | TBD | TBD | TBD | TBD | TBD |
 
-Expected: vs v52 ≈ 0.50 (tie — the version is move-choice
-identical); vs v0 100-0, reproducing v52's leg game-for-game
-(22 unique); swap ≈ 0.50.
+All legs recomputed from raw records with
+`ml/scripts/recompute_match.py` (a draw counts as half a
+win). The vs-v52 leg is a tie (CI includes 0.50), as
+expected for move-choice-identical engines — the 0.545 is
+colour/seed noise (A as Black 36-14, A as White 18-31-1;
+the Black edge is the first-move advantage, not an engine
+difference). The vs-v0 leg reproduces v52's leg
+game-for-game: 100-0 with exactly 22 unique games (50-0 as
+Black, 50-0 as White) — the identity check.
 
 ### 5.2 Ladder (40 games/leg, seed 100)
 
@@ -615,6 +629,15 @@ misses the abort rate (9%); 1000 passes p99 (709ms) but
 aborts 14% of creator-rich searches. Per the pre-registered
 rule, **v59 keeps the production budget 3000** — Phase 2 is
 NOT adopted, and no battery arbitration is needed.
+
+The sweep's abort rates are bench-measured, and the bench
+understates the real-game bind rate: at budget 3000 the
+bench abort rate is 1% (creator-rich) but the real-game
+rate is ~4.3% (86/2000 mined positions, §3) to ~5% (H2's
+v58 diagnosis). The real-game abort rate at 3000 is already
+near the 5% limit, so a budget cut would push the real-game
+abort rate far above 5% — the keep-3000 decision is even
+stronger on real-game numbers than on bench numbers.
 
 Two findings from the sweep: (1) the p99 and the abort rate
 are in tension — the positions that set the p99 are exactly
