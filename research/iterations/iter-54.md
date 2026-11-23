@@ -800,6 +800,32 @@ vs v0: White 0.71 ≥ 0.50 ✓, Black 0.62 ≥ 0.52 ✓.
 [0.5494, 0.7397]) — the result is not a
 duplication artefact.
 
+### 9.4 vs v7 — White fix does NOT transfer
+
+`batch-v54-vs-v7.json` (100 games, validation seeds
+100/200): **35W-59L-6D, win rate 0.380, Wilson 95%
+CI [0.2910, 0.4779]**. Colour split: as Black
+21W-24L-5D (0.470, CI [0.3388, 0.6055]); as White
+14W-35L-1D (0.290, CI [0.1829, 0.4271]). The
+mechanism check FAILS vs v7: White 0.29 < 0.40 ✗
+(and WORSE than v44's own White vs v7, 0.40);
+Black 0.47 ≥ 0.45 ✓ but below v44's 0.50. 98/100
+unique games; de-dup 0.3673.
+
+### 9.5 vs v37 — still the strongest ML version
+
+`batch-v54-vs-v37.json` (100 games, validation
+seeds 100/200, openings `research/openings-ml4.json`):
+**29W-66L-5D, win rate 0.315, Wilson 95% CI
+[0.2322, 0.4115]**. Colour split: as Black
+19W-27L-4D (0.420, CI [0.2937, 0.5577]); as White
+10W-39L-1D (0.210, CI [0.1199, 0.3414]). v37
+remains the strongest ML version by head-to-head;
+v54 loses to it in both colours. White 0.21 vs v37
+is within noise of v44's 0.16 — the White collapse
+vs ML opponents persists. 94/100 unique games;
+de-dup 0.3032.
+
 ### 6.3 Baseline test suites (before training)
 
 Full suite run on this branch (niced, under load ~3.5,
