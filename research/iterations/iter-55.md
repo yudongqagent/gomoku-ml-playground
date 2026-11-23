@@ -852,3 +852,20 @@ The defect is matchup-specific: it does not show vs v44
 gap −0.026, §6). Against v0's off-distribution play,
 v55-as-White drifts into lost positions early (the fast
 loop found 6-of-7 v0 losses already lost by ply 12–38).
+
+### 8.3 Secondary — vs v7, 100 games
+
+`selfplay_batch.py --engine-a v55 --engine-b v7 --games 100
+--seed-a 100 --seed-b 200` (raw
+`ml/runs/ml6-h2/batt-v7.log`; 4,710 s; no interruption).
+**44W-55L-1D, win rate 0.4450, 95% CI [0.3514, 0.5426].**
+As Black 28W-22L-0D (0.5600), as White 16W-33L-1D
+(0.3300) — **a 0.23 White gap**, again above the §1.6
+0.15 threshold. 98/100 unique games; de-dup rate 0.4337,
+CI [0.3399, 0.5325]. The overall rate sits at v44's 0.45
+and far above v48's 0.265 — the 3-ply labels recovered
+the vs-v7 level — but the recovery is entirely Black-side:
+White (0.33) is in the same collapse territory as vs v0
+(0.31). The White defect is consistent across both
+heuristic legs and is the dominant feature of v55's
+profile against non-net opponents.
