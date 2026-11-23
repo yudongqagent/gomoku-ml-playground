@@ -885,3 +885,21 @@ v55 is much closer to v37 than either predecessor (v44
 the patch data closed most of the gap to the strongest
 ML version — but v37 still wins the matchup, so v37
 remains the strongest ML version by head-to-head.
+
+### 8.5 Secondary — swap vs v7, 100 games
+
+`selfplay_batch.py --engine-a v55 --engine-b v7 --games 100
+--swap-rule --placement balanced --placement-seed 11 --judge
+tempo --seed-a 100 --seed-b 200` (raw
+`ml/runs/ml6-h2/batt-v7-swap.log`; 5,065 s of play plus a
+VM restart that killed the run at game 28 — resumed
+cleanly). **34W-62L-4D, win rate 0.3600, 95% CI
+[0.2727, 0.4576].** As Black 22W-29L-1D (0.4327, 52
+games), as White 12W-33L-3D (0.2812, 48 games) — a 0.15
+White gap, at the §1.6 threshold. 100/100 unique games;
+de-dup = nominal. Between v48's 0.31 and v44's 0.39 on
+the same leg. Under the official swap rule, which is
+supposed to neutralise the first-move edge, v55 still
+loses two-thirds of its games to v7 — the swap judge
+gives v55 Black more often (52/100), and v55-as-White
+(0.28) is again the weak side.
