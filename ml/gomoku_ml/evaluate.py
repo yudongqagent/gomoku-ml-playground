@@ -444,11 +444,75 @@ def _near_moves(board: np.ndarray, player: int) -> list[int]:
     return sorted(near)
 
 
+def _four_creator_candidates(board: np.ndarray, player: int) -> list[int]:
+    """Empty points that could create a four for ``player`` (v33
+    optimisation, iter-33 §2.3, ported to master by v59, iter-59
+    §1.1 L1): a move creates a four only if it lands in a 5-window
+    holding >= 3 ``player`` stones — the four needs 4 stones
+    including the move itself, so 3 must already be there. Windows
+    with 4 stones contribute their empty cell too (the winning
+    move — the apply+check in :func:`four_creating_moves` decides
+    it exactly as before, so the edge case where a winning move is
+    also a four-creator is preserved). Every true four-creator is
+    in this set, and every element is within Chebyshev distance 2
+    of a ``player`` stone (the nearest of the 3+ stones is at most
+    2 away), so this set is a subset of :func:`_near_moves` — the
+    enumeration below tests a SUBSET of the moves the old code
+    tested, and the apply+check decides each one identically.
+    PRECONDITION: this holds only when ``player`` has NO winning
+    move on ``board`` already — if a win pre-exists, nearly every
+    near move "creates" a four (the win survives), so
+    :func:`four_creating_moves` falls back to the full near-move
+    enumeration in that case. The output of
+    :func:`four_creating_moves` is therefore IDENTICAL to testing
+    all near moves (verified by A/B against the old enumeration on
+    thousands of positions, 0 mismatches — iter-33 §2.3), while
+    the number of full-board ``winning_moves`` scans drops ~5-15x
+    (profiled: 97% of the v33 pool-scan time was ``winning_moves``
+    calls from the near-move enumeration)."""
+    cands: set[int] = set()
+    for dy, dx, ys, xs in (
+        (0, 1, range(15), range(11)),
+        (1, 0, range(11), range(15)),
+        (1, 1, range(11), range(11)),
+        (1, -1, range(11), range(4, 15)),
+    ):
+        for y in ys:
+            for x in xs:
+                stones = 0
+                empties: list[int] = []
+                for i in range(5):
+                    v = board[y + i * dy, x + i * dx]
+                    if v == player:
+                        stones += 1
+                    elif v == game.EMPTY:
+                        empties.append(game.xy_to_move(x + i * dx, y + i * dy))
+                if stones >= 3:
+                    cands.update(empties)
+    return sorted(cands)
+
+
 def four_creating_moves(board: np.ndarray, player: int) -> list[int]:
     """Moves after which ``player`` has at least one winning move next
-    turn (i.e. the move creates a four with an open end)."""
+    turn (i.e. the move creates a four with an open end). Only the
+    window-filtered candidates (see :func:`_four_creator_candidates`)
+    are tested — UNLESS ``player`` already holds a winning move on
+    ``board``: then nearly every near move "creates" a four (the
+    pre-existing win survives the move), the window filter's proof
+    does not apply, and all near moves are tested exactly as before.
+    The output is identical to testing all near moves in all cases
+    (verified by A/B against the old enumeration on thousands of
+    positions, 0 mismatches — iter-33 §2.3)."""
+    if winning_moves(board, player):
+        # Degenerate case (already holds a win): the filter's proof
+        # needs "no pre-existing win" — fall back to the full
+        # enumeration. Rare in real games (only the already-lost
+        # 2+-opponent-wins defensive call); the cost is negligible.
+        cands = _near_moves(board, player)
+    else:
+        cands = _four_creator_candidates(board, player)
     out: list[int] = []
-    for m in _near_moves(board, player):
+    for m in cands:
         b2 = game.apply_move(board, m, player)
         if winning_moves(b2, player):
             out.append(m)

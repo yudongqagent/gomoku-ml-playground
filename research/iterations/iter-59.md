@@ -106,20 +106,29 @@ construction (no kernel is consulted) and checked by the oracles
 (including the two known blind-spot positions as regression
 tests).
 
-**L4 — Run-based winning-move test, replacing
-`_winning_moves_through`'s scan in the fast path.** A winning
-move involving the just-played stone exists iff, on some line
-through it, the run (counting the stone) has length >= 4 with an
-empty end — the empty end IS the winning move (a five not
-including the stone would have pre-existed, contradicting the TSS
-precondition that no winning move pre-exists). The run version
-returns the same SET as the scan version (sorted, for a canonical
-order — call sites use only length and the single element, so
-order is immaterial). Micro-benchmark (§1.6): 0.002ms vs 0.145ms
-per call (~70x). Used for the threats/dthreats/opp_wins checks
-and as the exact test for four-creator candidates (boolean form).
-Verified against the full scan on the same positions as the
-existing local-vs-full test (§1.3).
+**L4 — Window-based winning-move test, replacing
+`_winning_moves_through`'s scan in the fast path.** For each of the
+5 windows through the just-played stone in each of the 4
+directions, a window holding exactly 4 ``player`` stones (the
+just-played stone included) and 1 empty cell contributes that
+empty cell — playing it completes a five. This covers gap-fill
+winning moves ([X,X,_,X,X]) as well as extensions. Returns the
+same set as the scan version under the TSS precondition (no
+pre-existing winning move — a winning move whose five does not
+include the just-played stone would have pre-existed). Used for
+the threats/dthreats/opp_wins checks and as the exact test for
+four-creator candidates (boolean form, early-exits on the first
+4-stone window). Verified against the full scan on the same
+positions as the existing local-vs-full test (§1.3).
+CORRECTION (found by the oracle tests during implementation, see
+§2): L4 was pre-registered as a RUN-based test (run length >= 4
+with an empty end), but the run form MISSES gap-fill winning
+moves — the five's stones need not be contiguous with the
+just-played stone — and the oracle test caught it (22 mismatches
+in the first A/B run). The window form is the corrected
+implementation; the pre-registered claim (a cheap exact test,
+verified against the full scan) is unchanged, only the mechanism
+changed.
 
 **L5 — Fours-only path for the defender counter-four enumeration.**
 `_four_creating_moves_fast` (called once per threats==0 node,
@@ -306,8 +315,23 @@ cost (~3.55 moves × 0.144ms ≈ 0.5ms per ordering call, and only
 363/900 calls need ordering at all — the 537 counter-four calls
 are fours-only, L5).
 
-[Baseline bench numbers (v52, budget 3000, same script as the
-after-measurement) to be filled in here when the run completes.]
+[Baseline bench (v52, budget 3000, `ml/scripts/bench_tss.py`,
+2026-11-23, contended wall time — load ~2–3 with H1's sweep bench
+running concurrently; node counts are contention-independent and
+match iter-52's final bench exactly):
+
+| bench (n=100) | fired | budget exceeded | time median / p90 / p99 / max / mean | nodes median / p90 / p99 / max / mean |
+|---|---|---|---|---|
+| quiet (v7 self-play) | 11 (11%) | 0 | 4.8ms / 3178ms / 9406ms / 11625ms / 855ms | 0 / 740 / 2273 / 2273 / 196 |
+| creator-rich (v27 midgame) | 5 (5%) | 1 | 103ms / 4287ms / 12741ms / 13222ms / 1254ms | 20 / 1394 / 2763 / 3001 / 365 |
+
+The creator-rich mean node count (365) is lower than iter-52's
+100000-budget figure (464) because the 12916-node tail position
+is now capped at 3001 by the production budget. The p99 wall
+time (12.7s contended) corresponds to ~5s uncontended at
+~2ms/node — the gap this iteration closes. The before/after
+comparison uses `bench_tss_v59.py` (wall + CPU time) on the same
+positions; see §5.]
 
 ### 1.7 Eval seeds (pre-registered)
 
