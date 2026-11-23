@@ -276,7 +276,96 @@ seed to shop for a pass — no seed-shopping, in either direction
 
 ## 2. Diagnosis results
 
-(to be filled in as M1–M3 run)
+### 2.1 M1 — TSS mining, v27-vs-v27, normal vs swap (COMPLETE)
+
+`ml/scripts/mine_tss_swap.py`, 50 games/leg, seeds 777/1777; swap
+leg balanced placement, placement_seed 11, tempo judge.
+Artifacts: `research/iterations/tss-mine-v58-normal.json`,
+`tss-mine-v58-swap.json` (analysis:
+`ml/scripts/analyse_tss_mine_v58.py`). The run survived three VM
+replacements (SIGTERM at normal 10/50, swap 4/50, swap 45/50);
+per-game checkpointing resumed each leg exactly.
+
+**Check B replication: EXACT.** The normal leg reproduces
+iter-52's Check B numbers precisely: 2481 turns / 288 fires /
+121 differs. The script and the by-colour breakdowns are validated.
+
+| leg / colour | turns | fires | fire rate | differs | differ rate | confirms | budget-exc. | mean nodes |
+|---|---|---|---|---|---|---|---|---|
+| normal Black | 1256 | 188 | 0.1497 | 86 | 0.0685 | 102 | 52 (4.14%) | 327.5 |
+| normal White | 1225 | 100 | 0.0816 | 35 | 0.0286 | 65 | 68 (5.55%) | 366.1 |
+| swap Black | 1387 | 133 | 0.0959 | 51 | 0.0368 | 82 | 95 (6.85%) | 429.7 |
+| swap White | 1405 | 128 | 0.0911 | 59 | 0.0420 | 69 | 73 (5.20%) | 378.5 |
+
+Game outcomes (v27 self-play): normal Black 29W / White 19W / 2D
+(Black win rate 0.60), mean 49.6 plies; swap Black 28W / White
+18W / 4D (Black win rate 0.60), mean 55.8 plies. Swap games are
+longer (more turns per game), which the per-turn rates already
+account for.
+
+**Decision quantities (mechanism (b), pre-registered §1.4):**
+
+* White differ rate: normal 0.0286 (35/1225) → swap 0.0420
+  (59/1405), **ratio 1.47, z = +1.87**. Below BOTH confirm
+  thresholds (ratio ≥ 1.5 AND z > 2). **INCONCLUSIVE.**
+* White fire rate: normal 0.0816 → swap 0.0911, ratio 1.12,
+  z = +0.86. No gap.
+* Black differ rate: normal 0.0685 → swap 0.0368, ratio 0.54,
+  z = −3.63. Black's missed-forcing-win rate FALLS significantly
+  under swap.
+* Black fire rate: normal 0.1497 → swap 0.0959, ratio 0.64,
+  z = −4.20. Black has significantly FEWER forcing wins available
+  under swap.
+
+**Reading.** Under swap, the colours' forcing-opportunity rates
+CONVERGE: Black loses forcing wins (significantly) and White gains
+some (not significantly). The total differ rate actually falls
+(121/2481 = 4.88% normal → 110/2792 = 3.94% swap) because Black's
+loss exceeds White's gain. The White gain (ratio 1.47, z = 1.87)
+is suggestive but does NOT clear the pre-registered bar — M1 alone
+cannot confirm (b). Per §1.4, M2 (battery replay) is the
+tiebreaker.
+
+**Mechanism (d) sub-measurements (from the same mining):**
+
+* Budget asymmetry: normal White 5.55% vs Black 4.14% (White
+  binds more); swap Black 6.85% vs White 5.20% (Black binds
+  more). The asymmetry FLIPS between rules — there is NO stable
+  White budget disadvantage. The budget-asymmetry sub-mechanism is
+  refuted. (Side note: the budget binds on ~5% of turns in real
+  games, not the ~1% of iter-52's bench — the bench positions were
+  quieter than real-game positions.)
+* Per-opening White differs (swap leg) are spread across openings
+  (max 7 in (112,142,81) and (112,144,176); 19 of 24 openings have
+  ≥1 White differ). No single opening drives the White differ
+  increase. The opening-specific sub-mechanism is weak.
+* Black's win rate in v27 self-play is 0.60 under BOTH rules — the
+  swap choice compensates for the opening handicap in self-play,
+  so the self-play Black win rate does not discriminate (c) (as
+  flagged in §1.4, it was a secondary, not a decision input).
+
+**Qualifying White turns for M3:** 30 recorded per leg (normal and
+swap), as pre-registered.
+
+### 2.2 M2 — Battery replay (scope amendment, then run)
+
+**SCOPE AMENDMENT (made BEFORE any M2 eval ran).** §1.3
+pre-registered M2 as "TSS at every turn". A timing probe (3 swap
+games, `/tmp` output, not part of the measurement) measured
+~100 s/game full-scope, i.e. ~5.5 h for both 100-game legs — too
+slow for a tiebreaker, and the daily cross-track cron adds further
+contention from 08:37. M2 is therefore scoped to **White turns
+only** (both engines, all 100 games per leg), via the new
+`--white-only` flag on `replay_tss_battery.py`. Justification:
+both pre-registered M2 decision quantities (§1.4) are White-turn
+quantities — v52's White fire rate in its own games, and v27's
+White differ rate in the battery. Black turns are a non-decision
+control, and M1 already measured Black's rates under both rules
+(they fall significantly under swap). The decision rule (§1.4) is
+UNCHANGED. The probe also validated the replay: 0 consistency
+violations in 3 games (v52's recorded moves match TSS fires).
+
+(to be filled in when M2 completes)
 
 ## 3. Patch design
 

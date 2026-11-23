@@ -57,6 +57,10 @@ def main() -> int:
     ap.add_argument("--in", dest="inp", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--checkpoint", default=None)
+    ap.add_argument("--white-only", action="store_true",
+                    help="run TSS only on White turns (see iter-58 "
+                    "§2.2: M2 scope amendment — both decision "
+                    "quantities are White-turn quantities)")
     args = ap.parse_args()
 
     from gomoku_ml import game, mcts_heuristic
@@ -88,8 +92,9 @@ def main() -> int:
         try:
             with open(ckpt_path, encoding="utf-8") as f:
                 ckpt = json.load(f)
-            if ckpt.get("input") == in_path and ckpt.get(
-                    "n_records") == len(records):
+            if (ckpt.get("input") == in_path and ckpt.get(
+                    "n_records") == len(records)
+                    and ckpt.get("white_only") == args.white_only):
                 stats = ckpt["stats"]
                 violations = ckpt["violations"]
                 start_gi = ckpt["games_done"]
@@ -114,6 +119,9 @@ def main() -> int:
             start = 3
         for i in range(start, len(moves)):
             player = game.BLACK if i % 2 == 0 else game.WHITE
+            if args.white_only and player != game.WHITE:
+                board = game.apply_move(board, moves[i], player)
+                continue
             engine = "A" if player == a_colour else "B"
             key = "black" if player == game.BLACK else "white"
             tss_stats: dict = {}
@@ -151,6 +159,7 @@ def main() -> int:
             json.dump({
                 "input": in_path,
                 "n_records": len(records),
+                "white_only": args.white_only,
                 "games_done": gi + 1,
                 "stats": stats,
                 "violations": violations,
@@ -170,6 +179,7 @@ def main() -> int:
         "engine_a": engine_a,
         "engine_b": engine_b,
         "swap_rule": swap_rule,
+        "scope": "white-only" if args.white_only else "all-turns",
         "games": len(records),
         "by_engine_colour": {
             eng: {col: _rates(stats[eng][col]) for col in ("black", "white")}
