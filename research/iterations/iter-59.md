@@ -518,8 +518,8 @@ the battery's 100/200.)
 
 | leg | result | note |
 |---|---|---|
-| v59 vs v0 (10 games) | TBD | expected 10-0 |
-| v59 vs v52 (10 games) | TBD | expected ≈ 5-5 (tie — identity) |
+| v59 vs v0 (10 games) | 10-0 (win rate 1.0000, CI [0.7225, 1.0000]) | expected 10-0 |
+| v59 vs v52 (10 games) | 6-4 (win rate 0.6000, CI [0.3127, 0.8318]) | CI includes 0.50 — a tie, as expected for move-choice-identical engines; no regression |
 
 ## 5. Battery, ladder, tactical, bench
 
