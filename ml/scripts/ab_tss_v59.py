@@ -12,10 +12,11 @@ Compares the fast TSS path against v52's kernel path on:
 For every position: same move (or both None) AND same node count
 AND same budget-exceeded flag — 0 mismatches required. Node-count
 identity proves the search explored the same nodes in the same
-order. Results are written as JSON (``--out``); the run is
-resumable in the sense that positions are processed in a fixed
-order and the JSON is written at the end — re-run from scratch if
-interrupted (it is measurement, not a battery leg).
+order. Results are written as JSON (``--out``), checkpointed as the
+run proceeds (bench sections per section, mined every 200
+positions, replay per game); ``--resume`` continues from the
+``--out`` JSON after an interruption (position generation is
+deterministic, so chunk boundaries are stable).
 
 ``--replay N`` additionally replays N recorded v27-vs-v27 games
 and checks v59 vs v52 ``choose_move`` on every turn (same seed).
@@ -67,14 +68,13 @@ def _ab_positions(positions, label, node_budget, start=0, state=None):
     from gomoku_ml.mcts_heuristic import tss_winning_move
 
     if state is None:
-        state = {
-            "label": label,
-            "n": len(positions),
-            "fired": 0,
-            "budget_exceeded": 0,
-            "mismatches": [],
-            "done": 0,
-        }
+        state = {}
+    state.setdefault("label", label)
+    state.setdefault("n", len(positions))
+    state.setdefault("fired", 0)
+    state.setdefault("budget_exceeded", 0)
+    state.setdefault("mismatches", [])
+    state.setdefault("done", 0)
     for i in range(start, len(positions)):
         board, player = positions[i]
         s_slow: dict = {}
@@ -142,8 +142,11 @@ def _replay(n_games, start=0, state=None):
     from gomoku_ml import game, scoring
 
     if state is None:
-        state = {"games": n_games, "turns": 0, "mismatches": [],
-                 "done": 0}
+        state = {}
+    state.setdefault("games", n_games)
+    state.setdefault("turns", 0)
+    state.setdefault("mismatches", [])
+    state.setdefault("done", 0)
     for g in range(start, n_games):
         pa = scoring.get_player(27, seed=777 + g)
         pb = scoring.get_player(27, seed=1777 + g)

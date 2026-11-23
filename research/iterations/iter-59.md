@@ -362,3 +362,98 @@ positions; see §5.]
 No prior change. No defensive VCF check (CLOSED). No leaf change.
 `baseline.py` stays FROZEN. No kernel re-sync (no kernel change —
 the kernels are bypassed in the fast path, not modified).
+
+## 2. Implementation
+
+`ml/gomoku_ml/mcts_heuristic.py` — the fast path is selected by a
+`fast: bool = False` parameter threaded through `tss_winning_move`,
+`_tss_win`, `_tss_after_attacker_move`, `_forcing_moves_and_fours`,
+`_four_creating_moves_fast`, `open_three_creating_moves`, and
+`tss_forcing_moves`. v52's kernel path is byte-identical
+(`fast=False` is the default everywhere); the fast path is new
+code alongside it, so the A/B compares the two directly:
+
+* `_TSS_WINDOWS` — all 484 5-windows as flat-index tuples, built
+  once at import.
+* `_forcing_sets_fast(board, player, need_ordering)` — the
+  window-scan enumeration (L3): one pass over `_TSS_WINDOWS`
+  collecting four-creator candidates (>= 3 stones), open-three
+  creators (E-XXX-E pattern), and winning moves (4 stones +
+  1 empty); fours exact-tested by `_creates_four_run`; threes =
+  (three-creators ∪ winning moves) − fours; scalar v1 ordering
+  scores via `scoring._score_parts_flat` on the shared flat list
+  (L6), only when `need_ordering` and only for members of a class
+  with >= 2 members.
+* `_winning_moves_through_run(flat, move, player)` /
+  `_creates_four_run(flat, move, player)` — the window-based
+  winning-move test (L4, corrected — see below): for each of the
+  5 windows through `move` in each direction, 4 stones (counting
+  `move` as played) + 1 empty ⟺ the empty cell is a winning move.
+* `_tss_win(..., fast)` — drops the full-scan entry check when
+  fast (L2); defender entry check via the window test.
+* `_tss_after_attacker_move(..., fast)` — threats/dthreats via
+  the window test; counter-fours via the fours-only fast path
+  (L5).
+* `HeuristicMCTS.__init__` gains `tss_fast: bool = False`;
+  `choose_move` passes it to `tss_winning_move`.
+
+`ml/gomoku_ml/scoring.py` — `ENGINE_VERSIONS[59]` = v52's dict +
+`"tss_fast": True`; `ScoringPlayer.__init__` passes `tss_fast`
+through to `HeuristicMCTS`.
+
+`ml/gomoku_ml/evaluate.py` — L1 port: `_four_creator_candidates`
++ the window-filtered `four_creating_moves` (the `evaluate.py`
+hunk of `efb71a3` only).
+
+**The L4 correction (found by the oracle tests, not by luck).**
+The first implementation of L4 was the pre-registered RUN-based
+test (run length >= 4 with an empty end). The first A/B run
+failed with 22 mismatches in `test_fast_forcing_sets_match_kernel`
+(and failures in the four-creator, open-three, and local-vs-full
+tests). The cause: a winning move can FILL A GAP — [X,X,_,X,X] —
+where the five's stones are split by the gap, so the run through
+the just-played stone is only 2, but the gap cell still completes
+five. The run test misses exactly those. The fix is the
+window-based test above (a 5-window through the move with 4
+stones + 1 empty ⟺ winning move), which handles gap-fills and
+extensions uniformly. After the fix, all 7 previously-failing
+tests pass. The pre-registered claim (a cheap exact test, verified
+against the full scan) is unchanged; only the mechanism changed.
+The open-three failure had the same root cause (a missed
+four-creator was not subtracted from the threes set), not a
+defect in the three-pattern itself.
+
+**A pre-existing v52 defect found during this work (NOT fixed —
+fixing it would change move choice, so it belongs to a future
+strength batch).** In `_tss_after_attacker_move`, if the
+attacker's forcing move is itself an immediate winning move, the
+recursion misjudges the line: with exactly 1 extension threat the
+defender "blocks" it, `game_over` is True (the attacker's five
+persists), and the function returns False — but the attacker
+already won. (With >= 2 extension threats it returns True; with
+0 it falls through to the open-three check and returns False.)
+So TSS can miss a forced win whose converting move is an
+immediate win with < 2 extension cells. The engine never misses
+an immediate win at the ROOT (the win scan runs before TSS), so
+the defect only costs TSS forcing wins in deeper sequences. The
+fast path reproduces this behaviour exactly (the A/B would catch
+any divergence) — it is documented here, not fixed.
+
+Tests: `ml/tests/test_v59.py`, 17 tests — enumeration A/B
+(fours/threes/scores vs the kernel path), oracle cross-checks
+(fours vs `evaluate.four_creating_moves`, threes vs the
+brute-force run-scan oracle), scalar scores vs `attack_v1_all`,
+window-test vs full scan (and vs the scan-based local check),
+the two kernel-blind-spot regressions (broken-four creator,
+v1-blind open three), TSS A/B on the mechanism positions
+(move + nodes + budget flag) and on 120 mined positions, v59
+registration, v59 plays the TSS win on T1, v59 == v27
+fall-through when TSS is silent, and v59 == v52 move-for-move on
+2 recorded games. All pass, together with the 21 existing
+`test_tss.py` tests: **38 passed** (13:32, contended).
+
+Scripts: `ml/scripts/bench_tss_v59.py` (wall + CPU bench with
+per-position checkpointing and `--resume`) and
+`ml/scripts/ab_tss_v59.py` (large-scale A/B + game replay with
+`--resume`; mined section checkpointed every 200 positions,
+replay per game).
