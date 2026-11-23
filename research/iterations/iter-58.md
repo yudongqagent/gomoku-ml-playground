@@ -1024,7 +1024,127 @@ Bench: `ml/scripts/bench_threat_leaf.py` →
 
 ## 13. Mechanism check (re-scope)
 
-(to be filled in when Check A/B run — AFTER §11 is committed)
+### 13.1 Check A — move-choice on mined miss positions: FAILS, 0/20
+
+Mining (`ml/scripts/collect_forcing_miss_positions.py` →
+`research/iterations/threat-miss-positions-v58.json`): in
+v52-White's 27 normal-rules losses, White held forcing moves on
+214/488 White turns (44%) and played a non-forcing move on 122
+of them — the raw material is plentiful. The first 20 miss turns
+were collected (games 1/5/9/11/21, plies 13–67); TSS was silent
+on all 20 (0 firing candidates skipped, as logically expected —
+had TSS fired, v52 would have played the TSS move).
+
+Check (`ml/scripts/check_threat_term_mechanism.py`, seed 100 →
+`research/iterations/threat-mechanism-check-a-v58.json`):
+**v58 plays a forcing move on 0/20 (0.00); v52 control 0/20.
+Verdict: FAIL** (pre-registered: PASS >= 6/20, FAIL <= 2/20).
+v58 agrees with v52's move on 18/20; on the 2 it differs, both
+moves are quiet (the term changes move choice sometimes, but
+never toward a forcing move on these positions).
+
+**Why — the mechanism fails at the SEARCH level, not the leaf
+level (diagnostic, post-hoc).** Position [0] (game 1, ply 13)
+worked up in detail: the forcing moves (9,5)/(10,5) are
+four-creators — the 1-ply leaf after playing them is +0.25 for
+White (Black must block), vs −0.007 for the recorded quiet move
+(6,3), under BOTH leaves, and the term raises the forcing
+moves' leaf further (+0.14 → +0.19 for (6,4)). But the root
+search (100 sims, instrumented) shows: the forcing moves hold
+the HIGHEST priors (0.089) and get 6–7 visits each — no prior
+starvation — yet their backed-up our-q is NEGATIVE (−0.029 /
+−0.039 for v52; −0.024 / −0.052 for v58), while the chosen
+quiet move (6,3) has our-q +0.12 on 37 visits. The mean backup
+dilutes the +0.25 expansion leaf with deeper leaves where
+White is losing (the position is a White loss; after Black's
+forced block White's attack is spent), and the term's leaf-level
+boost (+0.04) is diluted to ~+0.005 in backed-up q — far below
+the ~0.15 q gap to the chosen move. The leaf is right and the
+search does not follow it: the v40 pattern (the mis-ranking
+lives in backed-up root q / visit allocation), now confirmed
+for a POSITIVE leaf term as well as for preventions. A leaf
+term of weight 0.05 cannot flip root decisions where the q gap
+is large; it can only tip close calls (the bench's 1/8
+move-choice difference). Whether the search's q is RIGHT that
+the forcing moves are worse is a separate question — Check B
+is the in-game arbiter.
+
+### 13.2 Check B — firing rate in test games (DECISIVE): PASSES
+
+Leg: 40 games v58 vs v27, normal rules, alternating colours,
+seeds 1060/2060 (`research/iterations/checkb-v58-vs-v27.json`,
+70 min under 3-way contention with the H1/H3 workers; no
+interruption). **v58 33W-6L-1D, win rate 0.8375, Wilson 95% CI
+[0.6948, 0.9211]** (de-dup: 30/40 unique, 0.7833, CI [0.6087,
+0.8937]) — a secondary, not a strength verdict (the battery is
+vs v52). Per-colour: v58 as Black 16W-4L-0D (0.800, vs
+v52-as-Black 0.78 vs v27 — flat); **v58 as White 17W-2L-1D
+(0.875, vs v52-as-White 0.44 — nearly doubled)**. The
+improvement is concentrated exactly where the diagnosis said
+the mechanism lives: White.
+
+Mining (`replay_tss_battery.py --white-only` →
+`tss-replay-checkb-v58.json`; the run survived one VM
+replacement at 34/40 games, resumed exactly from the
+checkpoint; 0 consistency violations):
+
+| engine-White | turns | fires | fire rate | differs | differ rate |
+|---|---|---|---|---|---|
+| v58 (A-white) | 625 | 103 | **0.1648** | 0 | 0.0000 |
+| v27 (B-white) | 407 | 25 | 0.0614 | 8 | 0.0197 |
+| v52 baseline (M2, A-white) | 1167 | 118 | 0.1011 | 0 | 0.0000 |
+| v27 baseline (M2, B-white) | 928 | 75 | 0.0808 | 29 | 0.0312 |
+
+**Decision quantities (§11.3): v58-White's fire rate is 0.1648
+vs the 0.1011 baseline — ratio 1.63x, pooled z = +3.91.**
+PASS (>= 0.15 with z > 2). The fires-in-losses alternative is
+0 (see below) — the pass rests on the fire rate alone.
+
+Per-game attribution (`--per-game --only-a-colour white` →
+`tss-replay-checkb-v58-pergame.json`, 20 v58-White games):
+
+| outcome | games | White TSS fires | fires/game | games with >= 1 fire | fire rate |
+|---|---|---|---|---|---|
+| WIN | 17 | 103 | 6.06 | 17 (100%) | 0.2187 (103/471) |
+| LOSS | 2 | 0 | 0.00 | 0 (0%) | 0.0000 (0/42) |
+| DRAW | 1 | 0 | 0.00 | 0 (0%) | 0.0000 (0/112) |
+
+**Firing-game rate: 17/20 = 0.85 (v52-White baseline 21/50 =
+0.42).** Fires per win 6.06 vs 5.62 — nearly unchanged. Fires
+in losses 0 (v52: 0 in 27 losses — v58 has only 2 losses, so
+this is weak evidence either way).
+
+**Reading, with the win-more caveat stated plainly.** The
+fire-rate rise is driven by MORE FIRING GAMES (0.85 vs 0.42),
+not more fires per win (6.06 vs 5.62) — exactly the signature
+of "reaches forcing positions in more games" (the diagnosis's
+§10 hypothesis). The M2b win-more caveat (the fire rate rises
+when White wins more, even with no new opportunities) applies
+to comparing fire rates across DIFFERENT opponents or rules —
+but here the comparison is v58 vs v52 against the SAME
+opponent (v27), and the term is the ONLY difference between
+the engines: the term causes both the firing-rate rise and
+the win-rate rise (White 0.44 → 0.875). The term raises the
+REACH rate, not conversion-in-losses (fires in losses stay 0:
+when White does not reach a forcing position, it still loses,
+as v52 does). The B-white control corroborates: v27-White's
+fire rate FELL to 0.0614 (from 0.0808) against v58-Black —
+v58 reaches its own forcing positions faster and ends games
+before White can fire. (One caveat on the turn counts: the
+single v58-White draw ran 112 White turns — a near-full-board
+game — inflating White turns/game to 31.2 vs v52's 23.3; the
+fire rate is per-turn, so the long draw dilutes it, making
+0.1648 conservative.)
+
+**Mechanism verdict: Check B PASSES. Proceed to the fast loop
++ battery.** Check A (0/20) and Check B (PASS) together say:
+the term does not flip move choice on the mined loss
+positions (where the search's q gap is large — §13.1), but
+over full games it steers White toward forcing positions
+often enough to double White's firing-game rate and win rate
+vs v27. The fast loop (vs v52 — the bar reference, which also
+has TSS) is the next arbiter: both sides convert forcing
+wins there, so the edge should be smaller.
 
 ## 14. Fast loop (re-scope)
 

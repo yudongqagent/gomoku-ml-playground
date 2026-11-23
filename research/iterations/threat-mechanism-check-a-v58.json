@@ -1,0 +1,308 @@
+{
+  "source": "threat-miss-positions-v58.json",
+  "seed": 100,
+  "n": 20,
+  "v58_forcing": 0,
+  "v52_forcing_control": 0,
+  "verdict": "FAIL",
+  "results": [
+    {
+      "index": 0,
+      "game": 1,
+      "ply": 13,
+      "recorded_move": 51,
+      "forcing_moves": [
+        66,
+        84,
+        85,
+        111
+      ],
+      "v58_move": 50,
+      "v58_forcing": false,
+      "v52_move": 51,
+      "v52_forcing": false
+    },
+    {
+      "index": 1,
+      "game": 1,
+      "ply": 19,
+      "recorded_move": 52,
+      "forcing_moves": [
+        141
+      ],
+      "v58_move": 52,
+      "v58_forcing": false,
+      "v52_move": 52,
+      "v52_forcing": false
+    },
+    {
+      "index": 2,
+      "game": 1,
+      "ply": 23,
+      "recorded_move": 79,
+      "forcing_moves": [
+        141
+      ],
+      "v58_move": 79,
+      "v58_forcing": false,
+      "v52_move": 79,
+      "v52_forcing": false
+    },
+    {
+      "index": 3,
+      "game": 1,
+      "ply": 27,
+      "recorded_move": 154,
+      "forcing_moves": [
+        65,
+        95
+      ],
+      "v58_move": 154,
+      "v58_forcing": false,
+      "v52_move": 154,
+      "v52_forcing": false
+    },
+    {
+      "index": 4,
+      "game": 1,
+      "ply": 37,
+      "recorded_move": 62,
+      "forcing_moves": [
+        92,
+        137,
+        168
+      ],
+      "v58_move": 62,
+      "v58_forcing": false,
+      "v52_move": 62,
+      "v52_forcing": false
+    },
+    {
+      "index": 5,
+      "game": 5,
+      "ply": 23,
+      "recorded_move": 143,
+      "forcing_moves": [
+        155
+      ],
+      "v58_move": 158,
+      "v58_forcing": false,
+      "v52_move": 143,
+      "v52_forcing": false
+    },
+    {
+      "index": 6,
+      "game": 5,
+      "ply": 25,
+      "recorded_move": 67,
+      "forcing_moves": [
+        155,
+        157
+      ],
+      "v58_move": 67,
+      "v58_forcing": false,
+      "v52_move": 67,
+      "v52_forcing": false
+    },
+    {
+      "index": 7,
+      "game": 5,
+      "ply": 27,
+      "recorded_move": 113,
+      "forcing_moves": [
+        37,
+        53,
+        95,
+        155,
+        157
+      ],
+      "v58_move": 113,
+      "v58_forcing": false,
+      "v52_move": 113,
+      "v52_forcing": false
+    },
+    {
+      "index": 8,
+      "game": 5,
+      "ply": 29,
+      "recorded_move": 186,
+      "forcing_moves": [
+        37,
+        53,
+        95,
+        155,
+        157
+      ],
+      "v58_move": 186,
+      "v58_forcing": false,
+      "v52_move": 186,
+      "v52_forcing": false
+    },
+    {
+      "index": 9,
+      "game": 5,
+      "ply": 31,
+      "recorded_move": 159,
+      "forcing_moves": [
+        37,
+        53,
+        95,
+        154,
+        155,
+        202
+      ],
+      "v58_move": 159,
+      "v58_forcing": false,
+      "v52_move": 159,
+      "v52_forcing": false
+    },
+    {
+      "index": 10,
+      "game": 5,
+      "ply": 33,
+      "recorded_move": 109,
+      "forcing_moves": [
+        37,
+        53,
+        95,
+        154,
+        202
+      ],
+      "v58_move": 109,
+      "v58_forcing": false,
+      "v52_move": 109,
+      "v52_forcing": false
+    },
+    {
+      "index": 11,
+      "game": 5,
+      "ply": 49,
+      "recorded_move": 137,
+      "forcing_moves": [
+        37,
+        88,
+        130,
+        184
+      ],
+      "v58_move": 189,
+      "v58_forcing": false,
+      "v52_move": 189,
+      "v52_forcing": false
+    },
+    {
+      "index": 12,
+      "game": 5,
+      "ply": 61,
+      "recorded_move": 181,
+      "forcing_moves": [
+        37,
+        88,
+        184,
+        185
+      ],
+      "v58_move": 181,
+      "v58_forcing": false,
+      "v52_move": 181,
+      "v52_forcing": false
+    },
+    {
+      "index": 13,
+      "game": 5,
+      "ply": 67,
+      "recorded_move": 95,
+      "forcing_moves": [
+        37,
+        88,
+        184,
+        185
+      ],
+      "v58_move": 166,
+      "v58_forcing": false,
+      "v52_move": 166,
+      "v52_forcing": false
+    },
+    {
+      "index": 14,
+      "game": 9,
+      "ply": 27,
+      "recorded_move": 125,
+      "forcing_moves": [
+        100
+      ],
+      "v58_move": 125,
+      "v58_forcing": false,
+      "v52_move": 125,
+      "v52_forcing": false
+    },
+    {
+      "index": 15,
+      "game": 11,
+      "ply": 19,
+      "recorded_move": 115,
+      "forcing_moves": [
+        66,
+        111
+      ],
+      "v58_move": 115,
+      "v58_forcing": false,
+      "v52_move": 115,
+      "v52_forcing": false
+    },
+    {
+      "index": 16,
+      "game": 11,
+      "ply": 27,
+      "recorded_move": 128,
+      "forcing_moves": [
+        100
+      ],
+      "v58_move": 128,
+      "v58_forcing": false,
+      "v52_move": 128,
+      "v52_forcing": false
+    },
+    {
+      "index": 17,
+      "game": 21,
+      "ply": 13,
+      "recorded_move": 97,
+      "forcing_moves": [
+        82,
+        124
+      ],
+      "v58_move": 97,
+      "v58_forcing": false,
+      "v52_move": 97,
+      "v52_forcing": false
+    },
+    {
+      "index": 18,
+      "game": 21,
+      "ply": 15,
+      "recorded_move": 128,
+      "forcing_moves": [
+        82,
+        124
+      ],
+      "v58_move": 128,
+      "v58_forcing": false,
+      "v52_move": 128,
+      "v52_forcing": false
+    },
+    {
+      "index": 19,
+      "game": 21,
+      "ply": 19,
+      "recorded_move": 171,
+      "forcing_moves": [
+        82,
+        124,
+        173
+      ],
+      "v58_move": 171,
+      "v58_forcing": false,
+      "v52_move": 171,
+      "v52_forcing": false
+    }
+  ]
+}
