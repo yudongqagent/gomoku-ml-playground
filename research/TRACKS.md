@@ -302,9 +302,32 @@ the heuristic. The work continues autonomously; he runs nothing.
   blind to the MCTS leg. ML batch 7 should pre-register whether
   the MCTS leg enters clause 2. Tooling: eval_value_holdout.py's
   side-to-move inference is fixed (37.9% of positions were
-  mislabelled on distill shards). Batch 14 is next: TSS
-  depth/budget sweep, v52's swap/colour interaction, TSS
-  speed.
+  mislabelled on distill shards). Batch 14 complete 2026-11-24:
+  0/3; v52 keeps both titles. v57 (TSS depth 5, budget 6000)
+  is the first version ever to beat v52's mcts leg (35-5) but
+  fails clause 1 (0.575). v58 (threat-potential leaf term)
+  posts the strongest head-to-head in the program's history
+  (0.835 vs v52, de-dup 0.7537) but fails clause 2 on the mcts
+  leg (27-13 vs 31-9) — the ladder and head-to-head strength
+  have now openly diverged on the heuristic track too. The
+  White gap is triply confirmed non-patchable as a single-flaw
+  framing (v41, v46, v58-diagnosis: TSS firing is necessary
+  for v52-White to win, 47/47 wins; depth-6 TSS finds ZERO
+  additional White forcing wins). v59 (TSS speed) is
+  move-choice-identical to v52 (100/100 identical vs-v0 games)
+  and 3.38x faster at creator-rich p99, but the p99 < 1s
+  target was not met — the remaining gap is per-node cost.
+  TSS depth is now priced (depth 5 helps in mining but
+  converts to only +7.5 played points; depth 6 is
+  net-negative); the real-game TSS budget bind rate is ~5%,
+  not iter-52's ~1% bench figure. **Clause-2 MCTS-leg rule
+  (NEW, pre-registered for ML batch 7):** from ML batch 7,
+  clause 2 requires BOTH the Elo point estimate > 98.1 AND no
+  MCTS-leg loss (mcts leg win rate ≥ 0.50) — the Elo is blind
+  to the MCTS leg, and the rule is prospective (no past
+  verdict changes). ML batch 7 is next: a White fix that
+  survives 3-ply labelling, v54's net at α=0.125, centering
+  correction.
 - **Dataset-dedup finding (ML batch 1):** the "10k dataset" is
   3,244 unique games, not 7,099 — and v8's "4,350" was 1,449
   unique. The B1 parallel generator seeds worker *w* with
@@ -326,3 +349,4 @@ the heuristic. The work continues autonomously; he runs nothing.
 | 2026-11-20 | v18 | v44 | 23–14–3 (40 games) | 0.6125 [0.458, 0.747] | Daily #5 — swap rules, FIRST daily vs the new ML champion v44 (date seeds, independent of the morning's 100-game full match): v18 as Black 12–4–1 (17 games), as White 11–10–2 (23 games); second player took Black 29/40, White 11/40; Black won 22/40, White 15, 3 draws. ML win rate 0.35 (14/40) vs 0.225 yesterday (vs v8) — up, but CIs overlap ([0.458, 0.747] vs [0.625, 0.877]) and the same-day 100-game full match gave ML 0.17, so no clear movement toward 0.50 yet; CI now includes 0.50 — first swap-series daily where the heuristic edge is not statistically clear. 40/40 unique games. Run interrupted 3× by VM replacements (SIGTERM at 12, 34, 36 games); per-game seeding auto-resume reproduced the uninterrupted run exactly; final segment 456s once batch 12 had stopped. Total wall time ~3h40m (08:37–12:17 PST). |
 | 2026-11-21 | v18 | v44 | 34–4–2 (40 games) | 0.8750 [0.7389, 0.9454] | Daily #6 — swap rules: v18 as Black 21–2 (23 games), as White 13–2–2 (17 games); second player took Black 29/40, White 11/40; Black won 23/40, White 15, 2 draws. ML win rate 0.10 (4/40) vs 0.35 yesterday — back down; CIs barely overlap ([0.7389, 0.9454] vs [0.458, 0.747]) and the 2026-11-20 100-game full match gave ML 0.17, so daily #5's 0.35 looks like the outlier; no movement toward 0.50. 40/40 unique games. Run interrupted 2× by VM replacements (at 3 and 37 games); per-game seeding auto-resume reproduced the run exactly. Ran alongside ML batch 5 batteries (v48/v49 vs v0, then v49/v50 vs v44), which slowed it; two games (5, 25) each took ~25 min. Total wall time ~2h18m (08:37–10:55 PST). |
 | 2026-11-22 | v52 | v44 | 29–9–2 (40 games) | 0.7500 [0.5981, 0.8581] | Daily #7 — swap rules, FIRST daily vs the new heuristic champion v52 (takes over from v18): v52 as Black 14–1–1 (16 games), as White 15–8–1 (24 games); second player took Black 28/40, White 12/40; Black won 22/40, White 16, 2 draws. ML win rate 0.225 (9/40) vs 0.10 yesterday (vs v18) — up, but the pairing changed (v52, not v18) and the CIs overlap ([0.5981, 0.8581] vs [0.7389, 0.9454]), so within noise; no clear movement toward 0.50. The same-day 100-game full match gave v52 82–16–2 (ML 0.17), the more reliable read — consistent with the daily 0.75. 40/40 unique games. Run interrupted 2× by VM replacements (at 14 and 29 games); per-game seeding auto-resume reproduced the run exactly both times. Two games (14, 34) each took ~27–30 min (v52's TSS in creator-rich positions). Total wall time ~3h28m (08:37–12:05 PST). |
+| 2026-11-23 | v52 | v44 | 34–5–1 (40 games) | 0.8625 [0.724, 0.9375] | Daily #8 — swap rules: v52 as Black 20–2–1 (23 games), as White 14–3–0 (17 games); second player took Black 27/40, White 13/40; Black won 23/40, White 16, 1 draw. ML win rate 0.125 (5/40) vs 0.225 yesterday — down, but CIs overlap ([0.724, 0.9375] vs [0.5981, 0.8581]), so within noise; no movement toward 0.50. Consistent with the 2026-11-22 100-game full match (v52 0.83, ML 0.17). 40/40 unique games. Run interrupted 1× by a VM replacement (at 25 games); per-game seeding auto-resume reproduced the run exactly. Game 39 took ~27 min (v52's TSS in a creator-rich position) and was the only draw. Total wall time ~2h06m (08:37–10:43 PST). |
