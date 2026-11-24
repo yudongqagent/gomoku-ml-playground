@@ -517,6 +517,32 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "value_checkpoint": "ml/runs/ml4-h3/value-net.pt",
          "value_weight": 0.125},  # sweep winner (0.725 vs 0.600 @ 0.25, 0.475 @ 0.5)
+    # v54 (iteration 54, ML batch 6): H1 — v8's PUCT MCTS with a
+    # value net trained on v37's verbatim base (2-ply rollout-leaf
+    # labels on v24's 817 games / 37,227 quiet positions) PLUS
+    # White-only patch positions from v44's battery legs and fresh
+    # ladder-MCTS legs (see research/iterations/iter-54.md §2).
+    # REJECTED 3/4 in ML batch 6 (vs v44 0.385, CI [0.2956,
+    # 0.4829]; ladder Elo 168.4, mcts leg 16-23-1; tactical 20/20
+    # + 29/29). The entry lives only on research/ml-batch-6; it is
+    # reproduced here verbatim (value_weight 0.5, the §8.1 sweep
+    # winner) so ML batch 7's v61 mirror match can run against it.
+    54: {"name": "scoring-v54", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml6-h1/value-net.pt",
+         "value_weight": 0.5},
+    # v61 (iteration 61, ML batch 7): H2 — the α ablation: v54's
+    # checkpoint VERBATIM at α=0.125 instead of v54's 0.5 (see
+    # research/iterations/iter-61.md). The ONLY difference from
+    # v54's entry is the value_weight; α is inference-time
+    # (ValueMCTS.__init__ parameter, applied in _value_leaf_value
+    # only), so no retraining and no new checkpoint. The mirror
+    # match v61-vs-v54 isolates the α effect on v54's net, as v50
+    # did for v37's net.
+    61: {"name": "scoring-v61", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "value_checkpoint": "ml/runs/ml6-h1/value-net.pt",
+         "value_weight": 0.125},
     # v51 (iteration 51, batch 13): H1 — v27 + a SOFT-MIN BACKUP
     # at opponent nodes (see gomoku_ml.mcts_heuristic.HeuristicMCTS
     # ``backup_rule`` and research/iterations/iter-51.md). The
