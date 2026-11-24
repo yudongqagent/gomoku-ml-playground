@@ -587,7 +587,87 @@ Proceed to the battery.
 
 ## 5. Battery
 
-*(to be filled)*
+All legs use per-game seeding with a uniqueness audit; aggregates
+and Wilson 95% CIs recomputed from raw records with
+`ml/scripts/recompute_match.py` (program convention: a draw counts
+as half a win). Drivers auto-resume — the vs-v52 leg survived two
+runtime restarts (resumed at game 3, then the chain continued),
+the swap leg one (resumed at game 59).
+
+### vs v52, 100 games, normal rules
+
+**v57 57W-42L-1D, win rate 0.5750, Wilson 95% CI [0.4771,
+0.6673]** — `research/iterations/batch-v57-vs-v52.json`
+(recomputed; matches the script summary exactly). **Clause 1
+FAILS**: the CI lower bound (0.4771) is below 0.50, on both the
+nominal cut and the de-dup cut (93/100 unique games, 51W-41L-1D,
+rate 0.5538, CI [0.4526, 0.6507]). The point estimate is a real
+edge (57.5% vs 50%), but with n=100 it does not clear the bar —
+the deeper TSS buys ~7.5 points over v52, not the ~11+ needed
+for a CI clear of 0.50 at this sample size.
+
+Per-colour split is extreme: **A as Black 38W-12L-0D (0.76)**,
+**A as White 19W-30L-1D (0.39)**. v57 dominates as Black and
+loses badly as White — the deeper TSS helps Black far more than
+White, consistent with the mining colour skew (§3: gains Black
+14 / White 10 at (5,6000)) and with H2's M3 (zero additional
+White wins at depth 6). v52's own split vs v27 was 0.78/0.44 —
+v57's White (0.39) is WORSE than v52's White vs v27, while its
+Black (0.76) matches v52's Black. The depth-5 search finds
+Black's forcing wins more often than White's (Black moves first
+and builds threats earlier), and as White v57 is v52 with a
+rarely-firing hook plus occasional budget-abort losses.
+
+Defence audit (`classify_batch_losses.py`): all 42 losses via
+open four (42/42), **0 missed blocks** (all games), 1 clean
+missed prevention in 166 threatened turns in losses (0.6%).
+Defence is solved; the losses are positional, not tactical
+blunders.
+
+### vs v0, 100 games, normal rules
+
+**v57 100W-0L-0D, win rate 1.0000, Wilson 95% CI [0.9630,
+1.0000]** — `research/iterations/batch-v57-vs-v0.json`
+(recomputed; matches the script summary). Matches v52's perfect
+100-0. The leg is heavily duplicated: **only 22/100 unique
+games** (de-dup 22W-0L-0D, CI [0.8513, 1.0000]) — exactly the
+same duplication as v52's vs-v0 leg (22/100). The TSS makes play
+more deterministic (it fires the same forcing move regardless of
+seed), so short games coincide. v57 wins every unique game, both
+colours 50–0.
+
+### swap vs v52, 100 games
+
+**v57 54W-44L-2D, win rate 0.5500, Wilson 95% CI [0.4524,
+0.6439]** — `research/iterations/batch-v57-vs-v52-swap.json`
+(recomputed; matches the script summary). 95/100 unique games
+(de-dup 50W-43L-2D, rate 0.5368, CI [0.4371, 0.6337]).
+Per-colour: Black 31W-19L-2D (0.615), White 23W-25L-0D (0.48) —
+the swap rule narrows the Black/White gap vs the normal leg
+(0.76/0.39), the same pattern as v52 vs v27 (0.78/0.44 →
+0.76/0.54). The swap result corroborates the normal-rules
+verdict: v57 is somewhat stronger than v52 (0.55), but not by a
+margin that clears 0.50 at n=100. Defence audit: all 44 losses
+via open four, 0 missed blocks, 2 clean missed preventions in
+198 threatened turns in losses (1.0%).
+
+**Battery totals: 86 losses (42 + 0 + 44), all via open four,
+0 missed blocks, 3 clean missed preventions in 364 threatened
+turns in losses (0.8%).** Defence is solved across the battery.
+
+### Ladder (40 games/opponent)
+
+*(to be filled when the ladder completes)*
+
+### Tactical
+
+v52 re-verified first on the corrected suite: **old 20/20, hard
+29/29** (`research/iterations/tactical-v52-reverify-b14.txt`).
+v57 at `--seed 100`: **old 20/20, hard 29/29**
+(`research/iterations/tactical-v57.txt`). **Clause 3 PASSES.**
+v57 inherits v52's tactical record exactly (the TSS hook only
+fires on genuine forcing wins, and the win/block scans run
+before it).
 
 ## 6. Verdict
 
