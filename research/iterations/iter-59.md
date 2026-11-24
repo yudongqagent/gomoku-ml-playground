@@ -569,13 +569,16 @@ matching 31-9 on the mcts leg is not a pass. See §6.)
 
 ### 5.3 Tactical
 
-v52 re-verified first on the corrected suite (expected 20/20 +
-29/29), then v59 (expected 20/20 + 29/29).
+v52 re-verified first on the corrected suite, then v59.
+Both suites run with `--seed 100`.
 
 | version | VCF/VCT suite | prevention suite |
 |---|---|---|
-| v52 | TBD | TBD |
-| v59 | TBD | TBD |
+| v52 | 20/20 | 29/29 |
+| v59 | 20/20 | 29/29 |
+
+v59 reproduces v52's tactical exactly, as expected for a
+move-choice-identical version.
 
 ### 5.4 Bench: before/after (CPU time, budget 3000)
 
@@ -663,3 +666,71 @@ target is NOT met.** The remaining gap is the per-node cost
 (~0.65–0.76 ms/node on the largest searches): a 3000-node
 search still costs ~2.3s. Closing it needs a further
 per-node optimisation (see §7), not a budget cut.
+
+## 6. Verdict per clause
+
+| Clause | Requirement | Result | Verdict |
+|---|---|---|---|
+| 1. h2h vs v52 | ≥100 games, win rate > 0.50, Wilson 95% CI lower > 0.50 | 54W-45L-1D, 0.5450, CI [0.4475, 0.6391] — CI includes 0.50 | **FAIL** |
+| 2. Ladder | Strictly dominate v52's legs (40-0, 40-0, 31-9) | Legs 40-0, 40-0, 31-9 — identical, Elo [407.0, ∞) | **FAIL** |
+| 3. Tactical | ≥ 20/20 + 29/29 | 20/20 + 29/29 | **PASS** |
+| 4. Suites | ml pytest, npm test, tsc clean | ml pytest 512 passed / 1 skipped / 58 xfailed (29:46); npm test 55/55; tsc clean | **PASS** |
+
+**Overall: REJECTED — 2/4 clauses, by design, not by
+failure.** v59 is a pure speed version, move-choice-identical
+to v52 by construction and verified by A/B (0 mismatches on
+2,200 positions and 194 replay turns, with identical node
+counts). A move-choice-identical engine CANNOT beat its
+parent head-to-head (clause 1) or dominate its parent's
+ladder legs (clause 2) — it can only tie, and it did: the
+battery is a tie (CI includes 0.50 on both the normal and
+swap legs), the vs-v0 leg reproduces v52's leg game-for-game
+(100-0, 22 unique games), and the ladder reproduces v52's
+legs exactly (40-0, 40-0, 31-9, Elo [407.0, ∞)). The
+strength-regression check (§1.4) is satisfied: v59 does not
+lose to v52 on any leg.
+
+The deliverable is the speed gain at equal strength: 3.38x
+on the creator-rich CPU p99 (6016ms → 1780ms), 3.0x on the
+mean (574ms → 192ms), 2.75x on the quiet p99 (2967ms →
+1078ms). The p99 < 1s target was NOT met — the remaining
+gap is per-node cost, not the budget (see §5.5 and §7).
+v59 is the version to deploy to the page: same strength as
+v52, ~3x faster, and the fast path is verified
+move-choice-identical.
+
+## 7. What the next batch should try
+
+1. **Per-node cost is the remaining speed gap.** The p99 is
+   set by the two largest searches (2763 and 3001 nodes) at
+   ~0.65–0.76 ms/node. The next speed lever must cut
+   per-node cost, not the budget: candidates are
+   incremental window-state updates (avoid re-scanning
+   windows at every recursion node), a cheaper ordering-score
+   path (L6's `_score_parts_flat` is still the largest
+   remaining per-node cost after enumeration), or a
+   transposition table keyed on (board hash, side, depth)
+   for the TSS recursion. Any candidate must pass the same
+   0-mismatch A/B standard (the mined-position harness in
+   `ml/scripts/ab_tss_v59.py` is reusable).
+2. **The v52 defect from §2 belongs to a strength batch.**
+   In `_tss_after_attacker_move`, if the attacker's forcing
+   move is itself an immediate winning move with exactly 1
+   extension threat, TSS returns False after the defender
+   "blocks" it — but the attacker already won. Fixing it
+   changes move choice, so it is a strength change, not a
+   speed change; it needs its own pre-registration and
+   battery. It is the one known TSS correctness defect.
+3. **Budget tuning is closed for this architecture.** The
+   Phase-2 sweep showed no budget in {2000, 1500, 1000}
+   satisfies p99 < 1s AND abort ≤ 5% on the bench — and the
+   real-game bind rate (~5%, H2's v58 diagnosis, confirmed
+   by the mined A/B at 4.3%) means the real-game abort rate
+   at 3000 is already near the limit. Do not re-sweep
+   budgets without a per-node speedup first.
+4. **The bench understates real-game cost.** The bench's
+   budget-bind rate (1% creator-rich) is ~5x below the
+   real-game rate (~5%). Future speed work should measure
+   the cost profile on mined real-game positions (the
+   `ab-v59-mined-positions.json` harness generates them)
+   alongside the bench sets.
