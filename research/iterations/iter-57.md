@@ -534,7 +534,56 @@ would be outcome-driven selection.
 
 ## 4. Fast loop
 
-*(to be filled)*
+Iteration 1, leg 1 (vs v0, 10 games, seeds 1001/2001):
+**v57 10W-0L-0D** (win rate 1.0000, Wilson 95% CI [0.7225,
+1.0000]) — `research/iterations/fastloop-v57-vs-v0-i1.json`
+(recomputed; matches the script summary exactly). Clean sweep,
+no losses to analyze. (v52 also swept v0 10-0 in its fast loop.)
+Uniqueness: 9/10 unique games (de-dup 9W-0L-0D, CI [0.7008,
+1.0]) — the known vs-v0 determinism collapse; the verdict stands
+on the de-dup cut. 491s for the leg (~49s/game).
+
+Iteration 1, leg 2 (vs v52, 10 games, seeds 1001/2001):
+**v57 6W-4L-0D** (win rate 0.6000, Wilson 95% CI [0.3127,
+0.8318]) — `research/iterations/fastloop-v57-vs-v52-i1.json`
+(recomputed; matches the script summary exactly). 10/10 unique
+games. Per-colour balanced: Black 3W-2L, White 3W-2L. The CI
+includes 0.50 — 10 games prove nothing; the battery is the
+verdict. 733s for the leg (~73s/game — v57-vs-v52 games are
+~2.4x slower than v52-vs-v27's ~30s/game, the depth-5/6000 cost
+on both sides of the board... note v52's side is depth-4, so the
+slowdown is v57's deeper search plus contention).
+
+Loss workup (`classify_batch_losses.py` +
+`ml/scripts/workup_v57_losses.py`): all 4 losses via open four
+(4/4), **0 missed blocks** (in losses: 0), 0 clean missed
+preventions in 16 threatened turns in losses. Defence is solved.
+TSS fired on **0 v57 turns in all 4 losses** and missed 0 control
+wins — no false positives, no v57-specific losing move to patch:
+the losses are pure v52-equivalent play (v57 == v52 on every turn
+of the losses), v52 outplaying the base engine positionally.
+
+Fire-rate report (`/tmp/fires_v57.py` →
+`research/iterations/fires-v57-fl-i1.txt`, all 10 games): in the
+6 wins the cell TSS fired 3–10x per game and the control fired
+exactly as often — **deep-only fires: 1** (game 4, Black, 57
+plies). Game 4 is the only game where the counts diverge at all:
+cell 10 fires, control 10 fires, deep-only 1 — so it also
+contains one control-only fire, a win the control found that the
+cell missed (a budget abort in a real game — the loss mechanism
+from §3, observed live; v57 won the game anyway). In the 4
+losses neither fired at all. The pattern is the same "win-more"
+shape as v52's fast loop (iter-52 §4): TSS fires in wins,
+converting already-won positions, and never in losses. The single
+deep-only fire in ~350 turns is consistent with the mining rate
+(~1 per 100 turns; expected ~3, observed 1 — within noise). Whether
+the deeper TSS turns any v52-win into a v57-win — the only thing
+that moves the battery — is unanswered by 10 games.
+
+**Fast-loop verdict: NO PATCH.** The mechanism behaves as
+designed (fires only on genuine forcing wins, never wrongly,
+never in losses; exactly one deep-only win found in real play).
+Proceed to the battery.
 
 ## 5. Battery
 

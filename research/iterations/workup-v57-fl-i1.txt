@@ -1,0 +1,8 @@
+=== game 2 (A=black, winner=white, 34 plies) ===
+  cell TSS fired on 0 v57 turn(s); missed 0 control win(s)
+=== game 3 (A=white, winner=black, 17 plies) ===
+  cell TSS fired on 0 v57 turn(s); missed 0 control win(s)
+=== game 5 (A=white, winner=black, 27 plies) ===
+  cell TSS fired on 0 v57 turn(s); missed 0 control win(s)
+=== game 6 (A=black, winner=white, 32 plies) ===
+  cell TSS fired on 0 v57 turn(s); missed 0 control win(s)
