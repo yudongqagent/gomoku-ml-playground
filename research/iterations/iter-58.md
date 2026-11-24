@@ -1257,6 +1257,23 @@ Loss workup (`ml/scripts/workup_v58_v0_losses.py`,
 
 ### swap vs v52, 100 games
 
+**v58 49W-51L-0D** (win rate 0.4900, Wilson 95% CI [0.3942,
+0.5865]) — `research/iterations/batch-v58-vs-v52-swap.json`
+(recompute-verified; balanced placement, placement_seed 11,
+tempo judge). Uniqueness 99/100 games; de-dup 49W-50L-0D
+(0.4949, CI [0.3985, 0.5918]). Per-colour: v58 as Black
+32W-20L (0.615), as White **17W-31L (0.354)**. The normal-rules
+edge (0.835) does NOT transfer to swap rules at all — under
+the official rule v58 is exactly even with v52, and its White
+side is weak (0.354), the same White-side pattern as the
+ladder mcts leg (8-12) and the v0 White losses. Defence audit:
+all 51 losses via open four, 0 missed blocks, but **3 clean
+missed preventions** (in 3 games, 1.4% of threatened turns in
+losses) — the first missed preventions the classifier has
+found for v58 (0 in both normal-rules legs). Swap positions,
+more tactical from move 4, expose the prevention weakness
+more often — corroborating the game-53 finding.
+
 ### Ladder (40 games/opponent)
 
 **v58: random 40W-0L-0D, heuristic 40W-0L-0D, mcts 27W-13L-0D**
@@ -1287,3 +1304,69 @@ distinguish them.
   v54 had the best ML Elo and the worst h2h vs v44).
 
 ## 16. Verdict (re-scope)
+
+**v58: REJECTED — 3/4 clauses.**
+
+| Clause | Requirement | v58 | Verdict |
+|---|---|---|---|
+| 1. h2h vs v52 (≥100 games) | win rate > 0.50, CI lower > 0.50 | 82W-15L-3D, 0.8350, CI [0.7501, 0.8951] | **PASS** |
+| 2. Ladder (leg-result) | match 40-0/40-0, beat mcts 31-9 | 40-0 / 40-0 / **27-13** | **FAIL** |
+| 3. Tactical | ≥ 20/20 + 29/29 | 20/20 + 29/29 | **PASS** |
+| 4. Suites green | pytest + npm + tsc | 510 passed / 55-55 / clean | **PASS** |
+
+v58 is the strongest head-to-head improvement in the
+program's history — it beats the champion v52 82-15-3 in
+normal rules, with a CI lower bound of 0.75 — and it is
+rejected anyway, because the bar requires ALL FOUR clauses
+and the ladder leg-result reading is one of them. The mcts
+leg (27-13) falls 4 games short of v52's 31-9, entirely on
+the White side (8-12 vs 13-7).
+
+The coherent reading of all the evidence: **the
+threat-potential term is a normal-rules specialist.** It
+transforms v58-vs-v52 in normal rules (0.835) by raising
+White's forcing-position reach rate (Check B: fire rate
+1.63x, firing-game rate 0.85 vs 0.42), but:
+- under swap rules it is exactly even with v52 (0.49),
+  with a weak White side (0.354);
+- against the ladder mcts it LOSES as White (8-12);
+- it gives back 2 games to v0 as White (98-2), including
+  one verified term-caused missed prevention (game 53,
+  ply 17: v52 plays 96 and prevents, v58 plays 129 and
+  allows a Black TSS win);
+- the swap leg shows 3 clean missed preventions, the
+  first the classifier has found for v58.
+
+The term trades positional soundness for forcing-move
+counts. Against v52 — an engine that also races to forcing
+positions — that trade wins big. Against quieter opponents
+(the ladder mcts, v0's greedy play) and under swap rules
+(where the opening is fixed and the colour choice
+equalizes), the trade loses or washes out. The ladder and
+head-to-head strength have now openly diverged on the
+heuristic track, as they did on the ML track in ML batch 6.
+
+What the next batch should try:
+1. **A prevention-aware term.** The term's failure mode is
+   now identified (missed preventions: game 53 + 3 swap
+   instances). A version that applies the term ONLY when
+   the position is quiet for the opponent (e.g. skip the
+   term when the opponent holds a forcing move, or cap the
+   term below the prevention signal) could keep the
+   reach-rate gain without the prevention cost. The
+   game-53 position (ply 17) is a ready-made regression
+   test: the patched version must play 96 there.
+2. **A lower weight.** 0.05 may be too strong; a 0.025
+   ablation would test whether the prevention cost falls
+   faster than the reach-rate gain. (Sweep at 100 games
+   directly — 40-game sweeps have failed twice.)
+3. **Re-examine the bar.** v58 beats the champion 0.835
+   and is rejected on a 4-game mcts-leg gap against a
+   100-sim opponent neither engine was designed to face.
+   Whether the leg-result reading should keep veto power
+   over a decisive h2h win is a coordinator decision, not
+   a worker's — but the divergence is now the program's
+   central measurement problem, on both tracks.
+4. **Do not retry** the term at weight 0.05 in this form
+   (closed by this verdict), and do not re-run the ladder
+   at another seed to shop for a pass (v44 precedent).
