@@ -1213,6 +1213,48 @@ is solved.
 
 ### vs v0, 100 games, normal rules
 
+**v58 98W-2L-0D** (win rate 0.9800, Wilson 95% CI [0.9300,
+0.9945]) — `research/iterations/batch-v58-vs-v0.json`
+(recompute-verified). Uniqueness 35/100 games (the v0
+determinism collapse — v52's was 22); de-dup 33W-2L-0D
+(0.9429, CI [0.8139, 0.9842]). Per-colour: v58 as Black
+50W-0L-0D (perfect), as White 48W-2L-0D. v52 beat v0 100-0,
+so v58 gives back 2 games to the weakest opponent. Defence
+audit: both losses via open four, 0 missed blocks, 0 clean
+missed preventions in 15 threatened turns (the classifier's
+definition is narrow — see the workup below).
+
+Loss workup (`ml/scripts/workup_v58_v0_losses.py`,
+`ml/scripts/workup_v58_v0_prevention.py`):
+- Both losses as White (games 53 and 79, 29 and 33 plies),
+  sharing the opening [112, 128, 127, 157, 97, 82, 113, 114].
+  v58's ply-1 White move is 126 in 25 games and 128 in 25
+  (the four diagonal neighbours of the centre are symmetric;
+  the split is a tie-break artifact, and the 126-line lost 0
+  games — the "128-line is dangerous" reading is wrong).
+- **Game 53 — TERM-CAUSED missed prevention (verified).**
+  At ply 17 v58 played 129, allowing Black a TSS win (95);
+  8 preventing moves existed ([36, 68, 95, 96, 109, 110, 173,
+  189]). On the same position v52 plays 96 (PREVENTS) while
+  v58 replays 129 (does not prevent). The term is the only
+  difference between the engines, so the term caused the
+  choice — the likely mechanism is the term rewarding 129's
+  threat creation over 96's prevention in the MCTS backup
+  (the v40 pattern, now confirmed for a positive leaf term:
+  a leaf term can mis-rank a prevention). One clear instance
+  in 200 battery games — a tail risk, not a systematic
+  failure (tactical 29/29 including 16 preventions; 0 missed
+  preventions in 523 threatened turns vs v52).
+- Game 79 — lost before ply 15 (no preventing move existed
+  at any White turn from ply 15 on); the prevention test
+  cannot localize the losing move. The first v52/v58
+  divergence is the symmetric ply-1 tie-break, which is not
+  a real preference.
+- Implication for clause 2: the ladder heuristic leg is
+  against this same engine (baseline.HeuristicPlayer). The
+  battery's ~2% loss rate vs v0 (~4% as White) makes a
+  dropped ladder game a live risk; the ladder is the test.
+
 ### swap vs v52, 100 games
 
 ### Ladder (40 games/opponent)
