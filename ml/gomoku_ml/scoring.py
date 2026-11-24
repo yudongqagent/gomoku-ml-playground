@@ -576,6 +576,27 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout3ply_v53", "tie_break_q": True,
          "tie_break_q_threshold": 0.05},
+    # v57 (iteration 57, batch 14): H1 — v52 (v27 + TSS at the root)
+    # with the sweep-winning TSS parameters: depth 5 attacker
+    # forcing moves (9-10 total plies, iter-57 §1.1) and node
+    # budget 6000. The depth x budget sweep (iter-57 §§2-3) found
+    # depth 5 / budget 6000 the clear winner: 24 mined forcing
+    # wins depth-4 misses vs 5 lost to budget aborts (net +19,
+    # 4/5 verified end-to-end), at 2.5x v52's creator-rich mean
+    # cost (inside the 3x gate). Depth 6 loses nearly as much as
+    # it gains (net -2 at budget 3000, +10 at 6000 but 4.1x cost —
+    # the budget binds first); the budget-only cell (4, 6000) is a
+    # near-no-op (4 gains in 2481 mined turns). Everything else is
+    # v52 exactly: 100 sims, c_puct 1.5, sharp v1 priors, rollout
+    # leaf both colours, tau=0.05 threshold tie-break, most-
+    # visited root. See research/iterations/iter-57.md §1 for the
+    # pre-registered design (sweep grid, mechanism check,
+    # selection rule + amendment) and §3 for the selection.
+    57: {"name": "scoring-v57", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05, "tss_root": True,
+         "tss_depth": 5, "tss_node_budget": 6000},
     # v58 (iteration 58, batch 14): H2 RE-SCOPED — v52 + a
     # threat-potential term in the leaf evaluation (leaf_mode
     # "rollout2_threat_v58"; see gomoku_ml.mcts_heuristic
@@ -1234,7 +1255,11 @@ class ScoringPlayer:
                 )
             else:
                 # Lazy import: mcts_heuristic imports this module.
-                from .mcts_heuristic import HeuristicMCTS
+                from .mcts_heuristic import (
+                    TSS_DEPTH,
+                    TSS_NODE_BUDGET,
+                    HeuristicMCTS,
+                )
 
                 self._mcts = HeuristicMCTS(
                     sims=ENGINE_VERSIONS[version].get("mcts_sims", 100),
@@ -1247,6 +1272,12 @@ class ScoringPlayer:
                     vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
                     tss_root=ENGINE_VERSIONS[version].get("tss_root", False),
                     tss_fast=ENGINE_VERSIONS[version].get("tss_fast", False),
+                    tss_depth=ENGINE_VERSIONS[version].get(
+                        "tss_depth", TSS_DEPTH
+                    ),
+                    tss_node_budget=ENGINE_VERSIONS[version].get(
+                        "tss_node_budget", TSS_NODE_BUDGET
+                    ),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(

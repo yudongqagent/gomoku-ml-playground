@@ -1,0 +1,306 @@
+{
+  "seed": 777,
+  "n": 100,
+  "cells": {
+    "d4-b3000": {
+      "quiet": {
+        "name": "quiet (v7 self-play)",
+        "n": 100,
+        "depth": 4,
+        "node_budget": 3000,
+        "fired": 11,
+        "fire_rate": 0.11,
+        "budget_exceeded": 0,
+        "budget_exceeded_rate": 0.0,
+        "time_ms": {
+          "median": 5.88708549958028,
+          "p90": 3613.1996189997153,
+          "p99": 9421.869976999915,
+          "max": 10299.854752999636,
+          "mean": 972.1479805299987
+        },
+        "nodes": {
+          "median": 0.0,
+          "p90": 740,
+          "p99": 2273,
+          "max": 2273,
+          "mean": 196.19
+        }
+      },
+      "creator_rich": {
+        "name": "creator-rich (v27 midgame)",
+        "n": 100,
+        "depth": 4,
+        "node_budget": 3000,
+        "fired": 5,
+        "fire_rate": 0.05,
+        "budget_exceeded": 1,
+        "budget_exceeded_rate": 0.01,
+        "time_ms": {
+          "median": 94.74225199983266,
+          "p90": 4935.4413590008335,
+          "p99": 14003.354607000801,
+          "max": 14388.787597999908,
+          "mean": 1533.2806634099597
+        },
+        "nodes": {
+          "median": 20.0,
+          "p90": 1394,
+          "p99": 2763,
+          "max": 3001,
+          "mean": 365.25
+        }
+      }
+    },
+    "d4-b6000": {
+      "quiet": {
+        "name": "quiet (v7 self-play)",
+        "n": 100,
+        "depth": 4,
+        "node_budget": 6000,
+        "fired": 11,
+        "fire_rate": 0.11,
+        "budget_exceeded": 0,
+        "budget_exceeded_rate": 0.0,
+        "time_ms": {
+          "median": 4.082673000084469,
+          "p90": 2193.0552229996465,
+          "p99": 8071.810867999375,
+          "max": 9426.959716000056,
+          "mean": 655.3014998500203
+        },
+        "nodes": {
+          "median": 0.0,
+          "p90": 740,
+          "p99": 2273,
+          "max": 2273,
+          "mean": 196.19
+        }
+      },
+      "creator_rich": {
+        "name": "creator-rich (v27 midgame)",
+        "n": 100,
+        "depth": 4,
+        "node_budget": 6000,
+        "fired": 5,
+        "fire_rate": 0.05,
+        "budget_exceeded": 1,
+        "budget_exceeded_rate": 0.01,
+        "time_ms": {
+          "median": 126.34815200044613,
+          "p90": 3827.859157000603,
+          "p99": 14062.476398999934,
+          "max": 23704.994892000286,
+          "mean": 1386.8587218100947
+        },
+        "nodes": {
+          "median": 20.0,
+          "p90": 1394,
+          "p99": 2763,
+          "max": 6001,
+          "mean": 395.25
+        }
+      }
+    },
+    "d5-b3000": {
+      "quiet": {
+        "name": "quiet (v7 self-play)",
+        "n": 100,
+        "depth": 5,
+        "node_budget": 3000,
+        "fired": 10,
+        "fire_rate": 0.1,
+        "budget_exceeded": 10,
+        "budget_exceeded_rate": 0.1,
+        "time_ms": {
+          "median": 4.475606000028165,
+          "p90": 5628.416248999997,
+          "p99": 9897.13696000001,
+          "max": 9963.116378999985,
+          "mean": 1384.4234975300014
+        },
+        "nodes": {
+          "median": 0.0,
+          "p90": 2865,
+          "p99": 3001,
+          "max": 3001,
+          "mean": 517.93
+        }
+      },
+      "creator_rich": {
+        "name": "creator-rich (v27 midgame)",
+        "n": 100,
+        "depth": 5,
+        "node_budget": 3000,
+        "fired": 6,
+        "fire_rate": 0.06,
+        "budget_exceeded": 19,
+        "budget_exceeded_rate": 0.19,
+        "time_ms": {
+          "median": 89.93231350007136,
+          "p90": 8988.224615000036,
+          "p99": 13197.744133000015,
+          "max": 19137.31338399998,
+          "mean": 2484.286345299995
+        },
+        "nodes": {
+          "median": 20.0,
+          "p90": 3001,
+          "p99": 3001,
+          "max": 3001,
+          "mean": 812.87
+        }
+      }
+    },
+    "d5-b6000": {
+      "quiet": {
+        "name": "quiet (v7 self-play)",
+        "n": 100,
+        "depth": 5,
+        "node_budget": 6000,
+        "fired": 11,
+        "fire_rate": 0.11,
+        "budget_exceeded": 4,
+        "budget_exceeded_rate": 0.04,
+        "time_ms": {
+          "median": 4.549516000110998,
+          "p90": 8419.051553000145,
+          "p99": 18999.886611999955,
+          "max": 20011.236161999932,
+          "mean": 2142.011280750005
+        },
+        "nodes": {
+          "median": 0.0,
+          "p90": 2865,
+          "p99": 6001,
+          "max": 6001,
+          "mean": 714.06
+        }
+      },
+      "creator_rich": {
+        "name": "creator-rich (v27 midgame)",
+        "n": 100,
+        "depth": 5,
+        "node_budget": 6000,
+        "fired": 7,
+        "fire_rate": 0.07,
+        "budget_exceeded": 8,
+        "budget_exceeded_rate": 0.08,
+        "time_ms": {
+          "median": 87.28358999996999,
+          "p90": 12357.868138000185,
+          "p99": 26012.301204000098,
+          "max": 28641.786792999937,
+          "mean": 3792.0561384500024
+        },
+        "nodes": {
+          "median": 20.0,
+          "p90": 4246,
+          "p99": 6001,
+          "max": 6001,
+          "mean": 1139.33
+        }
+      }
+    },
+    "d6-b3000": {
+      "quiet": {
+        "name": "quiet (v7 self-play)",
+        "n": 100,
+        "depth": 6,
+        "node_budget": 3000,
+        "fired": 9,
+        "fire_rate": 0.09,
+        "budget_exceeded": 24,
+        "budget_exceeded_rate": 0.24,
+        "time_ms": {
+          "median": 2.7313175000927004,
+          "p90": 10531.959076000021,
+          "p99": 13655.559442999902,
+          "max": 15601.212132,
+          "mean": 2481.050282620006
+        },
+        "nodes": {
+          "median": 0.0,
+          "p90": 3001,
+          "p99": 3001,
+          "max": 3001,
+          "mean": 747.93
+        }
+      },
+      "creator_rich": {
+        "name": "creator-rich (v27 midgame)",
+        "n": 100,
+        "depth": 6,
+        "node_budget": 3000,
+        "fired": 6,
+        "fire_rate": 0.06,
+        "budget_exceeded": 28,
+        "budget_exceeded_rate": 0.28,
+        "time_ms": {
+          "median": 88.8966420000088,
+          "p90": 10796.433637000064,
+          "p99": 16010.140902999865,
+          "max": 16891.455657999813,
+          "mean": 3624.9810488000185
+        },
+        "nodes": {
+          "median": 20.0,
+          "p90": 3001,
+          "p99": 3001,
+          "max": 3001,
+          "mean": 1047.07
+        }
+      }
+    },
+    "d6-b6000": {
+      "quiet": {
+        "name": "quiet (v7 self-play)",
+        "n": 100,
+        "depth": 6,
+        "node_budget": 6000,
+        "fired": 10,
+        "fire_rate": 0.1,
+        "budget_exceeded": 14,
+        "budget_exceeded_rate": 0.14,
+        "time_ms": {
+          "median": 3.817890499931309,
+          "p90": 17689.563721000013,
+          "p99": 25500.783348999903,
+          "max": 28701.12650300007,
+          "mean": 4327.856708380004
+        },
+        "nodes": {
+          "median": 0.0,
+          "p90": 6001,
+          "p99": 6001,
+          "max": 6001,
+          "mean": 1309.65
+        }
+      },
+      "creator_rich": {
+        "name": "creator-rich (v27 midgame)",
+        "n": 100,
+        "depth": 6,
+        "node_budget": 6000,
+        "fired": 9,
+        "fire_rate": 0.09,
+        "budget_exceeded": 22,
+        "budget_exceeded_rate": 0.22,
+        "time_ms": {
+          "median": 87.37256800009163,
+          "p90": 20513.027943999987,
+          "p99": 28416.16292200024,
+          "max": 32694.61487400031,
+          "mean": 6247.748527980011
+        },
+        "nodes": {
+          "median": 20.0,
+          "p90": 6001,
+          "p99": 6001,
+          "max": 6001,
+          "mean": 1823.3
+        }
+      }
+    }
+  }
+}

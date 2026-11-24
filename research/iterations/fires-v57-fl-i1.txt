@@ -1,0 +1,10 @@
+game 0 (A=black, W, 33 plies): cell fires 3, control fires 3, deep-only 0
+game 1 (A=white, W, 44 plies): cell fires 5, control fires 5, deep-only 0
+game 2 (A=black, L, 34 plies): cell fires 0, control fires 0, deep-only 0
+game 3 (A=white, L, 17 plies): cell fires 0, control fires 0, deep-only 0
+game 4 (A=black, W, 57 plies): cell fires 10, control fires 10, deep-only 1
+game 5 (A=white, L, 27 plies): cell fires 0, control fires 0, deep-only 0
+game 6 (A=black, L, 32 plies): cell fires 0, control fires 0, deep-only 0
+game 7 (A=white, W, 40 plies): cell fires 3, control fires 3, deep-only 0
+game 8 (A=black, W, 17 plies): cell fires 5, control fires 5, deep-only 0
+game 9 (A=white, W, 40 plies): cell fires 4, control fires 4, deep-only 0

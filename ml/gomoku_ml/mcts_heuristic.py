@@ -2267,6 +2267,11 @@ class HeuristicMCTS:
     threes) is played immediately; otherwise the engine is exactly
     the base version. False (the default) leaves the base engine
     unchanged. Offensive only — no defensive prevention check.
+    ``tss_depth`` / ``tss_node_budget`` (v57, batch 14 H1) are the
+    TSS depth (attacker forcing moves — depth D is a 2D-ply total
+    horizon, iter-57 §1.1) and deterministic node budget passed to
+    :func:`tss_winning_move`; the defaults (``TSS_DEPTH`` /
+    ``TSS_NODE_BUDGET``) are v52's values, so v52 is unchanged.
     """
 
     def __init__(
@@ -2284,6 +2289,8 @@ class HeuristicMCTS:
         softmax_beta: float = 2.0,
         tss_root: bool = False,
         tss_fast: bool = False,
+        tss_depth: int = TSS_DEPTH,
+        tss_node_budget: int = TSS_NODE_BUDGET,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
             leaf_mode != "rollout2_v1"
@@ -2314,6 +2321,15 @@ class HeuristicMCTS:
             raise ValueError(
                 f"softmax_beta must be positive, got {softmax_beta!r}"
             )
+        if not (isinstance(tss_depth, int) and tss_depth >= 1):
+            raise ValueError(
+                f"tss_depth must be a positive int, got {tss_depth!r}"
+            )
+        if not (isinstance(tss_node_budget, int) and tss_node_budget >= 1):
+            raise ValueError(
+                "tss_node_budget must be a positive int, "
+                f"got {tss_node_budget!r}"
+            )
         self.sims = sims
         self.c_puct = c_puct
         self.rng = rng
@@ -2330,6 +2346,8 @@ class HeuristicMCTS:
         # enumeration, run-based winning-move tests — same search,
         # same moves, same node counts; see tss_winning_move).
         self.tss_fast = tss_fast
+        self.tss_depth = tss_depth
+        self.tss_node_budget = tss_node_budget
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -2531,7 +2549,13 @@ class HeuristicMCTS:
         # win/block scans above already ran, so an immediate win or
         # a forced block always takes precedence over the TSS.
         if self.tss_root:
-            tss_move = tss_winning_move(board, player, fast=self.tss_fast)
+            tss_move = tss_winning_move(
+                board,
+                player,
+                fast=self.tss_fast,
+                depth=self.tss_depth,
+                node_budget=self.tss_node_budget,
+            )
             if tss_move is not None:
                 return tss_move
         root = _Node(1.0)
