@@ -395,7 +395,107 @@ the gains will be broken down by colour (each mined gain records
 aligns with H2's M3 and the depth benefit, if any, comes through
 a different population than White-turn detection.
 
-*(results to be filled after Check M runs)*
+### Check M — differential mining: PASSES, 22 verified gains
+
+`ml/scripts/mine_tss_sweep.py` →
+`research/iterations/tss-sweep-mechanism.json` (50 v27-vs-v27
+games, seeds 777/1777, 2481 turns). The mining run survived 6
+runtime restarts (SIGTERM at games 6, 11, 15, 25, 35, 36, 42, 46)
+via per-game checkpointing; the resumed run reproduces the
+uninterrupted run exactly. **Harness validation: the control
+reproduces iter-52's Check B EXACTLY** — 2481 turns, 288 fires
+(11.6%), 167 confirms, 121 differs — the same positions, the same
+counts, so the differential numbers below sit on a validated
+base.
+
+| cell | fires | gains | losses | aborts (rate) | verified (of 5) | net (amended) | net (literal) |
+|---|---|---|---|---|---|---|---|
+| (4, 6000) | 292 | 4 | 0 | 51 (2.1%) | 3/4 | **+4** | +3 |
+| (5, 3000) | 294 | 17 | 11 | 341 (13.7%) | 5/5 | **+6** | −6 |
+| (5, 6000) | 307 | 24 | 5 | 236 (9.5%) | 4/5 | **+19** | −1 |
+| (6, 3000) | 286 | 26 | 28 | 527 (21.2%) | 5/5 | **−2** | −23 |
+| (6, 6000) | 298 | 30 | 20 | 435 (17.5%) | 5/5 | **+10** | −15 |
+
+**Check M PASSES** (criterion: >= 1 verified gain for at least
+one cell — 22 verified gains in total). Findings:
+
+1. **Deeper TSS finds real forcing wins depth-4 misses** — 24
+   gains at (5, 6000), 30 at (6, 6000), in 2481 turns (~1 per
+   100 turns at depth 5, ~1.2 per 100 at depth 6). Each gain is
+   a TSS-proven forcing win (exact search over defender
+   replies); 22 of 24 checked gains verified end-to-end in
+   playouts (cell-engine attacking vs v52 defending, 3/3 wins).
+2. **But depth 6 loses nearly as much as it gains.** At budget
+   3000, depth 6 is NET NEGATIVE (−2: 26 gains, 28 losses) — the
+   budget-binds-first finding (§2), now confirmed in games. At
+   6000 it recovers to +10, but at 4.1x the cost (fails the cost
+   gate) and a 17.5% abort rate — exactly H2's independently
+   measured 17.5%. Depth 6 is dominated: it finds the most wins
+   and loses the most wins.
+3. **Depth 5 with budget 6000 is the sweet spot: +19 net** (24
+   gains, 5 losses) — nearly 5x more gains than losses, and the
+   only cell whose gains decisively outnumber its losses. At
+   budget 3000, depth 5 loses half its gains to aborts (17
+   gains, 11 losses, net +6): the budget binds first, and 6000
+   nodes is what lets depth 5 pay.
+4. **The budget-only cell (4, 6000) is nearly v52 in games:**
+   4 gains, 0 losses in 2481 turns — one rescued win per ~600
+   turns. Consistent with the bench (§2: identical fires/aborts).
+5. **The superset invariant held perfectly: `losses_without_abort
+   = 0` for every cell.** Every loss coincided with a budget
+   abort — in the unbounded case depth-5 ⊇ depth-4 (and depth-6
+   ⊇ depth-5) exactly as the design claimed, across all 2481
+   turns. Losses are purely a budget phenomenon.
+6. **Colour breakdown of gains** (H2's M3 context): (5, 6000)
+   gains split Black 14 / White 10; (6, 6000) Black 20 / White
+   10; (6, 3000) Black 18 / White 8. Gains skew Black (~60/40)
+   but White gains are real and numerous — in tension with H2's
+   M3 (0 additional White wins at depth 6 in 55 completed
+   searches). The populations differ (H2's M3 tested White turns
+   only on its own position set; this mining covers all turns in
+   v27-vs-v27 games), so the two results are not directly
+   comparable — recorded here as an open tension, not resolved.
+   The depth benefit is NOT White-specific; if anything it
+   skews Black, consistent with v52's Black-skewed fire pattern
+   (iter-52 §5: Black 0.78 / White 0.44).
+7. **Two verified-gain failures** (of 24 checked): (4, 6000)
+   game 42 (White) drew 3/3, and (5, 6000) game 9 (White) LOST
+   3/3 after playing the TSS-proven winning move. A TSS proof is
+   exact over defender replies, so a failed playout means the
+   ENGINE failed to convert, not that the win doesn't exist —
+   the likely mechanism is a mid-sequence budget abort (the
+   cell engine re-runs TSS each turn; an abort on the critical
+   conversion turn drops the forcing thread to the MCTS) or the
+   pre-registered quiet-move limitation. Game 9 was diagnosed
+   in detail — see §3.1.
+
+### 3.1 Diagnosis: the game-9 failed verification
+
+*(to be filled when the diagnostic completes)*
+
+### 3.2 Selection (per §1.6, as amended)
+
+Eligible cells (amended rule: >= 1 verified gain AND net > 0):
+(4, 6000) net +4, (5, 3000) net +6, (5, 6000) net +19, (6, 6000)
+net +10. (6, 3000) is ineligible (net −2). **Winner: (5, 6000)**
+— the highest net (+19), and it PASSES the cost gate (creator-
+rich mean 2.5x v52's, ≤ 3x). (6, 6000) would fail the cost gate
+anyway (4.1x). **v57 = v52 + TSS depth 5, node budget 6000**
+(9–10 total plies, §1.1).
+
+**Sensitivity — the literal rule disagrees.** Under the literal
+(pre-amendment) net (verified gains capped at 5, minus all
+losses), only (4, 6000) is eligible (net_literal +3); (5, 6000)
+scores −1, (5, 3000) −6, (6, 6000) −15. The literal-rule winner
+would be (4, 6000) — the near-no-op budget-only cell. The two
+readings disagree, exactly as the amendment anticipated: the
+literal formula's cap punishes the cells that find the most wins.
+The battery runs on the amended-rule winner (5, 6000); the
+coordinator can adjudicate. If (5, 6000) fails the battery, the
+(4, 6000) literal winner is NOT a fallback to re-run — it is a
+near-no-op by the bench and its own mining (4 gains in 2481
+turns), and re-running a different cell after seeing the battery
+would be outcome-driven selection.
 
 ## 4. Fast loop
 

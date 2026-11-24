@@ -20,6 +20,7 @@ iter-57.md`` §1):
 import json
 import os
 
+import numpy as np
 import pytest
 
 from gomoku_ml import game, mcts_heuristic, scoring
@@ -181,3 +182,108 @@ def test_depth6_finds_t1_win_at_6000():
         _board(pos), game.BLACK, depth=6, node_budget=6000
     )
     assert move is not None and _xy(move) == [6, 6]
+
+
+# --- v57 engine (sweep winner: depth 5, budget 6000) ----------------------
+
+# A verified (5, 6000) gain mined in Check M (iter-57 §3): game 6,
+# Black to move — depth-5/6000 finds the forcing win (5,8) that
+# depth-4/3000 misses (verified 3/3 in playouts vs v52's defence).
+# Pinned here as the regression test for the sweep's mechanism.
+_MINED_DEEP_WIN_BLACK = [(5, 4), (5, 5), (6, 5), (5, 6), (7, 7), (6, 9)]
+_MINED_DEEP_WIN_WHITE = [(4, 3), (5, 3), (7, 4), (6, 6), (8, 6), (6, 7)]
+
+
+def _mined_deep_win_board():
+    board = game.empty_board()
+    for x, y in _MINED_DEEP_WIN_BLACK:
+        board[y, x] = game.BLACK
+    for x, y in _MINED_DEEP_WIN_WHITE:
+        board[y, x] = game.WHITE
+    return board
+
+
+def test_v57_registration():
+    v57 = scoring.get_player(57, seed=0)
+    assert v57.name == "scoring-v57"
+    assert v57.version == 57
+    mcts = v57._mcts
+    assert isinstance(mcts, mcts_heuristic.HeuristicMCTS)
+    assert mcts.tss_root is True
+    assert mcts.tss_depth == 5
+    assert mcts.tss_node_budget == 6000
+    # Everything else is v52 exactly.
+    assert mcts.leaf_mode == "rollout2_v1_both"
+    assert mcts.tie_break_q is True
+    assert mcts.tie_break_q_threshold == 0.05
+    assert mcts.sims == 100
+    assert mcts.c_puct == 1.5
+
+
+def test_v57_plays_tss_win_on_double_three():
+    pos = next(
+        p for p in _load_mechanism_positions()
+        if p["id"] == "tss-double-three-black"
+    )
+    board = _board(pos)
+    v57 = scoring.get_player(57, seed=0)
+    move = v57.choose_move(board, game.BLACK)
+    assert _xy(move) == [6, 6]
+
+
+def test_v57_finds_mined_deep_win_depth4_misses():
+    """The sweep's mechanism, pinned: on the mined game-6 position,
+    depth-4/3000 (v52) finds no forcing win, depth-5/6000 (v57)
+    finds (5,8), and v57 plays it."""
+    board = _mined_deep_win_board()
+    assert (
+        mcts_heuristic.tss_winning_move(
+            board, game.BLACK, depth=4, node_budget=3000
+        )
+        is None
+    )
+    move = mcts_heuristic.tss_winning_move(
+        board, game.BLACK, depth=5, node_budget=6000
+    )
+    assert move is not None and _xy(move) == [5, 8]
+    v57 = scoring.get_player(57, seed=0)
+    assert _xy(v57.choose_move(board, game.BLACK)) == [5, 8]
+
+
+def test_v57_falls_through_to_v52_when_tss_silent():
+    """On positions where TSS finds nothing at EITHER depth (both
+    the (4,3000) control and the (5,6000) cell silent — a position
+    silent at depth 5 could still fire at depth 4 via a depth-5
+    budget abort, so both must be checked), v57 IS v52 exactly:
+    same move at the same seed (TSS consumes no RNG, so the MCTS
+    streams are identical). Positions are early v7 self-play plies
+    filtered to doubly-silent ones, deterministic seed."""
+    positions = []
+    rng = np.random.default_rng(777)
+    while len(positions) < 5:
+        board = game.empty_board()
+        player = game.BLACK
+        for _ in range(int(rng.integers(4, 12))):
+            empties = np.flatnonzero(board.reshape(-1) == game.EMPTY)
+            board = game.apply_move(
+                board, int(rng.choice(empties)), player
+            )
+            player = -player
+        if (
+            mcts_heuristic.tss_winning_move(
+                board, player, depth=4, node_budget=3000
+            )
+            is None
+            and mcts_heuristic.tss_winning_move(
+                board, player, depth=5, node_budget=6000
+            )
+            is None
+        ):
+            positions.append((board.copy(), player))
+    assert len(positions) == 5
+    for board, player in positions:
+        v57 = scoring.get_player(57, seed=0)
+        v52 = scoring.get_player(52, seed=0)
+        assert v57.choose_move(board, player) == v52.choose_move(
+            board, player
+        )
