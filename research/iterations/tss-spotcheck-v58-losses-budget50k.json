@@ -1,0 +1,103 @@
+{
+  "input": "/home/hatch/workspace/projects/gomoku-b14-h2/research/iterations/tss-loss-turns-v58-normal.json",
+  "rule": "normal",
+  "n": 11,
+  "indices": "2,5,7,8,9,14,15,16,17,18,19",
+  "depth": 6,
+  "budget": 50000,
+  "found": 0,
+  "none_completed": 8,
+  "none_budget_exceeded": 3,
+  "find_rate": 0.0,
+  "find_rate_completed": 0.0,
+  "results": [
+    {
+      "game": 1,
+      "ply": 13,
+      "found": false,
+      "move": null,
+      "nodes": 10440,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 23,
+      "found": false,
+      "move": null,
+      "nodes": 27361,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 31,
+      "found": false,
+      "move": null,
+      "nodes": 37231,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 35,
+      "found": false,
+      "move": null,
+      "nodes": 50001,
+      "budget_exceeded": true
+    },
+    {
+      "game": 1,
+      "ply": 37,
+      "found": false,
+      "move": null,
+      "nodes": 16238,
+      "budget_exceeded": false
+    },
+    {
+      "game": 5,
+      "ply": 25,
+      "found": false,
+      "move": null,
+      "nodes": 11991,
+      "budget_exceeded": false
+    },
+    {
+      "game": 5,
+      "ply": 43,
+      "found": false,
+      "move": null,
+      "nodes": 29519,
+      "budget_exceeded": false
+    },
+    {
+      "game": 5,
+      "ply": 45,
+      "found": false,
+      "move": null,
+      "nodes": 17753,
+      "budget_exceeded": false
+    },
+    {
+      "game": 5,
+      "ply": 47,
+      "found": false,
+      "move": null,
+      "nodes": 50001,
+      "budget_exceeded": true
+    },
+    {
+      "game": 5,
+      "ply": 49,
+      "found": false,
+      "move": null,
+      "nodes": 50001,
+      "budget_exceeded": true
+    },
+    {
+      "game": 5,
+      "ply": 53,
+      "found": false,
+      "move": null,
+      "nodes": 46889,
+      "budget_exceeded": false
+    }
+  ]
+}

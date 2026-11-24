@@ -1,0 +1,62 @@
+{
+  "input": "/home/hatch/workspace/projects/gomoku-b14-h2/research/iterations/checkb-v58-vs-v27.json",
+  "engine_a": "scoring-v58",
+  "engine_b": "scoring-v27",
+  "swap_rule": false,
+  "scope": "white-only",
+  "only_a_colour": null,
+  "games": 40,
+  "games_replayed": null,
+  "by_engine_colour": {
+    "A": {
+      "black": {
+        "turns": 0,
+        "fires": 0,
+        "confirms": 0,
+        "differs": 0,
+        "budget_exceeded": 0,
+        "nodes": 0,
+        "fire_rate": 0.0,
+        "differ_rate": 0.0,
+        "mean_nodes": 0.0
+      },
+      "white": {
+        "turns": 625,
+        "fires": 103,
+        "confirms": 103,
+        "differs": 0,
+        "budget_exceeded": 4,
+        "nodes": 118342,
+        "fire_rate": 0.1648,
+        "differ_rate": 0.0,
+        "mean_nodes": 189.3472
+      }
+    },
+    "B": {
+      "black": {
+        "turns": 0,
+        "fires": 0,
+        "confirms": 0,
+        "differs": 0,
+        "budget_exceeded": 0,
+        "nodes": 0,
+        "fire_rate": 0.0,
+        "differ_rate": 0.0,
+        "mean_nodes": 0.0
+      },
+      "white": {
+        "turns": 407,
+        "fires": 25,
+        "confirms": 17,
+        "differs": 8,
+        "budget_exceeded": 12,
+        "nodes": 154190,
+        "fire_rate": 0.06142506142506143,
+        "differ_rate": 0.019656019656019656,
+        "mean_nodes": 378.84520884520884
+      }
+    }
+  },
+  "consistency_violations": [],
+  "n_violations": 0
+}

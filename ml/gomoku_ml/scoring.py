@@ -576,6 +576,33 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout3ply_v53", "tie_break_q": True,
          "tie_break_q_threshold": 0.05},
+    # v58 (iteration 58, batch 14): H2 RE-SCOPED — v52 + a
+    # threat-potential term in the leaf evaluation (leaf_mode
+    # "rollout2_threat_v58"; see gomoku_ml.mcts_heuristic
+    # _rollout_threat_leaf_value and research/iterations/iter-58.md
+    # §11 for the pre-registered design). The diagnosis (iter-58
+    # §§2-3) found v52-White wins ONLY by reaching a forcing
+    # position (47/47 wins involve a White TSS fire) but reaches
+    # one in only 42% of normal-rules games, with TSS detection
+    # complete at depth 4 (0/55 depth-6 finds) — so no detection
+    # patch exists, and the re-scope steers the MCTS TOWARD
+    # forcing positions: at the rollout-end position the leaf adds
+    # 0.05 * tanh((F(ours) - F(theirs)) / 1.0) to the v1 gradient,
+    # where F is the exact forcing-move count (four-creators via
+    # the v1 kernel + local exact test, true-open-three-creators
+    # via the v0 kernel >= 1000 minus fours — each kernel
+    # enumerates one class); the sum is clamped to +/-0.2 (the
+    # iter-7 cap). Terminals exact as v52; on a rollout-end
+    # must-block the term is skipped (the opponent's forcing count
+    # is degenerate there). Both colours — NOT a White patch (the
+    # White-gap framing is CLOSED, v41/v46/v58-diagnosis). TSS at
+    # the root, 100 sims, c_puct 1.5, v1 priors, most-visited root,
+    # τ=0.05 tie-break: v52 unchanged. Versions 54-56 are ML batch
+    # 6's, 57 batch 14 H1's.
+    58: {"name": "scoring-v58", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_threat_v58", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05, "tss_root": True},
     # v59 (iteration 59, batch 14): H3 — v52 EXACTLY, with the TSS
     # running on the speed-optimised path (``tss_fast``): window-scan
     # forcing enumeration instead of the v1+v0 kernel calls, run-based

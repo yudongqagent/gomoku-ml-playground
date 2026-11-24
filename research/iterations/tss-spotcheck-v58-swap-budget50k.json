@@ -1,0 +1,47 @@
+{
+  "input": "/home/hatch/workspace/projects/gomoku-b14-h2/research/iterations/tss-mine-v58-swap.json",
+  "rule": "swap",
+  "n": 4,
+  "indices": "4,7,13,14",
+  "depth": 6,
+  "budget": 50000,
+  "found": 0,
+  "none_completed": 4,
+  "none_budget_exceeded": 0,
+  "find_rate": 0.0,
+  "find_rate_completed": 0.0,
+  "results": [
+    {
+      "game": 0,
+      "ply": 18,
+      "found": false,
+      "move": null,
+      "nodes": 18756,
+      "budget_exceeded": false
+    },
+    {
+      "game": 0,
+      "ply": 24,
+      "found": false,
+      "move": null,
+      "nodes": 47374,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 18,
+      "found": false,
+      "move": null,
+      "nodes": 10373,
+      "budget_exceeded": false
+    },
+    {
+      "game": 1,
+      "ply": 20,
+      "found": false,
+      "move": null,
+      "nodes": 20424,
+      "budget_exceeded": false
+    }
+  ]
+}
