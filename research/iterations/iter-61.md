@@ -199,3 +199,101 @@ only.
 - v8 (tests): `ml/runs/b3-h2/value-net.pt`, md5
   `5deb26f3df67883f24f04800d5356da6` (from the main worktree —
   verified).
+
+## 2. Registry entries + targeted tests
+
+- Registry entries added in `ml/gomoku_ml/scoring.py` (commit
+  `e258ebd`): `54: {"name": "scoring-v54", ...,
+  "value_checkpoint": "ml/runs/ml6-h1/value-net.pt",
+  "value_weight": 0.5}` — verbatim from
+  `research/ml-batch-6` — and `61: {"name": "scoring-v61", ...,
+  "value_checkpoint": "ml/runs/ml6-h1/value-net.pt",
+  "value_weight": 0.125}` — identical to v54's entry except the
+  `value_weight`. No new checkpoint: v61 reuses v54's file
+  verbatim (md5 `8b7cff2b0a56c4343a544579468aa9ce`, verified on
+  copy).
+- Wiring verified live: `get_player(61)` yields
+  `value_weight == 0.125` and the same checkpoint path as
+  `get_player(54)` (0.5); `ValueMCTS.__init__` has no duplicate
+  parameters (the recurring silent-merge trap — checked with
+  `inspect.signature`: `self, checkpoint_path, model, sims,
+  c_puct, rng, value_weight, device`).
+- Targeted tests added in `ml/tests/test_value_weight.py`:
+  `test_value_weight_v61_registry_passthrough` (entry carries
+  v54's checkpoint path and `value_weight` 0.125, differing
+  from v54's 0.5; a registry-built player carries 0.125),
+  `test_value_weight_v61_leaf_is_quarter_v54` (same checkpoint,
+  α 0.125 vs 0.5: the v61 quiet-leaf value is exactly a quarter
+  of the v54 leaf value — the shrink is actually applied, not
+  just stored), and `test_value_weight_v61_loads_v54_checkpoint`
+  (registry-built v61 and v54 players carry byte-identical net
+  weights from the real checkpoint file). All 8 tests in the
+  file pass. Note: the third test initially skipped — the
+  checkpoint-existence check used a CWD-relative path while
+  pytest runs from `ml/`; fixed to resolve against the repo
+  root (the registry path itself is already resolved against
+  the repo root inside `ScoringPlayer`).
+- Full suites on this branch at the start of the eval phase:
+  pytest **502 passed, 1 skipped, 58 xfailed** (1550s, log
+  `ml/runs/ml7-h2/pytest-baseline.log`); npm test **55/55**;
+  tsc clean. Clause 4 green at the start (re-run at the end
+  before reporting).
+
+## 3. Fast loops
+
+Iteration 1, dev seeds 1001/2001 (never the validation seeds),
+10 games each. Logs: `ml/runs/ml7-h2/fast-v61-v0.log`,
+`ml/runs/ml7-h2/fast-v61-v44.log`.
+
+| leg | W-L-D | win rate | 95% CI | as Black | as White | unique |
+|-----|-------|----------|--------|----------|----------|--------|
+| vs v0 | 5-5-0 | 0.5000 | [0.2366, 0.7634] | 4-1-0 (0.80) | 1-4-0 (0.20) | 10/10 |
+| vs v44 | 4-6-0 | 0.4000 | [0.1682, 0.6873] | 3-2-0 (0.60) | 1-4-0 (0.20) | 10/10 |
+
+Both legs are consistent with v61 playing at v54's level
+(v54's battery numbers: 0.665 vs v0, 0.385 vs v44) — the vs-v44
+leg matches v54's 0.385 almost exactly, and the vs-v0 leg is
+below v54's 0.665 but on 10 games with a CI spanning 0.24–0.76.
+White is the weak side in both legs (0.20), matching v54's
+played White pattern vs v44 (0.30). But 10 games cannot
+distinguish v54-level from v44-level play, and dev seeds
+flatter. No patch is sought from these loops: v61 is an
+ablation, and any change to the engine would break the
+isolation of the α effect. The loss read (§3.1) is a smoke
+check only; the 100-game battery is the verdict.
+
+### 3.1 Loss read (light)
+
+All 11 fast-loop losses classified with `classify_losses.py`
+(details `ml/runs/ml7-h2/fast-losses.json`): **11/11 via open
+four, 0 missed blocks, 0 clean missed preventions in 70
+threatened turns.** The losses are positional — letting the
+opponent build the decisive threat — not tactical blunders.
+Same pattern as v50's fast loop (6 losses, 6 via open four, 0
+missed blocks) and v44's (9 losses, 9 via open four, 0 missed
+blocks). **No new failure class appears at α=0.125.** Nothing
+patchable here, and nothing to patch: any engine change would
+break the ablation.
+
+## 4. Tactical (corrected suite, seed 100)
+
+- v44 re-verified first on the corrected suite (log
+  `ml/runs/ml7-h2/tactical-v44-reverify.log`): **20/20 old +
+  29/29 hard** — the corrected suite does not change v44's
+  tactical. (The corrected
+  `winning-quiet-setup-2` expected list, incl. (9,7), is
+  present in the run's JSON.)
+- v61 (`eval_tactical_full.py --version 61 --suite both --seed
+  100`, log `ml/runs/ml7-h2/tactical-v61.log`): **20/20 old +
+  29/29 hard**. Clause 3 passes. Expected: α only shrinks the
+  net's quiet-position value; the tactical positions are decided
+  by the exact terminal cases and the threat check, which α does
+  not touch. (v54 itself was 20/20 + 29/29 at α=0.5.)
+
+## 5. Battery
+
+All legs 100 games, validation seeds 100/200, per-game seeding.
+Aggregates below are recomputed from the raw per-game records
+with `ml/runs/ml7-h2/aggregate.py` (validated: reproduces v44's
+published numbers exactly on all five committed legs — 0.58 vs
+v0, 0.67 vs v8, 0.31 vs v37, 0.45 vs v7, 0.39 swap).
