@@ -471,7 +471,42 @@ one cell — 22 verified gains in total). Findings:
 
 ### 3.1 Diagnosis: the game-9 failed verification
 
-*(to be filled when the diagnostic completes)*
+Replayed the game-9 playout (seed 0) with move-by-move TSS
+logging (`/tmp/diag_g9.py` — diagnostic, not committed). The
+position: White to move, control (4,3000) = None, cell (5,6000)
+= (6,12) at 4459 nodes (no abort). White plays (6,12); the
+forcing sequence proceeds exactly as proved for two more White
+turns (ply 1: TSS (10,8), followed; ply 3: TSS (7,10),
+followed). Then:
+
+* **Ply 5: White's TSS goes SILENT — BUDGET ABORT (6001 nodes).**
+  The engine falls through to the MCTS, which plays (10,10).
+  The forcing thread is dropped.
+* **Ply 7: TSS silent again — BUDGET ABORT.** MCTS plays (3,4),
+  a far-away move, clearly off-thread.
+* Plies 9–23: TSS never fires again (mostly 0–1014 nodes — no
+  forcing win exists anymore; the win has slipped away). Black
+  builds up and wins at ply 24.
+
+**Conclusion: NO hole in the TSS proof — a mid-sequence budget
+abort.** The root search itself used 4459/6000 nodes, leaving
+little headroom; the follow-through re-search from the new
+position needed > 6000 nodes and aborted, twice, dropping the
+thread to the MCTS, which lost it. The (5,6000) cell's wins are
+expensive wins, and the follow-through re-pays the full search
+cost every turn. This is a real conversion tax on the mined
+gains: the 24 gains are proven wins, but only the ones whose
+follow-through searches stay inside the budget will convert in
+real games. The battery (§5) measures the net conversion rate.
+**Future-batch idea (recorded, NOT implemented here):** a
+forcing-line cache — when TSS finds a win, remember the sequence
+and play along it instead of re-searching from scratch each turn
+(the re-search is pure waste when the position is still on the
+proven line). That would convert abort-dropped wins like game 9
+without any new search. The (4,6000) game-42 failure (3/3
+draws) was not diagnosed in detail — same suspected mechanism
+(follow-through failure), and it is 1 of 4 for a cell that is
+not the winner.
 
 ### 3.2 Selection (per §1.6, as amended)
 
