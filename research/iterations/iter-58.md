@@ -1197,7 +1197,19 @@ does not materialise here).
 
 ### vs v52, 100 games, normal rules
 
-(in progress)
+**v58 82W-15L-3D** (win rate 0.8350, Wilson 95% CI [0.7501,
+0.8951]) — `research/iterations/batch-v58-vs-v52.json`
+(recompute-verified; leg survived 3 runtime restarts,
+auto-resume intact). **Clause 1 PASSES decisively** — the CI
+lower bound (0.7501) clears 0.50 by 0.25. Uniqueness 67/100
+games; de-dup 49W-15L-3D, rate 0.7537, CI [0.6387, 0.8412] —
+still a clear pass on unique games only. Per-colour: v58 as
+Black 40W-9L-1D (0.81), as White 42W-6L-2D (0.86) — the term
+helps both colours, White slightly more (consistent with the
+Check B mechanism: White's forcing-position reach rate rises).
+Defence audit: all 15 losses via open four, 0 missed blocks,
+0 clean missed preventions in 82 threatened turns — defence
+is solved.
 
 ### vs v0, 100 games, normal rules
 
