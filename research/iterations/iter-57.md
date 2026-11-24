@@ -657,7 +657,31 @@ turns in losses (0.8%).** Defence is solved across the battery.
 
 ### Ladder (40 games/opponent)
 
-*(to be filled when the ladder completes)*
+**v57 saturates the 40-game ladder, like v52 — and beats v52's
+mcts leg.** `research/iterations/ladder-v57.json` (seed 100,
+mcts_sims=100):
+
+| opponent | result | win rate | CI |
+|---|---|---|---|
+| random (anchor −800) | 40W-0L-0D | 1.0000 | [0.9124, 1.0] |
+| heuristic/v0 (anchor 0) | 40W-0L-0D | 1.0000 | [0.9124, 1.0] |
+| mcts (100 sims) | 35W-5L-0D | 0.8750 | [0.7389, 0.9454] |
+
+**Ladder Elo: unbounded (estimate None, interval [407.0,
+∞))** — identical to v52's interval, since both saturate the
+anchor leg (40-0-0). The Elo number itself cannot distinguish
+them; the pre-registered leg-result reading does: v57 matches
+v52's two perfect legs (40-0, 40-0) and **beats 31-9 on the
+mcts leg with 35-5** (Black 17W-3L, White 18W-2L; elo_diff
++338.0 vs v52's +214.8). **Clause 2 PASSES** on the leg-result
+reading. Caveat, stated explicitly: the mcts-leg intervals
+overlap heavily (v57 [0.7389, 0.9454] vs v52 [0.625, 0.8768]),
+so the 4-game margin (35 vs 31) is within noise — the pass
+rests on the pre-registered leg-result rule (point comparison of
+legs), the same rule that passed v52's own clause 2 on a
+draw-count difference. The 35-5 mcts leg ties v53's 35-5 as the
+best MCTS leg on the 40-game ladder. The ladder's own tactical
+probe: 20/20 (old suite).
 
 ### Tactical
 
@@ -671,4 +695,94 @@ before it).
 
 ## 6. Verdict
 
-*(to be filled)*
+### Clause 1 — h2h vs v52 (100 games): FAIL
+
+57W-42L-1D, win rate 0.5750, Wilson 95% CI [0.4771, 0.6673] —
+the lower bound is below 0.50 by 0.023, on both the nominal cut
+and the de-dup cut (93/100 unique, 0.5538, CI [0.4526, 0.6507]).
+The deeper TSS buys a real ~7.5-point edge over v52, but not
+enough to clear the bar at n=100. Per-colour: Black 0.76, White
+0.39 — the depth-5 search helps Black far more than White. No
+confirmatory re-run (that would be seed-shopping, in either
+direction — v44 precedent).
+
+### Clause 2 — ladder Elo > v52's (leg-result reading): PASS
+
+v57 matches v52's two perfect legs (random 40-0, heuristic 40-0)
+and beats 31-9 on the mcts leg with 35-5 (0.875, CI [0.7389,
+0.9454]). Ladder Elo unbounded (interval [407.0, ∞)), identical
+to v52's — the pass rests on the pre-registered leg-result rule.
+Caveat: the mcts-leg intervals overlap heavily, so the 4-game
+margin is within noise; the pass is on the rule as written, the
+same rule that passed v52's clause 2 on a draw-count difference.
+
+### Clause 3 — tactical >= 20/20 + 29/29: PASS
+
+v57: old 20/20, hard 29/29 (v52 re-verified first at 20/20 +
+29/29).
+
+### Clause 4 — all test suites green: PASS
+
+ml pytest: **506 passed, 1 skipped, 58 xfailed, 0 failures**
+(`research/iterations/pytest-full.log`, 11:51) — including all 11
+new sweep tests (7 design pins + 4 v57 engine tests). npm test:
+55/55. tsc: clean.
+
+### Overall: v57 REJECTED — 3 of 4 clauses pass
+
+v57 fails clause 1 and is REJECTED. No challenge match (only
+bar-passers play one). v52 keeps both the bar reference and the
+strength champion title; the daily cross-track pairing (v52 vs
+v44) is unchanged.
+
+**What v57 proves.** The sweep answered both of its questions
+(§0), and the answers point in opposite directions:
+
+1. **Deeper TSS DOES find forcing wins depth-4 misses** — 24
+   mined gains at (5,6000) vs 5 losses (net +19), 4/5 verified
+   end-to-end. The mechanism is real: forcing wins live in the
+   9–10 ply band that neither the MCTS nor depth-4 TSS sees.
+2. **But the budget binds first, and the conversion tax eats the
+   gains.** Depth 6 is net-negative at budget 3000 (−2) and
+   gated out at 6000 (4.1x cost). Depth 5 needs 6000 nodes to
+   pay at all (net +6 at 3000 vs +19 at 6000). And even the
+   wins depth-5 finds don't all convert: the game-9 diagnosis
+   (§3.1) shows a proven win lost 3/3 because the follow-through
+   re-search aborted mid-sequence, twice. The mined +19 net
+   translates to only +7.5 points of played strength (0.575) —
+   and the White side gets almost none of it (0.39).
+
+**The depth lever is now priced.** Depth 4 = v52 (bar). Depth 5
+at 6000 nodes is a real but sub-bar improvement (0.575, CI
+includes 0.50). Depth 6 loses as much as it gains at any
+affordable budget. Further depth is not the way: the binding
+constraints are the node budget (which grows the tree
+exponentially with depth) and the follow-through (each re-search
+re-pays the full cost). **What the next batch should try:**
+(a) the forcing-line cache (§3.1) — play along a proven forcing
+line instead of re-searching every turn, converting the
+abort-dropped wins like game 9 without any new search; this is
+the cheapest untested mechanism in the TSS family and directly
+targets the conversion tax v57 measured; (b) TSS speed
+optimisation (H3/v59's remit this batch — if the per-node cost
+falls, the same budgets buy deeper searches, and the depth-5
+cell's 2.5x cost becomes deployable); (c) if the cache works,
+re-test depth 6 with the cache + 6000 nodes — the cache removes
+the follow-through aborts that made depth 6 net-negative, though
+the root-search aborts (17.5–28%) remain. Do NOT retry deeper
+TSS without one of these: the sweep shows depth alone, at any
+affordable budget, does not clear the bar.
+
+**Standing findings added by this iteration.** (1) The mining
+control reproduces iter-52's Check B EXACTLY (2481 turns, 288
+fires, 167 confirms, 121 differs) — the differential-mining
+harness is validated. (2) The superset invariant held perfectly
+(0 losses without abort across 2481 turns × 5 cells): in the
+unbounded case deeper TSS is a strict superset of shallower —
+every loss is purely a budget phenomenon. (3) The selection-rule
+amendment (§1.6): a verification cap must never enter selection
+arithmetic — compare complete counts, use verification as a
+gate. (4) The (5,6000) cell's creator-rich mean cost (2.5x v52)
+and the depth-6 abort rates (17.5% at 6000 nodes in mining,
+matching H2's independent measurement) are now measured
+quantities for the speed work.
