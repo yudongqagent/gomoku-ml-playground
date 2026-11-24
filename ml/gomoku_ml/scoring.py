@@ -576,6 +576,22 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout3ply_v53", "tie_break_q": True,
          "tie_break_q_threshold": 0.05},
+    # v59 (iteration 59, batch 14): H3 — v52 EXACTLY, with the TSS
+    # running on the speed-optimised path (``tss_fast``): window-scan
+    # forcing enumeration instead of the v1+v0 kernel calls, run-based
+    # winning-move tests, and no provably-redundant entry scan in
+    # _tss_win. Same search, same moves, same node counts — a pure
+    # speed version (verified move-choice-identical to v52 by A/B,
+    # 0 mismatches; see research/iterations/iter-59.md). It cannot
+    # pass the bar on strength (clauses 1-2 need a beat, not a tie);
+    # the deliverable is the speed gain at equal strength, for
+    # deployment to the page. (v57/v58 are the batch-14 H1/H2
+    # versions on their own branches.)
+    59: {"name": "scoring-v59", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05, "tss_root": True,
+         "tss_fast": True},
 }
 
 # --- weights --------------------------------------------------------------
@@ -1203,6 +1219,7 @@ class ScoringPlayer:
                     ),
                     vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
                     tss_root=ENGINE_VERSIONS[version].get("tss_root", False),
+                    tss_fast=ENGINE_VERSIONS[version].get("tss_fast", False),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(
