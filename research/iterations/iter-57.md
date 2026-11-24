@@ -237,6 +237,43 @@ construction.
 5. The fast loop and the full battery run on the sweep winner
    ONLY (a 100-game battery per cell would be ~30+ hours of CPU).
 
+**AMENDMENT (2026-11-23, made BEFORE the verification phase ran —
+the mining was at 46/50 games when the defect below was recognised
+from the interim counts; the verification playouts had not started
+and no verified-gain count existed yet).** The net formula as
+written compares a CAPPED count against an UNCAPPED count:
+`# verified gains` counts only the first 5 gains per cell
+(`MAX_VERIFY = 5` in the mining script — a runtime bound on the
+playout verification), while `# losses` counts every loss in all
+50 games. That asymmetry is a defect, identifiable from the rule
+text alone: it systematically punishes cells for finding many
+wins (only 5 can ever count) while counting all their losses, so
+a cell with 22 gains and 5 losses (raw net +17) would score net
+<= 0 and be declared ineligible, while a cell with 4 gains and 0
+losses (raw net +4) would win — the rule would pick the cell
+with LESS mechanism evidence. That defeats the rule's own
+purpose, and the pre-registration itself states the correcting
+principle (§1.5): "Each gain is a PROVEN forcing win by the TSS
+itself (the search is exact over defender replies)" — the
+playouts are a spot-check that the follow-through works, not the
+sole evidence for a gain. The amended rule, applied uniformly to
+all cells:
+
+* `net = (total gains) − (total losses)` — both complete counts
+  from the mining (gains are TSS-proven wins, losses are
+  TSS-proven missed wins).
+* Eligibility: >= 1 playout-verified gain among the first 5
+  checked (the soundness gate — the mechanism's follow-through
+  works in real play) AND net > 0.
+* Winner: highest net; tie-break lowest creator-rich mean time;
+  cost gate ≤3x; fallback (4, 6000) — all unchanged.
+* The LITERAL-rule result (net with capped verified gains) is
+  ALSO reported in §3 as a sensitivity analysis, so the
+  coordinator can see both readings and adjudicate. If the two
+  readings disagree on the winner, the report says so
+  explicitly and the amended-rule winner is the version run
+  through the battery, with the disagreement flagged.
+
 New tests (`ml/tests/test_tss_sweep.py`): the sweep cells use the
 same enumeration as v52 (differential: `tss_forcing_moves`
 identical — it takes no depth/budget); depth-5 ⊇ depth-4 on the

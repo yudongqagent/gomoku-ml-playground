@@ -281,6 +281,16 @@ def main() -> int:
                   f"{g['cell_move']} vs v27 {g['v27_move']}): playouts "
                   f"{outcomes} verified={g['verified']}", file=sys.stderr)
         n_verified = sum(1 for g in verified if g["verified"])
+        # Amended selection rule (iter-57 §1.6 amendment): net uses
+        # TOTAL gains (each a TSS-proven forcing win) minus total
+        # losses; the playout verification is a soundness gate (>= 1
+        # verified gain among the first MAX_VERIFY checked), not a
+        # count. The literal-rule net (verified gains, capped at
+        # MAX_VERIFY, minus all losses) is reported alongside as a
+        # sensitivity analysis — see the amendment for why the
+        # capped count must not enter the arithmetic.
+        net = len(st["gains"]) - st["losses"]
+        net_literal = n_verified - st["losses"]
         summary_cells[key] = {
             "depth": depth,
             "node_budget": budget,
@@ -291,8 +301,10 @@ def main() -> int:
             "aborts": st["aborts"],
             "verified_gains": n_verified,
             "verified_gains_checked": len(verified),
-            "net": n_verified - st["losses"],
-            "eligible": n_verified >= 1 and (n_verified - st["losses"]) > 0,
+            "net": net,
+            "net_literal_rule": net_literal,
+            "eligible": n_verified >= 1 and net > 0,
+            "eligible_literal_rule": n_verified >= 1 and net_literal > 0,
         }
 
     n_verified_total = sum(
