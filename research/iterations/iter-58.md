@@ -1259,4 +1259,31 @@ Loss workup (`ml/scripts/workup_v58_v0_losses.py`,
 
 ### Ladder (40 games/opponent)
 
+**v58: random 40W-0L-0D, heuristic 40W-0L-0D, mcts 27W-13L-0D**
+(0.6750, CI [0.5202, 0.7992]) — `research/iterations/ladder-v58.json`
+(leg survived 1 runtime restart; resumed from the mcts leg).
+Ladder Elo estimate None, interval [407.0, None] — IDENTICAL to
+v52's saturated interval ([407.0, ∞)); the Elo does not
+distinguish them.
+- Random and heuristic legs match v52's 40-0 exactly (the v0
+  tail risk from the battery did NOT materialise in the
+  ladder's fixed 40-game heuristic leg).
+- **MCTS leg 27-13 vs v52's 31-9 — v58 is WORSE.** The gap is
+  entirely on the White side: v52-as-White 13W-7L vs
+  v58-as-White **8W-12L** (a losing record); Black is
+  essentially identical (v52 18W-2L, v58 19W-1L).
+- **Clause 2 FAILS** under the pre-registered leg-result
+  reading (match the two perfect legs AND beat 31-9 on the
+  mcts leg). The term helps White enormously against v52
+  (42-6-2 in the battery) but HURTS White against the ladder
+  mcts (8-12) — a striking opponent-shape dependence. Working
+  hypothesis (unverified): against v52 both sides race to
+  forcing positions and the term helps White win the race;
+  against the ladder mcts — a quiet positional player with no
+  TSS — v58-White's threat-steering overextends into
+  positions the gradient leaf plays well. The ladder and
+  head-to-head strength have now openly diverged on the
+  heuristic track too (the ML track showed this in ML batch 6:
+  v54 had the best ML Elo and the worst h2h vs v44).
+
 ## 16. Verdict (re-scope)
