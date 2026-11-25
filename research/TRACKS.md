@@ -327,7 +327,30 @@ the heuristic. The work continues autonomously; he runs nothing.
   to the MCTS leg, and the rule is prospective (no past
   verdict changes). ML batch 7 is next: a White fix that
   survives 3-ply labelling, v54's net at α=0.125, centering
-  correction.
+  correction. **PVS v63 complete 2026-11-25: REJECTED 2/4; v52
+  keeps both titles.** The new direction (Yudong 2026-11-24:
+  pause the iterations, research the best heuristic algorithm,
+  implement it, benchmark it) produced a real engine — layered
+  PVS alpha-beta (TSS at the root, 11000-node budget, depth 6,
+  bitboard leaf eval with a superlinear four-creator bonus) —
+  that is tactical-perfect (20/20 + 29/29) and beats v52 under
+  swap 0.625 (CI lower 0.5271, de-dup 0.6818), but fails the
+  pre-registered normal-rules bar: h2h vs v52 0.53 (CI lower
+  0.4329; de-dup also fails) and ladder legs 40-0/37-3/26-14
+  (Elo 436.4) do not dominate v52's 40-0/40-0/31-9. The
+  swap/normal divergence is the mirror image of v58 — the
+  ladder and head-to-head have now openly diverged on the
+  heuristic track three times (v57, v58, v63), still undecided
+  as a measurement question. White is the weak side on every
+  leg (ladder mcts White 8-12, swap White 21-26, the only
+  vs-v0 losses are one White line replayed 4x). The tactical
+  gate found four real bugs before the battery (eval blind to
+  four-creators; forced-block windows un-negated; quiescence
+  exploding the tree; root forcing moves defaulting to score 0
+  and being pruned as depth-1 replies) — all fixed with
+  regression tests. The PVS architecture is not a bar-passer
+  at this node budget in Python; the report's 35 ms target
+  needs compiled code and depth 8-12.
 - **Dataset-dedup finding (ML batch 1):** the "10k dataset" is
   3,244 unique games, not 7,099 — and v8's "4,350" was 1,449
   unique. The B1 parallel generator seeds worker *w* with
