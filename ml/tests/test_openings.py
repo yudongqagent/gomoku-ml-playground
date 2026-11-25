@@ -17,7 +17,7 @@ import sys
 
 import pytest
 
-from gomoku_ml import game
+from gomoku_ml import game, research, scoring
 
 REPO_ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 SCRIPTS_DIR = os.path.join(REPO_ROOT, "ml", "scripts")
@@ -26,6 +26,8 @@ sys.path.insert(0, SCRIPTS_DIR)
 import selfplay_batch  # noqa: E402
 
 OPENINGS_FILE = os.path.join(REPO_ROOT, "research", "openings-ml4.json")
+BALANCED_FILE = os.path.join(REPO_ROOT, "research", "openings-balanced.json")
+SWAP_FILE = os.path.join(REPO_ROOT, "research", "openings-swap.json")
 
 
 def _write_openings(tmp_path, openings):
@@ -151,3 +153,122 @@ def test_openings_rejected_with_swap_rule(tmp_path):
     with pytest.raises(ValueError, match="cannot be combined"):
         selfplay_batch.run_batch(_batch_args(
             out, openings=OPENINGS_FILE, games=1, swap_rule=True))
+
+
+# --- Evaluation audit (2026-11-25): balanced + swap openings sets ---
+
+def test_shipped_balanced_openings_file_is_valid():
+    """The balanced set (default for normal-rules legs): 24 four-move
+    openings, all distinct, all with attack gap 0 (best Black attack
+    == best White attack), no opening ends the game, none holds an
+    open four. The empty-board start let deterministic heuristic
+    engines replay the same lines (v63 clause-1: 31 unique games in
+    100), so the nominal CI overstated the precision."""
+    openings, digest = selfplay_batch.load_openings(BALANCED_FILE)
+    assert len(openings) == 24
+    assert len(digest) == 64  # sha256 hex
+    assert len({tuple(o) for o in openings}) == 24
+    scorer = scoring.score_attack
+    for opening in openings:
+        assert len(opening) == 4
+        assert len(set(opening)) == 4
+        board, to_move = selfplay_batch.apply_opening(opening)
+        assert to_move == game.BLACK  # even length -> Black to move
+        over, _ = game.game_over(board)
+        assert not over
+        assert int((board == game.BLACK).sum()) == 2
+        assert int((board == game.WHITE).sum()) == 2
+        gap, bb, bw = research.opening_gap(board, scorer)
+        assert gap == 0
+        assert bb == bw
+        assert bb < 10000 and bw < 10000  # no open four
+
+
+def test_shipped_swap_openings_file_is_valid():
+    """The curated swap set (default for swap-rule legs): 24
+    three-stone openings, all distinct, 2 black + 1 white stones,
+    12 with tempo margin 0 (judge ties -> White) and 12 with tempo
+    margin 78 (judge picks Black), so the judge's pick is 12 Black /
+    12 White over the set — versus ~88% Black for the uncurated
+    placement. The recorded margins/picks are spot-checked against
+    the exact judge on one opening of each margin (the full exact
+    check is slow: _setup_value is seconds per opening)."""
+    openings, digest = selfplay_batch.load_openings(SWAP_FILE)
+    assert len(openings) == 24
+    assert len(digest) == 64
+    assert len({tuple(o) for o in openings}) == 24
+    doc = json.loads(open(SWAP_FILE, encoding="utf-8").read())
+    details = doc["details"]
+    assert len(details) == 24
+    margins = [d["tempo_margin"] for d in details]
+    picks = [d["judge_pick"] for d in details]
+    assert margins.count(0) == 12
+    assert margins.count(78) == 12
+    assert picks.count("black") == 12
+    assert picks.count("white") == 12
+    scorer = scoring.score_attack
+    for opening in openings:
+        assert len(opening) == 3
+        assert len(set(opening)) == 3
+        board, to_move = selfplay_batch.apply_opening(opening)
+        assert to_move == game.WHITE  # odd length -> White to move
+        over, _ = game.game_over(board)
+        assert not over
+        assert int((board == game.BLACK).sum()) == 2
+        assert int((board == game.WHITE).sum()) == 1
+    # Spot-check the recorded margin/pick against the exact judge.
+    for want_margin, want_pick in ((0, "white"), (78, "black")):
+        d = next(x for x in details if x["tempo_margin"] == want_margin)
+        opening = [game.xy_to_move(x, y) for x, y in d["moves_xy"]]
+        board, _ = selfplay_batch.apply_opening(opening)
+        vb = game._setup_value(board, scorer, game.BLACK)
+        vw = game._setup_value(board, scorer, game.WHITE)
+        assert vb - vw == want_margin
+        pick = game.choose_swap_color(board, scorer, judge="tempo")
+        assert ("black" if pick == game.BLACK else "white") == want_pick
+
+
+def _batch_args_default(out, games=2, swap_rule=False):
+    """Batch args with NO openings specified: the eval-audit defaults
+    (balanced set / curated swap set) must be used."""
+    return argparse.Namespace(
+        engine_a="v0", engine_b="v0", games=games,
+        swap_rule=swap_rule, placement="balanced", placement_seed=0,
+        judge="tempo", seed_a=100, seed_b=200,
+        openings=None, out=out)
+
+
+def test_default_openings_used_when_none_given(tmp_path):
+    """A normal-rules batch with no --openings uses the balanced set
+    (24 openings) and records its hash; the uniqueness gate is
+    present in the summary."""
+    out = str(tmp_path / "batch.json")
+    result = selfplay_batch.run_batch(
+        _batch_args_default(out, games=2, swap_rule=False))
+    assert result["complete"] is True
+    assert result["openings_count"] == 24
+    assert result["openings_hash"] is not None
+    assert result["uniqueness_gate"]["total_games"] == 2
+    openings, _ = selfplay_batch.load_openings(BALANCED_FILE)
+    assert result["records"][0]["opening"] == openings[0]
+    assert result["records"][1]["opening"] == openings[1]
+
+
+def test_default_swap_openings_used_and_picks_balanced(tmp_path):
+    """A swap-rule batch with no --swap-openings uses the curated set
+    (24 openings) and records the pick distribution and colours. The
+    set interleaves margin-0/margin-78, so the first 4 games pick
+    White, Black, White, Black — 2/2, not the ~88% Black of the
+    uncurated placement."""
+    out = str(tmp_path / "batch.json")
+    result = selfplay_batch.run_batch(
+        _batch_args_default(out, games=4, swap_rule=True))
+    assert result["complete"] is True
+    assert result["swap_openings_count"] == 24
+    assert result["swap_openings_hash"] is not None
+    assert result["swap_picks"] == {"black": 2, "white": 2}
+    assert result["a_colours"] == {"black": 2, "white": 2}
+    openings, _ = selfplay_batch.load_openings(SWAP_FILE)
+    for i, rec in enumerate(result["records"]):
+        assert rec["opening"] == openings[i]
+        assert rec["moves"][:3] == openings[i]

@@ -50,3 +50,20 @@ def config_path(name: str) -> str:
     if os.path.exists(candidate):
         return candidate
     raise FileNotFoundError(f"config not found: {name}")
+
+
+def default_openings_path() -> str:
+    """Absolute path of the balanced openings set for normal-rules
+    matches (evaluation audit, 2026-11-25): 24 four-move openings,
+    each with attack gap 0, rotated across games. See
+    ``research/openings-balanced.json`` and
+    ``ml/scripts/generate_balanced_openings.py``."""
+    return os.path.join(REPO_ROOT, "research", "openings-balanced.json")
+
+
+def default_swap_openings_path() -> str:
+    """Absolute path of the curated swap openings set (evaluation
+    audit, 2026-11-25): 24 three-stone openings, half tempo-margin-0
+    and half tempo-margin-78, so the colour judge's pick is a real
+    50/50 choice. See ``research/openings-swap.json``."""
+    return os.path.join(REPO_ROOT, "research", "openings-swap.json")

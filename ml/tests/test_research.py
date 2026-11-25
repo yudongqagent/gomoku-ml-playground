@@ -60,6 +60,62 @@ def test_play_match_swap_rule_deterministic():
     assert run() == run()
 
 
+def test_play_match_records_openings_and_swap_picks():
+    """Evaluation audit: play_match records per-game openings, full
+    move lists, the swap pick distribution and the colours each
+    engine played — the fields the audit found missing (ladder legs
+    stored only summary stats, so their variety was unverifiable)."""
+    a = scoring.ScoringPlayer(seed=15)
+    b = baseline.HeuristicPlayer(seed=16)
+    openings = [[game.xy_to_move(7, 7), game.xy_to_move(8, 8),
+                 game.xy_to_move(7, 8), game.xy_to_move(8, 7)],
+                [game.xy_to_move(7, 7), game.xy_to_move(6, 6),
+                 game.xy_to_move(7, 6), game.xy_to_move(6, 7)]]
+    r = research.play_match(a.choose_move, b.choose_move, games=4,
+                            openings=openings, record_games=True)
+    assert "records" in r
+    assert len(r["records"]) == 4
+    for i, rec in enumerate(r["records"]):
+        assert rec["opening"] == openings[i % 2]
+        assert rec["moves"][:4] == openings[i % 2]
+        assert rec["a_colour"] in ("black", "white")
+        assert rec["winner"] in ("black", "white", "draw")
+    # Swap legs record the fixed openings and the pick distribution.
+    swap_openings = [[game.xy_to_move(7, 7), game.xy_to_move(6, 6),
+                      game.xy_to_move(4, 4)],
+                     [game.xy_to_move(7, 7), game.xy_to_move(6, 7),
+                      game.xy_to_move(4, 5)]]
+    r = research.play_match(a.choose_move, b.choose_move, games=2,
+                            swap_rule=True, swap_openings=swap_openings,
+                            record_games=True)
+    assert "records" in r
+    assert len(r["records"]) == 2
+    for i, rec in enumerate(r["records"]):
+        assert rec["opening"] == swap_openings[i]
+        assert rec["moves"][:3] == swap_openings[i]
+        assert rec["second_colour"] in ("black", "white")
+        assert rec["a_colour"] in ("black", "white")
+    assert r["swap_choices"]["black"] + r["swap_choices"]["white"] == 2
+
+
+def test_ladder_leg_records_games():
+    """Evaluation audit: ladder legs now record their per-game move
+    lists (record_games=True by default), so the uniqueness gate can
+    be computed per leg — previously only summary stats were stored
+    and leg variety was unverifiable."""
+    a = scoring.ScoringPlayer(seed=17)
+    r = research.ladder_leg_for_player(
+        a.choose_move, "random", games_per_opponent=2, seed=18)
+    assert "records" in r
+    assert len(r["records"]) == 2
+    for rec in r["records"]:
+        assert rec["moves"]
+        assert rec["opening"] is not None
+        assert rec["a_colour"] in ("black", "white")
+    gate = evaluate.uniqueness_gate(r["records"])
+    assert gate["total_games"] == 2
+
+
 def test_place_swap_opening_uses_chooser():
     # The opener's chooser places all 3 stones: first move is the
     # centre for both engines on an empty board.

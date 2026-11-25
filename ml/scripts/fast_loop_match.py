@@ -59,7 +59,8 @@ def resolve_opponent(name: str, seed: int):
 
 
 def _write_result(args, name_a, name_b, games, wins, losses, draws,
-                  t0, complete, resumed=False, resumed_from_game=None):
+                  t0, complete, resumed=False, resumed_from_game=None,
+                  openings_hash=None, openings_count=None):
     """Atomically write the current batch state to ``args.out``.
 
     Same shape as ``selfplay_batch.py`` output, plus ``games_played``
@@ -77,6 +78,9 @@ def _write_result(args, name_a, name_b, games, wins, losses, draws,
         "placement": None,
         "placement_seed": None,
         "judge": None,
+        "openings": getattr(args, "openings", None),
+        "openings_hash": openings_hash,
+        "openings_count": openings_count,
         "seed_a": args.seed_a,
         "seed_b": args.seed_b,
         "seeding": "per-game",
@@ -86,6 +90,7 @@ def _write_result(args, name_a, name_b, games, wins, losses, draws,
         "win_rate": round(evaluate.win_rate(wins, losses, draws), 4),
         "win_rate_ci_95": [round(lo, 4), round(hi, 4)],
         "uniqueness": evaluate.uniqueness_audit(games),
+        "uniqueness_gate": evaluate.uniqueness_gate(games),
         "elapsed_seconds": round(time.time() - t0, 1),
         "resumed": resumed,
         "resumed_from_game": resumed_from_game,
@@ -108,6 +113,12 @@ def main() -> int:
     parser.add_argument("--games", type=int, default=10)
     parser.add_argument("--seed-a", type=int, default=1001)
     parser.add_argument("--seed-b", type=int, default=2001)
+    parser.add_argument("--openings", default=None,
+                        help="JSON file of fixed opening positions "
+                        "(default: research/openings-balanced.json)")
+    parser.add_argument("--no-openings", action="store_true",
+                        help="start games from the empty board instead "
+                        "of the balanced openings set")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
@@ -116,6 +127,16 @@ def main() -> int:
     player_b, choose_b, name_b = resolve_opponent(args.opponent, args.seed_b)
     print(f"== fast loop: {player_a.name} vs {name_b}, {args.games} games "
           f"(seeds {args.seed_a}/{args.seed_b}) ==", file=sys.stderr)
+    # Opening variety (evaluation audit default): rotate through the
+    # balanced openings set instead of starting every game from the
+    # empty board (deterministic engines replay the same lines).
+    from selfplay_batch import (apply_opening, load_openings,  # noqa: E402
+                                )
+    openings = None
+    openings_hash = None
+    if not args.no_openings:
+        openings_path = args.openings or common.default_openings_path()
+        openings, openings_hash = load_openings(openings_path)
     games: list[dict] = []
     wins = losses = draws = 0
     start_game = 0
@@ -133,14 +154,22 @@ def main() -> int:
         # uninterrupted run exactly (see selfplay_batch.py). The
         # restart is recorded in the JSON (resumed_from_game) and
         # the iteration log.
-        games = prev["records"]
-        wins, losses, draws = prev["wins"], prev["losses"], prev["draws"]
-        start_game = len(games)
-        resumed = True
-        print(f"== resuming from game {start_game} "
-              f"({wins}W-{losses}L-{draws}D so far; per-game seeding "
-              f"reproduces the uninterrupted run) ==",
-              file=sys.stderr)
+        if prev.get("openings_hash") != openings_hash:
+            print(f"== prior {args.out} used different openings — "
+                  f"starting fresh ==", file=sys.stderr)
+            games = []
+            wins = losses = draws = 0
+            start_game = 0
+            resumed = False
+        else:
+            games = prev["records"]
+            wins, losses, draws = prev["wins"], prev["losses"], prev["draws"]
+            start_game = len(games)
+            resumed = True
+            print(f"== resuming from game {start_game} "
+                  f"({wins}W-{losses}L-{draws}D so far; per-game seeding "
+                  f"reproduces the uninterrupted run) ==",
+                  file=sys.stderr)
     t0 = time.time()
     for i in range(start_game, args.games):
         # Per-game seeding: each game is determined by its index
@@ -149,17 +178,25 @@ def main() -> int:
         reseed_player(player_b, args.seed_b + i)
         a_is_black = (i % 2 == 0)
         a_colour = game.BLACK if a_is_black else game.WHITE
+        if openings:
+            board, turn = apply_opening(openings[i % len(openings)])
+            rec_opening = openings[i % len(openings)]
+        else:
+            board = game.empty_board()
+            turn = game.BLACK
+            rec_opening = []
         if a_is_black:
             winner, moves = play_recorded_game(
-                choose_a, choose_b, game.empty_board(), game.BLACK
+                choose_a, choose_b, board, turn
             )
         else:
             winner, moves = play_recorded_game(
-                choose_b, choose_a, game.empty_board(), game.BLACK
+                choose_b, choose_a, board, turn
             )
         rec = {
             "game": i,
-            "moves": moves,
+            "opening": rec_opening,
+            "moves": list(rec_opening) + moves,
             "a_colour": "black" if a_colour == game.BLACK else "white",
             "winner": (
                 "black" if winner == game.BLACK
@@ -168,7 +205,7 @@ def main() -> int:
             "winner_is_a": (
                 (winner == a_colour) if winner != game.EMPTY else None
             ),
-            "plies": len(moves),
+            "plies": len(rec_opening) + len(moves),
         }
         if winner == game.EMPTY:
             draws += 1
@@ -185,12 +222,19 @@ def main() -> int:
         _write_result(args, player_a.name, name_b, games, wins, losses,
                       draws, t0, complete=(i + 1 == args.games),
                       resumed=resumed,
-                      resumed_from_game=start_game if resumed else None)
+                      resumed_from_game=start_game if resumed else None,
+                      openings_hash=openings_hash,
+                      openings_count=len(openings) if openings else None)
     lo, hi = evaluate.wilson_ci(wins, losses, draws)
     print(f"  {player_a.name}: {wins}W-{losses}L-{draws}D (win rate "
           f"{evaluate.win_rate(wins, losses, draws):.4f}, "
           f"95% CI [{lo:.4f}, {hi:.4f}]) in "
           f"{round(time.time() - t0, 1)}s", file=sys.stderr)
+    gate = evaluate.uniqueness_gate(games)
+    print(f"  uniqueness: {gate['unique_games']}/{gate['total_games']} "
+          f"distinct games (gate: "
+          f"{'PASS' if gate['pass'] else 'FAIL — ' + gate['note']})",
+          file=sys.stderr)
     print(f"  records written to {args.out}", file=sys.stderr)
     return 0
 

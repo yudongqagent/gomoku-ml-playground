@@ -22,7 +22,7 @@ import sys
 
 import numpy as np
 
-from gomoku_ml import baseline, evaluate, game, scoring
+from gomoku_ml import baseline, evaluate, game, research, scoring
 
 REPO_ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 SCRIPTS_DIR = os.path.join(REPO_ROOT, "ml", "scripts")
@@ -92,6 +92,34 @@ def test_uniqueness_audit():
     )
 
 
+def test_uniqueness_gate_passes_at_threshold():
+    """Evaluation audit gate: 60% distinct games passes, below fails.
+
+    The threshold is 0.6 (see UNIQUENESS_GATE_THRESHOLD): below 60%
+    distinct the effective sample size is <60% of nominal, so the CI
+    width is understated by more than sqrt(1/0.6) ~= 1.29x — at v63's
+    31% it was understated 1.7x.
+    """
+    # Exactly 60% distinct (3/5) passes; 40% (2/5) fails.
+    passing = [{"moves": [1]}, {"moves": [2]}, {"moves": [3]},
+               {"moves": [1]}, {"moves": [2]}]
+    gate = evaluate.uniqueness_gate(passing)
+    assert gate["unique_games"] == 3
+    assert gate["total_games"] == 5
+    assert gate["required_unique"] == 3
+    assert gate["pass"] is True
+    failing = [{"moves": [1]}, {"moves": [2]},
+               {"moves": [1]}, {"moves": [2]}, {"moves": [1]}]
+    gate = evaluate.uniqueness_gate(failing)
+    assert gate["unique_games"] == 2
+    assert gate["pass"] is False
+    assert "INVALID" in gate["note"]
+    # Empty record list is not a pass (nothing was measured).
+    assert evaluate.uniqueness_gate([])["pass"] is False
+    # A custom threshold is honoured.
+    assert evaluate.uniqueness_gate(passing, threshold=0.8)["pass"] is False
+
+
 def _args(**over):
     kw = dict(
         engine_a="v1",
@@ -113,7 +141,13 @@ def _play_prefix(args, n_games):
     """Play the first ``n_games`` of a batch in-process, using the
     driver's own functions, and return the flushed-partial summary
     dict (complete=False) — exactly what the driver writes after
-    game ``n_games``."""
+    game ``n_games``.
+
+    Mirrors the driver's defaults (evaluation audit): normal-rules
+    games start from the balanced openings set and swap games from
+    the curated swap openings set — the partial's openings hashes
+    must match the CLI's, or the resume check rejects it.
+    """
     import time
 
     player_a, choose_a, name_a = selfplay_batch.resolve_engine(
@@ -122,6 +156,16 @@ def _play_prefix(args, n_games):
     player_b, choose_b, name_b = selfplay_batch.resolve_engine(
         args.engine_b, args.seed_b
     )
+    openings = None
+    openings_hash = None
+    swap_openings = None
+    swap_openings_hash = None
+    if args.swap_rule:
+        swap_openings, swap_openings_hash = selfplay_batch.load_openings(
+            selfplay_batch.common.default_swap_openings_path())
+    else:
+        openings, openings_hash = selfplay_batch.load_openings(
+            selfplay_batch.common.default_openings_path())
     games: list[dict] = []
     wins = losses = draws = 0
     t0 = time.time()
@@ -130,16 +174,12 @@ def _play_prefix(args, n_games):
         selfplay_batch.reseed_player(player_b, args.seed_b + i)
         rec: dict = {"game": i}
         if args.swap_rule:
-            placement_rng = selfplay_batch.np_random(args.placement_seed + i)
-            from gomoku_ml import research
-
             a_opens = (i % 2 == 0)
             opener, second = (
                 (choose_a, choose_b) if a_opens else (choose_b, choose_a)
             )
-            board, opening = research.place_swap_opening(
-                opener, args.placement, scoring.score_attack, placement_rng
-            )
+            opening = swap_openings[i % len(swap_openings)]
+            board, _ = selfplay_batch.apply_opening(opening)
             gap, bb, bw = research.opening_gap(
                 board, scoring.score_attack
             )
@@ -173,21 +213,21 @@ def _play_prefix(args, n_games):
         else:
             a_is_black = (i % 2 == 0)
             a_colour = game.BLACK if a_is_black else game.WHITE
+            opening = openings[i % len(openings)]
+            board, turn = selfplay_batch.apply_opening(opening)
             if a_is_black:
                 winner, moves = selfplay_batch.play_recorded_game(
-                    choose_a, choose_b, game.empty_board(), game.BLACK
+                    choose_a, choose_b, board, turn
                 )
             else:
                 winner, moves = selfplay_batch.play_recorded_game(
-                    choose_b, choose_a, game.empty_board(), game.BLACK
+                    choose_b, choose_a, board, turn
                 )
-            # Mirror the driver's record shape (ML batch 4 tooling
-            # added "opening" to every non-swap record, [] when no
-            # --openings file is given): without it the resumed
-            # records differ from the reference by the missing key
-            # even when the move lists are identical.
-            rec["opening"] = []
-            rec["moves"] = moves
+            # Mirror the driver's record shape: every non-swap
+            # record carries its opening (the balanced set, by
+            # default) and the full move list (opening first).
+            rec["opening"] = [int(m) for m in opening]
+            rec["moves"] = [int(m) for m in opening] + moves
         rec["a_colour"] = "black" if a_colour == game.BLACK else "white"
         rec["winner"] = (
             "black" if winner == game.BLACK
@@ -205,7 +245,12 @@ def _play_prefix(args, n_games):
             losses += 1
         games.append(rec)
     return selfplay_batch._summary(
-        args, name_a, name_b, games, wins, losses, draws, t0, complete=False
+        args, name_a, name_b, games, wins, losses, draws, t0, complete=False,
+        openings_hash=openings_hash,
+        openings_count=len(openings) if openings else None,
+        swap_openings_hash=swap_openings_hash,
+        swap_openings_count=(len(swap_openings)
+                             if swap_openings else None),
     )
 
 

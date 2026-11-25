@@ -50,6 +50,27 @@ The summary records the file's SHA-256 and the auto-resume check
 refuses to resume a prior run that used different openings.
 ``--openings`` is rejected with ``--swap-rule`` (swap games already
 vary their openings via placement).
+
+Openings default (evaluation audit, 2026-11-25): normal-rules legs
+now use ``research/openings-balanced.json`` (24 four-move openings,
+attack gap 0) unless ``--openings`` names another file or
+``--no-openings`` requests the empty board. The empty-board start
+let deterministic heuristic engines replay the same lines (v63
+clause-1: 31 unique games in 100; vs-v0 legs: 11-22 unique), so
+the nominal CI overstated the precision. Swap legs now use
+``research/openings-swap.json`` (24 three-stone openings, half
+tempo-margin-0 and half tempo-margin-78) unless
+``--swap-openings`` names another file or ``--no-swap-openings``
+requests the per-game placement generator. The uncurated placement
+produces openings whose attack gap is always +77/+78 in Black's
+favour, so the tempo judge picked Black ~88% of the time and the
+swap choice was nearly deterministic; the curated set makes the
+pick a real 50/50 choice. The summary records the swap pick
+distribution (``swap_picks``) and the colours each engine played
+(``a_colours``), plus a uniqueness quality gate
+(``uniqueness_gate``): a battery below 60% distinct games is
+flagged INVALID and must be re-run with more varied openings or
+seeds.
 """
 
 from __future__ import annotations
@@ -201,8 +222,28 @@ def _write_result(path: str, result: dict) -> None:
 
 def _summary(args, name_a, name_b, games, wins, losses, draws, t0,
              complete, resumed=False, resumed_from_game=None,
-             openings_hash=None, openings_count=None):
+             openings_hash=None, openings_count=None,
+             swap_openings_hash=None, swap_openings_count=None):
     lo, hi = evaluate.wilson_ci(wins, losses, draws)
+    swap_picks = None
+    a_colours = None
+    if args.swap_rule:
+        # Swap fairness audit: how often the judge picked each colour
+        # and how often engine A ended up playing each colour. The
+        # curated openings set should give a ~50/50 pick; the
+        # uncurated placement gave ~88% Black.
+        swap_picks = {
+            "black": sum(1 for g in games
+                         if g.get("second_colour") == "black"),
+            "white": sum(1 for g in games
+                         if g.get("second_colour") == "white"),
+        }
+        a_colours = {
+            "black": sum(1 for g in games
+                         if g.get("a_colour") == "black"),
+            "white": sum(1 for g in games
+                         if g.get("a_colour") == "white"),
+        }
     return {
         "engine_a": name_a,
         "engine_b": name_b,
@@ -218,6 +259,11 @@ def _summary(args, name_a, name_b, games, wins, losses, draws, t0,
         "openings": getattr(args, "openings", None),
         "openings_hash": openings_hash,
         "openings_count": openings_count,
+        "swap_openings": getattr(args, "swap_openings", None),
+        "swap_openings_hash": swap_openings_hash,
+        "swap_openings_count": swap_openings_count,
+        "swap_picks": swap_picks,
+        "a_colours": a_colours,
         "seed_a": args.seed_a,
         "seed_b": args.seed_b,
         "seeding": "per-game",
@@ -227,6 +273,7 @@ def _summary(args, name_a, name_b, games, wins, losses, draws, t0,
         "win_rate": round(evaluate.win_rate(wins, losses, draws), 4),
         "win_rate_ci_95": [round(lo, 4), round(hi, 4)],
         "uniqueness": evaluate.uniqueness_audit(games),
+        "uniqueness_gate": evaluate.uniqueness_gate(games),
         "elapsed_seconds": round(time.time() - t0, 1),
         "records": games,
     }
@@ -236,15 +283,30 @@ def run_batch(args) -> dict:
     player_a, choose_a, name_a = resolve_engine(args.engine_a, args.seed_a)
     player_b, choose_b, name_b = resolve_engine(args.engine_b, args.seed_b)
     scorer = scoring.score_attack
-    # Opening variety (ML batch 4 tooling): fixed opening positions
-    # for normal-rules legs. Rejected with --swap-rule (swap games
-    # already vary their openings via placement).
+    # Opening variety (evaluation audit default): normal-rules legs
+    # rotate through the balanced openings set; swap legs rotate
+    # through the curated swap openings set. Explicit --openings /
+    # --swap-openings override; --no-openings / --no-swap-openings
+    # request the old behaviour (empty board / per-game placement).
     openings = None
     openings_hash = None
-    if getattr(args, "openings", None):
-        if args.swap_rule:
+    swap_openings = None
+    swap_openings_hash = None
+    if args.swap_rule:
+        if getattr(args, "openings", None):
             raise ValueError("--openings cannot be combined with --swap-rule")
-        openings, openings_hash = load_openings(args.openings)
+        if not getattr(args, "no_swap_openings", False):
+            swap_path = (getattr(args, "swap_openings", None)
+                         or common.default_swap_openings_path())
+            swap_openings, swap_openings_hash = load_openings(swap_path)
+            if len(swap_openings) and len(swap_openings[0]) != 3:
+                raise ValueError(
+                    f"{swap_path}: swap openings must have exactly 3 moves")
+    else:
+        if not getattr(args, "no_openings", False):
+            openings_path = (getattr(args, "openings", None)
+                             or common.default_openings_path())
+            openings, openings_hash = load_openings(openings_path)
     games: list[dict] = []
     wins = losses = draws = 0
     resumed = False
@@ -263,6 +325,7 @@ def run_batch(args) -> dict:
                     and prior.get("games") == args.games
                     and prior.get("swap_rule") == args.swap_rule
                     and prior.get("openings_hash") == openings_hash
+                    and prior.get("swap_openings_hash") == swap_openings_hash
                     and isinstance(prior.get("records"), list)):
                 if prior.get("complete"):
                     print(f"== {args.out} already complete "
@@ -304,9 +367,16 @@ def run_batch(args) -> dict:
         if args.swap_rule:
             a_opens = (i % 2 == 0)
             opener, second = (choose_a, choose_b) if a_opens else (choose_b, choose_a)
-            board, opening = research.place_swap_opening(
-                opener, args.placement, scorer, placement_rng
-            )
+            if swap_openings is not None:
+                # Curated swap openings: rotate through the fixed set
+                # (12 tempo-margin-0 + 12 tempo-margin-78, so the
+                # judge's pick is a real 50/50 choice).
+                opening = swap_openings[i % len(swap_openings)]
+                board, _ = apply_opening(opening)
+            else:
+                board, opening = research.place_swap_opening(
+                    opener, args.placement, scorer, placement_rng
+                )
             gap, bb, bw = research.opening_gap(board, scorer)
             second_colour = game.choose_swap_color(
                 board, scorer, judge=args.judge)
@@ -370,7 +440,10 @@ def run_batch(args) -> dict:
             complete=(i + 1 == args.games),
             resumed=resumed, resumed_from_game=resumed_from_game,
             openings_hash=openings_hash,
-            openings_count=len(openings) if openings else None))
+            openings_count=len(openings) if openings else None,
+            swap_openings_hash=swap_openings_hash,
+            swap_openings_count=(len(swap_openings)
+                                 if swap_openings else None)))
         if (i + 1) % 10 == 0 or i + 1 == args.games:
             print(f"  {i + 1}/{args.games} games ({time.time() - t0:.0f}s)",
                   file=sys.stderr, flush=True)
@@ -378,7 +451,10 @@ def run_batch(args) -> dict:
                     t0, complete=True,
                     resumed=resumed, resumed_from_game=resumed_from_game,
                     openings_hash=openings_hash,
-                    openings_count=len(openings) if openings else None)
+                    openings_count=len(openings) if openings else None,
+                    swap_openings_hash=swap_openings_hash,
+                    swap_openings_count=(len(swap_openings)
+                                         if swap_openings else None))
 
 
 def np_random(seed: int):
@@ -403,8 +479,18 @@ def main() -> int:
     parser.add_argument("--seed-b", type=int, default=200)
     parser.add_argument("--openings", default=None,
                         help="JSON file of fixed opening positions "
-                        "(ML batch 4 tooling; normal-rules legs only, "
-                        "not with --swap-rule)")
+                        "(normal-rules legs only, not with --swap-rule; "
+                        "default: research/openings-balanced.json)")
+    parser.add_argument("--no-openings", action="store_true",
+                        help="start normal-rules games from the empty "
+                        "board instead of the balanced openings set")
+    parser.add_argument("--swap-openings", default=None,
+                        help="JSON file of fixed 3-stone swap openings "
+                        "(swap-rule legs only; default: "
+                        "research/openings-swap.json)")
+    parser.add_argument("--no-swap-openings", action="store_true",
+                        help="use the per-game placement generator for "
+                        "swap openings instead of the curated set")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
@@ -421,6 +507,15 @@ def main() -> int:
           f"{result['draws']}D (win rate {result['win_rate']:.4f}, "
           f"95% CI [{lo:.4f}, {hi:.4f}]) in {result['elapsed_seconds']}s",
           file=sys.stderr)
+    gate = result.get("uniqueness_gate") or {}
+    print(f"  uniqueness: {gate.get('unique_games')}/"
+          f"{gate.get('total_games')} distinct games "
+          f"(gate: {'PASS' if gate.get('pass') else 'FAIL — ' + str(gate.get('note'))})",
+          file=sys.stderr)
+    if result.get("swap_picks") is not None:
+        print(f"  swap picks (judge): {result['swap_picks']} "
+              f"(A colours: {result.get('a_colours')})",
+              file=sys.stderr)
     print(f"  records written to {args.out}", file=sys.stderr)
     return 0
 

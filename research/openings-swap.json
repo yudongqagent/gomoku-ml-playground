@@ -1,0 +1,832 @@
+{
+  "meta": {
+    "purpose": "curated 3-stone swap openings, 50/50 tempo-margin mix",
+    "criterion": "12 openings with tempo margin 0 (judge ties -> White) and 12 with tempo margin 78 (judge picks Black), sampled from the broad compact 3-stone space and curated by the exact tempo margin",
+    "generator": "ml/scripts/generate_balanced_openings.py (eval-audit)",
+    "seed": 20261125,
+    "sampled": 399,
+    "count": 24,
+    "margin0": 12,
+    "margin78": 12
+  },
+  "openings": [
+    [
+      [
+        7,
+        7
+      ],
+      [
+        5,
+        9
+      ],
+      [
+        4,
+        10
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        6
+      ],
+      [
+        4,
+        4
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        6
+      ],
+      [
+        8,
+        4
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        7,
+        8
+      ],
+      [
+        8,
+        10
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        7
+      ],
+      [
+        4,
+        7
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        8,
+        8
+      ],
+      [
+        10,
+        10
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        9
+      ],
+      [
+        8,
+        9
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        8,
+        5
+      ],
+      [
+        6,
+        4
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
+        5
+      ],
+      [
+        10,
+        4
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        5,
+        7
+      ],
+      [
+        4,
+        7
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        7,
+        5
+      ],
+      [
+        5,
+        3
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        7,
+        6
+      ],
+      [
+        9,
+        4
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        7,
+        5
+      ],
+      [
+        7,
+        4
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        8,
+        7
+      ],
+      [
+        10,
+        7
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        5,
+        6
+      ],
+      [
+        3,
+        5
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        7
+      ],
+      [
+        6,
+        5
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        7,
+        6
+      ],
+      [
+        7,
+        4
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        5,
+        9
+      ],
+      [
+        3,
+        11
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
+        5
+      ],
+      [
+        9,
+        4
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        8
+      ],
+      [
+        8,
+        10
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
+        7
+      ],
+      [
+        10,
+        7
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
+        5
+      ],
+      [
+        11,
+        3
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        7,
+        6
+      ],
+      [
+        5,
+        6
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        7,
+        9
+      ],
+      [
+        8,
+        5
+      ]
+    ]
+  ],
+  "details": [
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          4,
+          10
+        ]
+      ],
+      "tempo_margin": 0,
+      "tempo_value_black": 4006,
+      "tempo_value_white": 4006,
+      "judge_pick": "white"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          4,
+          4
+        ]
+      ],
+      "tempo_margin": 0,
+      "tempo_value_black": 4006,
+      "tempo_value_white": 4006,
+      "judge_pick": "white"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          8,
+          4
+        ]
+      ],
+      "tempo_margin": 78,
+      "tempo_value_black": 4084,
+      "tempo_value_white": 4006,
+      "judge_pick": "black"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          8,
+          10
+        ]
+      ],
+      "tempo_margin": 78,
+      "tempo_value_black": 4084,
+      "tempo_value_white": 4006,
+      "judge_pick": "black"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          4,
+          7
+        ]
+      ],
+      "tempo_margin": 0,
+      "tempo_value_black": 4006,
+      "tempo_value_white": 4006,
+      "judge_pick": "white"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          10,
+          10
+        ]
+      ],
+      "tempo_margin": 0,
+      "tempo_value_black": 4006,
+      "tempo_value_white": 4006,
+      "judge_pick": "white"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          8,
+          9
+        ]
+      ],
+      "tempo_margin": 78,
+      "tempo_value_black": 4084,
+      "tempo_value_white": 4006,
+      "judge_pick": "black"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          5
+        ],
+        [
+          6,
+          4
+        ]
+      ],
+      "tempo_margin": 78,
+      "tempo_value_black": 4084,
+      "tempo_value_white": 4006,
+      "judge_pick": "black"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          10,
+          4
+        ]
+      ],
+      "tempo_margin": 0,
+      "tempo_value_black": 4006,
+      "tempo_value_white": 4006,
+      "judge_pick": "white"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          4,
+          7
+        ]
+      ],
+      "tempo_margin": 0,
+      "tempo_value_black": 4006,
+      "tempo_value_white": 4006,
+      "judge_pick": "white"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          5,
+          3
+        ]
+      ],
+      "tempo_margin": 78,
+      "tempo_value_black": 4084,
+      "tempo_value_white": 4006,
+      "judge_pick": "black"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          9,
+          4
+        ]
+      ],
+      "tempo_margin": 78,
+      "tempo_value_black": 4084,
+      "tempo_value_white": 4006,
+      "judge_pick": "black"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          7,
+          4
+        ]
+      ],
+      "tempo_margin": 0,
+      "tempo_value_black": 4006,
+      "tempo_value_white": 4006,
+      "judge_pick": "white"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          10,
+          7
+        ]
+      ],
+      "tempo_margin": 0,
+      "tempo_value_black": 4006,
+      "tempo_value_white": 4006,
+      "judge_pick": "white"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          3,
+          5
+        ]
+      ],
+      "tempo_margin": 78,
+      "tempo_value_black": 4084,
+      "tempo_value_white": 4006,
+      "judge_pick": "black"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          6,
+          5
+        ]
+      ],
+      "tempo_margin": 78,
+      "tempo_value_black": 4084,
+      "tempo_value_white": 4006,
+      "judge_pick": "black"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          7,
+          4
+        ]
+      ],
+      "tempo_margin": 0,
+      "tempo_value_black": 4006,
+      "tempo_value_white": 4006,
+      "judge_pick": "white"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          3,
+          11
+        ]
+      ],
+      "tempo_margin": 0,
+      "tempo_value_black": 4006,
+      "tempo_value_white": 4006,
+      "judge_pick": "white"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          9,
+          4
+        ]
+      ],
+      "tempo_margin": 78,
+      "tempo_value_black": 4084,
+      "tempo_value_white": 4006,
+      "judge_pick": "black"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          8,
+          10
+        ]
+      ],
+      "tempo_margin": 78,
+      "tempo_value_black": 4084,
+      "tempo_value_white": 4006,
+      "judge_pick": "black"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          7
+        ],
+        [
+          10,
+          7
+        ]
+      ],
+      "tempo_margin": 0,
+      "tempo_value_black": 4006,
+      "tempo_value_white": 4006,
+      "judge_pick": "white"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          11,
+          3
+        ]
+      ],
+      "tempo_margin": 0,
+      "tempo_value_black": 4006,
+      "tempo_value_white": 4006,
+      "judge_pick": "white"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          5,
+          6
+        ]
+      ],
+      "tempo_margin": 78,
+      "tempo_value_black": 4084,
+      "tempo_value_white": 4006,
+      "judge_pick": "black"
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          8,
+          5
+        ]
+      ],
+      "tempo_margin": 78,
+      "tempo_value_black": 4084,
+      "tempo_value_white": 4006,
+      "judge_pick": "black"
+    }
+  ]
+}

@@ -144,6 +144,52 @@ def uniqueness_audit(records: list[dict]) -> dict:
     }
 
 
+#: Uniqueness quality-gate threshold (evaluation audit, 2026-11-25).
+#: A battery is valid only if at least this fraction of its games
+#: are distinct move sequences. Below the threshold the effective
+#: sample size is far below the nominal game count, so the Wilson CI
+#: computed on all games understates the uncertainty: at 60% unique
+#: the CI width is understated by up to sqrt(1/0.6) = 1.29x; at the
+#: v63 clause-1 collapse (31/100 unique) it was understated 1.7x
+#: (de-dup CI width 0.328 vs nominal 0.192). The 0.6 bar keeps the
+#: inflation under ~1.3x while remaining achievable with varied
+#: openings (swap matches already reach 0.77-1.00; ML legs 0.93-1.00;
+#: heuristic normal-rules legs with the balanced openings set reach
+#: it in the validation battery).
+UNIQUENESS_GATE_THRESHOLD = 0.6
+
+
+def uniqueness_gate(records: list[dict],
+                    threshold: float = UNIQUENESS_GATE_THRESHOLD) -> dict:
+    """Quality gate on a battery's game variety (evaluation audit).
+
+    Returns the distinct-game count, the required minimum
+    (``ceil(threshold * total)``), and whether the battery passes.
+    A battery that FAILS the gate is INVALID: its nominal CI
+    overstates the precision, and it must be re-run with more varied
+    openings or seeds — the numbers stand as recorded but no verdict
+    may rest on them. This does not change any past verdict; it only
+    flags batteries whose variety is too low to trust.
+    """
+    audit = uniqueness_audit(records)
+    total = audit["total_games"]
+    # An empty record list is not a pass: nothing was measured, so
+    # there is no variety to certify.
+    required = math.ceil(threshold * total) if total else 1
+    passed = total > 0 and audit["unique_games"] >= required
+    return {
+        "threshold": threshold,
+        "unique_games": audit["unique_games"],
+        "total_games": total,
+        "required_unique": required,
+        "pass": passed,
+        "note": ("OK" if passed else
+                 "INVALID: too few distinct games — re-run with more "
+                 "varied openings/seeds; the nominal CI overstates "
+                 "precision"),
+    }
+
+
 def elo_diff(wins: int, losses: int, draws: int) -> float | None:
     """Rough Elo difference from W/L/D. None if either side has no
     decisive games (the estimate would be infinite)."""

@@ -16,6 +16,9 @@ from gomoku_ml import research, scoring
 
 REPO_ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 SCRIPTS_DIR = os.path.join(REPO_ROOT, "ml", "scripts")
+sys.path.insert(0, SCRIPTS_DIR)
+
+import selfplay_batch  # noqa: E402  (openings loader + default paths)
 
 
 def _eval_json(proc):
@@ -41,12 +44,18 @@ def test_ladder_resume_reproduces_uninterrupted(tmp_path):
     resume via the real CLI, and require the final ladder to equal
     the uninterrupted ladder exactly."""
     out = str(tmp_path / "ladder-v1.json")
+    # Ladder legs use the balanced openings set by default
+    # (evaluation audit), so the reference and the partial must use
+    # it too — and the partial must carry its hash, or the resume
+    # check rejects it.
+    openings, openings_hash = selfplay_batch.load_openings(
+        selfplay_batch.common.default_openings_path())
     # Uninterrupted reference, in-process: same args the CLI uses
     # (player seed 100, ladder seed 100 + 300).
     ref_player = scoring.get_player(1, seed=100)
     ref = research.ladder_for_player(
         ref_player.choose_move, games_per_opponent=2, mcts_sims=5,
-        seed=400,
+        seed=400, openings=openings,
     )
     # Partial: play only the first leg in-process and capture the
     # RNG state as of then — exactly what the driver flushes after
@@ -54,7 +63,7 @@ def test_ladder_resume_reproduces_uninterrupted(tmp_path):
     part_player = scoring.get_player(1, seed=100)
     first_leg = research.ladder_leg_for_player(
         part_player.choose_move, "random", games_per_opponent=2,
-        mcts_sims=5, seed=400,
+        mcts_sims=5, seed=400, openings=openings,
     )
     tac = research.run_tactical(
         lambda board, p: scoring._choose_move(
@@ -73,6 +82,9 @@ def test_ladder_resume_reproduces_uninterrupted(tmp_path):
         "resumed": False,
         "resumed_from_leg": None,
         "rng_state": part_player.rng.bit_generator.state,
+        "openings": None,
+        "openings_hash": openings_hash,
+        "openings_count": len(openings),
         "tactical": tac,
         "ladder": {
             "matchups": {"random": first_leg},

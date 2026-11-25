@@ -64,7 +64,7 @@ def _print_matchup(name: str, r: dict, resumed: bool = False) -> None:
 
 
 def _result(player, args, tac, matchups, complete, resumed,
-            resumed_from_leg):
+            resumed_from_leg, openings_hash=None, openings_count=None):
     """The full eval object: the EVAL_JSON shape plus resume metadata.
 
     ``ladder_elo`` is None until all legs are done (the estimate
@@ -85,6 +85,9 @@ def _result(player, args, tac, matchups, complete, resumed,
         # a resumed ladder identical to an uninterrupted one.
         "rng_state": (player.rng.bit_generator.state
                       if matchups else None),
+        "openings": getattr(args, "openings", None),
+        "openings_hash": openings_hash,
+        "openings_count": openings_count,
         "tactical": tac,
         "ladder": {
             "matchups": matchups,
@@ -92,18 +95,43 @@ def _result(player, args, tac, matchups, complete, resumed,
                            if done else None),
             "games_per_opponent": args.ladder_games,
             "mcts_sims": args.mcts_sims,
+            "uniqueness": _ladder_uniqueness(matchups),
         },
     }
 
 
-def _load_partial(path: str, player, args):
+def _ladder_uniqueness(matchups: dict) -> dict:
+    """Per-leg uniqueness quality gate over the recorded games.
+
+    Evaluation audit (2026-11-25): ladder legs used to store only
+    summary stats, so their variety was unverifiable — the legs are
+    played from the empty board and the heuristic engines are
+    deterministic, so a leg could be a handful of repeated lines
+    behind a 40-game count. Every leg now records its games (see
+    ``research.ladder_leg_for_player``) and the gate is reported
+    here; a leg below 60% distinct games is flagged INVALID.
+    """
+    out = {}
+    for leg, matchup in matchups.items():
+        records = matchup.get("records")
+        if records is None:
+            out[leg] = {"pass": None,
+                        "note": "no per-game records (pre-fix ladder)"}
+        else:
+            out[leg] = evaluate.uniqueness_gate(records)
+    return out
+
+
+def _load_partial(path: str, player, args, openings_hash=None):
     """Load a resumable partial ``--out`` file, or None to start fresh.
 
     Returns (matchups, rng_state, complete). A partial only resumes
     when it matches this run's engine/version/params exactly, its
     completed legs are a prefix of the ladder order, and it carries
     the RNG state (without it a resumed ladder would differ from the
-    uninterrupted one — never resume inexactly).
+    uninterrupted one — never resume inexactly). The openings set
+    must match too (a pre-fix partial played from the empty board
+    must not be resumed with the balanced openings).
     """
     if not os.path.exists(path):
         return None
@@ -115,10 +143,12 @@ def _load_partial(path: str, player, args):
                 or prior.get("ladder_games") != args.ladder_games
                 or prior.get("mcts_sims") != args.mcts_sims
                 or prior.get("seed") != args.seed
+                or prior.get("openings_hash") != openings_hash
                 or not isinstance(prior.get("ladder"), dict)
                 or not isinstance(prior["ladder"].get("matchups"), dict)):
             print(f"== ignoring non-matching prior {path} "
-                  f"(different engine/version/params) ==", file=sys.stderr)
+                  f"(different engine/version/params/openings) ==",
+                  file=sys.stderr)
             return None
         matchups = prior["ladder"]["matchups"]
         if list(matchups) != list(
@@ -143,6 +173,12 @@ def main() -> int:
     parser.add_argument("--ladder-games", type=int, default=20)
     parser.add_argument("--mcts-sims", type=int, default=100)
     parser.add_argument("--seed", type=int, default=100)
+    parser.add_argument("--openings", default=None,
+                        help="JSON file of fixed opening positions "
+                        "(default: research/openings-balanced.json)")
+    parser.add_argument("--no-openings", action="store_true",
+                        help="play ladder legs from the empty board "
+                        "instead of the balanced openings set")
     parser.add_argument("--out", default=None,
                         help="write the result JSON here (flushed "
                         "after every ladder leg; a partial file from "
@@ -151,11 +187,22 @@ def main() -> int:
 
     player = scoring.get_player(args.version, seed=args.seed)
 
+    # Opening variety (evaluation audit default): rotate through the
+    # balanced openings set instead of starting every leg from the
+    # empty board (deterministic engines replay the same lines).
+    from selfplay_batch import load_openings  # noqa: E402
+    openings = None
+    openings_hash = None
+    if not args.no_openings:
+        openings_path = args.openings or common.default_openings_path()
+        openings, openings_hash = load_openings(openings_path)
+
     # --out resume: a complete prior file is the answer already; a
     # partial one restores the completed legs and the player's RNG
     # state (the MCTS holds the same Generator object, so restoring
     # the state in place covers it too).
-    prior = _load_partial(args.out, player, args) if args.out else None
+    prior = (_load_partial(args.out, player, args, openings_hash)
+             if args.out else None)
     if prior is not None and prior[2]:
         with open(args.out, encoding="utf-8") as f:
             saved = json.load(f)
@@ -206,6 +253,8 @@ def main() -> int:
             games_per_opponent=args.ladder_games,
             mcts_sims=args.mcts_sims,
             seed=args.seed + 300,
+            openings=openings,
+            record_games=True,
         )
         for name, r in ladder["matchups"].items():
             _print_matchup(name, r)
@@ -213,8 +262,17 @@ def main() -> int:
         print(f"  ladder Elo: estimate {elo['estimate']}, interval "
               f"{elo['interval']} (anchors: random=-800, heuristic=0; "
               f"relative to THIS ladder only)", file=sys.stderr)
+        for leg, gate in _ladder_uniqueness(
+                ladder["matchups"]).items():
+            print(f"  uniqueness {leg}: {gate.get('unique_games')}/"
+                  f"{gate.get('total_games')} distinct games "
+                  f"(gate: {'PASS' if gate.get('pass') else 'FAIL'})",
+                  file=sys.stderr)
         out = {"engine": player.name, "version": args.version,
-               "tactical": tac, "ladder": ladder}
+               "tactical": tac, "ladder": ladder,
+               "openings": getattr(args, "openings", None),
+               "openings_hash": openings_hash,
+               "openings_count": len(openings) if openings else None}
         print("EVAL_JSON " + json.dumps(out))
         return 0
 
@@ -230,18 +288,29 @@ def main() -> int:
             games_per_opponent=args.ladder_games,
             mcts_sims=args.mcts_sims,
             seed=args.seed + 300,
+            openings=openings,
+            record_games=True,
         )
         _print_matchup(name, matchups[name])
         _write_result(args.out, _result(
             player, args, tac, matchups, complete=False,
-            resumed=resumed, resumed_from_leg=resumed_from_leg))
+            resumed=resumed, resumed_from_leg=resumed_from_leg,
+            openings_hash=openings_hash,
+            openings_count=len(openings) if openings else None))
     out = _result(player, args, tac, matchups, complete=True,
-                  resumed=resumed, resumed_from_leg=resumed_from_leg)
+                  resumed=resumed, resumed_from_leg=resumed_from_leg,
+                  openings_hash=openings_hash,
+                  openings_count=len(openings) if openings else None)
     _write_result(args.out, out)
     elo = out["ladder"]["ladder_elo"]
     print(f"  ladder Elo: estimate {elo['estimate']}, interval "
           f"{elo['interval']} (anchors: random=-800, heuristic=0; "
           f"relative to THIS ladder only)", file=sys.stderr)
+    for leg, gate in out["ladder"]["uniqueness"].items():
+        print(f"  uniqueness {leg}: {gate.get('unique_games')}/"
+              f"{gate.get('total_games')} distinct games "
+              f"(gate: {'PASS' if gate.get('pass') else 'FAIL'})",
+              file=sys.stderr)
     print("EVAL_JSON " + json.dumps(out))
     return 0
 
