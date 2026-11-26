@@ -251,9 +251,19 @@ beat 31-9. But that reading compares across frameworks (see the
 framework finding above): v52 itself does not achieve 40-0/31-9
 under balanced openings, so the literal bar is unachievable
 under the new default. Clause 2, same-framework reading (v64's
-legs vs v52's legs both under balanced openings): [PENDING —
-re-baseline ladder running; the heuristic leg already ties v52
-exactly, 27-13 = 27-13 with identical games].
+legs vs v52's legs both under balanced openings): **ALSO FAILS**
+— but as a tie, not a loss. The re-baseline ladder
+(`research/iterations/ladder-v52-balanced.json`, seed 100,
+balanced openings) gives v52's legs as **random 40-0, heuristic
+24-16, mcts 18-22, Elo 70.4** — identical to v64's on every leg,
+and **all 120 games move-for-move identical** between the two
+ladders (verified by record comparison; even the final RNG state
+matches). v64 does not strictly dominate v52's legs — it IS v52,
+in played games. So clause 2 fails under either reading. The
+re-baseline legs (40-0/24-16/18-22, Elo 70.4) are the correct
+clause-2 reference for future versions under the new framework;
+the old 40-0/40-0/31-9 reference belongs to the empty-board
+framework and must not be used for balanced-openings ladders.
 
 **Framework finding (the heuristic leg is NOT a v64 weakness).**
 v52's own heuristic leg under the SAME balanced openings and seed
@@ -292,8 +302,13 @@ first). So:
 
 `ml/scripts/eval_version.py --version 52 --ladder-games 40 --out
 research/iterations/ladder-v52-balanced.json` (seed 100, balanced
-openings) — v52's legs under the new default framework, the
-correct reference for judging v64's legs. [PENDING.]
+openings) — v52's legs under the new default framework: **random
+40-0, heuristic 24-16, mcts 18-22, Elo 70.4** (interval [-37.7,
+178.6]; uniqueness 40/40, 37/40, 38/40 — all gates PASS). Every
+leg and every game identical to v64's ladder. This is the correct
+clause-2 reference for future versions under the new framework;
+the old 40-0/40-0/31-9 reference belongs to the empty-board
+framework.
 
 ### Tactical (clause 3)
 
