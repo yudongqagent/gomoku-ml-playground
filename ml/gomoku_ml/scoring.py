@@ -557,6 +557,25 @@ ENGINE_VERSIONS: dict[int, dict] = {
          "mcts": True, "mcts_sims": 100,
          "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
          "tie_break_q_threshold": 0.05, "tss_root": True},
+    # v64 (iteration 64): v52 PLUS the fix for the pre-existing v52
+    # TSS defect found by v59 in batch 14 (iter-59 §2): in
+    # ``mcts_heuristic._tss_after_attacker_move``, an immediate
+    # winning forcing move with < 2 extension threats was missed
+    # (with exactly 1 extension threat the defender's "block" left
+    # game_over True and the function returned False, although the
+    # attacker had already won; with 0 it fell through to the
+    # open-three check and also returned False). The fix is an
+    # entry check — ``game.is_winning_stone(board, last_move,
+    # attacker)`` — returning True when the just-played forcing
+    # move completed five. Everything else is v52 unchanged: 100
+    # sims, c_puct 1.5, v1 priors, 2-ply rollout leaf, τ=0.05
+    # tie-break, TSS at the root (depth 4, node budget 3000).
+    # See research/iterations/iter-64.md §1-2.
+    64: {"name": "scoring-v64", "defence_weight": 1.0, "threat_check": False,
+         "mcts": True, "mcts_sims": 100,
+         "leaf_mode": "rollout2_v1_both", "tie_break_q": True,
+         "tie_break_q_threshold": 0.05, "tss_root": True,
+         "tss_fix_won_move": True},
     # v53 (iteration 53, batch 13): H3 — v27 + a 3-ply rollout leaf
     # (RE-SCOPED per research/iterations/iter-53.md §6; the
     # original 2-ply spec is recorded in iter-53 §§0-5 — v18/v27's
@@ -1203,6 +1222,9 @@ class ScoringPlayer:
                     ),
                     vcf_root=ENGINE_VERSIONS[version].get("vcf_root", False),
                     tss_root=ENGINE_VERSIONS[version].get("tss_root", False),
+                    tss_fix_won_move=ENGINE_VERSIONS[version].get(
+                        "tss_fix_won_move", False
+                    ),
                     rng=self.rng,
                     tie_break_q=ENGINE_VERSIONS[version].get("tie_break_q", False),
                     tie_break_q_threshold=ENGINE_VERSIONS[version].get(

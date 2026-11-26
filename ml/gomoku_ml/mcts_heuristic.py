@@ -1464,6 +1464,7 @@ def _tss_after_attacker_move(
     depth_left: int,
     budget: _TSSBudget,
     last_move: int,
+    fix_won_move: bool = False,
 ) -> bool:
     """Defender to move on ``board``; the attacker has just played
     ``last_move`` (a forcing move, or a forced block after a defender
@@ -1471,6 +1472,16 @@ def _tss_after_attacker_move(
     win against ALL defender replies. ``depth_left`` counts further
     attacker forcing moves (the move just played already consumed
     one).
+
+    ``fix_won_move`` (v64) enables the already-won check at entry:
+    the attacker's just-played forcing move may itself complete
+    five. Without it (v52 behaviour) the code below misjudges the
+    line — with exactly 1 extension threat the defender's "block"
+    leaves game_over True and the function returns False, although
+    the attacker already won (and with 0 extension threats it falls
+    through to the open-three check and also returns False). The
+    flag defaults to False so v52's behaviour is preserved exactly;
+    v64 sets it True (see :func:`tss_winning_move`).
 
     No defender-winning-move check at entry: it is provably
     impossible (the attacker's move cannot create a defender winning
@@ -1480,6 +1491,13 @@ def _tss_after_attacker_move(
     check is LOCAL to ``last_move`` (the attacker's winning moves
     must involve it — none pre-existed)."""
     budget.tick()
+    if fix_won_move and game.is_winning_stone(board, last_move, attacker):
+        # v64 fix (pre-existing v52 defect, found by v59 in batch 14,
+        # iter-59 §2): the attacker's just-played forcing move
+        # completed five — the attacker has already won. O(1) local
+        # check: a five through ``last_move`` must include it (the
+        # cell was empty before the move), so this is exact.
+        return True
     threats = _winning_moves_through(board, attacker, last_move)
     if len(threats) >= 2:
         return True  # open four: unblockable
@@ -1489,7 +1507,9 @@ def _tss_after_attacker_move(
         over, _winner = game.game_over(b3)
         if over:
             return False  # the block won for the defender (or a draw)
-        return _tss_win(b3, attacker, depth_left, budget, threats[0])
+        return _tss_win(
+            b3, attacker, depth_left, budget, threats[0], fix_won_move
+        )
     # No immediate winning move: the attacker's threat is one or more
     # open threes (recomputed from the board — the attacker may hold
     # a standing three from an earlier move in the sequence, e.g.
@@ -1526,12 +1546,12 @@ def _tss_after_attacker_move(
             # The standing threat persists (or the block created a
             # new one): the defender is still to move under attack.
             if not _tss_after_attacker_move(
-                b4, attacker, depth_left, budget, dthreats[0]
+                b4, attacker, depth_left, budget, dthreats[0], fix_won_move
             ):
                 return False
         else:
             # Plain block: the attacker's next move must be forcing.
-            if not _tss_win(b3, attacker, depth_left, budget, r):
+            if not _tss_win(b3, attacker, depth_left, budget, r, fix_won_move):
                 return False
     return True
 
@@ -1542,6 +1562,7 @@ def _tss_win(
     depth_left: int,
     budget: _TSSBudget,
     last_defender_move: int,
+    fix_won_move: bool = False,
 ) -> bool:
     """Attacker to move; the defender has just played
     ``last_defender_move``. True if the attacker forces a win via
@@ -1572,7 +1593,7 @@ def _tss_win(
             return False
         b2 = game.apply_move(board, block, attacker)
         return _tss_after_attacker_move(
-            b2, attacker, depth_left - 1, budget, block
+            b2, attacker, depth_left - 1, budget, block, fix_won_move
         )
     if depth_left <= 0:
         return False
@@ -1586,7 +1607,9 @@ def _tss_win(
     forcing.sort(key=lambda m: (0 if m in fours else 1, -int(a1[m]), m))
     for m in forcing:
         b2 = game.apply_move(board, m, attacker)
-        if _tss_after_attacker_move(b2, attacker, depth_left - 1, budget, m):
+        if _tss_after_attacker_move(
+            b2, attacker, depth_left - 1, budget, m, fix_won_move
+        ):
             return True
     return False
 
@@ -1597,6 +1620,7 @@ def tss_winning_move(
     depth: int = TSS_DEPTH,
     node_budget: int = TSS_NODE_BUDGET,
     stats: dict | None = None,
+    fix_won_move: bool = False,
 ) -> int | None:
     """Threat-space search at the root (v52): the first forcing move
     (highest v1 prior first, ties lowest flat index) that starts a
@@ -1604,7 +1628,10 @@ def tss_winning_move(
     winning move is returned first (it IS a forcing win). On node-
     budget exhaustion returns None (fall through to the MCTS).
     Deterministic (no RNG). ``stats``, when given, is filled with
-    ``{"nodes": <used>, "budget_exceeded": <bool>}``."""
+    ``{"nodes": <used>, "budget_exceeded": <bool>}``. ``fix_won_move``
+    (v64) enables the already-won check in
+    :func:`_tss_after_attacker_move`; it defaults to False so v52's
+    behaviour is preserved exactly."""
     wins = scoring._winning_moves(board, player)
     if wins:
         if stats is not None:
@@ -1628,7 +1655,9 @@ def tss_winning_move(
         forcing.sort(key=lambda m: (-priors.get(m, 0.0), m))
         for m in forcing:
             b2 = game.apply_move(board, m, player)
-            if _tss_after_attacker_move(b2, player, depth - 1, budget, m):
+            if _tss_after_attacker_move(
+                b2, player, depth - 1, budget, m, fix_won_move
+            ):
                 return m
     except _TSSBudgetExceeded:
         exceeded = True
@@ -1766,6 +1795,12 @@ class HeuristicMCTS:
     threes) is played immediately; otherwise the engine is exactly
     the base version. False (the default) leaves the base engine
     unchanged. Offensive only — no defensive prevention check.
+
+    ``tss_fix_won_move`` (v64) enables the already-won check in
+    :func:`_tss_after_attacker_move` (see its docstring): a forcing
+    move that itself completes five is recognised as a win instead
+    of being misjudged through the 1-extension-threat branch.
+    False (the default) is v52 behaviour exactly.
     """
 
     def __init__(
@@ -1782,6 +1817,7 @@ class HeuristicMCTS:
         backup_rule: str = "mean",
         softmax_beta: float = 2.0,
         tss_root: bool = False,
+        tss_fix_won_move: bool = False,
     ) -> None:
         if leaf_mode not in _LEAF_FUNCTIONS and (
             leaf_mode != "rollout2_v1"
@@ -1823,6 +1859,7 @@ class HeuristicMCTS:
         self.backup_rule = backup_rule
         self.softmax_beta = softmax_beta
         self.tss_root = tss_root
+        self.tss_fix_won_move = tss_fix_won_move
         # Rollout modes are NOT in _LEAF_FUNCTIONS (they are
         # instance-bound methods): the dispatch MUST use this
         # conditional form — the naive ``_LEAF_FUNCTIONS[leaf_mode]``
@@ -2013,7 +2050,9 @@ class HeuristicMCTS:
         # win/block scans above already ran, so an immediate win or
         # a forced block always takes precedence over the TSS.
         if self.tss_root:
-            tss_move = tss_winning_move(board, player)
+            tss_move = tss_winning_move(
+                board, player, fix_won_move=self.tss_fix_won_move
+            )
             if tss_move is not None:
                 return tss_move
         root = _Node(1.0)
