@@ -181,9 +181,19 @@ with the flag on vs off on 1,113 positions — every 4th ply ≥ 6 of
 30 recorded games each from `batch-v52-vs-v27.json`,
 `batch-v52-vs-v0.json`, `batch-v52-vs-v27-swap.json`, plus the 5
 mechanism positions, the 49 tactical-suite positions, and 200
-random forcing-rich positions. TSS fired on 251 positions.
+random forcing-rich positions. TSS fired on 251 positions under
+BOTH settings.
 
-[PENDING — v52 side running; fill in the difference count here.]
+**Result: 0 positions differ — same move AND same node count
+everywhere (including all 251 firings).** The fix changes no
+played move on any reachable position tested, exactly as the
+§1.2 analysis predicted: the entry checks already preclude a
+winning move from being played as a forcing move, so the defect
+never bites through `tss_winning_move`. The fix is correct at the
+function level (§2.1) but has no played-strength effect at the
+TSS level — the battery below is therefore expected to tie v52
+(a tie fails clause 1 and clause 2), and the battery is run to
+confirm that rather than to assume it.
 
 ## 3. Battery
 
