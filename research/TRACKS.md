@@ -350,7 +350,44 @@ the heuristic. The work continues autonomously; he runs nothing.
   and being pruned as depth-1 replies) — all fixed with
   regression tests. The PVS architecture is not a bar-passer
   at this node budget in Python; the report's 35 ms target
-  needs compiled code and depth 8-12.
+  needs compiled code and depth 8-12. **v64 complete
+  2026-11-26: REJECTED 2/4; v52 keeps both titles.** The fix
+  of the known v52 `_tss_after_attacker_move` defect (an
+  immediate winning forcing move with exactly 1 extension
+  threat is missed — found by v59 in batch 14, never fixed):
+  flag-gated (`tss_fix_won_move`, following v59's pattern, so
+  the battery compares the fixed engine against v52 and not
+  against itself), with a 7-test regression file that fails on
+  v52 code and passes on v64. But the defect is UNREACHABLE in
+  played games — every caller checks for a winning move before
+  playing a forcing move — and the battery measured the fix as
+  a null result: the differential finds 0 differences on 1,113
+  positions (251 TSS firings), clause 1 is a tie (53W-46L-1D,
+  0.5350, CI lower 0.4378; de-dup 0.5272), and clause 2 is an
+  exact tie — v64's ladder (random 40-0, heuristic 24-16, mcts
+  18-22, Elo 70.4) is identical to v52's re-baseline ladder on
+  all 120 games. Clauses 3 and 4 pass (tactical 20/20 + 29/29;
+  pytest 503 passed / 7 skipped / 58 xfailed, npm 55/55, tsc
+  clean); swap vs v7 0.8000 as the secondary. **Framework
+  finding from the v64 battery:** the eval-audit "balanced"
+  openings (attack gap 0 by v1 score) are NOT balanced in play
+  — White collapses against every opponent from them (7-13 vs
+  v0, 3-17 vs the ladder MCTS; losses spread across 12
+  openings; game 1 traced: Black builds an open four on the
+  (6,4)–(10,8) diagonal seeded by the opening stone, White
+  cannot block both ends — a prevention failure, not a missed
+  block). The literal clause-2 bar (40-0/40-0/31-9, measured
+  from the empty board) is unachievable under the new default
+  framework even for v52 itself — the re-baseline legs
+  (40-0/24-16/18-22, Elo 70.4, `ladder-v52-balanced.json`) are
+  the correct clause-2 reference for future versions under
+  balanced openings, and the old legs belong to the empty-board
+  framework. A second framework gap: in a 40-game leg with 24
+  openings, each opening is only ever played by A in one colour
+  (parity preserved by +24), so colour and opening are
+  confounded within a leg — a future fix should rotate openings
+  across colours. Neither finding changes v64's verdict
+  (clause 1 already fails).
 - **Dataset-dedup finding (ML batch 1):** the "10k dataset" is
   3,244 unique games, not 7,099 — and v8's "4,350" was 1,449
   unique. The B1 parallel generator seeds worker *w* with

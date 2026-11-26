@@ -317,7 +317,22 @@ v64 at `--seed 100`: **old 20/20, hard 29/29**
 
 ### Swap vs v7, 100 games (secondary metric)
 
-[PENDING]
+**v64 79W-19L-2D, win rate 0.8000, Wilson 95% CI [0.7112,
+0.8666]** — `research/iterations/batch-v64-vs-v7-swap.json`
+(swap rules, balanced placement, placement_seed 11, fresh seeds
+85002/86002; recomputed from records, matches the script summary
+exactly). De-dup: 97/100 unique games, 77W-18L-2D, rate 0.8041,
+CI [0.7142, 0.8709]. Uniqueness gate PASS (97 ≥ 60). Per-colour:
+A as Black 43W-6L-1D, A as White 36W-13L-1D. Swap picks
+(tempo judge): Black 50 / White 50; A colours Black 50 / White
+50 — the curated swap openings deliver the designed 50/50 split.
+Run notes: interrupted once by a runtime restart at 65 games
+(51W-13L-1D banked); auto-resume from the partial with the same
+seeds reproduced the run exactly (resumed_from_game 65). Resume
+segment 1042.2s; total wall time ~52 min. For reference, v27's
+swap vs v7 was 0.7750 and v52's swap vs v27 was 0.6550 — v64's
+0.80 vs the much weaker v7 is consistent with v52-level strength,
+as expected for an engine that plays identically to v52.
 
 ### Suites (clause 4)
 
@@ -341,7 +356,8 @@ match (not a bar-passer; clause 1 was itself vs the champion).
 | 3 — tactical | PASSES | 20/20 + 29/29 |
 | 4 — suites | PASSES | pytest 503 passed / 7 skipped / 58 xfailed; npm 55/55; tsc clean |
 
-Secondary: swap vs v7 [PENDING — match running].
+Secondary: swap vs v7 79W-19L-2D, 0.8000, CI [0.7112, 0.8666]
+(de-dup 97 unique, 0.8041) — consistent with v52-level strength.
 
 ## 5. Notes
 
