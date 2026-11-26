@@ -223,7 +223,77 @@ pass, and v64 does not claim it as one.
 
 ### Ladder (40 games/opponent, clause 2)
 
-[PENDING — running.]
+**Random leg: 40W-0L-0D** (matches v52's 40-0). **Heuristic leg:
+24W-16L-0D** (as Black 17W-3L, as White 7W-13L) —
+`research/iterations/ladder-v64.json` (seed 100, balanced
+openings, recorded legs). **Mcts leg: 18W-22L-0D** (as Black
+15W-5L, as White 3W-17L), win rate 0.4500, CI [0.3071, 0.6017].
+**Ladder Elo: estimate 70.4, interval [-37.7, 178.6].** Uniqueness
+gates all PASS (random 40/40, heuristic 37/40, mcts 38/40). The
+ladder driver was interrupted by a runtime restart mid-mcts-leg
+and resumed from the partial file — random and heuristic legs kept,
+RNG state restored; the resume is recorded in the file
+(`resumed_from_leg: mcts`).
+
+The mcts leg confirms the framework finding: under balanced
+openings White collapses against EVERY opponent (7-13 vs v0,
+3-17 vs the ladder MCTS), while Black dominates (17-3, 15-5).
+v52's empty-board mcts leg was 31-9 (Black 18-2, White 13-7) —
+the openings, not the engine, moved the White numbers. The
+re-baseline ladder (below) measures v52's own legs under the
+same openings; the clause-2 verdict below is stated on both
+readings.
+
+Clause 2, literal pre-registered reading (dominate v52's
+empty-board legs 40-0/40-0/31-9): **FAILS** — the heuristic leg
+(24-16) does not dominate 40-0 and the mcts leg (18-22) does not
+beat 31-9. But that reading compares across frameworks (see the
+framework finding above): v52 itself does not achieve 40-0/31-9
+under balanced openings, so the literal bar is unachievable
+under the new default. Clause 2, same-framework reading (v64's
+legs vs v52's legs both under balanced openings): [PENDING —
+re-baseline ladder running; the heuristic leg already ties v52
+exactly, 27-13 = 27-13 with identical games].
+
+**Framework finding (the heuristic leg is NOT a v64 weakness).**
+v52's own heuristic leg under the SAME balanced openings and seed
+is 27W-13L-0D — and a fresh v64 heuristic leg is 27W-13L-0D with
+the IDENTICAL lost games [1, 3, 4, 7, 9, 15, 16, 25, 27, 28, 29,
+31, 33] and identical colour splits (Black 17-3, White 10-10).
+(`/tmp/check_heuristic_leg.py`, scratch.) The 24-16 vs 27-13
+difference between the ladder run and the fresh run is the RNG
+stream (the ladder player's RNG advances through the random leg
+first). So:
+
+* v64 ≡ v52 move-for-move on the heuristic leg too — the fix
+  changes nothing in played games, again.
+* The pre-registered clause-2 reference (heuristic 40-0) was
+  measured from the EMPTY board (v52's ladder, pre-audit). Under
+  the new default balanced openings, v52 itself scores only
+  ~27-13 on the heuristic leg. The balanced openings are NOT
+  balanced in play: White loses 10-13 of 20 to the greedy
+  baseline from them (losses spread across 12 openings, not one
+  bad opening — game 1 traced in §5: Black builds an open four
+  on the (6,4)–(10,8) diagonal seeded by the opening stone and
+  White cannot block both ends; a prevention failure, not a missed
+  block). The attack-gap-0 criterion (v1 score) does not capture
+  the true colour balance.
+* Consequence for clause 2: the literal pre-registered reading
+  (dominate 40-0/40-0/31-9) is unachievable under the new
+  framework even for v52 itself, so it cannot be the operative
+  bar. The honest same-framework comparison is v64's legs vs
+  v52's legs BOTH under balanced openings — hence the v52
+  re-baseline ladder below. Clause 2 is reported on BOTH readings
+  (literal: FAILS; same-framework: see re-baseline). The verdict
+  does not turn on this: clause 1 already fails, so v64 is
+  rejected either way.
+
+### v52 re-baseline ladder (same framework)
+
+`ml/scripts/eval_version.py --version 52 --ladder-games 40 --out
+research/iterations/ladder-v52-balanced.json` (seed 100, balanced
+openings) — v52's legs under the new default framework, the
+correct reference for judging v64's legs. [PENDING.]
 
 ### Tactical (clause 3)
 
