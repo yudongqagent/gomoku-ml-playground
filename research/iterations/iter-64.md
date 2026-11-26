@@ -197,12 +197,45 @@ confirm that rather than to assume it.
 
 ## 3. Battery
 
+All legs use per-game seeding with a uniqueness audit; aggregates
+and Wilson 95% CIs recomputed from raw records with
+`ml/scripts/recompute_match.py` (draws count as half a win).
+
+### vs v52, 100 games, normal rules (clause 1)
+
+**v64 53W-46L-1D, win rate 0.5350, Wilson 95% CI [0.4378,
+0.6296]** — `research/iterations/batch-v64-vs-v52.json` (seeds
+85001/86001, balanced openings, 3081s; recomputed, matches the
+script summary exactly). **Clause 1 FAILS** — CI lower bound
+0.4378 < 0.50. The de-dup cut also fails: 92/100 unique games,
+48W-43L-1D, rate 0.5272, CI [0.4261, 0.6260]. Uniqueness gate
+PASS (92 ≥ 60). Per-colour: A as Black 34W-16L-0D (0.68), A as
+White 19W-30L-1D (0.39) — the same Black/White split v52 itself
+shows (Black dominates, White loses), as expected for two engines
+that play identically: the difference between the sides is the
+seed streams, not the fix.
+
+The result is the tie the §1.2 expectation predicted (0.5350 is
+within noise of 0.50 — the exact tie the differential found at the
+TSS level, with the MCTS seed streams supplying the ±0.035
+wobble). A "win" by 7 games with a CI spanning 0.50 is not a bar
+pass, and v64 does not claim it as one.
+
+### Ladder (40 games/opponent, clause 2)
+
+[PENDING — running.]
+
+### Tactical (clause 3)
+
+v64 at `--seed 100`: **old 20/20, hard 29/29**
+(`research/iterations/tactical-v64.txt`). **Clause 3 PASSES.**
+
+### Swap vs v7, 100 games (secondary metric)
+
 [PENDING]
 
-## 4. Verdict
+### Suites (clause 4)
 
-[PENDING]
-
-## 5. Notes
-
-[PENDING]
+* `npm test`: 55 passed (4 files), `npx tsc --noEmit`: clean
+  (run after `npm ci` in this fresh worktree).
+* `ml` pytest: [PENDING — run after the ladder.]
