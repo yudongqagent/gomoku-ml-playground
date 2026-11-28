@@ -1,15 +1,28 @@
 {
   "meta": {
-    "purpose": "balanced 4-move openings for normal-rules matches",
-    "criterion": "attack gap 0 (best Black attack == best White attack), no five, no open four, compact interacting region",
-    "generator": "ml/scripts/generate_balanced_openings.py (eval-audit)",
-    "seed": 20261125,
-    "sampled": 57,
-    "gap0_found": 24,
-    "rejected_open_four": 0,
-    "count": 24,
+    "purpose": "balanced 4-move openings for normal-rules matches, balanced IN PLAY (v2)",
+    "criterion": "attack gap 0 (best Black attack == best White attack), no five, no open four, compact interacting region \u2014 AND played White win rate ~50%: each opening played 8 games across 4 engine pair/seed combos (see details); set White win rate 80/160 = 0.50",
+    "generator": "ml/scripts/generate_balanced_openings.py gen_balanced sampler (reused) + ml/scripts/sample_openings_v2.py --n 120 --seed 20261127; screened/confirmed by ml/scripts/validate_openings.py \u2014 see research/openings-v2-validation.md",
+    "version": "v2 (2026-11-28; supersedes the v1 gap-0-only set of 24, sha256 0b3fe4643b87448272b2e7eb6e36bbc7651a5711d692ac8ac0642e1d56ad16e5)",
+    "seed": 20261127,
+    "pool_sampled": 278,
+    "pool_gap0": 120,
+    "pool_count": 120,
+    "screen": "v52 vs v44, 2 games/opening, seeds 41001/42001: pool White 105/240 = 0.4375; 85 pass (1/2), 25 Black-favoured (0/2), 10 White-favoured (2/2)",
+    "confirmation": "40 openings (30 passers + 10 White-favoured spares) x 2 games x 3 pairs: v52/v27 seeds 43001/44001 White 26/80; v52/v44 fresh seeds 47001/48001 White 35/80; v44/v37 seeds 45001/46001 White 32/80",
+    "selection_rule": "from the 34 openings with 8-game White totals in {3,4,5} (within 1 of balanced): all 13 at 4/8, minus the highest-index sharp four (pool 42), plus the 4 lowest-index 3/8 (2 quiet + 2 sharp) and 4 lowest-index 5/8 (2 quiet + 2 sharp); 20 openings, 8-game White sum 80/160 = 0.50",
+    "white_win_rate_8games": 0.5,
+    "white_wins_8games": 80,
+    "games_8games": 160,
+    "white_win_rate_by_pair": {
+      "screen_v52_v44": 0.65,
+      "confirm_v52_v27": 0.425,
+      "confirm_v52_v44_fresh": 0.45,
+      "confirm_v44_v37": 0.475
+    },
+    "count": 20,
     "sharp_4006": 7,
-    "quiet_164": 16
+    "quiet_164": 13
   },
   "openings": [
     [
@@ -18,202 +31,26 @@
         7
       ],
       [
-        8,
-        9
-      ],
-      [
-        7,
-        6
-      ],
-      [
-        9,
-        8
-      ]
-    ],
-    [
-      [
-        7,
-        7
-      ],
-      [
-        8,
-        5
-      ],
-      [
-        6,
-        4
-      ],
-      [
-        7,
-        2
-      ]
-    ],
-    [
-      [
-        7,
-        7
-      ],
-      [
         5,
-        5
-      ],
-      [
-        6,
-        5
-      ],
-      [
-        8,
-        6
-      ]
-    ],
-    [
-      [
-        7,
-        7
-      ],
-      [
-        8,
-        9
-      ],
-      [
-        6,
-        10
-      ],
-      [
-        5,
-        5
-      ]
-    ],
-    [
-      [
-        7,
-        7
-      ],
-      [
-        6,
-        7
-      ],
-      [
-        4,
-        5
-      ],
-      [
-        9,
-        9
-      ]
-    ],
-    [
-      [
-        7,
-        7
-      ],
-      [
-        6,
-        7
-      ],
-      [
-        7,
-        9
-      ],
-      [
-        6,
-        10
-      ]
-    ],
-    [
-      [
-        7,
-        7
-      ],
-      [
-        6,
-        7
-      ],
-      [
-        6,
-        5
-      ],
-      [
-        8,
         8
-      ]
-    ],
-    [
-      [
-        7,
-        7
       ],
       [
         8,
-        7
-      ],
-      [
-        9,
-        9
-      ],
-      [
-        9,
-        6
-      ]
-    ],
-    [
-      [
-        7,
         7
       ],
       [
         6,
-        6
-      ],
-      [
-        6,
-        4
-      ],
-      [
-        8,
-        8
-      ]
-    ],
-    [
-      [
-        7,
-        7
-      ],
-      [
-        9,
-        9
-      ],
-      [
-        8,
-        7
-      ],
-      [
-        8,
         9
       ]
     ],
     [
       [
         7,
-        7
-      ],
-      [
-        6,
         7
       ],
       [
         9,
         6
-      ],
-      [
-        7,
-        9
-      ]
-    ],
-    [
-      [
-        7,
-        7
       ],
       [
         7,
@@ -221,11 +58,7 @@
       ],
       [
         9,
-        4
-      ],
-      [
-        8,
-        2
+        9
       ]
     ],
     [
@@ -234,15 +67,15 @@
         7
       ],
       [
-        6,
+        8,
         9
       ],
       [
-        5,
-        6
+        9,
+        9
       ],
       [
-        8,
+        7,
         10
       ]
     ],
@@ -253,65 +86,29 @@
       ],
       [
         5,
-        8
-      ],
-      [
-        4,
-        7
-      ],
-      [
-        3,
-        10
-      ]
-    ],
-    [
-      [
-        7,
-        7
-      ],
-      [
-        8,
-        8
-      ],
-      [
-        8,
-        9
-      ],
-      [
-        6,
-        9
-      ]
-    ],
-    [
-      [
-        7,
-        7
-      ],
-      [
-        9,
-        8
-      ],
-      [
-        7,
-        9
-      ],
-      [
-        8,
-        8
-      ]
-    ],
-    [
-      [
-        7,
         7
       ],
       [
         6,
+        8
+      ],
+      [
+        5,
+        8
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        7,
         5
       ],
       [
-        7,
-        6
+        5,
+        8
       ],
       [
         4,
@@ -325,15 +122,15 @@
       ],
       [
         8,
-        9
-      ],
-      [
-        6,
-        9
+        6
       ],
       [
         5,
-        10
+        6
+      ],
+      [
+        10,
+        7
       ]
     ],
     [
@@ -342,16 +139,52 @@
         7
       ],
       [
-        6,
+        5,
+        6
+      ],
+      [
+        8,
         5
       ],
       [
-        5,
+        10,
         3
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
+        5
+      ],
+      [
+        10,
+        6
       ],
       [
         5,
-        1
+        9
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        5,
+        6
+      ],
+      [
+        4,
+        6
+      ],
+      [
+        7,
+        5
       ]
     ],
     [
@@ -364,11 +197,29 @@
         6
       ],
       [
-        11,
+        8,
         4
       ],
       [
         6,
+        7
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        7
+      ],
+      [
+        6,
+        8
+      ],
+      [
+        8,
         5
       ]
     ],
@@ -378,52 +229,124 @@
         7
       ],
       [
+        6,
+        8
+      ],
+      [
+        5,
+        8
+      ],
+      [
+        9,
+        5
+      ]
+    ],
+    [
+      [
         7,
+        7
+      ],
+      [
+        8,
+        7
+      ],
+      [
+        10,
+        8
+      ],
+      [
+        12,
+        8
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        6
+      ],
+      [
+        6,
+        4
+      ],
+      [
+        7,
+        4
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        7,
+        8
+      ],
+      [
+        8,
+        8
+      ],
+      [
+        5,
+        10
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
         9
       ],
       [
-        6,
-        5
-      ],
-      [
-        8,
-        4
-      ]
-    ],
-    [
-      [
-        7,
-        7
-      ],
-      [
-        8,
-        8
-      ],
-      [
-        10,
-        10
-      ],
-      [
-        9,
-        6
-      ]
-    ],
-    [
-      [
-        7,
-        7
-      ],
-      [
-        8,
-        8
-      ],
-      [
         5,
         5
       ],
       [
         10,
-        10
+        9
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        5
+      ],
+      [
+        5,
+        4
+      ],
+      [
+        4,
+        3
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
+        7
+      ],
+      [
+        9,
+        6
+      ],
+      [
+        6,
+        6
       ]
     ],
     [
@@ -440,8 +363,26 @@
         7
       ],
       [
-        3,
+        4,
+        6
+      ]
+    ],
+    [
+      [
+        7,
         7
+      ],
+      [
+        9,
+        9
+      ],
+      [
+        10,
+        9
+      ],
+      [
+        7,
+        6
       ]
     ]
   ],
@@ -453,21 +394,64 @@
           7
         ],
         [
-          8,
-          9
-        ],
-        [
-          7,
-          6
-        ],
-        [
-          9,
+          5,
           8
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          6,
+          9
         ]
       ],
       "best_black": 4006,
       "best_white": 4006,
-      "gap": 0
+      "gap": 0,
+      "kind": "sharp",
+      "pool_candidate": 0,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 2,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 0,
+        "confirm_v44_v37": 0
+      },
+      "white_wins_8games": 3,
+      "white_win_rate_8games": 0.375
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          6
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          9,
+          9
+        ]
+      ],
+      "best_black": 4006,
+      "best_white": 4006,
+      "gap": 0,
+      "kind": "sharp",
+      "pool_candidate": 1,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 2,
+        "confirm_v52_v27": 0,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 0
+      },
+      "white_wins_8games": 3,
+      "white_win_rate_8games": 0.375
     },
     {
       "moves_xy": [
@@ -477,20 +461,30 @@
         ],
         [
           8,
-          5
+          9
         ],
         [
-          6,
-          4
+          9,
+          9
         ],
         [
           7,
-          2
+          10
         ]
       ],
-      "best_black": 164,
-      "best_white": 164,
-      "gap": 0
+      "best_black": 4006,
+      "best_white": 4006,
+      "gap": 0,
+      "kind": "sharp",
+      "pool_candidate": 3,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 2,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 0
+      },
+      "white_wins_8games": 4,
+      "white_win_rate_8games": 0.5
     },
     {
       "moves_xy": [
@@ -500,204 +494,30 @@
         ],
         [
           5,
-          5
-        ],
-        [
-          6,
-          5
-        ],
-        [
-          8,
-          6
-        ]
-      ],
-      "best_black": 164,
-      "best_white": 164,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
           7
         ],
         [
-          8,
-          9
-        ],
-        [
           6,
-          10
+          8
         ],
         [
           5,
-          5
-        ]
-      ],
-      "best_black": 164,
-      "best_white": 164,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          6,
-          7
-        ],
-        [
-          4,
-          5
-        ],
-        [
-          9,
-          9
-        ]
-      ],
-      "best_black": 164,
-      "best_white": 164,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          6,
-          7
-        ],
-        [
-          7,
-          9
-        ],
-        [
-          6,
-          10
-        ]
-      ],
-      "best_black": 4006,
-      "best_white": 4006,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          6,
-          7
-        ],
-        [
-          6,
-          5
-        ],
-        [
-          8,
           8
         ]
       ],
-      "best_black": 164,
-      "best_white": 164,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          8,
-          7
-        ],
-        [
-          9,
-          9
-        ],
-        [
-          9,
-          6
-        ]
-      ],
       "best_black": 4006,
       "best_white": 4006,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          6,
-          6
-        ],
-        [
-          6,
-          4
-        ],
-        [
-          8,
-          8
-        ]
-      ],
-      "best_black": 164,
-      "best_white": 164,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          9,
-          9
-        ],
-        [
-          8,
-          7
-        ],
-        [
-          8,
-          9
-        ]
-      ],
-      "best_black": 4006,
-      "best_white": 4006,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          6,
-          7
-        ],
-        [
-          9,
-          6
-        ],
-        [
-          7,
-          9
-        ]
-      ],
-      "best_black": 164,
-      "best_white": 164,
-      "gap": 0
+      "gap": 0,
+      "kind": "sharp",
+      "pool_candidate": 4,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 2,
+        "confirm_v44_v37": 0
+      },
+      "white_wins_8games": 4,
+      "white_win_rate_8games": 0.5
     },
     {
       "moves_xy": [
@@ -708,48 +528,6 @@
         [
           7,
           5
-        ],
-        [
-          9,
-          4
-        ],
-        [
-          8,
-          2
-        ]
-      ],
-      "best_black": 164,
-      "best_white": 164,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          6,
-          9
-        ],
-        [
-          5,
-          6
-        ],
-        [
-          8,
-          10
-        ]
-      ],
-      "best_black": 164,
-      "best_white": 164,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
         ],
         [
           5,
@@ -758,107 +536,54 @@
         [
           4,
           7
-        ],
-        [
-          3,
-          10
-        ]
-      ],
-      "best_black": 4006,
-      "best_white": 4006,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          8,
-          8
-        ],
-        [
-          8,
-          9
-        ],
-        [
-          6,
-          9
         ]
       ],
       "best_black": 164,
       "best_white": 164,
-      "gap": 0
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 7,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 0,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 1
+      },
+      "white_wins_8games": 3,
+      "white_win_rate_8games": 0.375
     },
     {
       "moves_xy": [
         [
           7,
           7
-        ],
-        [
-          9,
-          8
-        ],
-        [
-          7,
-          9
         ],
         [
           8,
-          8
-        ]
-      ],
-      "best_black": 4006,
-      "best_white": 4006,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          6,
-          5
-        ],
-        [
-          7,
           6
         ],
         [
-          4,
-          7
-        ]
-      ],
-      "best_black": 4006,
-      "best_white": 4006,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          8,
-          9
-        ],
-        [
-          6,
-          9
-        ],
-        [
           5,
-          10
+          6
+        ],
+        [
+          10,
+          7
         ]
       ],
       "best_black": 164,
       "best_white": 164,
-      "gap": 0
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 15,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 1
+      },
+      "white_wins_8games": 4,
+      "white_win_rate_8games": 0.5
     },
     {
       "moves_xy": [
@@ -867,21 +592,97 @@
           7
         ],
         [
-          6,
+          5,
+          6
+        ],
+        [
+          8,
           5
         ],
         [
-          5,
+          10,
           3
-        ],
-        [
-          5,
-          1
         ]
       ],
       "best_black": 164,
       "best_white": 164,
-      "gap": 0
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 18,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 2,
+        "confirm_v52_v44_fresh": 0,
+        "confirm_v44_v37": 2
+      },
+      "white_wins_8games": 5,
+      "white_win_rate_8games": 0.625
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          10,
+          6
+        ],
+        [
+          5,
+          9
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 20,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 2,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 0,
+        "confirm_v44_v37": 0
+      },
+      "white_wins_8games": 3,
+      "white_win_rate_8games": 0.375
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          7,
+          5
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 28,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 2,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 1
+      },
+      "white_wins_8games": 5,
+      "white_win_rate_8games": 0.625
     },
     {
       "moves_xy": [
@@ -894,17 +695,159 @@
           6
         ],
         [
-          11,
+          8,
           4
         ],
         [
           6,
+          7
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 29,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 1
+      },
+      "white_wins_8games": 4,
+      "white_win_rate_8games": 0.5
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          8,
+          5
+        ]
+      ],
+      "best_black": 4006,
+      "best_white": 4006,
+      "gap": 0,
+      "kind": "sharp",
+      "pool_candidate": 32,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 1
+      },
+      "white_wins_8games": 4,
+      "white_win_rate_8games": 0.5
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          9,
           5
         ]
       ],
       "best_black": 164,
       "best_white": 164,
-      "gap": 0
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 58,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 1
+      },
+      "white_wins_8games": 4,
+      "white_win_rate_8games": 0.5
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          12,
+          8
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 70,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 0,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 2
+      },
+      "white_wins_8games": 4,
+      "white_win_rate_8games": 0.5
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          7,
+          4
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 78,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 0,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 2
+      },
+      "white_wins_8games": 4,
+      "white_win_rate_8games": 0.5
     },
     {
       "moves_xy": [
@@ -914,66 +857,129 @@
         ],
         [
           7,
+          8
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          5,
+          10
+        ]
+      ],
+      "best_black": 4006,
+      "best_white": 4006,
+      "gap": 0,
+      "kind": "sharp",
+      "pool_candidate": 80,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 2,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 1
+      },
+      "white_wins_8games": 5,
+      "white_win_rate_8games": 0.625
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
           9
         ],
         [
-          6,
-          5
-        ],
-        [
-          8,
-          4
-        ]
-      ],
-      "best_black": 164,
-      "best_white": 164,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          8,
-          8
-        ],
-        [
-          10,
-          10
-        ],
-        [
-          9,
-          6
-        ]
-      ],
-      "best_black": 164,
-      "best_white": 164,
-      "gap": 0
-    },
-    {
-      "moves_xy": [
-        [
-          7,
-          7
-        ],
-        [
-          8,
-          8
-        ],
-        [
           5,
           5
         ],
         [
           10,
-          10
+          9
         ]
       ],
-      "best_black": 406,
-      "best_white": 406,
-      "gap": 0
+      "best_black": 4006,
+      "best_white": 4006,
+      "gap": 0,
+      "kind": "sharp",
+      "pool_candidate": 94,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 2
+      },
+      "white_wins_8games": 5,
+      "white_win_rate_8games": 0.625
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          5,
+          4
+        ],
+        [
+          4,
+          3
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 97,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 1
+      },
+      "white_wins_8games": 4,
+      "white_win_rate_8games": 0.5
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          7
+        ],
+        [
+          9,
+          6
+        ],
+        [
+          6,
+          6
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 100,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 1
+      },
+      "white_wins_8games": 4,
+      "white_win_rate_8games": 0.5
     },
     {
       "moves_xy": [
@@ -990,13 +996,56 @@
           7
         ],
         [
-          3,
-          7
+          4,
+          6
         ]
       ],
       "best_black": 164,
       "best_white": 164,
-      "gap": 0
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 113,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 2,
+        "confirm_v52_v27": 0,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 1
+      },
+      "white_wins_8games": 4,
+      "white_win_rate_8games": 0.5
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          10,
+          9
+        ],
+        [
+          7,
+          6
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "kind": "quiet",
+      "pool_candidate": 119,
+      "white_wins_by_pair": {
+        "screen_v52_v44": 1,
+        "confirm_v52_v27": 1,
+        "confirm_v52_v44_fresh": 1,
+        "confirm_v44_v37": 1
+      },
+      "white_wins_8games": 4,
+      "white_win_rate_8games": 0.5
     }
   ]
 }

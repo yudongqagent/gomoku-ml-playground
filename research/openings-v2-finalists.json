@@ -1,0 +1,893 @@
+{
+  "meta": {
+    "purpose": "openings v2 FINAL set (20 openings) \u2014 selected on 6-game White totals (screen v52/v44 + confirm v52/v27 + confirm v52/v44 fresh seeds); v44/v37 check runs on this file",
+    "selection_rule": "14x 3/6 + 3x 4/6 + 3x 2/6 (lowest pool index first within each band), quiet/sharp 13/7; 6-game White sum 60/120 = 0.50; excluded: 1/6 (pool 46, 55) and all non-confirmed candidates",
+    "pool_file": "research/openings-v2-candidates.json",
+    "count": 20,
+    "superseded": "SUPERSEDED 2026-11-28: this was the interim 6-game selection (White 60/120). The shipped v2 set in research/openings-balanced.json was RE-SELECTED on full 8-game totals (White 80/160) after the v44/v37 check ran on all 40 confirm openings \u2014 see research/openings-v2-validation.md. Kept as an audit trail only."
+  },
+  "openings": [
+    [
+      [
+        7,
+        7
+      ],
+      [
+        5,
+        8
+      ],
+      [
+        8,
+        7
+      ],
+      [
+        6,
+        9
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
+        6
+      ],
+      [
+        7,
+        5
+      ],
+      [
+        9,
+        9
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        8,
+        9
+      ],
+      [
+        9,
+        9
+      ],
+      [
+        7,
+        10
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        7,
+        5
+      ],
+      [
+        5,
+        8
+      ],
+      [
+        4,
+        7
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        9
+      ],
+      [
+        7,
+        10
+      ],
+      [
+        8,
+        7
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        8,
+        6
+      ],
+      [
+        5,
+        6
+      ],
+      [
+        10,
+        7
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        5,
+        6
+      ],
+      [
+        8,
+        5
+      ],
+      [
+        10,
+        3
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
+        5
+      ],
+      [
+        10,
+        6
+      ],
+      [
+        5,
+        9
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        5,
+        9
+      ],
+      [
+        6,
+        10
+      ],
+      [
+        7,
+        6
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
+        5
+      ],
+      [
+        10,
+        3
+      ],
+      [
+        11,
+        6
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        5,
+        6
+      ],
+      [
+        4,
+        6
+      ],
+      [
+        7,
+        5
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
+        6
+      ],
+      [
+        8,
+        4
+      ],
+      [
+        6,
+        7
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        7
+      ],
+      [
+        6,
+        8
+      ],
+      [
+        8,
+        5
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        5
+      ],
+      [
+        9,
+        9
+      ],
+      [
+        9,
+        5
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
+        5
+      ],
+      [
+        10,
+        3
+      ],
+      [
+        6,
+        8
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        8
+      ],
+      [
+        5,
+        8
+      ],
+      [
+        9,
+        5
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        8,
+        6
+      ],
+      [
+        10,
+        5
+      ],
+      [
+        12,
+        5
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        8,
+        9
+      ],
+      [
+        5,
+        8
+      ],
+      [
+        4,
+        10
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        6,
+        8
+      ],
+      [
+        5,
+        8
+      ],
+      [
+        8,
+        9
+      ]
+    ],
+    [
+      [
+        7,
+        7
+      ],
+      [
+        9,
+        9
+      ],
+      [
+        7,
+        6
+      ],
+      [
+        6,
+        9
+      ]
+    ]
+  ],
+  "details": [
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          6,
+          9
+        ]
+      ],
+      "best_black": 4006,
+      "best_white": 4006,
+      "gap": 0,
+      "pool_candidate": 0,
+      "screen_white_wins": 2,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          6
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          9,
+          9
+        ]
+      ],
+      "best_black": 4006,
+      "best_white": 4006,
+      "gap": 0,
+      "pool_candidate": 1,
+      "screen_white_wins": 2,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          9
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          7,
+          10
+        ]
+      ],
+      "best_black": 4006,
+      "best_white": 4006,
+      "gap": 0,
+      "pool_candidate": 3,
+      "screen_white_wins": 1,
+      "white_6game": 4
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          4,
+          7
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 7,
+      "screen_white_wins": 1,
+      "white_6game": 2
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          7,
+          10
+        ],
+        [
+          8,
+          7
+        ]
+      ],
+      "best_black": 4006,
+      "best_white": 4006,
+      "gap": 0,
+      "pool_candidate": 11,
+      "screen_white_wins": 1,
+      "white_6game": 2
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          10,
+          7
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 15,
+      "screen_white_wins": 1,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          8,
+          5
+        ],
+        [
+          10,
+          3
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 18,
+      "screen_white_wins": 1,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          10,
+          6
+        ],
+        [
+          5,
+          9
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 20,
+      "screen_white_wins": 2,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          6,
+          10
+        ],
+        [
+          7,
+          6
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 23,
+      "screen_white_wins": 1,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          10,
+          3
+        ],
+        [
+          11,
+          6
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 24,
+      "screen_white_wins": 2,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          7,
+          5
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 28,
+      "screen_white_wins": 2,
+      "white_6game": 4
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          6
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 29,
+      "screen_white_wins": 1,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          8,
+          5
+        ]
+      ],
+      "best_black": 4006,
+      "best_white": 4006,
+      "gap": 0,
+      "pool_candidate": 32,
+      "screen_white_wins": 1,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          9,
+          5
+        ]
+      ],
+      "best_black": 4006,
+      "best_white": 4006,
+      "gap": 0,
+      "pool_candidate": 42,
+      "screen_white_wins": 1,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          10,
+          3
+        ],
+        [
+          6,
+          8
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 52,
+      "screen_white_wins": 1,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          9,
+          5
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 58,
+      "screen_white_wins": 1,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          10,
+          5
+        ],
+        [
+          12,
+          5
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 61,
+      "screen_white_wins": 1,
+      "white_6game": 2
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          9
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          4,
+          10
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 64,
+      "screen_white_wins": 1,
+      "white_6game": 3
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          8,
+          9
+        ]
+      ],
+      "best_black": 164,
+      "best_white": 164,
+      "gap": 0,
+      "pool_candidate": 66,
+      "screen_white_wins": 2,
+      "white_6game": 4
+    },
+    {
+      "moves_xy": [
+        [
+          7,
+          7
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          6,
+          9
+        ]
+      ],
+      "best_black": 4006,
+      "best_white": 4006,
+      "gap": 0,
+      "pool_candidate": 73,
+      "screen_white_wins": 1,
+      "white_6game": 3
+    }
+  ]
+}

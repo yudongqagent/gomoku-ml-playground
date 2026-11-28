@@ -213,7 +213,9 @@ def _play_prefix(args, n_games):
         else:
             a_is_black = (i % 2 == 0)
             a_colour = game.BLACK if a_is_black else game.WHITE
-            opening = openings[i % len(openings)]
+            # Paired rotation, mirroring the driver (openings fix
+            # 2026-11-28): games 2k/2k+1 share opening k.
+            opening = openings[(i // 2) % len(openings)]
             board, turn = selfplay_batch.apply_opening(opening)
             if a_is_black:
                 winner, moves = selfplay_batch.play_recorded_game(

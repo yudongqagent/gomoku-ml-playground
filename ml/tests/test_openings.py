@@ -4,10 +4,13 @@ The mirror-match determinism collapse persists despite per-game
 seeding: v36-vs-v8 produced only 21 unique games in 100 — engine
 similarity, not RNG sharing. ``--openings <file>`` starts every
 normal-rules game from a fixed opening position instead of the
-empty board: game ``i`` uses ``openings[i % len(openings)]``.
-The opening is colour-agnostic (move 1 is Black's stone regardless
-of which engine is Black that game) and the usual colour
-alternation is preserved, so fairness is unchanged.
+empty board: games ``2k``/``2k+1`` use the SAME opening
+(``openings[(i // 2) % len(openings)]`` — paired rotation, so each
+opening is played once per colour per leg; the old ``i % len``
+scheme confounded colour and opening). The opening is
+colour-agnostic (move 1 is Black's stone regardless of which
+engine is Black that game) and the usual colour alternation is
+preserved, so fairness is unchanged.
 """
 
 import argparse
@@ -95,8 +98,9 @@ def _batch_args(out, openings=None, games=2, swap_rule=False):
 
 def test_openings_batch_records_openings_and_uses_rotation(tmp_path):
     """Two v0-vs-v0 games with openings: each record carries its
-    opening, moves start with the opening, and games 0/1 use
-    openings[0]/openings[1] (rotation by game index)."""
+    opening, moves start with the opening, and games 0/1 use the
+    SAME opening (paired rotation: ``openings[(i // 2) %
+    len(openings)]``) with A Black in game 0 and White in game 1."""
     out = str(tmp_path / "batch.json")
     result = selfplay_batch.run_batch(
         _batch_args(out, openings=OPENINGS_FILE, games=2))
@@ -107,8 +111,8 @@ def test_openings_batch_records_openings_and_uses_rotation(tmp_path):
     recs = result["records"]
     assert len(recs) == 2
     for i, rec in enumerate(recs):
-        assert rec["opening"] == openings[i]
-        assert rec["moves"][:4] == openings[i]
+        assert rec["opening"] == openings[0]
+        assert rec["moves"][:4] == openings[0]
         assert rec["plies"] == len(rec["moves"])
     # Colour alternation is preserved with openings.
     assert recs[0]["a_colour"] == "black"
@@ -119,8 +123,9 @@ def test_openings_batch_resume_reproduces_uninterrupted(tmp_path):
     """A 4-game run interrupted after 2 games (simulated by
     truncating the flushed JSON to 2 records, complete=false)
     resumes to 4 games and reproduces the uninterrupted 4-game
-    run exactly (full move lists), with games 2/3 using
-    openings[2]/openings[3]."""
+    run exactly (full move lists), with games 0/1 sharing
+    openings[0] and games 2/3 sharing openings[1] (paired
+    rotation)."""
     out = str(tmp_path / "batch.json")
     out2 = str(tmp_path / "batch2.json")
     fresh = selfplay_batch.run_batch(
@@ -144,8 +149,31 @@ def test_openings_batch_resume_reproduces_uninterrupted(tmp_path):
     assert [r["moves"] for r in resumed["records"]] == [
         r["moves"] for r in fresh["records"]]
     openings, _ = selfplay_batch.load_openings(OPENINGS_FILE)
-    assert resumed["records"][2]["opening"] == openings[2]
-    assert resumed["records"][3]["opening"] == openings[3]
+    assert resumed["records"][2]["opening"] == openings[1]
+    assert resumed["records"][3]["opening"] == openings[1]
+
+
+def test_openings_batch_paired_rotation_40_game_leg(tmp_path):
+    """Openings-fix (2026-11-28): a 40-game leg over a 20-opening
+    file gives each opening exactly twice — once with A as Black
+    and once with A as White. (v0-vs-v0 games are fast; the
+    assignment, not the result, is under test.)"""
+    doc = json.loads(open(BALANCED_FILE, encoding="utf-8").read())
+    assert len(doc["openings"]) == 20
+    out = str(tmp_path / "batch.json")
+    result = selfplay_batch.run_batch(
+        _batch_args(out, openings=BALANCED_FILE, games=40))
+    assert result["complete"] is True
+    openings, _ = selfplay_batch.load_openings(BALANCED_FILE)
+    seen: dict[tuple, set] = {}
+    for i, rec in enumerate(result["records"]):
+        key = tuple(rec["opening"])
+        seen.setdefault(key, set()).add(rec["a_colour"])
+        assert key == tuple(openings[(i // 2) % 20])
+        assert rec["a_colour"] == ("black" if i % 2 == 0 else "white")
+    assert len(seen) == 20
+    for colours in seen.values():
+        assert colours == {"black", "white"}
 
 
 def test_openings_rejected_with_swap_rule(tmp_path):
@@ -158,16 +186,22 @@ def test_openings_rejected_with_swap_rule(tmp_path):
 # --- Evaluation audit (2026-11-25): balanced + swap openings sets ---
 
 def test_shipped_balanced_openings_file_is_valid():
-    """The balanced set (default for normal-rules legs): 24 four-move
+    """The balanced set (default for normal-rules legs): 20 four-move
     openings, all distinct, all with attack gap 0 (best Black attack
     == best White attack), no opening ends the game, none holds an
     open four. The empty-board start let deterministic heuristic
     engines replay the same lines (v63 clause-1: 31 unique games in
-    100), so the nominal CI overstated the precision."""
+    100), so the nominal CI overstated the precision. The set was
+    rebuilt 2026-11-28 (openings v2): the v1 gap-0 set was NOT
+    balanced in play (White collapsed from it), so the v2 set was
+    selected by played White win rate — see
+    research/openings-v2-validation.md. 20 openings (not 24) so the
+    paired rotation gives each opening exactly twice per 40-game
+    leg, once per colour."""
     openings, digest = selfplay_batch.load_openings(BALANCED_FILE)
-    assert len(openings) == 24
+    assert len(openings) == 20
     assert len(digest) == 64  # sha256 hex
-    assert len({tuple(o) for o in openings}) == 24
+    assert len({tuple(o) for o in openings}) == 20
     scorer = scoring.score_attack
     for opening in openings:
         assert len(opening) == 4
@@ -240,18 +274,19 @@ def _batch_args_default(out, games=2, swap_rule=False):
 
 def test_default_openings_used_when_none_given(tmp_path):
     """A normal-rules batch with no --openings uses the balanced set
-    (24 openings) and records its hash; the uniqueness gate is
-    present in the summary."""
+    (20 openings) and records its hash; the uniqueness gate is
+    present in the summary. Games 0/1 share openings[0] (paired
+    rotation)."""
     out = str(tmp_path / "batch.json")
     result = selfplay_batch.run_batch(
         _batch_args_default(out, games=2, swap_rule=False))
     assert result["complete"] is True
-    assert result["openings_count"] == 24
+    assert result["openings_count"] == 20
     assert result["openings_hash"] is not None
     assert result["uniqueness_gate"]["total_games"] == 2
     openings, _ = selfplay_batch.load_openings(BALANCED_FILE)
     assert result["records"][0]["opening"] == openings[0]
-    assert result["records"][1]["opening"] == openings[1]
+    assert result["records"][1]["opening"] == openings[0]
 
 
 def test_default_swap_openings_used_and_picks_balanced(tmp_path):

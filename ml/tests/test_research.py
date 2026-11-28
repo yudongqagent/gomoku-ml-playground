@@ -76,8 +76,9 @@ def test_play_match_records_openings_and_swap_picks():
     assert "records" in r
     assert len(r["records"]) == 4
     for i, rec in enumerate(r["records"]):
-        assert rec["opening"] == openings[i % 2]
-        assert rec["moves"][:4] == openings[i % 2]
+        # Paired rotation: games 2k/2k+1 share opening k.
+        assert rec["opening"] == openings[(i // 2) % 2]
+        assert rec["moves"][:4] == openings[(i // 2) % 2]
         assert rec["a_colour"] in ("black", "white")
         assert rec["winner"] in ("black", "white", "draw")
     # Swap legs record the fixed openings and the pick distribution.
@@ -96,6 +97,73 @@ def test_play_match_records_openings_and_swap_picks():
         assert rec["second_colour"] in ("black", "white")
         assert rec["a_colour"] in ("black", "white")
     assert r["swap_choices"]["black"] + r["swap_choices"]["white"] == 2
+
+
+def _first_empty_chooser(board, player):
+    """Stub chooser for rotation tests: first empty cell, row-major.
+
+    Both sides playing it fills row 0 first, so Black wins in 9
+    plies — games are milliseconds, and the winner is irrelevant;
+    only the opening/colour assignment is under test."""
+    for m in range(game.SIZE * game.SIZE):
+        if board.flat[m] == game.EMPTY:
+            return m
+    raise AssertionError("no empty cell")
+
+
+def _stub_openings(n):
+    """``n`` distinct 4-move openings far from row 0 (so the stub
+    chooser's row-0 win does not interact with the opening)."""
+    out = []
+    for k in range(n):
+        y = 7 + (k % 4)
+        x = 5 + (k // 4) * 2
+        out.append([game.xy_to_move(x, y), game.xy_to_move(x + 1, y),
+                    game.xy_to_move(x, y + 1), game.xy_to_move(x + 1, y + 1)])
+    assert len({tuple(o) for o in out}) == n
+    return out
+
+
+def test_play_match_paired_rotation_40_game_leg():
+    """Openings-fix (2026-11-28): in a 40-game leg with 20 openings,
+    paired rotation gives each opening exactly twice — once with A
+    as Black and once with A as White. The old ``i % len`` scheme
+    used opening ``j`` in games ``j`` and ``j+24`` (same parity),
+    so each opening was only ever played by A in one colour."""
+    openings = _stub_openings(20)
+    r = research.play_match(_first_empty_chooser, _first_empty_chooser,
+                            games=40, openings=openings, record_games=True)
+    assert len(r["records"]) == 40
+    seen: dict[tuple, set] = {}
+    for i, rec in enumerate(r["records"]):
+        key = tuple(rec["opening"])
+        seen.setdefault(key, set()).add(rec["a_colour"])
+        # Games 2k/2k+1 share opening k, colours alternating.
+        assert key == tuple(openings[(i // 2) % 20])
+        assert rec["a_colour"] == ("black" if i % 2 == 0 else "white")
+    assert len(seen) == 20
+    for colours in seen.values():
+        assert colours == {"black", "white"}
+
+
+def test_play_match_paired_rotation_odd_game_count():
+    """A 100-game clause-1 match over 20 openings: the 40-game
+    pairing cycle repeats, so openings 0-9 appear 6 times and
+    10-19 appear 4 times — but every opening is colour-balanced
+    (equal Black/White counts), which the old scheme could not
+    guarantee for any opening."""
+    openings = _stub_openings(20)
+    r = research.play_match(_first_empty_chooser, _first_empty_chooser,
+                            games=100, openings=openings, record_games=True)
+    from collections import Counter
+    counts: dict[tuple, Counter] = {}
+    for rec in r["records"]:
+        counts.setdefault(tuple(rec["opening"]), Counter())[
+            rec["a_colour"]] += 1
+    assert len(counts) == 20
+    for c in counts.values():
+        assert sum(c.values()) in (4, 6)
+        assert c["black"] == c["white"]
 
 
 def test_ladder_leg_records_games():

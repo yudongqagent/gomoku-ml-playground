@@ -39,8 +39,14 @@ Opening variety (ML batch 4 tooling): ``--openings <file>`` starts
 every normal-rules game from a fixed opening position instead of
 the empty board, to fix the mirror-match determinism collapse
 (v36-vs-v8 produced only 21 unique games in 100 despite per-game
-seeding — engine similarity, not RNG sharing). Game ``i`` uses
-``openings[i % len(openings)]``; the opening is colour-agnostic
+seeding — engine similarity, not RNG sharing). Games ``2k`` and
+``2k+1`` use the SAME opening (``openings[(i // 2) %
+len(openings)]`` — paired rotation, so each opening is played once
+with A as Black and once with A as White within a leg; the old
+``openings[i % len(openings)]`` scheme confounded colour and
+opening when the count was even: with 24 openings in a 40-game
+leg each opening was only ever played by A in one colour). The
+opening is colour-agnostic
 (move 1 is Black's stone regardless of which engine is Black that
 game) and the usual colour alternation is preserved, so fairness
 is unchanged. The file is a JSON object with an ``openings`` list
@@ -52,7 +58,7 @@ refuses to resume a prior run that used different openings.
 vary their openings via placement).
 
 Openings default (evaluation audit, 2026-11-25): normal-rules legs
-now use ``research/openings-balanced.json`` (24 four-move openings,
+now use ``research/openings-balanced.json`` (20 four-move openings,
 attack gap 0) unless ``--openings`` names another file or
 ``--no-openings`` requests the empty board. The empty-board start
 let deterministic heuristic engines replay the same lines (v63
@@ -406,7 +412,10 @@ def run_batch(args) -> dict:
             a_is_black = (i % 2 == 0)
             a_colour = game.BLACK if a_is_black else game.WHITE
             if openings is not None:
-                opening = openings[i % len(openings)]
+                # Paired rotation (see module docstring): games 2k
+                # and 2k+1 share opening k, so each opening is
+                # played once per colour per leg.
+                opening = openings[(i // 2) % len(openings)]
                 board, player_to_move = apply_opening(opening)
             else:
                 opening = []

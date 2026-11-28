@@ -1,6 +1,19 @@
 #!/usr/bin/env python3
 """Generate the balanced openings sets (evaluation-audit fix).
 
+NOTE (2026-11-28, openings v2): the v1 balanced set this script
+writes (24 gap-0 openings) was SUPERSEDED — gap 0 does not imply
+balanced in play (White collapsed from the v1 set), and the
+replacement v2 set (20 openings, selected by played White win
+rate) lives in ``research/openings-balanced.json`` with its
+validation in ``research/openings-v2-validation.md``. The sampler
+below (``gen_balanced`` / ``sample_4move_opening``) is still the
+v2 candidate sampler (reused by
+``ml/scripts/sample_openings_v2.py``), but do NOT re-run this
+script's ``main()`` — it would overwrite the validated v2 file
+with the v1 set (and regenerate the swap set). The swap set it
+writes is unchanged and still current.
+
 Two files, both in the openings-ml4.json format
 (``{"openings": [[[x, y], ...], ...]}``) plus a ``meta`` block
 documenting the balance criterion:
