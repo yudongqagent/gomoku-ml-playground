@@ -48,6 +48,33 @@ origin/master, iff ALL of these hold:
 If the bar is not met, the version is recorded in `VERSIONS.md` as
 rejected and is NOT pushed.
 
+### Current clause-2 references (openings-v2 framework, 2026-11-28)
+
+Clause 2 ("Ladder Elo up") is judged against the champion's own
+re-baseline ladder under the current openings framework — the
+reference moves when the framework moves, so a version is always
+compared against what the champion itself achieves under the same
+openings. The references below are prospective from the next batch;
+no past verdict changes.
+
+- **Normal-rules openings:** `research/openings-balanced.json` v2 —
+  20 four-move openings balanced in play (overall White 80/160 =
+  0.50 over 8 validation games/opening), with paired colour rotation
+  (each opening once per colour per 40-game leg). The v1 set (24
+  openings, attack gap 0 only) was NOT balanced in play — White
+  collapsed from it — and is superseded.
+- **Heuristic track:** v52's re-baseline under openings v2
+  (`research/iterations/ladder-v52-v2.json`, seed 200) — legs
+  random 40-0, heuristic 29-11, mcts 26-14; Elo 168.4 [50.1,
+  286.7]. A future heuristic version must beat these legs and
+  Elo 168.4.
+- **ML track:** v44's re-baseline under openings v2
+  (`research/iterations/ladder-v44-v2.json`, seed 300) — legs
+  random 40-0, heuristic 21-18-1, mcts 20-19-1; Elo 26.1
+  [-80.2, 132.4]. A future ML version must beat these legs and
+  Elo 26.1, and (per the pre-registered ML batch 7 rule) must not
+  lose the MCTS leg.
+
 > **Future consideration (not a batch-1 change):** iteration 2 found
 > that v1 beats the baseline clearly under swap rules (0.635, CI
 > excludes 0.50) while the normal-rules head-to-head was 0.55 with
