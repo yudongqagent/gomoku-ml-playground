@@ -295,15 +295,29 @@ def play_match(
 
     ``openings`` (evaluation audit): for normal-rules matches, a
     list of fixed openings (each a list of flat moves, Black first)
-    rotated across games — game ``i`` uses ``openings[i %
-    len(openings)]``. Starting every game from the empty board lets
+    rotated across games in PAIRS — games ``2k`` and ``2k+1`` use
+    the SAME opening (``openings[(i // 2) % len(openings)]``), so
+    each opening is played once with A as Black and once with A as
+    White within a leg. The old scheme (``openings[i %
+    len(openings)]``) confounded colour and opening whenever the
+    openings count is even: with 24 openings and a 40-game leg,
+    opening ``j`` was used in games ``j`` and ``j+24`` — the same
+    parity, so A played the same colour in both, and each opening
+    was only ever played by A in one colour. Paired rotation
+    requires the openings count to divide the leg length evenly by
+    2: the balanced set has 20 openings, so each appears exactly
+    twice per 40-game leg (once per colour); in a 100-game match
+    each appears 4 or 6 times, always colour-balanced (the 40-game
+    pairing cycle repeats 2.5 times). Starting every game from the empty board lets
     deterministic engines replay the same lines (v63 clause-1: 31
     unique games in 100), so the nominal CI overstates the
     precision; varied openings are now the default for every
     battery. ``swap_openings`` is the same idea for swap matches: a
     list of 3-move openings ``[black1, white1, black2]`` (flat
-    moves, play order) rotated across games, replacing the
-    per-game placement generator. The curated set
+    moves, play order) rotated across games — game ``i`` uses
+    ``swap_openings[i % len(swap_openings)]`` (UNCHANGED: the swap
+    judge, not the rotation, decides the colours, and the curated
+    set already yields exact 20/20 colour splits). The curated set
     (``research/openings-swap.json``) mixes tempo-margin-0 and
     tempo-margin-78 openings 50/50, so the judge's pick is a real
     choice instead of the 88%-Black pick the uncurated placement
@@ -364,7 +378,11 @@ def play_match(
             a_is_black = (i % 2 == 0)
             a_colour = game.BLACK if a_is_black else game.WHITE
             if openings is not None:
-                opening_moves = list(openings[i % len(openings)])
+                # Paired rotation: games 2k/2k+1 share opening k, so
+                # each opening is played once per colour per leg (see
+                # the docstring — the old i % len scheme confounded
+                # colour and opening).
+                opening_moves = list(openings[(i // 2) % len(openings)])
                 board, player_to_move = _apply_opening(opening_moves)
             else:
                 board, player_to_move = game.empty_board(), game.BLACK

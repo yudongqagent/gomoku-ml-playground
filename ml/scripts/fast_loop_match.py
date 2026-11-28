@@ -179,8 +179,11 @@ def main() -> int:
         a_is_black = (i % 2 == 0)
         a_colour = game.BLACK if a_is_black else game.WHITE
         if openings:
-            board, turn = apply_opening(openings[i % len(openings)])
-            rec_opening = openings[i % len(openings)]
+            # Paired rotation (see selfplay_batch.py): games 2k and
+            # 2k+1 share opening k, so each opening is played once
+            # per colour per leg.
+            board, turn = apply_opening(openings[(i // 2) % len(openings)])
+            rec_opening = openings[(i // 2) % len(openings)]
         else:
             board = game.empty_board()
             turn = game.BLACK

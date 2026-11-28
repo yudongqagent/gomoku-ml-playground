@@ -54,8 +54,9 @@ def config_path(name: str) -> str:
 
 def default_openings_path() -> str:
     """Absolute path of the balanced openings set for normal-rules
-    matches (evaluation audit, 2026-11-25): 24 four-move openings,
-    each with attack gap 0, rotated across games. See
+    matches (evaluation audit, 2026-11-25; rebuilt as the v2 set
+    2026-11-28 — 20 four-move openings, balanced in play, see
+    ``research/openings-v2-validation.md``). See
     ``research/openings-balanced.json`` and
     ``ml/scripts/generate_balanced_openings.py``."""
     return os.path.join(REPO_ROOT, "research", "openings-balanced.json")
